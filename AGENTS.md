@@ -85,7 +85,7 @@ backend/
 | Session state | Redis (async) | running in Docker |
 | Event bus | Kafka (planned) | Redis Streams as fallback |
 | ASR | Deepgram WebSocket | streaming partial transcripts |
-| TTS | ElevenLabs or Cartesia | streaming, interruptible |
+| TTS | ElevenLabs | streaming, interruptible — **DECIDED** |
 | Vector DB | FAISS (local dev) → Pinecone (prod) | RAG for question bank |
 | Database | PostgreSQL | interview logs, scores |
 | Deployment | Docker + Kubernetes | docker-compose for local |
@@ -147,6 +147,7 @@ backend/
 | Strict prompt chain isolation (JSON-only between agents) | Prevents hallucination propagation and context bleed | 2026-03-30 |
 | Multi-pass scoring (3 evaluations averaged) | LLMs are inconsistent; averaging reduces variance | 2026-03-30 |
 | Start with FAISS for RAG, migrate to Pinecone for prod | Avoid cloud dependency in dev; easy swap via interface | 2026-03-30 |
+| TTS provider: ElevenLabs (not Cartesia) | API key confirmed by Yash | 2026-03-30 |
 
 ---
 
@@ -161,7 +162,7 @@ _No pending handoff notes._
 > Unresolved decisions that need Yash's input or further discussion.
 
 1. ~~**ASR provider:** Deepgram confirmed — nova-3 model, API key set in `.env`~~ ✅ RESOLVED
-2. **TTS provider:** ElevenLabs vs Cartesia — latency vs voice quality tradeoff. Decision needed.
+2. ~~**TTS provider:**~~ ✅ **RESOLVED** — ElevenLabs. API key in `.env`.
 3. **Frontend framework:** React (WebRTC) vs Next.js vs something else?
 4. **Auth:** Is recruiter-facing dashboard in scope for V1, or candidate-only first?
 5. **LangGraph vs raw asyncio:** Notes reference LangGraph StateGraph. Do we want the full LangGraph wiring or keep it as pure async Python for now?
