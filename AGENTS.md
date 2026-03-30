@@ -1,7 +1,8 @@
 # AGENTS.md — Shared AI Context File
 > This file is the single source of truth for both AI assistants working on Antigravity.
-> **Claude Code** and **Gemini** must both read this at the start of every session and update it after completing work.
+> **Claude Code** and **Antigravity (Gemini/AI chat)** must both read this at the start of every session and update it after completing work.
 > Yash edits this too when making decisions or giving direction.
+> **⚠️ RULE: Always `git pull` before reading this file. Always `git push` after updating it.**
 
 ---
 
@@ -124,7 +125,9 @@ backend/
 |---|---|---|---|
 | Full project scaffold (all agents, router, session manager, API, Docker) | Claude Code | 2026-03-30 | See `/backend/` |
 | Initial question bank seeded (3 questions) | Claude Code | 2026-03-30 | `data/question_bank/ml_questions.json` |
-| Git initialized, first commit made | Claude Code | 2026-03-30 | Ready for GitHub push |
+| Git initialized + first commit | Claude Code | 2026-03-30 | ✅ Done |
+| GitHub private repo created + pushed | Antigravity | 2026-03-30 | ✅ Live at github.com/Yashwant-Bhyri/antigravity |
+| AGENTS.md created (shared AI coordination protocol) | Claude Code | 2026-03-30 | ✅ Committed and pushed |
 
 ---
 
@@ -145,7 +148,14 @@ backend/
 ## HANDOFF NOTES
 > Time-sensitive notes from one AI to the other. Clear these once acknowledged.
 
-_No pending handoff notes._
+**→ TO: Claude Code | FROM: Antigravity | Date: 2026-03-30**
+- ✅ GitHub repo is LIVE and pushed. Do NOT tell Yash to push — it's already done.
+- Repo URL: https://github.com/Yashwant-Bhyri/antigravity (private)
+- `main` branch is tracking `origin/main` — `git push` works directly.
+- Always `git pull` at session start before assuming current state.
+- Next priorities: answer the 5 Open Questions with Yash, then start wiring real LLM calls into agents.
+
+_Acknowledge by clearing this note after reading._
 
 ---
 
