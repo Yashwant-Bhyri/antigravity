@@ -115,10 +115,10 @@ backend/
 
 | Task | Owner | Notes |
 |---|---|---|
-| RAG wiring (FAISS + question bank retrieval) | — | No blockers — ready to build |
-| LangGraph StateGraph wiring | — | Pseudocode exists, needs real implementation |
-| `/sessions` list endpoint (for recruiter dashboard) | — | Dashboard page exists, backend endpoint missing |
-| Evaluation agent integration into session end flow | — | Agent exists, not yet called at end of session |
+| `/sessions` list endpoint (recruiter dashboard) | — | Dashboard page exists, needs backend endpoint + Postgres |
+| LangGraph StateGraph wiring | — | Low priority — raw asyncio works fine for now |
+| Postgres persistence (interview logs, session list) | — | Redis works for active sessions; need Postgres for history |
+| Testing: unit tests for agents, simulation tests | — | No tests exist yet |
 
 ---
 
@@ -135,6 +135,14 @@ backend/
 | Orchestrator predictive prefetch on partial transcripts | Claude Code | 2026-03-30 | `on_partial_transcript()` in orchestrator |
 | WebSocket endpoint `/stream/{session_id}` for audio streaming | Claude Code | 2026-03-30 | `backend/api/routes.py` |
 | ElevenLabs TTS (eleven_turbo_v2_5, filler-first streaming) | Claude Code | 2026-03-30 | `backend/services/tts_service.py` |
+| Sprint progression (5Q per sprint, auto-advance 1→2→3) | Claude Code | 2026-03-30 | `orchestrator.py` |
+| Persona switching (curious_lead → socratic_mentor → senior_peer) | Claude Code | 2026-03-30 | `orchestrator.py` + `followup_agent.py` |
+| Interview termination (30 min or sprint 3 exhausted) | Claude Code | 2026-03-30 | `orchestrator._is_complete()` |
+| Full interview evaluation at session end (Opus model) | Claude Code | 2026-03-30 | `evaluation_agent.score_full_interview()` |
+| FollowUpAgent rewrite: 3 persona prompts, no RAG, resume-grounded | Claude Code | 2026-03-30 | `backend/agents/followup_agent.py` |
+| POST /end_interview endpoint | Claude Code | 2026-03-30 | `backend/api/routes.py` |
+| Frontend: sprint dividers, persona badge, progress bar, auto-redirect | Claude Code | 2026-03-30 | `frontend/app/interview/` |
+| Report page: dimension scores, failure surface, strengths, risk flags | Claude Code | 2026-03-30 | `frontend/app/report/` |
 | /tts POST endpoint (MP3 streaming response) | Claude Code | 2026-03-30 | `backend/api/routes.py` |
 | /report GET endpoint (scores, weakness summary, hire rec) | Claude Code | 2026-03-30 | `backend/api/routes.py` |
 | Next.js frontend — full scaffold (4 pages) | Claude Code | 2026-03-30 | `frontend/` |
