@@ -52,3 +52,25 @@ class FollowUpAgent:
         # TODO: pull from RAG question bank based on current sprint + skills
         sprint = state.get("current_sprint", 1)
         return f"[Precomputed question for sprint {sprint}]"
+
+    async def prefetch(self, concepts: list[str], state: dict) -> list[str]:
+        """
+        Speculatively generate follow-ups for detected concepts while candidate
+        is still speaking. Called from on_partial_transcript for latency masking.
+        Returns a list so orchestrator can pick the best one after final transcript.
+        """
+        if not concepts:
+            return []
+
+        prompt = (
+            f"Candidate is discussing: {', '.join(concepts[:3])}.\n"
+            f"Generate 2 short probing follow-up questions that target likely weak spots. "
+            f"Output JSON: {{\"questions\": [\"...\", \"...\"]}}"
+        )
+        result = await self.llm.call(
+            system="You are a senior technical interviewer. Be concise.",
+            user=prompt,
+        )
+        if isinstance(result, dict):
+            return result.get("questions", [])
+        return []
