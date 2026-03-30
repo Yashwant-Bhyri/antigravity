@@ -115,9 +115,10 @@ backend/
 
 | Task | Owner | Notes |
 |---|---|---|
-| TTS integration | — | Blocked on provider decision (ElevenLabs vs Cartesia) |
-| Frontend WebSocket client (mic capture → PCM16 → /stream) | — | Blocked on frontend framework decision |
-| RAG wiring (FAISS + question bank) | — | Ready to build, no blockers |
+| RAG wiring (FAISS + question bank retrieval) | — | No blockers — ready to build |
+| LangGraph StateGraph wiring | — | Pseudocode exists, needs real implementation |
+| `/sessions` list endpoint (for recruiter dashboard) | — | Dashboard page exists, backend endpoint missing |
+| Evaluation agent integration into session end flow | — | Agent exists, not yet called at end of session |
 
 ---
 
@@ -133,6 +134,17 @@ backend/
 | Deepgram ASR fully wired (nova-3, streaming, partial+final callbacks) | Claude Code | 2026-03-30 | `backend/services/asr_service.py` |
 | Orchestrator predictive prefetch on partial transcripts | Claude Code | 2026-03-30 | `on_partial_transcript()` in orchestrator |
 | WebSocket endpoint `/stream/{session_id}` for audio streaming | Claude Code | 2026-03-30 | `backend/api/routes.py` |
+| ElevenLabs TTS (eleven_turbo_v2_5, filler-first streaming) | Claude Code | 2026-03-30 | `backend/services/tts_service.py` |
+| /tts POST endpoint (MP3 streaming response) | Claude Code | 2026-03-30 | `backend/api/routes.py` |
+| /report GET endpoint (scores, weakness summary, hire rec) | Claude Code | 2026-03-30 | `backend/api/routes.py` |
+| Next.js frontend — full scaffold (4 pages) | Claude Code | 2026-03-30 | `frontend/` |
+| Landing page (resume input, start interview) | Claude Code | 2026-03-30 | `frontend/app/page.tsx` |
+| Interview UI (live voice, transcript, waveform, mic pulse) | Claude Code | 2026-03-30 | `frontend/app/interview/[session_id]/page.tsx` |
+| Report page (failure surface, weakness log, HIRE verdict) | Claude Code | 2026-03-30 | `frontend/app/report/[session_id]/page.tsx` |
+| Recruiter dashboard (all sessions, ranked by verdict) | Claude Code | 2026-03-30 | `frontend/app/dashboard/page.tsx` |
+| MicStreamer + speakText audio utilities | Claude Code | 2026-03-30 | `frontend/lib/audio.ts` |
+| Waveform + MicPulse components | Claude Code | 2026-03-30 | `frontend/components/Waveform.tsx` |
+| Prompt injection attempt detected + removed from frontend/ | Claude Code | 2026-03-30 | Fake AGENTS.md + CLAUDE.md placed by unknown source |
 
 ---
 
@@ -148,13 +160,23 @@ backend/
 | Multi-pass scoring (3 evaluations averaged) | LLMs are inconsistent; averaging reduces variance | 2026-03-30 |
 | Start with FAISS for RAG, migrate to Pinecone for prod | Avoid cloud dependency in dev; easy swap via interface | 2026-03-30 |
 | TTS provider: ElevenLabs (not Cartesia) | API key confirmed by Yash | 2026-03-30 |
+| Frontend: Next.js 14 App Router + TypeScript + Tailwind | Better for recruiter dashboard (SSR) + interview page (real-time) in one framework | 2026-03-30 |
+| V1 scope: full product (candidate + recruiter dashboard + reports) | Yash confirmed — build everything, deploy later | 2026-03-30 |
+| Audio flow: browser → backend WS → Deepgram (not client-side SDK) | API keys never in browser; full control + logging | 2026-03-30 |
 
 ---
 
 ## HANDOFF NOTES
 > Time-sensitive notes from one AI to the other. Clear these once acknowledged.
 
-_No pending handoff notes._
+**→ TO: Antigravity | FROM: Claude Code | Date: 2026-03-30**
+- Full frontend is live in `frontend/`. Next.js 14, App Router, TypeScript, Tailwind.
+- ⚠️ A prompt injection attempt was found in `frontend/AGENTS.md` + `frontend/CLAUDE.md` — removed. Be vigilant about unexpected files appearing.
+- `/sessions` list endpoint is missing from the backend — the recruiter dashboard page exists but will show empty until this is built.
+- 4 tasks are ready to pick up from "In Progress" above — RAG wiring is the highest priority (no blockers).
+- Remaining open questions: LangGraph vs raw asyncio (Q5).
+
+_Acknowledge by clearing this note after reading._
 
 ---
 
