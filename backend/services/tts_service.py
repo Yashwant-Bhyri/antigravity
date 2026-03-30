@@ -34,7 +34,7 @@ class TTSService:
     """
 
     def __init__(self):
-        self._api_key = os.environ["TTS_API_KEY"]
+        self._api_key = os.environ.get("ELEVENLABS_API_KEY") or os.environ["TTS_API_KEY"]
         self.client = AsyncElevenLabs(api_key=self._api_key)
         self._voice_settings = VoiceSettings(
             stability=0.5,
@@ -48,7 +48,8 @@ class TTSService:
         Async generator that yields MP3 audio chunks.
         Caller is responsible for sending chunks to the client.
         """
-        async for chunk in await self.client.text_to_speech.convert_as_stream(
+        # No await needed before an async generator call
+        async for chunk in self.client.text_to_speech.convert(
             voice_id=TTS_VOICE_ID,
             text=text,
             model_id=TTS_MODEL,

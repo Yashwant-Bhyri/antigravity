@@ -143,6 +143,11 @@ backend/
 | POST /end_interview endpoint | Claude Code | 2026-03-30 | `backend/api/routes.py` |
 | Frontend: sprint dividers, persona badge, progress bar, auto-redirect | Claude Code | 2026-03-30 | `frontend/app/interview/` |
 | Report page: dimension scores, failure surface, strengths, risk flags | Claude Code | 2026-03-30 | `frontend/app/report/` |
+| Switched LLM provider to OpenRouter (OpenAI-compatible, all models) | Antigravity | 2026-03-31 | `backend/models/llm_router.py` — uses `OPENROUTER_API_KEY` |
+| Fixed TTS streaming API call (`convert` not `convert_as_stream`) | Antigravity | 2026-03-31 | `backend/services/tts_service.py` |
+| Added CORS middleware + `load_dotenv()` to main.py | Antigravity | 2026-03-31 | `backend/main.py` |
+| Fixed docker-compose paths (relative to infra/ dir) | Antigravity | 2026-03-31 | `infra/docker-compose.yml` |
+| Project README written | Claude Code | 2026-03-31 | `README.md` at repo root |
 | /tts POST endpoint (MP3 streaming response) | Claude Code | 2026-03-30 | `backend/api/routes.py` |
 | /report GET endpoint (scores, weakness summary, hire rec) | Claude Code | 2026-03-30 | `backend/api/routes.py` |
 | Next.js frontend — full scaffold (4 pages) | Claude Code | 2026-03-30 | `frontend/` |
@@ -168,6 +173,8 @@ backend/
 | Multi-pass scoring (3 evaluations averaged) | LLMs are inconsistent; averaging reduces variance | 2026-03-30 |
 | Start with FAISS for RAG, migrate to Pinecone for prod | Avoid cloud dependency in dev; easy swap via interface | 2026-03-30 |
 | TTS provider: ElevenLabs (not Cartesia) | API key confirmed by Yash | 2026-03-30 |
+| LLM via OpenRouter (not direct Anthropic SDK) | One key for all models: Claude, DeepSeek, Gemini. Antigravity switched this. | 2026-03-31 |
+| Single OpenRouter key is sufficient | Parallel calls to multiple models work with one key — stateless routing. Two keys only needed for separate billing. | 2026-03-31 |
 | Frontend: Next.js 14 App Router + TypeScript + Tailwind | Better for recruiter dashboard (SSR) + interview page (real-time) in one framework | 2026-03-30 |
 | V1 scope: full product (candidate + recruiter dashboard + reports) | Yash confirmed — build everything, deploy later | 2026-03-30 |
 | Audio flow: browser → backend WS → Deepgram (not client-side SDK) | API keys never in browser; full control + logging | 2026-03-30 |
