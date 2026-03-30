@@ -1,0 +1,67 @@
+[
+  {
+    "id": "ml_001",
+    "text": "Walk me through how you would build a recommendation system from scratch.",
+    "skills": ["ml", "recommender_systems"],
+    "difficulty": "medium",
+    "sprint": 1,
+    "expected_concepts": [
+      "data collection",
+      "feature engineering",
+      "model selection",
+      "collaborative filtering",
+      "content-based filtering",
+      "cold start problem",
+      "evaluation metrics",
+      "deployment"
+    ],
+    "followups": [
+      "How do you handle cold start for new users?",
+      "How would you evaluate the quality of recommendations offline vs online?",
+      "What happens when the data distribution shifts after deployment?"
+    ]
+  },
+  {
+    "id": "ml_002",
+    "text": "Explain how gradient descent works and when it might fail.",
+    "skills": ["ml", "optimization"],
+    "difficulty": "medium",
+    "sprint": 2,
+    "expected_concepts": [
+      "loss function",
+      "gradient",
+      "learning rate",
+      "local minima",
+      "saddle points",
+      "vanishing gradients",
+      "batch vs stochastic"
+    ],
+    "followups": [
+      "How does learning rate affect convergence?",
+      "What is the difference between SGD and Adam?",
+      "How do you detect and fix vanishing gradients?"
+    ]
+  },
+  {
+    "id": "sd_001",
+    "text": "Design a system that serves 1 million ML model predictions per day.",
+    "skills": ["system_design", "mlops"],
+    "difficulty": "hard",
+    "sprint": 3,
+    "expected_concepts": [
+      "load balancing",
+      "caching",
+      "model serving",
+      "batching",
+      "latency vs throughput",
+      "horizontal scaling",
+      "monitoring",
+      "feature store"
+    ],
+    "followups": [
+      "What happens if your model server goes down?",
+      "How do you handle sudden 10x traffic spikes?",
+      "How do you detect model drift in production?"
+    ]
+  }
+]
