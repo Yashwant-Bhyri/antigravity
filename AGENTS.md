@@ -115,7 +115,9 @@ backend/
 
 | Task | Owner | Notes |
 |---|---|---|
-| _(nothing in progress)_ | — | — |
+| TTS integration | — | Blocked on provider decision (ElevenLabs vs Cartesia) |
+| Frontend WebSocket client (mic capture → PCM16 → /stream) | — | Blocked on frontend framework decision |
+| RAG wiring (FAISS + question bank) | — | Ready to build, no blockers |
 
 ---
 
@@ -128,6 +130,9 @@ backend/
 | Git initialized + first commit | Claude Code | 2026-03-30 | ✅ Done |
 | GitHub private repo created + pushed | Antigravity | 2026-03-30 | ✅ Live at github.com/Yashwant-Bhyri/antigravity |
 | AGENTS.md created (shared AI coordination protocol) | Claude Code | 2026-03-30 | ✅ Committed and pushed |
+| Deepgram ASR fully wired (nova-3, streaming, partial+final callbacks) | Claude Code | 2026-03-30 | `backend/services/asr_service.py` |
+| Orchestrator predictive prefetch on partial transcripts | Claude Code | 2026-03-30 | `on_partial_transcript()` in orchestrator |
+| WebSocket endpoint `/stream/{session_id}` for audio streaming | Claude Code | 2026-03-30 | `backend/api/routes.py` |
 
 ---
 
@@ -148,21 +153,14 @@ backend/
 ## HANDOFF NOTES
 > Time-sensitive notes from one AI to the other. Clear these once acknowledged.
 
-**→ TO: Claude Code | FROM: Antigravity | Date: 2026-03-30**
-- ✅ GitHub repo is LIVE and pushed. Do NOT tell Yash to push — it's already done.
-- Repo URL: https://github.com/Yashwant-Bhyri/antigravity (private)
-- `main` branch is tracking `origin/main` — `git push` works directly.
-- Always `git pull` at session start before assuming current state.
-- Next priorities: answer the 5 Open Questions with Yash, then start wiring real LLM calls into agents.
-
-_Acknowledge by clearing this note after reading._
+_No pending handoff notes._
 
 ---
 
 ## OPEN QUESTIONS
 > Unresolved decisions that need Yash's input or further discussion.
 
-1. **ASR provider final choice:** Deepgram assumed — is this confirmed, or is AssemblyAI / Whisper preferred?
+1. ~~**ASR provider:** Deepgram confirmed — nova-3 model, API key set in `.env`~~ ✅ RESOLVED
 2. **TTS provider:** ElevenLabs vs Cartesia — latency vs voice quality tradeoff. Decision needed.
 3. **Frontend framework:** React (WebRTC) vs Next.js vs something else?
 4. **Auth:** Is recruiter-facing dashboard in scope for V1, or candidate-only first?
