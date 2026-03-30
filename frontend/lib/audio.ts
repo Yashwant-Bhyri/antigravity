@@ -5,21 +5,34 @@
  */
 
 const SAMPLE_RATE = 16000;
-const CHUNK_DURATION_MS = 100; // send a chunk every 100ms
+const CHUNK_DURATION_MS = 100;
 
 export class MicStreamer {
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private processor: ScriptProcessorNode | null = null;
   private ws: WebSocket | null = null;
+
   private onTranscriptPartial: (text: string) => void;
-  private onFollowup: (text: string, weakness: unknown) => void;
   private onTranscriptFinal: (text: string) => void;
+  private onFollowup: (
+    text: string,
+    weakness: unknown,
+    sprint: number | null,
+    persona: string | null,
+    complete: boolean | null,
+  ) => void;
 
   constructor(callbacks: {
     onTranscriptPartial: (text: string) => void;
     onTranscriptFinal: (text: string) => void;
-    onFollowup: (text: string, weakness: unknown) => void;
+    onFollowup: (
+      text: string,
+      weakness: unknown,
+      sprint: number | null,
+      persona: string | null,
+      complete: boolean | null,
+    ) => void;
   }) {
     this.onTranscriptPartial = callbacks.onTranscriptPartial;
     this.onTranscriptFinal = callbacks.onTranscriptFinal;
@@ -35,7 +48,6 @@ export class MicStreamer {
       this.ws!.onerror = () => reject(new Error("WebSocket failed to connect"));
     });
 
-    // Handle messages from server
     this.ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === "transcript_partial") {
@@ -43,14 +55,12 @@ export class MicStreamer {
       } else if (msg.type === "transcript_final") {
         this.onTranscriptFinal(msg.text);
       } else if (msg.type === "followup") {
-        this.onFollowup(msg.text, msg.weakness);
+        this.onFollowup(msg.text, msg.weakness, msg.sprint ?? null, msg.persona ?? null, msg.complete ?? false);
       }
     };
 
-    // Capture mic
+    // Capture mic at 16kHz mono PCM16
     this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-
-    // Resample to 16kHz and convert to PCM16
     this.audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
     const source = this.audioContext.createMediaStreamSource(this.mediaStream);
     const bufferSize = Math.floor((SAMPLE_RATE * CHUNK_DURATION_MS) / 1000);
@@ -79,7 +89,6 @@ export class MicStreamer {
   }
 }
 
-/** Float32 PCM → Int16 PCM */
 function float32ToPcm16(float32: Float32Array): ArrayBuffer {
   const buffer = new ArrayBuffer(float32.length * 2);
   const view = new DataView(buffer);
@@ -97,7 +106,6 @@ export async function speakText(text: string, useFiller = true): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, use_filler: useFiller }),
   });
-
   if (!res.ok) return;
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
