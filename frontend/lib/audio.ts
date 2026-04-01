@@ -1,76 +1,78 @@
-/**
- * Audio capture + streaming utilities.
- * Captures mic input as PCM16 at 16kHz (matches Deepgram config) and
- * streams raw chunks over a WebSocket.
- */
+import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk";
 
-const SAMPLE_RATE = 16000;
-const CHUNK_DURATION_MS = 100;
+const API = process.env.NEXT_PUBLIC_API_URL!;
 
-export class MicStreamer {
-  private audioContext: AudioContext | null = null;
+// ─── Deepgram browser-side ASR ────────────────────────────────────────────────
+
+export class InterviewSession {
   private mediaStream: MediaStream | null = null;
+  private audioContext: AudioContext | null = null;
   private processor: ScriptProcessorNode | null = null;
-  private ws: WebSocket | null = null;
+  private dgConnection: ReturnType<ReturnType<typeof createClient>["listen"]["live"]> | null = null;
+  private sessionId: string;
 
-  private onTranscriptPartial: (text: string) => void;
-  private onTranscriptFinal: (text: string) => void;
-  private onFollowup: (
-    text: string,
-    weakness: unknown,
-    sprint: number | null,
-    persona: string | null,
-    complete: boolean | null,
-  ) => void;
+  onPartial: (text: string) => void = () => {};
+  onFinal: (text: string) => void = () => {};
+  onError: (err: string) => void = () => {};
 
-  constructor(callbacks: {
-    onTranscriptPartial: (text: string) => void;
-    onTranscriptFinal: (text: string) => void;
-    onFollowup: (
-      text: string,
-      weakness: unknown,
-      sprint: number | null,
-      persona: string | null,
-      complete: boolean | null,
-    ) => void;
-  }) {
-    this.onTranscriptPartial = callbacks.onTranscriptPartial;
-    this.onTranscriptFinal = callbacks.onTranscriptFinal;
-    this.onFollowup = callbacks.onFollowup;
+  constructor(sessionId: string) {
+    this.sessionId = sessionId;
   }
 
-  async start(sessionId: string) {
-    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/stream/${sessionId}`;
-    this.ws = new WebSocket(wsUrl);
+  async start() {
+    // Get Deepgram token from backend (keeps key server-side in prod)
+    const { token } = await fetch(`${API}/deepgram_token`).then((r) => r.json());
 
-    await new Promise<void>((resolve, reject) => {
-      this.ws!.onopen = () => resolve();
-      this.ws!.onerror = () => reject(new Error("WebSocket failed to connect"));
+    const dg = createClient(token);
+    this.dgConnection = dg.listen.live({
+      model: "nova-3",
+      language: "en",
+      encoding: "linear16",
+      sample_rate: 16000,
+      channels: 1,
+      interim_results: true,
+      endpointing: 300,
+      utterance_end_ms: 1000,
     });
 
-    this.ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "transcript_partial") {
-        this.onTranscriptPartial(msg.text);
-      } else if (msg.type === "transcript_final") {
-        this.onTranscriptFinal(msg.text);
-      } else if (msg.type === "followup") {
-        this.onFollowup(msg.text, msg.weakness, msg.sprint ?? null, msg.persona ?? null, msg.complete ?? false);
-      }
-    };
+    // Wait for connection open
+    await new Promise<void>((resolve, reject) => {
+      this.dgConnection!.on(LiveTranscriptionEvents.Open, () => resolve());
+      this.dgConnection!.on(LiveTranscriptionEvents.Error, (e) => reject(e));
+      setTimeout(() => reject(new Error("Deepgram connection timeout")), 8000);
+    });
 
-    // Capture mic at 16kHz mono PCM16
+    this.dgConnection.on(LiveTranscriptionEvents.Transcript, (data) => {
+      const text = data?.channel?.alternatives?.[0]?.transcript ?? "";
+      if (!text) return;
+
+      if (data.is_final) {
+        this.onFinal(text);
+        // Fire partial to backend for predictive prefetch (non-blocking)
+        fetch(`${API}/partial_transcript`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: this.sessionId, transcript: text }),
+        }).catch(() => {});
+      } else {
+        this.onPartial(text);
+      }
+    });
+
+    this.dgConnection.on(LiveTranscriptionEvents.Error, (e) => {
+      this.onError(String(e));
+    });
+
+    // Capture mic → stream PCM16 to Deepgram
     this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    this.audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
+    this.audioContext = new AudioContext({ sampleRate: 16000 });
     const source = this.audioContext.createMediaStreamSource(this.mediaStream);
-    const bufferSize = Math.floor((SAMPLE_RATE * CHUNK_DURATION_MS) / 1000);
-    this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
+    this.processor = this.audioContext.createScriptProcessor(2048, 1, 1);
 
     this.processor.onaudioprocess = (e) => {
-      if (this.ws?.readyState !== WebSocket.OPEN) return;
-      const float32 = e.inputBuffer.getChannelData(0);
-      const pcm16 = float32ToPcm16(float32);
-      this.ws.send(pcm16);
+      if (!this.dgConnection) return;
+      const pcm16 = float32ToPcm16(e.inputBuffer.getChannelData(0));
+      this.dgConnection.send(pcm16);
     };
 
     source.connect(this.processor);
@@ -81,67 +83,94 @@ export class MicStreamer {
     this.processor?.disconnect();
     this.mediaStream?.getTracks().forEach((t) => t.stop());
     this.audioContext?.close();
-    this.ws?.close();
+    this.dgConnection?.finish();
     this.processor = null;
     this.mediaStream = null;
     this.audioContext = null;
-    this.ws = null;
+    this.dgConnection = null;
+  }
+
+  /** Connect mic level to a canvas for the live waveform visualizer */
+  connectVisualizer(callback: (level: number) => void): () => void {
+    if (!this.audioContext || !this.mediaStream) return () => {};
+    const analyser = this.audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let running = true;
+    const loop = () => {
+      if (!running) return;
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((a, b) => a + b, 0) / data.length;
+      callback(avg / 128); // 0–1
+      requestAnimationFrame(loop);
+    };
+    loop();
+    return () => { running = false; };
   }
 }
 
-function float32ToPcm16(float32: Float32Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(float32.length * 2);
-  const view = new DataView(buffer);
-  for (let i = 0; i < float32.length; i++) {
-    const clamped = Math.max(-1, Math.min(1, float32[i]));
-    view.setInt16(i * 2, clamped * 0x7fff, true);
-  }
-  return buffer;
+// ─── Agent pipeline call ──────────────────────────────────────────────────────
+
+export async function processTurn(sessionId: string, transcript: string) {
+  const res = await fetch(`${API}/process_turn`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, transcript }),
+  });
+  if (!res.ok) throw new Error(`process_turn failed: ${res.status}`);
+  return res.json();
 }
 
-/** Fetch TTS audio from backend and play it through browser.
- *  Falls back to browser speechSynthesis if ElevenLabs is unavailable. */
+// ─── TTS ──────────────────────────────────────────────────────────────────────
+
 export async function speakText(text: string, useFiller = true): Promise<void> {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tts`, {
+    const res = await fetch(`${API}/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, use_filler: useFiller }),
     });
-    if (!res.ok) {
-      console.warn(`[TTS] Backend returned ${res.status} — falling back to browser speech`);
-      return speakWithBrowser(text);
-    }
+    if (!res.ok) return speakWithBrowser(text);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     return new Promise((resolve) => {
       audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
       audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-      audio.play().catch(() => resolve());
+      audio.play().catch(() => speakWithBrowser(text).then(resolve));
     });
   } catch {
-    console.warn("[TTS] Fetch failed — falling back to browser speech");
     return speakWithBrowser(text);
   }
 }
 
-/** Browser-native TTS fallback — free, zero latency, works offline */
 function speakWithBrowser(text: string): Promise<void> {
   return new Promise((resolve) => {
     if (!window.speechSynthesis) { resolve(); return; }
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-    // Pick a natural-sounding voice if available
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95;
     const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(
-      (v) => v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Google US English")
+    const preferred = voices.find((v) =>
+      v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Google US English")
     );
-    if (preferred) utterance.voice = preferred;
-    utterance.onend = () => resolve();
-    utterance.onerror = () => resolve();
-    window.speechSynthesis.speak(utterance);
+    if (preferred) u.voice = preferred;
+    u.onend = () => resolve();
+    u.onerror = () => resolve();
+    window.speechSynthesis.speak(u);
   });
+}
+
+// ─── Utility ──────────────────────────────────────────────────────────────────
+
+function float32ToPcm16(float32: Float32Array): ArrayBuffer {
+  const buf = new ArrayBuffer(float32.length * 2);
+  const view = new DataView(buf);
+  for (let i = 0; i < float32.length; i++) {
+    const c = Math.max(-1, Math.min(1, float32[i]));
+    view.setInt16(i * 2, c * 0x7fff, true);
+  }
+  return buf;
 }

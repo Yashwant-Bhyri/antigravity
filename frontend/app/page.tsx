@@ -11,13 +11,9 @@ export default function Home() {
   const [error, setError] = useState("");
 
   async function startInterview() {
-    if (!resume.trim()) {
-      setError("Paste your resume text to begin.");
-      return;
-    }
+    if (!resume.trim()) { setError("Paste your resume to begin."); return; }
     setLoading(true);
     setError("");
-
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/start_interview`, {
         method: "POST",
@@ -27,64 +23,77 @@ export default function Home() {
           github_links: githubLinks.split("\n").map((l) => l.trim()).filter(Boolean),
         }),
       });
-
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       router.push(`/interview/${data.session_id}`);
-    } catch {
-      setError("Failed to connect to server. Is the backend running?");
+    } catch (e) {
+      setError(String(e));
       setLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight">Antigravity</h1>
-          <p className="text-zinc-400 text-lg">AI Adversarial Interview Engine</p>
-          <p className="text-zinc-600 text-sm">
-            Not a quiz. Not a chatbot. A cognitive stress test.
+    <main className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center px-6">
+      <div className="w-full max-w-xl space-y-10">
+
+        {/* Header */}
+        <div className="space-y-3">
+          <h1 className="text-3xl font-bold tracking-tight">Antigravity</h1>
+          <p className="text-zinc-500 text-sm leading-relaxed">
+            A 30-minute adversarial technical interview. Three sprints.
+            Three interrogator personas. No hints. No validation.
           </p>
+          <div className="flex gap-3 pt-1">
+            {["Project Defense", "Foundations", "System Design"].map((s, i) => (
+              <span key={s} className="text-[11px] text-zinc-600 border border-zinc-800 rounded px-2 py-0.5">
+                {i + 1}. {s}
+              </span>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-zinc-300">
-            Resume <span className="text-zinc-500">(paste full text)</span>
-          </label>
-          <textarea
-            rows={10}
-            value={resume}
-            onChange={(e) => setResume(e.target.value)}
-            placeholder="Paste your resume here..."
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-400 resize-none"
-          />
+        <div className="space-y-4">
+          {/* Resume */}
+          <div className="space-y-2">
+            <label className="text-xs text-zinc-500 uppercase tracking-widest">
+              Resume
+            </label>
+            <textarea
+              rows={9}
+              value={resume}
+              onChange={(e) => setResume(e.target.value)}
+              placeholder="Paste your full resume text here..."
+              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-700 focus:outline-none focus:border-white/20 resize-none transition-colors"
+            />
+          </div>
+
+          {/* GitHub */}
+          <div className="space-y-2">
+            <label className="text-xs text-zinc-500 uppercase tracking-widest">
+              GitHub Links <span className="text-zinc-700 normal-case">(optional, one per line)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={githubLinks}
+              onChange={(e) => setGithubLinks(e.target.value)}
+              placeholder="https://github.com/you/project"
+              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-700 focus:outline-none focus:border-white/20 resize-none transition-colors"
+            />
+          </div>
+
+          {error && <p className="text-red-400 text-xs">{error}</p>}
+
+          <button
+            onClick={startInterview}
+            disabled={loading}
+            className="w-full bg-white text-black text-sm font-semibold py-3 rounded-xl hover:bg-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {loading ? "Starting..." : "Begin Interview →"}
+          </button>
         </div>
 
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-zinc-300">
-            GitHub Links <span className="text-zinc-500">(one per line, optional)</span>
-          </label>
-          <textarea
-            rows={3}
-            value={githubLinks}
-            onChange={(e) => setGithubLinks(e.target.value)}
-            placeholder="https://github.com/you/project"
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-400 resize-none"
-          />
-        </div>
-
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-
-        <button
-          onClick={startInterview}
-          disabled={loading}
-          className="w-full bg-white text-black font-semibold py-3 rounded-lg hover:bg-zinc-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "Starting interview..." : "Begin Interview →"}
-        </button>
-
-        <p className="text-center text-zinc-700 text-xs">
-          30 min · Voice-based · 3 sprints: Project Defense → Foundations → System Design
+        <p className="text-zinc-700 text-xs text-center">
+          Allow microphone access when prompted. Speak clearly and naturally.
         </p>
       </div>
     </main>

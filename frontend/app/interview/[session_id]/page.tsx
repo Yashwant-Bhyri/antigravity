@@ -2,259 +2,324 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { MicStreamer, speakText } from "@/lib/audio";
-import { MicPulse, Waveform } from "@/components/Waveform";
+import { InterviewSession, processTurn, speakText } from "@/lib/audio";
+import { AIOrb, Waveform } from "@/components/Waveform";
+
+type Phase = "idle" | "listening" | "thinking" | "speaking";
 
 type Message = {
   role: "ai" | "candidate";
   text: string;
-  weakness?: { type: string; severity: string } | null;
+  severity?: string;
+  isSprintMarker?: boolean;
   sprint?: number;
 };
 
-type Phase = "idle" | "candidate_speaking" | "processing" | "ai_speaking";
-
 const SPRINT_LABELS: Record<number, string> = {
-  1: "Sprint 1 — Project Defense",
-  2: "Sprint 2 — Foundations",
-  3: "Sprint 3 — System Design",
+  1: "Project Defense",
+  2: "Foundations",
+  3: "System Design",
 };
 
-const PERSONA_LABELS: Record<string, string> = {
-  curious_lead: "Curious Lead",
-  socratic_mentor: "Socratic Mentor",
-  senior_peer: "Senior Peer",
+const PERSONA_DESC: Record<string, string> = {
+  curious_lead: "Challenging your ownership",
+  socratic_mentor: "Testing first principles",
+  senior_peer: "Stress-testing your design",
 };
 
 export default function InterviewPage() {
   const { session_id } = useParams<{ session_id: string }>();
   const router = useRouter();
 
-  const [messages, setMessages] = useState<Message[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [partialTranscript, setPartialTranscript] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [partial, setPartial] = useState("");
   const [sprint, setSprint] = useState(1);
   const [persona, setPersona] = useState("curious_lead");
   const [questionCount, setQuestionCount] = useState(0);
-  const [isStarted, setIsStarted] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
-  const streamerRef = useRef<MicStreamer | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [micLevel, setMicLevel] = useState(0);
+  const [started, setStarted] = useState(false);
+  const [complete, setComplete] = useState(false);
+  const [error, setError] = useState("");
+
+  const sessionRef = useRef<InterviewSession | null>(null);
   const prevSprintRef = useRef(1);
+  const stopVisualizerRef = useRef<(() => void) | null>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, partialTranscript]);
+    transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, partial]);
 
-  const handleComplete = useCallback(async (sessionId: string) => {
-    setIsComplete(true);
-    streamerRef.current?.stop();
-    // Trigger backend evaluation
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/end_interview/${sessionId}`, {
-      method: "POST",
-    });
-    setTimeout(() => router.push(`/report/${sessionId}`), 3000);
-  }, [router]);
+  const handleFollowup = useCallback(async (result: Record<string, unknown>) => {
+    const text = result.response as string;
+    const newSprint = result.sprint as number;
+    const newPersona = result.persona as string;
+    const isComplete = result.complete as boolean;
 
-  const handleFollowup = useCallback(async (
-    text: string,
-    weakness: unknown,
-    newSprint: number,
-    newPersona: string,
-    complete: boolean,
-    sessionId: string,
-  ) => {
-    setPhase("ai_speaking");
-    setPartialTranscript("");
-
-    // Sprint change announcement
+    // Sprint transition
     if (newSprint !== prevSprintRef.current) {
       prevSprintRef.current = newSprint;
       setSprint(newSprint);
       setPersona(newPersona);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          text: `— ${SPRINT_LABELS[newSprint]} —`,
-          sprint: newSprint,
-        },
-      ]);
+      setMessages((prev) => [...prev, {
+        role: "ai",
+        text: `Sprint ${newSprint} — ${SPRINT_LABELS[newSprint]}`,
+        isSprintMarker: true,
+        sprint: newSprint,
+      }]);
     }
 
-    setMessages((prev) => [
-      ...prev,
-      { role: "ai", text, weakness: weakness as Message["weakness"], sprint: newSprint },
-    ]);
+    const weakness = result.weakness as { severity?: string } | null;
+    setMessages((prev) => [...prev, {
+      role: "ai",
+      text,
+      severity: weakness?.severity,
+    }]);
+    setQuestionCount((c) => c + 1);
 
-    await speakText(text, !complete);
-    setPhase(complete ? "idle" : "candidate_speaking");
+    setPhase("speaking");
+    await speakText(text, !isComplete);
+    setPhase(isComplete ? "idle" : "listening");
 
-    if (complete) {
-      await handleComplete(sessionId);
+    if (isComplete) {
+      setComplete(true);
+      sessionRef.current?.stop();
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/end_interview/${session_id}`, { method: "POST" });
+      setTimeout(() => router.push(`/report/${session_id}`), 2500);
     }
-  }, [handleComplete]);
+  }, [session_id, router]);
 
   async function startInterview() {
-    setIsStarted(true);
-    setPhase("ai_speaking");
+    setError("");
+    setStarted(true);
+    setPhase("speaking");
 
-    const state = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/state/${session_id}`
-    ).then((r) => r.json());
+    // Fetch opening question
+    const state = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/state/${session_id}`).then((r) => r.json());
+    const opening = state.last_question;
+    setSprint(state.current_sprint);
+    setPersona(state.current_persona);
+    setMessages([{ role: "ai", text: opening }]);
 
-    const opening = state.last_question || "Tell me about your most complex project.";
-    setSprint(state.current_sprint || 1);
-    setPersona(state.current_persona || "curious_lead");
-
-    setMessages([{ role: "ai", text: opening, sprint: 1 }]);
     await speakText(opening, false);
 
-    const streamer = new MicStreamer({
-      onTranscriptPartial: (text) => {
-        setPartialTranscript(text);
-        setPhase("candidate_speaking");
-      },
-      onTranscriptFinal: (text) => {
-        setPartialTranscript("");
-        setMessages((prev) => [...prev, { role: "candidate", text }]);
-        setPhase("processing");
-        setQuestionCount((c) => c + 1);
-      },
-      onFollowup: (text, weakness, newSprint, newPersona, complete) =>
-        handleFollowup(text, weakness, newSprint ?? sprint, newPersona ?? persona, complete ?? false, session_id),
-    });
+    // Boot Deepgram session
+    const session = new InterviewSession(session_id);
+    sessionRef.current = session;
 
-    streamerRef.current = streamer;
-    await streamer.start(session_id);
-    setPhase("candidate_speaking");
+    session.onPartial = (text) => {
+      setPartial(text);
+      setPhase("listening");
+    };
+
+    session.onFinal = async (text) => {
+      setPartial("");
+      setMessages((prev) => [...prev, { role: "candidate", text }]);
+      setPhase("thinking");
+
+      try {
+        const result = await processTurn(session_id, text);
+        await handleFollowup(result);
+      } catch (e) {
+        setError("Agent pipeline error. Check backend.");
+        setPhase("listening");
+      }
+    };
+
+    session.onError = (err) => {
+      setError(`Voice error: ${err}`);
+    };
+
+    try {
+      await session.start();
+      // Wire mic level to visualizer
+      stopVisualizerRef.current = session.connectVisualizer((level) => setMicLevel(level));
+      setPhase("listening");
+    } catch (e) {
+      setError(`Could not start mic: ${String(e)}`);
+      setStarted(false);
+      setPhase("idle");
+    }
   }
 
-  async function endInterview() {
-    streamerRef.current?.stop();
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/end_interview/${session_id}`, {
-      method: "POST",
-    });
+  function endInterview() {
+    stopVisualizerRef.current?.();
+    sessionRef.current?.stop();
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/end_interview/${session_id}`, { method: "POST" });
     router.push(`/report/${session_id}`);
   }
 
   useEffect(() => {
-    return () => streamerRef.current?.stop();
+    return () => {
+      stopVisualizerRef.current?.();
+      sessionRef.current?.stop();
+    };
   }, []);
 
-  const progressPercent = Math.min((questionCount / 15) * 100, 100);
+  const progressPct = Math.min((questionCount / 15) * 100, 100);
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-        <div className="flex items-center gap-4">
-          <span className="font-semibold text-sm">Antigravity</span>
-          <span className="text-xs text-zinc-500">{SPRINT_LABELS[sprint]}</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
-            {PERSONA_LABELS[persona]}
-          </span>
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col select-none">
+
+      {/* ── Top bar ── */}
+      <header className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold tracking-tight">Antigravity</span>
+          {started && (
+            <span className="text-xs px-2 py-0.5 rounded-md bg-white/5 text-zinc-400">
+              Sprint {sprint} — {SPRINT_LABELS[sprint]}
+            </span>
+          )}
         </div>
+
         <div className="flex items-center gap-4">
           {/* Progress bar */}
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="w-24 h-1 bg-zinc-800 rounded-full">
-              <div
-                className="h-1 bg-white rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
+          {started && (
+            <div className="flex items-center gap-2">
+              <div className="w-20 h-[3px] bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white/60 rounded-full transition-all duration-700"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <span className="text-[11px] text-zinc-600 tabular-nums">{questionCount}/15</span>
             </div>
-            <span className="text-xs text-zinc-600">{questionCount}/15</span>
-          </div>
-          {!isComplete && (
-            <button
-              onClick={endInterview}
-              className="text-xs text-zinc-500 hover:text-red-400 transition"
-            >
+          )}
+          {started && !complete && (
+            <button onClick={endInterview} className="text-[11px] text-zinc-600 hover:text-red-400 transition-colors">
               End
             </button>
           )}
         </div>
       </header>
 
-      {/* Transcript feed */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 max-w-3xl mx-auto w-full">
-        {messages.map((msg, i) => {
-          // Sprint divider
-          if (msg.role === "ai" && msg.text.startsWith("—")) {
-            return (
-              <div key={i} className="flex items-center gap-3 py-2">
-                <div className="flex-1 h-px bg-zinc-800" />
-                <span className="text-xs text-zinc-500">{msg.text}</span>
-                <div className="flex-1 h-px bg-zinc-800" />
-              </div>
-            );
-          }
+      {/* ── Main ── */}
+      <div className="flex flex-1 overflow-hidden">
 
-          return (
-            <div
-              key={i}
-              className={`flex ${msg.role === "ai" ? "justify-start" : "justify-end"}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  msg.role === "ai"
-                    ? "bg-zinc-900 text-white"
-                    : "bg-white text-black"
-                }`}
-              >
-                {msg.text}
-                {msg.weakness?.severity === "high" && (
-                  <div className="mt-2 text-xs text-red-400 opacity-60">
-                    ⚠ {msg.weakness.type?.replace(/_/g, " ")}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {/* ── Left: AI panel ── */}
+        <div className="w-72 flex-shrink-0 border-r border-white/5 flex flex-col items-center justify-center gap-6 px-6">
+          <AIOrb state={phase} />
 
-        {/* Live partial transcript */}
-        {partialTranscript && (
-          <div className="flex justify-end">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-zinc-800 text-zinc-400 italic">
-              {partialTranscript}
-            </div>
+          <div className="text-center space-y-1">
+            <p className="text-xs font-medium text-zinc-300">
+              {phase === "idle" && !started && "Ready"}
+              {phase === "listening" && "Listening"}
+              {phase === "thinking" && "Analyzing..."}
+              {phase === "speaking" && "Speaking"}
+            </p>
+            {started && (
+              <p className="text-[11px] text-zinc-600">{PERSONA_DESC[persona]}</p>
+            )}
           </div>
-        )}
 
-        {isComplete && (
-          <div className="text-center py-6 text-zinc-500 text-sm">
-            Interview complete. Generating your report...
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Bottom controls */}
-      <div className="border-t border-zinc-800 px-6 py-6">
-        <div className="max-w-3xl mx-auto flex flex-col items-center gap-4">
-          <Waveform active={phase === "ai_speaking"} />
-
-          <p className="text-xs text-zinc-500 h-4">
-            {phase === "idle" && !isStarted && "Press Begin to start"}
-            {phase === "idle" && isStarted && ""}
-            {phase === "candidate_speaking" && "Listening..."}
-            {phase === "processing" && "Analyzing..."}
-            {phase === "ai_speaking" && "AI speaking..."}
-          </p>
-
-          {!isStarted ? (
-            <button
-              onClick={startInterview}
-              className="bg-white text-black font-semibold px-8 py-3 rounded-full hover:bg-zinc-200 transition"
-            >
-              Begin Interview
-            </button>
-          ) : (
-            <MicPulse active={phase === "candidate_speaking"} />
+          {/* Mic waveform — only when listening */}
+          {phase === "listening" && (
+            <Waveform level={micLevel} active={true} />
           )}
+        </div>
+
+        {/* ── Right: Transcript ── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div
+            ref={transcriptRef}
+            className="flex-1 overflow-y-auto px-8 py-6 space-y-5"
+          >
+            {!started && (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-2">
+                  <p className="text-zinc-500 text-sm">30 minutes. 3 sprints. No hints.</p>
+                  <p className="text-zinc-700 text-xs">Probe → Break → Analyze → Adapt</p>
+                </div>
+              </div>
+            )}
+
+            {messages.map((msg, i) => {
+              if (msg.isSprintMarker) {
+                return (
+                  <div key={i} className="flex items-center gap-4 py-1">
+                    <div className="flex-1 h-px bg-white/5" />
+                    <span className="text-[11px] text-zinc-600 uppercase tracking-widest">
+                      {msg.text}
+                    </span>
+                    <div className="flex-1 h-px bg-white/5" />
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={i}
+                  className={`flex ${msg.role === "ai" ? "justify-start" : "justify-end"}`}
+                >
+                  <div className={`max-w-[85%] space-y-1`}>
+                    <p className={`text-[11px] uppercase tracking-widest mb-1 ${
+                      msg.role === "ai" ? "text-zinc-600" : "text-zinc-600 text-right"
+                    }`}>
+                      {msg.role === "ai" ? "INTERVIEWER" : "YOU"}
+                    </p>
+                    <div className={`rounded-xl px-4 py-3 text-sm leading-relaxed ${
+                      msg.role === "ai"
+                        ? "bg-white/[0.04] text-zinc-200 border border-white/[0.06]"
+                        : "bg-white/[0.08] text-white border border-white/[0.10]"
+                    }`}>
+                      {msg.text}
+                    </div>
+                    {msg.severity === "high" && (
+                      <p className="text-[10px] text-red-500/70 px-1">⚠ Weak point detected</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Live partial */}
+            {partial && (
+              <div className="flex justify-end">
+                <div className="max-w-[85%]">
+                  <p className="text-[11px] text-zinc-600 uppercase tracking-widest mb-1 text-right">YOU</p>
+                  <div className="rounded-xl px-4 py-3 text-sm bg-white/[0.03] text-zinc-500 border border-white/[0.05] italic">
+                    {partial}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {complete && (
+              <div className="text-center py-8 space-y-1">
+                <p className="text-zinc-400 text-sm">Interview complete.</p>
+                <p className="text-zinc-600 text-xs">Generating your report...</p>
+              </div>
+            )}
+          </div>
+
+          {/* ── Bottom action bar ── */}
+          <div className="border-t border-white/5 px-8 py-5 flex items-center justify-between">
+            {error && <p className="text-red-400 text-xs">{error}</p>}
+            {!error && <span />}
+
+            {!started ? (
+              <button
+                onClick={startInterview}
+                className="ml-auto bg-white text-black text-sm font-semibold px-6 py-2.5 rounded-full hover:bg-zinc-100 transition-colors"
+              >
+                Begin Interview →
+              </button>
+            ) : (
+              <div className="ml-auto flex items-center gap-2 text-xs text-zinc-600">
+                {phase === "listening" && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />}
+                {phase === "thinking" && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse inline-block" />}
+                {phase === "speaking" && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse inline-block" />}
+                <span>
+                  {phase === "listening" ? "Listening — speak now"
+                   : phase === "thinking" ? "Analyzing your answer..."
+                   : phase === "speaking" ? "AI speaking..."
+                   : ""}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
