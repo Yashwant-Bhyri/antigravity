@@ -99,22 +99,49 @@ function float32ToPcm16(float32: Float32Array): ArrayBuffer {
   return buffer;
 }
 
-/** Fetch TTS audio from backend and play it through browser */
+/** Fetch TTS audio from backend and play it through browser.
+ *  Falls back to browser speechSynthesis if ElevenLabs is unavailable. */
 export async function speakText(text: string, useFiller = true): Promise<void> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, use_filler: useFiller }),
-  });
-  if (!res.ok) return;
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, use_filler: useFiller }),
+    });
+    if (!res.ok) {
+      console.warn(`[TTS] Backend returned ${res.status} — falling back to browser speech`);
+      return speakWithBrowser(text);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    return new Promise((resolve) => {
+      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.play().catch(() => resolve());
+    });
+  } catch {
+    console.warn("[TTS] Fetch failed — falling back to browser speech");
+    return speakWithBrowser(text);
+  }
+}
+
+/** Browser-native TTS fallback — free, zero latency, works offline */
+function speakWithBrowser(text: string): Promise<void> {
   return new Promise((resolve) => {
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      resolve();
-    };
-    audio.play();
+    if (!window.speechSynthesis) { resolve(); return; }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    // Pick a natural-sounding voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(
+      (v) => v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Google US English")
+    );
+    if (preferred) utterance.voice = preferred;
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+    window.speechSynthesis.speak(utterance);
   });
 }

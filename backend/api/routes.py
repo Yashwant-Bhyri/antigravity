@@ -112,13 +112,32 @@ async def stream_audio(websocket: WebSocket, session_id: str):
 @router.post("/tts")
 async def synthesize_speech(data: TTSRequest):
     """HTTP streaming endpoint — returns MP3 audio stream."""
+    from fastapi import HTTPException
+
+    # Collect first chunk eagerly so ElevenLabs auth errors surface
+    # BEFORE we start streaming (avoids mid-stream connection drop)
+    try:
+        gen = tts_service.stream_with_filler(data.text) if data.use_filler else tts_service.stream(data.text)
+        first_chunk = None
+        async for chunk in gen:
+            if chunk:
+                first_chunk = chunk
+                break
+        if first_chunk is None:
+            raise HTTPException(status_code=502, detail="TTS returned empty audio")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"TTS unavailable: {str(e)[:120]}")
+
     async def audio_generator():
+        yield first_chunk
         if data.use_filler:
             async for chunk in tts_service.stream_with_filler(data.text):
-                yield chunk
+                if chunk:
+                    yield chunk
         else:
             async for chunk in tts_service.stream(data.text):
-                yield chunk
+                if chunk:
+                    yield chunk
 
     return StreamingResponse(
         audio_generator(),
