@@ -6,7 +6,7 @@ from elevenlabs import VoiceSettings
 
 # eleven_turbo_v2_5 = lowest latency (~75ms first chunk), good quality
 TTS_MODEL = "eleven_turbo_v2_5"
-TTS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel — clear, professional, neutral accent
+TTS_VOICE_ID = "Xb7hH8MSUJpSbSDYk0k2"  # Alice — clear, engaging, professional (free premade)
 
 FILLER_PHRASES = [
     "Interesting.",
