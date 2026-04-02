@@ -11,8 +11,20 @@ export class InterviewSession {
   private dgConnection: ReturnType<ReturnType<typeof createClient>["listen"]["live"]> | null = null;
   private sessionId: string;
 
+  // Utterance accumulation buffer.
+  // Deepgram fires is_final multiple times within one answer (every ~1s of silence).
+  // We collect every is_final fragment here and only call onFinal when UtteranceEnd fires,
+  // meaning the person is truly done speaking (2.5s of silence), not just pausing mid-thought.
+  private utteranceBuffer: string[] = [];
+  private utteranceFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // NER entity buffer — accumulates Deepgram-extracted entities across all is_final fragments.
+  // Entities (technology names, product names, etc.) surface the "heart" of the answer —
+  // the 2-3 sentences where the candidate actually delivers technical substance.
+  private entityBuffer: Set<string> = new Set();
+
   onPartial: (text: string) => void = () => {};
-  onFinal: (text: string) => void = () => {};
+  onFinal: (text: string, entities: string[]) => void = () => {};
   onError: (err: string) => void = () => {};
 
   constructor(sessionId: string) {
@@ -20,7 +32,6 @@ export class InterviewSession {
   }
 
   async start() {
-    // Get Deepgram token from backend (keeps key server-side in prod)
     const { token } = await fetch(`${API}/deepgram_token`).then((r) => r.json());
 
     const dg = createClient(token);
@@ -31,32 +42,82 @@ export class InterviewSession {
       sample_rate: 16000,
       channels: 1,
       interim_results: true,
-      endpointing: 300,
-      utterance_end_ms: 1000,
+      vad_events: true,
+      // NER: extract named entities (technologies, products, orgs) from each is_final fragment.
+      // These surface the technically dense parts of the answer for targeted follow-up generation.
+      ner: true,
+      // endpointing: how long silence makes a fragment is_final (within an utterance)
+      endpointing: 1200,
+      // utterance_end_ms: real "done speaking" gate — triggers UtteranceEnd
+      utterance_end_ms: 2500,
     });
 
-    // Wait for connection open
     await new Promise<void>((resolve, reject) => {
       this.dgConnection!.on(LiveTranscriptionEvents.Open, () => resolve());
       this.dgConnection!.on(LiveTranscriptionEvents.Error, (e) => reject(e));
       setTimeout(() => reject(new Error("Deepgram connection timeout")), 8000);
     });
 
+    // ── Transcript handler ────────────────────────────────────────────────────
+    // is_final: a stable sub-utterance fragment — accumulate it, don't send yet
+    // interim: live display + prefetch, nothing more
     this.dgConnection.on(LiveTranscriptionEvents.Transcript, (data) => {
       const text = data?.channel?.alternatives?.[0]?.transcript ?? "";
       if (!text) return;
 
       if (data.is_final) {
-        this.onFinal(text);
-        // Fire partial to backend for predictive prefetch (non-blocking)
+        // Accumulate the transcript fragment
+        this.utteranceBuffer.push(text);
+
+        // Extract NER entities from this fragment.
+        // Filter to high-confidence entities — these are the technical keywords
+        // the candidate actually said (technologies, products, concepts).
+        const rawEntities: Array<{ label: string; value: string; confidence: number }> =
+          data?.channel?.alternatives?.[0]?.entities ?? [];
+        const newEntities = rawEntities
+          .filter((e) => e.confidence >= 0.7)
+          .map((e) => e.value.trim())
+          .filter((v) => v.length > 1);
+        newEntities.forEach((e) => this.entityBuffer.add(e));
+
+        // Safety net: if UtteranceEnd never fires, flush after 5s
+        if (this.utteranceFlushTimer) clearTimeout(this.utteranceFlushTimer);
+        this.utteranceFlushTimer = setTimeout(() => this._flushUtterance(), 5000);
+
+        // Show accumulating transcript
+        const accumulated = this.utteranceBuffer.join(" ");
+        this.onPartial(accumulated);
+
+        // Fire prefetch with accumulated transcript + entities gathered so far.
+        // Entities take the NER fast-path on the backend (no ConceptAgent LLM call).
+        const entitySnapshot = [...this.entityBuffer];
         fetch(`${API}/partial_transcript`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: this.sessionId, transcript: text }),
+          body: JSON.stringify({
+            session_id: this.sessionId,
+            transcript: accumulated,
+            entities: entitySnapshot,
+          }),
         }).catch(() => {});
+
       } else {
-        this.onPartial(text);
+        // Interim: show live text appended after confirmed fragments
+        const accumulated = this.utteranceBuffer.join(" ");
+        const display = accumulated ? `${accumulated} ${text}` : text;
+        this.onPartial(display);
       }
+    });
+
+    // ── UtteranceEnd: the real "done speaking" signal ────────────────────────
+    // Fires after utterance_end_ms (2500ms) of silence.
+    // This is when we send the full accumulated answer to the AI.
+    this.dgConnection.on(LiveTranscriptionEvents.UtteranceEnd, () => {
+      if (this.utteranceFlushTimer) {
+        clearTimeout(this.utteranceFlushTimer);
+        this.utteranceFlushTimer = null;
+      }
+      this._flushUtterance();
     });
 
     this.dgConnection.on(LiveTranscriptionEvents.Error, (e) => {
@@ -79,7 +140,22 @@ export class InterviewSession {
     this.processor.connect(this.audioContext.destination);
   }
 
+  private _flushUtterance() {
+    const fullText = this.utteranceBuffer.join(" ").trim();
+    const entities = [...this.entityBuffer];
+    this.utteranceBuffer = [];
+    this.entityBuffer.clear();
+    if (fullText) {
+      this.onFinal(fullText, entities);
+    }
+  }
+
   stop() {
+    if (this.utteranceFlushTimer) {
+      clearTimeout(this.utteranceFlushTimer);
+      this.utteranceFlushTimer = null;
+    }
+    this.utteranceBuffer = [];
     this.processor?.disconnect();
     this.mediaStream?.getTracks().forEach((t) => t.stop());
     this.audioContext?.close();
@@ -90,7 +166,6 @@ export class InterviewSession {
     this.dgConnection = null;
   }
 
-  /** Connect mic level to a canvas for the live waveform visualizer */
   connectVisualizer(callback: (level: number) => void): () => void {
     if (!this.audioContext || !this.mediaStream) return () => {};
     const analyser = this.audioContext.createAnalyser();
@@ -103,7 +178,7 @@ export class InterviewSession {
       if (!running) return;
       analyser.getByteFrequencyData(data);
       const avg = data.reduce((a, b) => a + b, 0) / data.length;
-      callback(avg / 128); // 0–1
+      callback(avg / 128);
       requestAnimationFrame(loop);
     };
     loop();
@@ -113,11 +188,11 @@ export class InterviewSession {
 
 // ─── Agent pipeline call ──────────────────────────────────────────────────────
 
-export async function processTurn(sessionId: string, transcript: string) {
+export async function processTurn(sessionId: string, transcript: string, entities: string[] = []) {
   const res = await fetch(`${API}/process_turn`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId, transcript }),
+    body: JSON.stringify({ session_id: sessionId, transcript, entities }),
   });
   if (!res.ok) throw new Error(`process_turn failed: ${res.status}`);
   return res.json();
@@ -125,25 +200,34 @@ export async function processTurn(sessionId: string, transcript: string) {
 
 // ─── TTS ──────────────────────────────────────────────────────────────────────
 
-export async function speakText(text: string, useFiller = true): Promise<void> {
+export async function prefetchAudio(text: string): Promise<string | null> {
   try {
     const res = await fetch(`${API}/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, use_filler: useFiller }),
+      body: JSON.stringify({ text }),
     });
-    if (!res.ok) return speakWithBrowser(text);
+    if (!res.ok) return null;
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    return new Promise((resolve) => {
-      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-      audio.play().catch(() => speakWithBrowser(text).then(resolve));
-    });
+    return URL.createObjectURL(blob);
   } catch {
-    return speakWithBrowser(text);
+    return null;
   }
+}
+
+export async function playAudioUrl(url: string | null, text: string): Promise<void> {
+  if (!url) return speakWithBrowser(text);
+  const audio = new Audio(url);
+  return new Promise((resolve) => {
+    audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+    audio.play().catch(() => { URL.revokeObjectURL(url); speakWithBrowser(text).then(resolve); });
+  });
+}
+
+export async function speakText(text: string): Promise<void> {
+  const url = await prefetchAudio(text);
+  return playAudioUrl(url, text);
 }
 
 function speakWithBrowser(text: string): Promise<void> {

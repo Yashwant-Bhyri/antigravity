@@ -11,6 +11,13 @@ MODEL_TIERS = {
     "large": "anthropic/claude-opus-4-5",       # deep evaluation, scoring (~500ms)
 }
 
+# Default max_tokens per tier — small tasks need less space, evaluation needs headroom
+TIER_MAX_TOKENS = {
+    "small": 256,
+    "medium": 768,
+    "large": 2500,   # full interview evaluation with JSON schema needs real space
+}
+
 # Alternative cheap/fast options for cost optimization:
 # "small": "google/gemini-flash-1.5"
 # "medium": "openai/gpt-4o-mini"
@@ -30,13 +37,16 @@ class LLMRouter:
 
     def __init__(self, tier: str = "medium"):
         assert tier in MODEL_TIERS, f"Unknown tier: {tier}. Choose from: {list(MODEL_TIERS.keys())}"
+        self.tier = tier
         self.model = MODEL_TIERS[tier]
         self.client = AsyncOpenAI(
             api_key=os.environ["OPENROUTER_API_KEY"],
             base_url="https://openrouter.ai/api/v1",
         )
 
-    async def call(self, system: str, user: str, max_tokens: int = 512) -> dict | str:
+    async def call(self, system: str, user: str, max_tokens: int | None = None) -> dict | str:
+        if max_tokens is None:
+            max_tokens = TIER_MAX_TOKENS[self.tier]
         response = await self.client.chat.completions.create(
             model=self.model,
             max_tokens=max_tokens,

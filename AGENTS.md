@@ -36,40 +36,53 @@
 
 ## CURRENT STATE
 
-**Status:** Scaffold complete. No agent is wired to a real LLM yet — all `call()` paths exist but need real prompts validated and tested.
+**Status:** Full end-to-end interview loop is live and running. All 7 agents wired. Frontend complete.
 
-**What exists:**
+**Architecture note:** Audio flow is CLIENT-SIDE Deepgram SDK (not backend WebSocket relay). This was a deliberate change for latency. `asr_service.py` is preserved but unused — frontend uses `@deepgram/sdk` directly. The `/stream/{session_id}` WebSocket endpoint in the README is outdated.
+
+**What exists and is FULLY WIRED:**
 ```
 backend/
-  main.py                          ✅ FastAPI entry point
-  api/routes.py                    ✅ /start_interview, /process_speech, /get_state
+  main.py                          ✅ FastAPI + lifespan (filler cache warm on startup)
+  api/routes.py                    ✅ All endpoints: /start_interview, /process_turn,
+                                      /partial_transcript, /tts, /tts_filler, /end_interview,
+                                      /state, /report
   services/
-    orchestrator.py                ✅ Skeleton — parallel agent dispatch
-    asr_service.py                 🔲 Stub — needs Deepgram WebSocket integration
-    tts_service.py                 🔲 Stub — needs ElevenLabs/Cartesia integration
+    orchestrator.py                ✅ Full: parallel 4-agent dispatch, discrepancy priority,
+                                      attack strategy selection, per-answer scoring (async),
+                                      reasoning behavior wired, sprint progression
+    tts_service.py                 ✅ ElevenLabs streaming + filler pre-cache at startup
+    asr_service.py                 🔲 Dead code — browser SDK used instead
   agents/
-    concept_agent.py               ✅ Prompt written, wired to LLMRouter
-    weakness_agent.py              ✅ Prompt written, wired to LLMRouter ⭐
-    followup_agent.py              ✅ Prompt + strategy map written
-    evaluation_agent.py            ✅ Multi-pass scoring skeleton
-    discrepancy_agent.py           ✅ Prompt written
-    resume_agent.py                ✅ Prompt written
-    reasoning_behavior_agent.py    ✅ Prompt written
+    concept_agent.py               ✅ Wired — partial + final transcript
+    weakness_agent.py              ✅ Wired — context-aware (sprint, prior weaknesses)
+    followup_agent.py              ✅ Wired — STRATEGY_MAP used in prompts,
+                                      generate_discrepancy_challenge() method live
+    evaluation_agent.py            ✅ Wired — Opus, accepts reasoning signals + per-answer scores
+    discrepancy_agent.py           ✅ Wired — high severity triggers direct confrontation
+    resume_agent.py                ✅ Wired — parses at session start, feeds all follow-ups
+    reasoning_behavior_agent.py    ✅ Wired — runs in parallel, feeds final evaluation
   models/
-    llm_router.py                  ✅ Tiered routing: Haiku → Sonnet → Opus (Anthropic)
+    llm_router.py                  ✅ Tier-aware max_tokens: small=256, medium=768, large=2500
   state/
-    session_manager.py             ✅ Redis async read/write
-  data/
-    question_bank/ml_questions.json  ✅ 3 sample questions seeded
+    session_manager.py             ✅ Redis async, 1hr TTL
+
+frontend/
+  app/page.tsx                     ✅ Landing page
+  app/interview/[id]/page.tsx      ✅ True parallel filler-first: filler fires immediately,
+                                      LLM + TTS prefetch run in parallel, zero gap on response
+  app/report/[id]/page.tsx         ✅ Full report page
+  app/dashboard/page.tsx           ⚠️ Frontend exists — blocked on /sessions backend endpoint
+  lib/audio.ts                     ✅ playFiller(), prefetchAudio(), playAudioUrl()
+  components/Waveform.tsx          ✅ AIOrb + audio-reactive waveform
 ```
 
 **What does NOT exist yet:**
-- RAG retrieval (vector DB not wired up)
-- LangGraph StateGraph (pseudocode only in notes, not implemented)
-- Kafka/event bus (docker-compose only has Redis for now)
-- Frontend (WebRTC voice UI)
-- Evaluation dashboard / recruiter UI
-- Tests (unit + simulation)
+- `/sessions` list endpoint + Postgres persistence (dashboard blocked)
+- RAG question bank (FAISS/Pinecone — not started)
+- LangGraph StateGraph (raw asyncio works fine, low priority)
+- Kafka/event bus (Redis Streams as fallback when needed)
+- Tests (unit + simulation — none exist)
 - GitHub Actions CI
 
 ---
@@ -177,7 +190,7 @@ backend/
 | Single OpenRouter key is sufficient | Parallel calls to multiple models work with one key — stateless routing. Two keys only needed for separate billing. | 2026-03-31 |
 | Frontend: Next.js 14 App Router + TypeScript + Tailwind | Better for recruiter dashboard (SSR) + interview page (real-time) in one framework | 2026-03-30 |
 | V1 scope: full product (candidate + recruiter dashboard + reports) | Yash confirmed — build everything, deploy later | 2026-03-30 |
-| Audio flow: browser → backend WS → Deepgram (not client-side SDK) | API keys never in browser; full control + logging | 2026-03-30 |
+| Audio flow: client-side Deepgram SDK (NOT backend WS relay) | Lower latency, simpler architecture. Key exposed via /deepgram_token — acceptable for internal tool. Original decision reversed. | 2026-04-01 |
 
 ---
 

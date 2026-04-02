@@ -1,6 +1,6 @@
 import os
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from backend.services.orchestrator import Orchestrator
 from backend.services.tts_service import TTSService
@@ -23,11 +23,13 @@ class TTSRequest(BaseModel):
 class TurnRequest(BaseModel):
     session_id: str
     transcript: str
+    entities: list[str] = []  # NER entities extracted by Deepgram during transcription
 
 
 class PartialRequest(BaseModel):
     session_id: str
     transcript: str
+    entities: list[str] = []  # NER entities from current is_final fragment(s)
 
 
 # ─────────────────────────────────────────────
@@ -55,19 +57,21 @@ async def get_deepgram_token():
 
 @router.post("/partial_transcript")
 async def partial_transcript(data: PartialRequest):
-    """Browser sends partial transcripts for predictive prefetch (fire-and-forget)."""
-    await orchestrator.on_partial_transcript(data.session_id, data.transcript)
+    """
+    Browser sends is_final fragments + NER entities while candidate is still speaking.
+    Entities fast-path the prefetch — no ConceptAgent LLM call needed.
+    """
+    await orchestrator.on_partial_transcript(data.session_id, data.transcript, entities=data.entities)
     return {"ok": True}
 
 
 @router.post("/process_turn")
 async def process_turn(data: TurnRequest):
     """
-    Browser sends final transcript → agents run → follow-up returned.
-    This replaces the audio WebSocket relay entirely.
-    Clean, simple, low latency.
+    Browser sends final transcript + NER entities → agents run → follow-up returned.
+    Entities extracted by Deepgram during transcription — no extra LLM call needed for concept extraction.
     """
-    result = await orchestrator.handle_transcript(data.session_id, data.transcript)
+    result = await orchestrator.handle_transcript(data.session_id, data.transcript, entities=data.entities)
     return result
 
 
@@ -87,28 +91,43 @@ async def end_interview(session_id: str):
 # TTS
 # ─────────────────────────────────────────────
 
+@router.get("/tts_filler")
+async def get_filler():
+    """
+    Returns a random pre-cached filler phrase as MP3.
+    Pre-generated at startup — responds in <10ms after warm-up.
+    Frontend calls this IMMEDIATELY when candidate stops speaking,
+    before/while the LLM pipeline runs, for true filler-first latency masking.
+    """
+    from fastapi import HTTPException
+    try:
+        audio_bytes = await tts_service.get_filler_audio()
+        return Response(content=audio_bytes, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Filler TTS failed: {str(e)[:80]}")
+
+
 @router.post("/tts")
 async def synthesize_speech(data: TTSRequest):
     from fastapi import HTTPException
 
+    # Always use plain stream() — fillers disabled.
+    # Collect all chunks from a single ElevenLabs call (never call twice).
+    chunks: list[bytes] = []
     try:
-        gen = tts_service.stream_with_filler(data.text) if data.use_filler else tts_service.stream(data.text)
-        first_chunk = None
-        async for chunk in gen:
+        async for chunk in tts_service.stream(data.text):
             if chunk:
-                first_chunk = chunk
-                break
-        if first_chunk is None:
+                chunks.append(chunk)
+        if not chunks:
             raise HTTPException(status_code=502, detail="TTS returned empty audio")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"TTS unavailable: {str(e)[:120]}")
 
     async def audio_generator():
-        yield first_chunk
-        stream = tts_service.stream_with_filler(data.text) if data.use_filler else tts_service.stream(data.text)
-        async for chunk in stream:
-            if chunk:
-                yield chunk
+        for chunk in chunks:
+            yield chunk
 
     return StreamingResponse(
         audio_generator(),

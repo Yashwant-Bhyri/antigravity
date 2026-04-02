@@ -1,5 +1,6 @@
 import os
 import asyncio
+import random
 from elevenlabs.client import AsyncElevenLabs
 from elevenlabs import VoiceSettings
 
@@ -13,8 +14,8 @@ FILLER_PHRASES = [
     "Got it.",
     "Alright.",
     "I see.",
-    "Hmm.",
     "Right.",
+    "Sure.",
 ]
 
 
@@ -22,10 +23,11 @@ class TTSService:
     """
     Streaming TTS via ElevenLabs (eleven_turbo_v2_5 model).
 
-    Filler-first strategy:
-      1. Immediately stream a filler phrase ("Interesting...", "Got it...")
-      2. Stream the real follow-up question right after
-      → Perceived latency drops to ~75ms even if LLM takes 500ms
+    True filler-first strategy:
+      The filler audio is pre-cached at startup — served in <10ms.
+      Frontend fires GET /tts_filler immediately when candidate stops speaking,
+      while simultaneously kicking off the LLM pipeline.
+      Perceived response latency: ~75ms (filler playback) regardless of LLM speed.
 
     Usage:
         tts = TTSService()
@@ -34,7 +36,7 @@ class TTSService:
     """
 
     def __init__(self):
-        self._api_key = os.environ.get("ELEVENLABS_API_KEY") or os.environ["TTS_API_KEY"]
+        self._api_key = os.environ.get("ELEVENLABS_API_KEY") or os.environ.get("TTS_API_KEY", "")
         self.client = AsyncElevenLabs(api_key=self._api_key)
         self._voice_settings = VoiceSettings(
             stability=0.5,
@@ -42,13 +44,12 @@ class TTSService:
             style=0.0,
             use_speaker_boost=True,
         )
+        # Pre-cached filler audio: phrase → bytes
+        # Populated lazily on first use; once cached, /tts_filler returns in <10ms
+        self._filler_cache: dict[str, bytes] = {}
 
     async def stream(self, text: str):
-        """
-        Async generator that yields MP3 audio chunks.
-        Caller is responsible for sending chunks to the client.
-        """
-        # No await needed before an async generator call
+        """Async generator yielding MP3 chunks from ElevenLabs."""
         async for chunk in self.client.text_to_speech.convert(
             voice_id=TTS_VOICE_ID,
             text=text,
@@ -59,13 +60,40 @@ class TTSService:
             if chunk:
                 yield chunk
 
+    async def get_filler_audio(self) -> bytes:
+        """
+        Returns pre-cached filler phrase audio.
+        First call per phrase hits ElevenLabs (~75ms); subsequent calls are instant.
+        Rotates through FILLER_PHRASES so the interviewer doesn't sound like a broken record.
+        """
+        phrase = random.choice(FILLER_PHRASES)
+        if phrase not in self._filler_cache:
+            chunks: list[bytes] = []
+            async for chunk in self.stream(phrase):
+                chunks.append(chunk)
+            self._filler_cache[phrase] = b"".join(chunks)
+        return self._filler_cache[phrase]
+
     async def stream_with_filler(self, followup_text: str):
         """
-        Streams a filler phrase immediately, then the real follow-up.
-        Use this on every turn to mask agent processing latency.
+        Legacy method — streams filler + response as one combined string.
+        Kept for compatibility; the preferred path is the parallel filler approach.
         """
-        import random
         filler = random.choice(FILLER_PHRASES)
         full_text = f"{filler} {followup_text}"
         async for chunk in self.stream(full_text):
             yield chunk
+
+    async def warm_filler_cache(self):
+        """
+        Pre-generates audio for all filler phrases at startup.
+        Call this once from main.py startup event so the first interview has no lag.
+        """
+        tasks = [self._cache_phrase(p) for p in FILLER_PHRASES if p not in self._filler_cache]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _cache_phrase(self, phrase: str):
+        chunks: list[bytes] = []
+        async for chunk in self.stream(phrase):
+            chunks.append(chunk)
+        self._filler_cache[phrase] = b"".join(chunks)

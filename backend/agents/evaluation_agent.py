@@ -101,14 +101,16 @@ class EvaluationAgent:
         history: list[dict],
         resume: str,
         weaknesses: list[dict],
+        reasoning_signals: list[dict] | None = None,
+        per_answer_scores: list[dict] | None = None,
     ) -> dict:
         """
         Final evaluation of the complete interview.
         Called once at session end. Uses Opus for maximum accuracy.
+        Incorporates reasoning behavior signals and per-answer scores for richer context.
         """
-        # Format history into readable transcript
         transcript_lines = []
-        for i, turn in enumerate(history):
+        for turn in history:
             sprint = turn.get("sprint", "?")
             persona = turn.get("persona", "?")
             transcript_lines.append(
@@ -123,14 +125,38 @@ class EvaluationAgent:
             for w in weaknesses
         ) or "None detected."
 
+        # Reasoning behavior aggregation
+        reasoning_summary = ""
+        if reasoning_signals:
+            structures = [r.get("structure_score", 0) for r in reasoning_signals if r]
+            avg_structure = sum(structures) / len(structures) if structures else 0
+            adaptability_counts: dict[str, int] = {}
+            for r in reasoning_signals:
+                if r:
+                    a = r.get("adaptability", "")
+                    adaptability_counts[a] = adaptability_counts.get(a, 0) + 1
+            dominant_adapt = max(adaptability_counts, key=adaptability_counts.get) if adaptability_counts else "unknown"
+            reasoning_summary = (
+                f"\nREASONING BEHAVIOR ({len(reasoning_signals)} turns):\n"
+                f"- Avg structure score: {avg_structure:.1f}/3\n"
+                f"- Dominant adaptability: {dominant_adapt}\n"
+                f"- Clarification behavior: {reasoning_signals[0].get('clarification_behavior', 'unknown') if reasoning_signals else 'unknown'}"
+            )
+
+        # Per-answer score summary
+        score_summary = ""
+        if per_answer_scores:
+            avg = sum(s.get("score", 0) for s in per_answer_scores) / len(per_answer_scores)
+            score_summary = f"\nPER-ANSWER SCORES ({len(per_answer_scores)} scored): avg {avg:.1f}/10"
+
         user = f"""RESUME:
-{resume[:1000]}
+{resume[:1500]}
 
 INTERVIEW TRANSCRIPT ({len(history)} turns):
 {transcript}
 
 DETECTED WEAKNESSES:
-{weakness_summary}
+{weakness_summary}{reasoning_summary}{score_summary}
 
 Evaluate the full interview."""
 
@@ -143,8 +169,8 @@ Evaluate the full interview."""
             "failure_surface": {},
             "hire_recommendation": "N/A",
             "confidence_score": 0,
-            "summary": "Evaluation failed.",
-            "risk_flags": [],
+            "summary": "Evaluation failed — LLM did not return valid JSON.",
+            "risk_flags": ["Evaluation pipeline error"],
             "strengths": [],
         }
 

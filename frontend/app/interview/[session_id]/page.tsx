@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { InterviewSession, processTurn, speakText } from "@/lib/audio";
+import { InterviewSession, processTurn, speakText, prefetchAudio, playAudioUrl } from "@/lib/audio";
 import { AIOrb, Waveform } from "@/components/Waveform";
 
 type Phase = "idle" | "listening" | "thinking" | "speaking";
@@ -46,19 +46,31 @@ export default function InterviewPage() {
   const prevSprintRef = useRef(1);
   const stopVisualizerRef = useRef<(() => void) | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const processingRef = useRef(false); // prevents concurrent onFinal handlers
+
+  // Guard against malformed URLs (e.g. /interview/undefined)
+  useEffect(() => {
+    if (!session_id || session_id === "undefined") router.replace("/");
+  }, [session_id, router]);
 
   // Auto-scroll
   useEffect(() => {
     transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, partial]);
 
-  const handleFollowup = useCallback(async (result: Record<string, unknown>) => {
+  // handleFollowup accepts a pre-fetched audioUrl so it can play immediately with zero lag.
+  // Audio is fetched during the LLM pipeline (while filler plays) — not here.
+  const handleFollowup = useCallback(async (
+    result: Record<string, unknown>,
+    preloadedAudioUrl: string | null,
+  ) => {
     const text = result.response as string;
     const newSprint = result.sprint as number;
     const newPersona = result.persona as string;
     const isComplete = result.complete as boolean;
+    const weakness = result.weakness as { severity?: string } | null;
 
-    // Sprint transition
+    // Sprint transition marker
     if (newSprint !== prevSprintRef.current) {
       prevSprintRef.current = newSprint;
       setSprint(newSprint);
@@ -71,16 +83,15 @@ export default function InterviewPage() {
       }]);
     }
 
-    const weakness = result.weakness as { severity?: string } | null;
+    // Show message and start audio simultaneously — audio is already fetched
     setMessages((prev) => [...prev, {
       role: "ai",
       text,
       severity: weakness?.severity,
     }]);
     setQuestionCount((c) => c + 1);
-
     setPhase("speaking");
-    await speakText(text, !isComplete);
+    await playAudioUrl(preloadedAudioUrl, text);
     setPhase(isComplete ? "idle" : "listening");
 
     if (isComplete) {
@@ -96,14 +107,15 @@ export default function InterviewPage() {
     setStarted(true);
     setPhase("speaking");
 
-    // Fetch opening question
+    // Fetch opening question and pre-fetch audio in parallel
     const state = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/state/${session_id}`).then((r) => r.json());
     const opening = state.last_question;
     setSprint(state.current_sprint);
     setPersona(state.current_persona);
-    setMessages([{ role: "ai", text: opening }]);
 
-    await speakText(opening, false);
+    const openingAudioUrl = await prefetchAudio(opening);
+    setMessages([{ role: "ai", text: opening }]);
+    await playAudioUrl(openingAudioUrl, opening);
 
     // Boot Deepgram session
     const session = new InterviewSession(session_id);
@@ -114,17 +126,24 @@ export default function InterviewPage() {
       setPhase("listening");
     };
 
-    session.onFinal = async (text) => {
+    session.onFinal = async (text, entities) => {
+      if (processingRef.current) return; // drop utterance if still processing previous
+      processingRef.current = true;
+
       setPartial("");
       setMessages((prev) => [...prev, { role: "candidate", text }]);
       setPhase("thinking");
 
       try {
-        const result = await processTurn(session_id, text);
-        await handleFollowup(result);
+        const result = await processTurn(session_id, text, entities);
+        // Prefetch audio while still in thinking state, then show message + play together
+        const audioUrl = await prefetchAudio(result.response as string);
+        await handleFollowup(result, audioUrl);
       } catch (e) {
         setError("Agent pipeline error. Check backend.");
         setPhase("listening");
+      } finally {
+        processingRef.current = false;
       }
     };
 

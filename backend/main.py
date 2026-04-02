@@ -3,9 +3,24 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.api.routes import router
+from contextlib import asynccontextmanager
+from backend.api.routes import router, tts_service
 
-app = FastAPI(title="Antigravity — AI Adversarial Interview Engine")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Pre-generate all filler phrase audio at startup so first interview is instant
+    try:
+        await tts_service.warm_filler_cache()
+    except Exception:
+        pass  # non-fatal — will generate lazily on first call
+    yield
+
+
+app = FastAPI(
+    title="Antigravity — AI Adversarial Interview Engine",
+    lifespan=lifespan,
+)
 
 # Add CORS so the frontend can talk to the backend
 app.add_middleware(
