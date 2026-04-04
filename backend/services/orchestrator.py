@@ -287,6 +287,20 @@ class Orchestrator:
         # Fires in background — doesn't slow down the response path
         asyncio.create_task(self._score_answer_async(session_id, last_question, text))
 
+        # ── Honest admission soft-cap ─────────────────────
+        # If ReasoningBehaviorAgent detects the candidate admitted a gap or self-corrected,
+        # downgrade weakness severity to medium. Intellectual honesty is not evasion.
+        # This routes Turn 7-style moments ("it's a glorified prompt optimizer") to curiosity
+        # instead of another attack probe.
+        reasoning_adaptability = reasoning.get("adaptability", "") if isinstance(reasoning, dict) else ""
+        reasoning_calibration = reasoning.get("confidence_calibration", "") if isinstance(reasoning, dict) else ""
+        honest_admission = (
+            reasoning_adaptability == "admitted_gap"
+            or (reasoning_adaptability == "flexible" and reasoning_calibration == "calibrated")
+        )
+        if honest_admission and weakness.get("severity") == "high":
+            weakness = {**weakness, "severity": "medium"}  # soft-cap, preserve all other fields
+
         # ── Consecutive weakness guardrail ────────────────
         # After 2 consecutive high-severity hits on the same weakness type, force a
         # sprint question. The signal is already captured — hammering it further adds

@@ -15,6 +15,7 @@ type Report = {
   failure_surface: Record<string, number>;
   weakness_summary: Record<string, number>;
   raw_weaknesses: { type: string; severity: string; weakness: string; attack_strategy: string }[];
+  claim_credibility_risk: { level: string; detail: string } | null;
 };
 
 async function getReport(sessionId: string): Promise<Report> {
@@ -82,6 +83,27 @@ export default async function ReportPage({
         {r.summary && (
           <div className="bg-zinc-900 rounded-xl px-5 py-4">
             <p className="text-sm text-zinc-300 leading-relaxed">{r.summary}</p>
+          </div>
+        )}
+
+        {/* Claim Credibility Risk — separate from overall score */}
+        {r.claim_credibility_risk && r.claim_credibility_risk.level !== "not_tested" && (
+          <div className={`rounded-xl px-5 py-4 border ${
+            r.claim_credibility_risk.level === "high"
+              ? "bg-red-950/30 border-red-500/20"
+              : r.claim_credibility_risk.level === "medium"
+              ? "bg-yellow-950/30 border-yellow-500/20"
+              : "bg-green-950/30 border-green-500/20"
+          }`}>
+            <p className="text-[10px] uppercase tracking-widest font-bold mb-1 text-zinc-500">Resume Claim Credibility</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-xs font-bold uppercase ${
+                r.claim_credibility_risk.level === "high" ? "text-red-400"
+                : r.claim_credibility_risk.level === "medium" ? "text-yellow-400"
+                : "text-green-400"
+              }`}>{r.claim_credibility_risk.level} risk</span>
+            </div>
+            <p className="text-sm text-zinc-400">{r.claim_credibility_risk.detail}</p>
           </div>
         )}
 

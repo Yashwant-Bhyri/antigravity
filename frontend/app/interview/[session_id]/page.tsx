@@ -12,6 +12,7 @@ type Message = {
   text: string;
   severity?: string;
   isSprintMarker?: boolean;
+  isPivotMarker?: boolean;
   sprint?: number;
 };
 
@@ -83,6 +84,16 @@ export default function InterviewPage() {
     const newPersona = result.persona as string;
     const isComplete = result.complete as boolean;
     const weakness = result.weakness as { severity?: string } | null;
+    const pivoting = result.pivoting as boolean;
+
+    // Pivoting marker — system consciously moving on from an exhausted gap
+    if (pivoting) {
+      setMessages((prev) => [...prev, {
+        role: "ai",
+        text: "Moving to a different area.",
+        isPivotMarker: true,
+      }]);
+    }
 
     // Sprint transition marker
     if (newSprint !== prevSprintRef.current) {
@@ -495,6 +506,16 @@ function MessageItem({ msg }: { msg: Message }) {
           {msg.text}
         </span>
         <div className="flex-1 h-px bg-white/5" />
+      </div>
+    );
+  }
+
+  if (msg.isPivotMarker) {
+    return (
+      <div className="flex items-center gap-4 py-2 px-10">
+        <div className="flex-1 h-px bg-white/[0.03]" />
+        <span className="text-[9px] text-zinc-700 uppercase tracking-[0.25em]">shifting focus</span>
+        <div className="flex-1 h-px bg-white/[0.03]" />
       </div>
     );
   }

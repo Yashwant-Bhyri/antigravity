@@ -10,13 +10,17 @@ Track:
 1. Structure: Do they enumerate steps? ("First... Second...")
 2. Clarification behavior: Do they ask for constraints before designing?
 3. Adaptability: How do they react when their answer is challenged?
+   - flexible: adjusts reasoning, incorporates new info
+   - rigid: sticks to original answer despite pressure
+   - defensive: deflects, avoids, or talks past the question
+   - admitted_gap: explicitly acknowledges they don't know or corrects themselves — this is intellectually honest, not evasive
 4. Confidence calibration: Are they overconfident or appropriately uncertain?
 
 Return JSON:
 {
   "structure_score": 0-3,
   "clarification_behavior": "asks | assumes | mixed",
-  "adaptability": "flexible | rigid | defensive",
+  "adaptability": "flexible | rigid | defensive | admitted_gap",
   "confidence_calibration": "calibrated | overconfident | underconfident",
   "notes": "..."
 }

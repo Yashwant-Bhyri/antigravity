@@ -188,6 +188,7 @@ async def get_report(session_id: str):
         "summary": evaluation.get("summary"),
         "strengths": evaluation.get("strengths", []),
         "risk_flags": evaluation.get("risk_flags", []),
+        "claim_credibility_risk": evaluation.get("claim_credibility_risk", {"level": "not_tested", "detail": ""}),
         "scores": evaluation.get("breakdown", state.get("scores", {})),
         "failure_surface": evaluation.get("failure_surface", state.get("failure_surface", {})),
         "weakness_summary": weakness_by_type,

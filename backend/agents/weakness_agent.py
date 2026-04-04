@@ -24,6 +24,8 @@ Severity:
 - medium: incomplete or could go deeper — worth following up
 - low: minor omission, acceptable for this sprint
 
+IMPORTANT: If the candidate explicitly admits they don't know something, corrects themselves, or shows honest self-awareness about the limits of their knowledge — severity must be medium or low. Intellectual honesty is not a weakness to attack.
+
 Output JSON only:
 {
   "weakness": "<one sentence describing the specific gap>",

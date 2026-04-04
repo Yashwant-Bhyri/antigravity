@@ -44,9 +44,13 @@ Produce a comprehensive evaluation with:
 
 5. Summary: 2-3 sentence honest assessment. If coverage was narrow, say so explicitly.
 
-6. Risk flags: be scoped — distinguish "specific claim not substantiated" from "broad engineering weakness"
+6. Claim credibility risk: separately assess only the specific resume claims that were tested.
+   This is SEPARATE from the overall score — a candidate can have one inflated claim but still be
+   a strong engineer overall. Do not let one bad claim drag down dimensions you didn't test.
 
-7. Strengths: what they demonstrably CAN do
+7. Risk flags: scoped — distinguish "specific claim not substantiated" from "broad engineering weakness"
+
+8. Strengths: what they demonstrably CAN do
 
 Return JSON:
 {
@@ -64,7 +68,11 @@ Return JSON:
   "confidence_score": <0.0-1.0>,
   "summary": "...",
   "risk_flags": ["...", "..."],
-  "strengths": ["...", "..."]
+  "strengths": ["...", "..."],
+  "claim_credibility_risk": {
+    "level": "low | medium | high | not_tested",
+    "detail": "<one sentence: which claims held up, which didn't>"
+  }
 }"""
 
 
