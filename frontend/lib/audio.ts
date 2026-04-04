@@ -70,6 +70,19 @@ export class InterviewSession {
     if (this.floor === newState) return;
     this.floor = newState;
     this.onFloorChange(newState);
+
+    // When AI takes the floor, discard any buffered speech fragments.
+    // This prevents TTS reverb (picked up during the echo drain window) from
+    // contaminating the candidate's next real answer.
+    if (newState === FloorState.AI_SPEAKING || newState === FloorState.AI_THINKING) {
+      this.utteranceBuffer = [];
+      this.entityBuffer.clear();
+      this.utteranceStartTime = null;
+      if (this.utteranceFlushTimer) {
+        clearTimeout(this.utteranceFlushTimer);
+        this.utteranceFlushTimer = null;
+      }
+    }
   }
 
   async start() {
@@ -146,9 +159,11 @@ export class InterviewSession {
           .filter((v) => v.length > 1);
         newEntities.forEach((e) => this.entityBuffer.add(e));
 
-        // Safety flush (forced — bypasses age gate)
+        // Clear any previous safety timer — UtteranceEnd (3s VAD silence) is the
+        // sole flush mechanism. A 5s safety timer caused mid-answer splits: if the
+        // candidate paused >5s mid-thought, the first half flushed, got a new question,
+        // and the second half answered a question the candidate hadn't heard yet.
         if (this.utteranceFlushTimer) clearTimeout(this.utteranceFlushTimer);
-        this.utteranceFlushTimer = setTimeout(() => this._flushUtterance(true), 5000);
 
         const accumulated = this.utteranceBuffer.join(" ");
         this.onPartial(accumulated);
@@ -208,8 +223,16 @@ export class InterviewSession {
       this.onError(String(e));
     });
 
-    // Capture mic
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    // Capture mic — echo cancellation is critical: without it, TTS audio bleeds into
+    // the mic and Deepgram transcribes the AI's own voice as the candidate's answer.
+    this.mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: false,
+    });
     this.audioContext = new AudioContext({ sampleRate: 16000 });
     const source = this.audioContext.createMediaStreamSource(this.mediaStream);
     this.processor = this.audioContext.createScriptProcessor(2048, 1, 1);
@@ -354,10 +377,14 @@ export async function prefetchAudio(text: string): Promise<string | null> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[TTS] ElevenLabs returned ${res.status} — will fall back to browser TTS`);
+      return null;
+    }
     const blob = await res.blob();
     return URL.createObjectURL(blob);
-  } catch {
+  } catch (e) {
+    console.warn("[TTS] ElevenLabs fetch failed:", e, "— will fall back to browser TTS");
     return null;
   }
 }
@@ -405,44 +432,44 @@ export async function speakText(text: string, signal?: AbortSignal): Promise<voi
   return playAudioUrl(url, text, signal);
 }
 
+// Chrome/macOS SpeechSynthesis truncates long utterances (>~200 chars) — it skips
+// the beginning. Fix: chunk into sentences and speak sequentially.
 function speakWithBrowser(text: string, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (!window.speechSynthesis) {
-      resolve();
-      return;
-    }
+  if (!window.speechSynthesis) return Promise.resolve();
+  console.warn("[TTS] ElevenLabs unavailable — falling back to browser speech synthesis");
 
-    const onAbort = () => {
-      window.speechSynthesis.cancel();
-      resolve();
-    };
+  // Split on sentence boundaries, keeping the delimiter attached to the sentence.
+  const sentences = text.match(/[^.!?]+[.!?]*/g) ?? [text];
 
-    if (signal?.aborted) {
-      onAbort();
-      return;
-    }
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find((v) =>
+    v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Google US English")
+  );
 
-    signal?.addEventListener("abort", onAbort);
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95;
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find((v) =>
-      v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Google US English")
-    );
-    if (preferred) u.voice = preferred;
+  const speakOne = (chunk: string): Promise<void> =>
+    new Promise((resolve) => {
+      if (signal?.aborted) { resolve(); return; }
 
-    u.onend = () => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    };
-    u.onerror = () => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    };
+      const u = new SpeechSynthesisUtterance(chunk.trim());
+      u.rate = 0.95;
+      if (preferred) u.voice = preferred;
 
-    window.speechSynthesis.speak(u);
-  });
+      const onAbort = () => { window.speechSynthesis.cancel(); resolve(); };
+      signal?.addEventListener("abort", onAbort);
+      u.onend = () => { signal?.removeEventListener("abort", onAbort); resolve(); };
+      u.onerror = () => { signal?.removeEventListener("abort", onAbort); resolve(); };
+      window.speechSynthesis.speak(u);
+    });
+
+  window.speechSynthesis.cancel();
+
+  return sentences.reduce(
+    (chain, sentence) => chain.then(() => {
+      if (signal?.aborted) return;
+      return speakOne(sentence);
+    }),
+    Promise.resolve() as Promise<void>,
+  );
 }
 
 // ─── Utility ──────────────────────────────────────────────────────────────────

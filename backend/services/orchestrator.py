@@ -264,21 +264,53 @@ class Orchestrator:
         was_challenged = bool(prior_weaknesses and prior_weaknesses[-1].get("severity") == "high")
 
         # ── Parallel agent execution ──────────────────────
-        # When Deepgram NER entities are available, skip ConceptAgent — entities are
-        # already precise technical terms (e.g. "Redis", "transformer", "async event loop")
-        # extracted during transcription, cost zero extra latency.
+        # return_exceptions=True: individual agent failures get a fallback value instead
+        # of crashing the entire turn. Without this, a single LLM API blip causes a 500
+        # that shows "Agent pipeline error" in the frontend.
+        _WEAKNESS_FALLBACK = {"weakness": "", "type": "vague", "severity": "low", "attack_strategy": "step_by_step"}
+        _DISCREPANCY_FALLBACK = {"conflict": False, "description": "", "severity": "low"}
+        _REASONING_FALLBACK = {"structure_score": 5, "adaptability": "flexible", "confidence_calibration": "calibrated"}
+
+        async def _safe_weakness():
+            try:
+                return await self.weakness_agent.detect(last_question, text, sprint=sprint, prior_weaknesses=prior_weaknesses)
+            except Exception as e:
+                print(f"[Orchestrator] WeaknessAgent failed: {e}")
+                return _WEAKNESS_FALLBACK
+
+        async def _safe_discrepancy():
+            try:
+                return await self.discrepancy_agent.check(resume, text)
+            except Exception as e:
+                print(f"[Orchestrator] DiscrepancyAgent failed: {e}")
+                return _DISCREPANCY_FALLBACK
+
+        async def _safe_reasoning():
+            try:
+                return await self.reasoning_agent.evaluate(text, was_challenged=was_challenged)
+            except Exception as e:
+                print(f"[Orchestrator] ReasoningAgent failed: {e}")
+                return _REASONING_FALLBACK
+
         three_agents = asyncio.gather(
-            self.weakness_agent.detect(last_question, text, sprint=sprint, prior_weaknesses=prior_weaknesses),
-            self.discrepancy_agent.check(resume, text),
-            self.reasoning_agent.evaluate(text, was_challenged=was_challenged),
+            _safe_weakness(),
+            _safe_discrepancy(),
+            _safe_reasoning(),
         )
 
         if entities:
             (weakness, discrepancy, reasoning) = await three_agents
             concepts = entities
         else:
+            async def _safe_concepts():
+                try:
+                    return await self.concept_agent.extract(text)
+                except Exception as e:
+                    print(f"[Orchestrator] ConceptAgent failed: {e}")
+                    return []
+
             concepts_result, (weakness, discrepancy, reasoning) = await asyncio.gather(
-                self.concept_agent.extract(text),
+                _safe_concepts(),
                 three_agents,
             )
             concepts = concepts_result

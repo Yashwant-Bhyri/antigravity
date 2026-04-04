@@ -131,6 +131,17 @@ export default function InterviewPage() {
       return;
     }
 
+    // Drain period: keep floor in AI_SPEAKING for 300ms after audio ends.
+    // This prevents room reverb / speaker bleed from being picked up by the mic
+    // and transcribed as the candidate's answer (acoustic feedback loop).
+    // The utteranceBuffer is cleared on transition to AI_THINKING/AI_SPEAKING,
+    // so any reverb captured during this window is discarded on the next transition.
+    await new Promise<void>((r) => setTimeout(r, 300));
+
+    if (expectedTurnId !== currentTurnIdRef.current) {
+      return;
+    }
+
     sessionRef.current?.transition(isComplete ? FloorState.IDLE : FloorState.USER_SPEAKING);
 
     if (isComplete) {
