@@ -23,22 +23,24 @@ At the end: a full evaluation report with scores, failure surface, and **HIRE / 
 
 ```
 Browser mic (PCM16)
-    ↓ WebSocket /stream/{session_id}
+    ↓ Deepgram SDK (browser-side, direct to Deepgram — key via /deepgram_token)
 Deepgram nova-3 ASR (streaming)
-    ↓ partial → concept extraction → speculative prefetch
-    ↓ final   → parallel agents
-                 ├─ WeaknessAgent      ← most important
+    ↓ Turn Engine: FloorManager + BargeInController + CV TurnEndScore
+    ↓ partial → entity accumulation (timing only, no LLM)
+    ↓ final   → committed utterance → parallel agents
+                 ├─ WeaknessAgent       ← most important
                  ├─ ConceptAgent
-                 └─ DiscrepancyAgent
+                 ├─ DiscrepancyAgent
+                 └─ ReasoningBehaviorAgent
     ↓
-Orchestrator selects follow-up
+Orchestrator selects follow-up (discrepancy → weakness → sprint question)
     ↓
-ElevenLabs TTS (filler-first streaming, ~75ms first chunk)
+ElevenLabs TTS (filler-first, ~75ms first chunk)
     ↓
-Browser plays audio
+Browser plays audio (AbortController for barge-in)
 ```
 
-**On session end:** EvaluationAgent (Opus) scores full transcript → report generated.
+**On session end:** EvaluationAgent (Opus) scores full transcript → report generated → persisted to Postgres.
 
 ---
 
@@ -48,9 +50,12 @@ Browser plays audio
 |-------|-----------|
 | Backend | FastAPI + Python 3.11, async throughout |
 | LLM | OpenRouter (Anthropic Claude — Haiku/Sonnet/Opus tiered) |
-| ASR | Deepgram nova-3, WebSocket streaming |
+| ASR | Deepgram nova-3 — browser SDK (client-side direct, not backend relay) |
 | TTS | ElevenLabs eleven_turbo_v2_5, streaming |
-| Session state | Redis (async) |
+| Turn detection | FloorManager (audio VAD) + optional MediaPipe CV fusion |
+| Session state | Redis (async, 1hr TTL) |
+| Persistence | Postgres (completed sessions, recruiter dashboard) |
+| RAG | FAISS local → Pinecone (prod) |
 | Frontend | Next.js 14, App Router, TypeScript, Tailwind |
 
 ---
@@ -60,32 +65,39 @@ Browser plays audio
 ```
 antigravity/
 ├── backend/
-│   ├── main.py                    ← FastAPI app + CORS
-│   ├── api/routes.py              ← All endpoints + WebSocket
+│   ├── main.py                       ← FastAPI app + lifespan (TTS warmup, Postgres init)
+│   ├── api/routes.py                 ← All endpoints
 │   ├── services/
-│   │   ├── orchestrator.py        ← Core brain: sprints, personas, flow
-│   │   ├── asr_service.py         ← Deepgram WebSocket
-│   │   └── tts_service.py         ← ElevenLabs streaming
+│   │   ├── orchestrator.py           ← Core brain: sprints, personas, agent dispatch
+│   │   └── tts_service.py            ← ElevenLabs streaming + filler cache
 │   ├── agents/
-│   │   ├── weakness_agent.py      ← ⭐ Most important
+│   │   ├── weakness_agent.py         ← ⭐ Most important
 │   │   ├── concept_agent.py
-│   │   ├── followup_agent.py      ← 3 persona prompts
-│   │   ├── evaluation_agent.py    ← Full interview scorer
+│   │   ├── followup_agent.py         ← 3 persona prompts + RAG-grounded sprint questions
+│   │   ├── evaluation_agent.py       ← Full interview scorer (Opus)
 │   │   ├── discrepancy_agent.py
 │   │   ├── resume_agent.py
 │   │   └── reasoning_behavior_agent.py
-│   ├── models/llm_router.py       ← OpenRouter, tiered routing
-│   └── state/session_manager.py   ← Redis session state
-├── frontend/                      ← Next.js app
+│   ├── rag/
+│   │   ├── faiss_store.py            ← FAISS index + sentence-transformers embeddings
+│   │   └── question_bank.py          ← Question retrieval wrapper
+│   ├── db/
+│   │   └── postgres.py               ← Async Postgres (session persistence)
+│   ├── models/llm_router.py          ← OpenRouter, tiered routing
+│   └── state/session_manager.py      ← Redis session state
+├── frontend/
 │   ├── app/
-│   │   ├── page.tsx               ← Landing / start interview
-│   │   ├── interview/[id]/        ← Live voice interview UI
-│   │   ├── report/[id]/           ← Full evaluation report
-│   │   └── dashboard/             ← Recruiter dashboard
-│   ├── lib/audio.ts               ← Mic capture + TTS playback
-│   └── components/Waveform.tsx    ← Animated waveform + mic pulse
+│   │   ├── page.tsx                  ← Landing / start interview
+│   │   ├── interview/[id]/           ← Live voice interview UI + floor state
+│   │   ├── report/[id]/              ← Full evaluation report
+│   │   └── dashboard/                ← Recruiter dashboard
+│   ├── lib/
+│   │   ├── audio.ts                  ← InterviewSession: FloorManager, BargeIn, TTS
+│   │   └── vision.ts                 ← CVSensor: MediaPipe turn prediction (opt-in)
+│   └── components/Waveform.tsx       ← AIOrb + audio-reactive waveform
 ├── infra/docker-compose.yml
-├── AGENTS.md                      ← Shared AI coordination file
+├── AGENTS.md                         ← Shared AI coordination file (Claude + Codex + Gemini)
+├── COLLAB.md                         ← Async AI team discussion board
 └── .env.example
 ```
 
@@ -98,12 +110,13 @@ antigravity/
 git clone https://github.com/Yashwant-Bhyri/antigravity.git
 cd antigravity
 cp .env.example .env
-# Fill in OPENROUTER_API_KEY, DEEPGRAM_API_KEY, ELEVENLABS_API_KEY
+# Fill in OPENROUTER_API_KEY, DEEPGRAM_API_KEY, ELEVENLABS_API_KEY, DATABASE_URL
 ```
 
 **2. Start Redis**
 ```bash
-docker-compose -f infra/docker-compose.yml up redis
+brew install redis && brew services start redis
+# or: docker-compose -f infra/docker-compose.yml up redis
 ```
 
 **3. Start backend**
@@ -125,19 +138,24 @@ npm run dev   # runs on localhost:3000
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/start_interview` | Create session, get opening question |
-| WS | `/stream/{session_id}` | Stream PCM16 audio, receive followups |
+| POST | `/start_interview` | Create session, parse resume, get opening question |
+| POST | `/process_turn` | Submit full committed utterance → agents run → follow-up returned |
+| POST | `/partial_transcript` | Entity accumulation during speech (timing only, no LLM) |
+| GET | `/deepgram_token` | Vend Deepgram key to browser SDK |
 | POST | `/tts` | Synthesize speech → MP3 stream |
-| POST | `/end_interview/{session_id}` | Trigger full evaluation |
+| GET | `/tts_filler` | Pre-cached filler phrase → instant MP3 |
+| POST | `/end_interview/{session_id}` | Trigger full evaluation + Postgres persist |
 | GET | `/report/{session_id}` | Full report with hire recommendation |
 | GET | `/state/{session_id}` | Raw session state |
+| GET | `/sessions` | All completed sessions (recruiter dashboard) |
 
 ---
 
 ## AI Coordination
 
-This project is built by two AI assistants in parallel:
-**Claude Code** (Anthropic) + **Antigravity** (Google Gemini)
+Built by three AI assistants in parallel:
+**Claude Code** (Anthropic) + **Codex** (OpenAI) + **Antigravity** (Google Gemini)
 
-See `AGENTS.md` for the shared context file — both AIs read/write it to stay in sync.
+See `AGENTS.md` for the shared context file — all AIs read/write it to stay in sync.
+See `COLLAB.md` for async discussion between agents.
 Always `git pull` before starting a session. Always `git push` after.

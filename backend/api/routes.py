@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from backend.services.orchestrator import Orchestrator
@@ -24,6 +24,7 @@ class TurnRequest(BaseModel):
     session_id: str
     transcript: str
     entities: list[str] = []  # NER entities extracted by Deepgram during transcription
+    turn_id: str = ""          # Frontend-generated UUID; echoed back for stale response detection
 
 
 class PartialRequest(BaseModel):
@@ -71,13 +72,16 @@ async def process_turn(data: TurnRequest):
     Browser sends final transcript + NER entities → agents run → follow-up returned.
     Entities extracted by Deepgram during transcription — no extra LLM call needed for concept extraction.
     """
-    result = await orchestrator.handle_transcript(data.session_id, data.transcript, entities=data.entities)
+    result = await orchestrator.handle_transcript(data.session_id, data.transcript, entities=data.entities, turn_id=data.turn_id)
     return result
 
 
 @router.post("/end_interview/{session_id}")
 async def end_interview(session_id: str):
-    final_state = await orchestrator.end_session(session_id)
+    try:
+        final_state = await orchestrator.end_session(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
     evaluation = final_state.get("final_evaluation", {})
     return {
         "session_id": session_id,
@@ -140,14 +144,32 @@ async def synthesize_speech(data: TTSRequest):
 # STATE & REPORTING
 # ─────────────────────────────────────────────
 
+@router.get("/sessions")
+async def get_sessions():
+    """All completed interviews for recruiter dashboard."""
+    from backend.db.postgres import list_sessions
+    rows = await list_sessions()
+    # Convert datetime to ISO string for JSON serialisation
+    for r in rows:
+        if hasattr(r.get("created_at"), "isoformat"):
+            r["created_at"] = r["created_at"].isoformat()
+    return rows
+
+
 @router.get("/state/{session_id}")
 async def get_state(session_id: str):
-    return await orchestrator.get_session_state(session_id)
+    try:
+        return await orchestrator.get_session_state(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
 
 
 @router.get("/report/{session_id}")
 async def get_report(session_id: str):
-    state = await orchestrator.get_session_state(session_id)
+    try:
+        state = await orchestrator.get_session_state(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
     evaluation = state.get("final_evaluation") or {}
     weaknesses = state.get("weaknesses", [])
 

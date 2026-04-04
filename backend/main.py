@@ -14,6 +14,23 @@ async def lifespan(app: FastAPI):
         await tts_service.warm_filler_cache()
     except Exception:
         pass  # non-fatal — will generate lazily on first call
+
+    # Initialise Postgres schema (creates tables if not present) — best-effort
+    try:
+        from backend.db.postgres import init_schema
+        await init_schema()
+    except Exception:
+        pass  # Postgres unavailable — sessions endpoint will return empty, interviews still work
+
+    # Build RAG question bank index — best-effort, runs in background thread via executor
+    try:
+        import asyncio
+        from backend.rag import question_bank
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, question_bank.load)
+    except Exception:
+        pass  # RAG unavailable — sprint questions fall back to pure LLM generation
+
     yield
 
 

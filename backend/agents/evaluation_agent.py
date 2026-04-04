@@ -23,26 +23,30 @@ Return JSON:
 }"""
 
 
-FULL_INTERVIEW_PROMPT = """You are evaluating the complete transcript of a 30-minute technical interview.
+FULL_INTERVIEW_PROMPT = """You are evaluating the complete transcript of a technical interview.
 
-You will receive the full Q&A history across 3 sprints and a list of detected weaknesses.
+You will receive the full Q&A history, detected weaknesses, and a COVERAGE NOTE describing how broad the interview actually was.
+
+**Critical instruction:** Read the COVERAGE NOTE carefully. If the interview clustered heavily on one topic, your confidence score must reflect that narrow evidence base — do NOT assign high confidence when few dimensions were actually tested. Separate your claim-level concerns from your overall engineering judgment.
 
 Produce a comprehensive evaluation with:
 
-1. Overall score (0-10)
+1. Overall score (0-10) — based only on what was actually tested
 2. Per-dimension scores:
    - reasoning (0-10): logical thinking, structured problem-solving
    - technical_depth (0-10): correctness, specificity, production awareness
    - communication (0-10): clarity, conciseness, structured answers
    - adaptability (0-10): how they handled being challenged or wrong
 
-3. Failure surface: for each technical domain mentioned, estimate their knowledge failure point (0.0=strong, 1.0=completely failed)
+3. Failure surface: for each technical domain mentioned, estimate knowledge failure point (0.0=strong, 1.0=completely failed)
 
 4. Hire recommendation: HIRE | MAYBE | NO HIRE
 
-5. Summary: 2-3 sentence honest assessment
+5. Summary: 2-3 sentence honest assessment. If coverage was narrow, say so explicitly.
 
-6. Risk flags: list of specific concerns
+6. Risk flags: be scoped — distinguish "specific claim not substantiated" from "broad engineering weakness"
+
+7. Strengths: what they demonstrably CAN do
 
 Return JSON:
 {
@@ -103,6 +107,7 @@ class EvaluationAgent:
         weaknesses: list[dict],
         reasoning_signals: list[dict] | None = None,
         per_answer_scores: list[dict] | None = None,
+        coverage_ratio: float | None = None,
     ) -> dict:
         """
         Final evaluation of the complete interview.
@@ -149,6 +154,26 @@ class EvaluationAgent:
             avg = sum(s.get("score", 0) for s in per_answer_scores) / len(per_answer_scores)
             score_summary = f"\nPER-ANSWER SCORES ({len(per_answer_scores)} scored): avg {avg:.1f}/10"
 
+        # Coverage note — warns the LLM when evidence is narrow
+        coverage_note = ""
+        if weaknesses and len(history) > 3:
+            unique_types = len({w.get("type") for w in weaknesses if w.get("type")})
+            total = len(weaknesses)
+            computed_ratio = unique_types / max(total, 1)
+            ratio = coverage_ratio if coverage_ratio is not None else computed_ratio
+            if ratio < 0.3:
+                dominant = max(
+                    {w.get("type", ""): weaknesses.count(w) for w in weaknesses},
+                    key=lambda t: sum(1 for w in weaknesses if w.get("type") == t),
+                    default="unknown",
+                )
+                coverage_note = (
+                    f"\n\nCOVERAGE NOTE: {round(ratio * 100)}% of weakness types were unique across {total} detections. "
+                    f"The interview clustered heavily on '{dominant}' failures. "
+                    f"Dimensions NOT fully tested should not be rated low — mark them as inconclusive. "
+                    f"Confidence score must reflect this narrow evidence base (suggest ≤ 0.6)."
+                )
+
         user = f"""RESUME:
 {resume[:1500]}
 
@@ -156,7 +181,7 @@ INTERVIEW TRANSCRIPT ({len(history)} turns):
 {transcript}
 
 DETECTED WEAKNESSES:
-{weakness_summary}{reasoning_summary}{score_summary}
+{weakness_summary}{reasoning_summary}{score_summary}{coverage_note}
 
 Evaluate the full interview."""
 

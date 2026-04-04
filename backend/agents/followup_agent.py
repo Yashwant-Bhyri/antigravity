@@ -1,4 +1,5 @@
 from backend.models.llm_router import LLMRouter
+from backend.rag import question_bank
 
 
 # ─────────────────────────────────────────────
@@ -19,7 +20,8 @@ Rules:
 - ONE question only. Conversational and specific to what they just said.
 - Build on their answer — reference what they told you.
 - Do NOT ask yes/no questions.
-- Do NOT be confrontational or dismissive.""",
+- Do NOT be confrontational or dismissive.
+- If a gap has already been probed once, pivot — ask what they DO know rather than repeating the same probe rephrased.""",
 
     "socratic_mentor": """You are a Socratic Mentor interviewer — a thoughtful teacher who helps candidates reveal what they actually understand.
 
@@ -32,7 +34,8 @@ Your style:
 Rules:
 - ONE question only. Clear and focused on one concept at a time.
 - Do NOT make the candidate feel stupid — your goal is to find the edges of their knowledge, not embarrass them.
-- Do NOT ask questions that require memorized facts — ask for reasoning.""",
+- Do NOT ask questions that require memorized facts — ask for reasoning.
+- Once you've established a knowledge boundary on one concept, move to a different concept — don't ask the same thing six different ways.""",
 
     "senior_peer": """You are a Senior Peer interviewer — an experienced engineer thinking through a real design problem together with the candidate.
 
@@ -206,15 +209,27 @@ Output only the question."""
         history: list[dict],
         weakness: dict | None = None,
         parsed_resume: dict | None = None,
-    ) -> str:
+    ) -> tuple[str, list[str]]:
         """
         Low/medium severity or clean answer → advance to the next question for this sprint.
         Generates a fresh question grounded in the candidate's actual resume and history.
-        Deliberately references specific resume items — never generic questions.
+        Returns (question_text, followups) — followups are the bank's pre-written deepening
+        questions for the seed used, adapted to this candidate on the next turn.
         """
         covered = [h.get("question", "") for h in history[-6:]]
         covered_str = "\n".join(f"- {q}" for q in covered) if covered else "None yet."
         resume_context = _build_resume_context(parsed_resume, resume)
+
+        # Retrieve 2 relevant questions from the bank as structural seeds.
+        # The LLM adapts the best fit to this specific candidate — never used verbatim.
+        rag_candidates = question_bank.retrieve(resume_context[:400], sprint=sprint, top_k=2)
+        rag_context = ""
+        # Capture followups from the best-matching seed for use as the next turn's deepening questions
+        seed_followups: list[str] = []
+        if rag_candidates:
+            rag_context = "\n\nStructural question seeds (adapt to the candidate — do NOT copy verbatim):\n"
+            rag_context += "\n".join(f"- {q['text']}" for q in rag_candidates)
+            seed_followups = rag_candidates[0].get("followups", [])
 
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
         user = f"""Sprint goal: {SPRINT_GOALS.get(sprint, '')}
@@ -223,7 +238,7 @@ Candidate background:
 {resume_context}
 
 Questions already asked (do NOT repeat these):
-{covered_str}
+{covered_str}{rag_context}
 
 Generate ONE new interview question that:
 - Directly references something specific from their resume (a project by name, a technology they listed, a claim they made)
@@ -234,7 +249,38 @@ Generate ONE new interview question that:
 Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
-        return result if isinstance(result, str) else result.get("question", str(result))
+        question = result if isinstance(result, str) else result.get("question", str(result))
+        return question, seed_followups
+
+    async def adapt_followup(
+        self,
+        raw_followup: str,
+        question: str,
+        answer: str,
+        persona: str,
+        resume_context: str,
+    ) -> str:
+        """
+        Takes a raw follow-up template from the question bank and grounds it in the
+        candidate's specific answer. Called between sprint questions to go one level deeper
+        before advancing to the next topic.
+        """
+        system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+        user = f"""The interview just covered this exchange:
+Q: {question}
+A: {answer[:400]}
+
+Candidate background:
+{resume_context[:300]}
+
+Adapt this follow-up question so it references something specific from their answer above:
+"{raw_followup}"
+
+Output only the adapted question. ONE question, conversational."""
+
+        result = await self.llm.call(system=system, user=user)
+        # Fallback: use the raw template if LLM fails
+        return result if isinstance(result, str) else raw_followup
 
     async def prefetch(self, concepts: list[str], state: dict) -> list[str]:
         """

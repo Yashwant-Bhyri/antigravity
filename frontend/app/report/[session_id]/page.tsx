@@ -43,9 +43,10 @@ function barColor(score: number, max = 10) {
 export default async function ReportPage({
   params,
 }: {
-  params: { session_id: string };
+  params: Promise<{ session_id: string }>;
 }) {
-  const r = await getReport(params.session_id);
+  const { session_id } = await params;
+  const r = await getReport(session_id);
 
   const scoreEntries = Object.entries(r.scores);
   const failureEntries = Object.entries(r.failure_surface);

@@ -50,6 +50,7 @@ export default function InterviewPage() {
   const transcriptRef = useRef<HTMLDivElement>(null);
   const processingRef = useRef(false); // prevents concurrent onFinal handlers
   const currentTurnIdRef = useRef("");
+  const pendingFinalRef = useRef<{ text: string; entities: string[] } | null>(null);
 
   // Guard against malformed URLs (e.g. /interview/undefined)
   useEffect(() => {
@@ -68,6 +69,11 @@ export default function InterviewPage() {
     expectedTurnId: string,
   ) => {
     if (expectedTurnId !== currentTurnIdRef.current) {
+      if (preloadedAudioUrl) URL.revokeObjectURL(preloadedAudioUrl);
+      return;
+    }
+
+    if (sessionRef.current?.floor === FloorState.USER_SPEAKING) {
       if (preloadedAudioUrl) URL.revokeObjectURL(preloadedAudioUrl);
       return;
     }
@@ -177,11 +183,24 @@ export default function InterviewPage() {
     };
 
     session.onPartial = (text) => {
+      if (processingRef.current && session.floor === FloorState.AI_THINKING) {
+        // The turn was committed too early and the user kept talking.
+        // Invalidate the in-flight response immediately so it cannot be played
+        // while the floor has shifted back to the candidate.
+        currentTurnIdRef.current = crypto.randomUUID();
+        session.transition(FloorState.USER_SPEAKING);
+      }
       setPartial(text);
     };
 
     session.onFinal = async (text, entities) => {
-      if (processingRef.current) return;
+      if (processingRef.current) {
+        // User continued speaking while a turn is in-flight.
+        // Invalidate the in-flight turn so its result is dropped, then buffer this utterance.
+        currentTurnIdRef.current = crypto.randomUUID();
+        pendingFinalRef.current = { text, entities };
+        return;
+      }
       processingRef.current = true;
 
       const turnId = crypto.randomUUID();
@@ -206,6 +225,12 @@ export default function InterviewPage() {
         session.transition(FloorState.USER_SPEAKING);
       } finally {
         processingRef.current = false;
+        // If the user continued speaking while this turn was in-flight, process their buffered utterance now.
+        const pending = pendingFinalRef.current;
+        pendingFinalRef.current = null;
+        if (pending) {
+          session.onFinal(pending.text, pending.entities);
+        }
       }
     };
 
@@ -242,17 +267,23 @@ export default function InterviewPage() {
   }
 
 
-  function endInterview() {
+  async function endInterview() {
     currentTurnIdRef.current = crypto.randomUUID();
     stopVisualizerRef.current?.();
     sessionRef.current?.stop();
-    
+
     // Stop camera
     if (videoRef.current?.srcObject) {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
     }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/end_interview/${session_id}`, { method: "POST" });
+    // Await end_interview so the report is persisted before navigation.
+    // Navigation happens regardless of failure — report page handles partial data gracefully.
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/end_interview/${session_id}`, { method: "POST" });
+    } catch {
+      // non-fatal — navigate anyway, report will show partial state
+    }
     router.push(`/report/${session_id}`);
   }
 

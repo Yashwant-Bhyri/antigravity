@@ -1,8 +1,70 @@
 # AGENTS.md — Shared AI Context File
-> This file is the single source of truth for both AI assistants working on Antigravity.
-> **Claude Code** and **Antigravity (Gemini/AI chat)** must both read this at the start of every session and update it after completing work.
+> This file is the single source of truth for ALL AI assistants working on Antigravity.
+> **Claude Code**, **Codex**, and **Antigravity (Gemini)** must all read this at the start of every session and update it after completing work.
 > Yash edits this too when making decisions or giving direction.
 > **⚠️ RULE: Always `git pull` before reading this file. Always `git push` after updating it.**
+
+---
+
+## 🤝 ONBOARDING — FOR ANY AI JOINING THIS PROJECT
+
+**Welcome to Antigravity. Read this entire section before touching any code.**
+
+### Who is on this team
+| Agent | Role | Interface |
+|-------|------|-----------|
+| **Claude Code** | Primary backend + full-stack implementation, architecture decisions | Claude Code CLI (Yash's terminal) |
+| **Codex** | Code generation, refactoring, implementation tasks | OpenAI Codex / ChatGPT |
+| **Antigravity (Gemini)** | Full-stack, ideation, research, implementation | Google Gemini chat |
+| **Yash** | Product owner, final decision maker | All of the above |
+
+### Mandatory reading — go through EVERY LINE of these files before doing ANY work
+
+**In `/Users/yash/antigravity/` (the project root):**
+1. `AGENTS.md` ← you are here — read it entirely, every section
+2. `README.md` — project overview and API reference
+3. `/Users/yash/Downloads/notes.md` — full PRD (Parts 1–5), the product vision, agent design, latency strategy, infra plan. This is the WHY behind every decision.
+
+**Backend — read every file line by line:**
+4. `backend/main.py` — FastAPI app entry, lifespan hooks, CORS
+5. `backend/api/routes.py` — ALL endpoints: `/start_interview`, `/process_turn`, `/partial_transcript`, `/tts`, `/tts_filler`, `/end_interview`, `/state`, `/report`, `/deepgram_token`
+6. `backend/services/orchestrator.py` — THE BRAIN. Parallel agent dispatch, attack strategy selection, sprint progression, prefetch logic. Most critical file in the backend.
+7. `backend/services/tts_service.py` — ElevenLabs streaming TTS, filler cache warm-up
+8. `backend/services/asr_service.py` — DEAD CODE. Do not use or modify. Frontend uses Deepgram SDK directly.
+9. `backend/models/llm_router.py` — OpenRouter tiered model routing (Haiku/Sonnet/Opus)
+10. `backend/state/session_manager.py` — Redis async session state, 1hr TTL
+11. `backend/agents/concept_agent.py`
+12. `backend/agents/weakness_agent.py` ← MOST IMPORTANT AGENT
+13. `backend/agents/followup_agent.py`
+14. `backend/agents/evaluation_agent.py`
+15. `backend/agents/discrepancy_agent.py`
+16. `backend/agents/resume_agent.py`
+17. `backend/agents/reasoning_behavior_agent.py`
+
+**Frontend — read every file line by line:**
+18. `frontend/lib/audio.ts` — Deepgram browser SDK, utterance buffering, NER entity extraction, TTS utilities
+19. `frontend/app/page.tsx` — Landing page (resume input)
+20. `frontend/app/interview/[session_id]/page.tsx` — Main interview UI, filler-first response logic
+21. `frontend/app/report/[session_id]/page.tsx` — Report display
+22. `frontend/app/dashboard/page.tsx` — Recruiter dashboard (BLOCKED — needs `/sessions` backend endpoint)
+23. `frontend/components/Waveform.tsx` — AIOrb, audio-reactive waveform
+24. `frontend/app/layout.tsx`
+
+**Config/Infra:**
+25. `infra/docker-compose.yml`
+26. `requirements.txt`
+27. `frontend/package.json`
+28. `.env.example` (never read `.env` directly — ask Yash for keys)
+
+**Collaboration:**
+29. `COLLAB.md` ← shared async discussion space between all AIs. Read it. Add to it when you have suggestions, questions, or critiques for the team.
+
+### Rules you MUST follow
+- Follow all conventions in the `## CONVENTIONS` section below exactly
+- Never re-debate decisions in `## DECISIONS LOG` unless Yash explicitly reopens them
+- Check `## IN PROGRESS` before starting work — don't duplicate
+- After completing work: update `## COMPLETED`, `## DECISIONS LOG`, `## HANDOFF NOTES`
+- All cross-AI communication goes in `COLLAB.md`
 
 ---
 
@@ -128,10 +190,12 @@ frontend/
 
 | Task | Owner | Notes |
 |---|---|---|
+| Frontend `turn_id` stale-response protection | Codex | `frontend/app/interview/[session_id]/page.tsx` + `frontend/lib/audio.ts`; depends on GM-1 |
 | `/sessions` list endpoint (recruiter dashboard) | — | Dashboard page exists, needs backend endpoint + Postgres |
 | LangGraph StateGraph wiring | — | Low priority — raw asyncio works fine for now |
 | Postgres persistence (interview logs, session list) | — | Redis works for active sessions; need Postgres for history |
 | Testing: unit tests for agents, simulation tests | — | No tests exist yet |
+
 
 ---
 
@@ -139,6 +203,10 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Frontend turn-commit hotfix for mid-thought cutoff | Codex | 2026-04-05 | `frontend/lib/audio.ts` no longer lets CV directly flush utterances into the LLM path; `frontend/app/interview/[session_id]/page.tsx` now invalidates AI_THINKING turns as soon as the user resumes partial speech; verified with `npm run build` |
+| Frontend `turn_id` stale-response protection | Codex | 2026-04-04 | `frontend/app/interview/[session_id]/page.tsx` + `frontend/lib/audio.ts`; sends `turn_id`, drops stale replies, invalidates on end/unmount, verified with `npm run build` |
+| GM-2: Multimodal Turn Prediction (MediaPipe CV) | Antigravity | 2026-04-04 | `frontend/lib/vision.ts` + `audio.ts` fusion; Lip closure + Gaze prediction |
+| GM-1: FloorManager + Transcript Accumulator + Barge-in | Antigravity | 2026-04-04 | `frontend/lib/audio.ts` refactored with interruption/abort support |
 | Full project scaffold (all agents, router, session manager, API, Docker) | Claude Code | 2026-03-30 | See `/backend/` |
 | Initial question bank seeded (3 questions) | Claude Code | 2026-03-30 | `data/question_bank/ml_questions.json` |
 | Git initialized + first commit | Claude Code | 2026-03-30 | ✅ Done |
@@ -196,6 +264,18 @@ frontend/
 
 ## HANDOFF NOTES
 > Time-sensitive notes from one AI to the other. Clear these once acknowledged.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-05**
+- The root-cause hotfix for the "mid-thought fragment goes to LLM" bug is now in the frontend.
+- `frontend/lib/audio.ts` no longer lets the CV score directly call `_flushUtterance()`. Vision now predicts only; meaning commit is still gated by Deepgram `UtteranceEnd` / safety flush.
+- `frontend/app/interview/[session_id]/page.tsx` now invalidates the active turn immediately if new partial speech arrives while the app is still in `AI_THINKING`.
+- This should stop the most visible failure mode: a prematurely committed fragment reaching TTS while the candidate has already resumed speaking.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-04**
+- Frontend stale-response protection is now wired in `frontend/app/interview/[session_id]/page.tsx` and `frontend/lib/audio.ts`.
+- Each committed utterance generates a `turn_id`, sends it through `/process_turn`, and silently drops late responses whose echoed `turn_id` no longer matches `currentTurnIdRef`.
+- `endInterview()` and component unmount now invalidate the active `turn_id`.
+- When `onBargeIn` lands in Gemini's floor manager, the intended invalidation hook is: `currentTurnIdRef.current = crypto.randomUUID()`.
 
 **→ TO: Antigravity | FROM: Claude Code | Date: 2026-03-30**
 - Full frontend is live in `frontend/`. Next.js 14, App Router, TypeScript, Tailwind.

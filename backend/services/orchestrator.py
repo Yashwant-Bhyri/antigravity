@@ -1,14 +1,38 @@
 import asyncio
 import time
 import uuid
+from backend.db.postgres import persist_session
 from backend.agents.concept_agent import ConceptAgent
 from backend.agents.weakness_agent import WeaknessAgent
-from backend.agents.followup_agent import FollowUpAgent
+from backend.agents.followup_agent import FollowUpAgent, _build_resume_context
 from backend.agents.discrepancy_agent import DiscrepancyAgent
 from backend.agents.evaluation_agent import EvaluationAgent
 from backend.agents.resume_agent import ResumeAgent
 from backend.agents.reasoning_behavior_agent import ReasoningBehaviorAgent
 from backend.state.session_manager import SessionManager
+
+
+def _build_resume_context_for_followup(parsed_resume: dict | None, resume: str) -> str:
+    """Thin wrapper so orchestrator can call the shared helper without circular imports."""
+    return _build_resume_context(parsed_resume, resume)
+
+
+# Fallback follow-ups used when the RAG bank returns no seed questions.
+# Sprint-keyed so they stay contextually relevant even without a bank hit.
+_FALLBACK_FOLLOWUPS: dict[int, list[str]] = {
+    1: [
+        "What would you do differently if you were starting this project from scratch today?",
+        "What was the hardest part to get right, and how did you know when you'd actually solved it?",
+    ],
+    2: [
+        "Where does your mental model of this concept start to break down?",
+        "How would you explain the trade-off you just described to an engineer who hasn't worked in this space?",
+    ],
+    3: [
+        "What's the first thing that breaks under load in the design you just described?",
+        "What would you instrument to catch that failure before it hits production?",
+    ],
+}
 
 
 # ─────────────────────────────────────────────
@@ -65,11 +89,11 @@ class Orchestrator:
         self.resume_agent = ResumeAgent()
         self.reasoning_agent = ReasoningBehaviorAgent()
 
-        # Prefetched follow-ups keyed by session_id
-        self._prefetched: dict[str, list[str]] = {}
-
         # Per-answer scores accumulated throughout the interview (non-blocking, fired async)
         self._per_answer_scores: dict[str, list[dict]] = {}
+
+        # Entity accumulation from partial transcripts — consumed on full turn commit
+        self._partial_entities: dict[str, set] = {}
 
     # ─────────────────────────────────────────────
     # SESSION LIFECYCLE
@@ -107,6 +131,12 @@ class Orchestrator:
             "final_evaluation": None,
             # Current state
             "last_question": SPRINT_OPENERS[1],
+            # Adversarialism guardrails — prevent infinite probe loops on the same gap
+            "consecutive_high_weakness_count": 0,
+            "last_weakness_type": None,
+            # Follow-up sequencing — deepening questions from the question bank
+            "current_question_followups": [],   # follow-up templates for the current sprint question
+            "current_question_followup_asked": False,  # only one follow-up per sprint question
         }
         await self.session_manager.save_state(session_id, state)
         return session_id
@@ -132,20 +162,42 @@ class Orchestrator:
             # Accumulated per-answer scores (may be partial — background tasks)
             per_answer_scores = self._per_answer_scores.pop(session_id, [])
 
+            # Coverage ratio: unique weakness types / total weaknesses.
+            # Low ratio = interview was narrow; evaluation confidence should be capped.
+            weaknesses = state.get("weaknesses", [])
+            unique_types = len({w.get("type") for w in weaknesses if w.get("type")})
+            coverage_ratio = unique_types / max(len(weaknesses), 1) if weaknesses else 1.0
+
             evaluation = await self.evaluation_agent.score_full_interview(
                 history=history,
                 resume=state.get("resume", ""),
-                weaknesses=state.get("weaknesses", []),
+                weaknesses=weaknesses,
                 reasoning_signals=reasoning_signals,
                 per_answer_scores=per_answer_scores,
+                coverage_ratio=coverage_ratio,
             )
             state["final_evaluation"] = evaluation
             state["scores"] = evaluation.get("breakdown", {})
             state["failure_surface"] = evaluation.get("failure_surface", {})
 
         await self.session_manager.save_state(session_id, state)
-        self._prefetched.pop(session_id, None)
-        self._last_prefetch_len.pop(session_id, None)
+        self._partial_entities.pop(session_id, None)
+
+        # Persist to Postgres for recruiter dashboard — non-blocking, best-effort
+        try:
+            evaluation = state.get("final_evaluation") or {}
+            duration = (time.time() - state.get("interview_start_time", time.time())) / 60
+            asyncio.create_task(persist_session(
+                session_id=session_id,
+                resume_snippet=state.get("resume", "")[:200],
+                hire_recommendation=evaluation.get("hire_recommendation", ""),
+                overall_score=float(evaluation.get("overall_score") or 0),
+                sprint_reached=int(state.get("current_sprint", 1)),
+                duration_minutes=round(duration, 1),
+            ))
+        except Exception:
+            pass  # Postgres failure never blocks the interview response
+
         return state
 
     async def _score_answer_async(self, session_id: str, question: str, answer: str):
@@ -170,47 +222,37 @@ class Orchestrator:
     # REAL-TIME TRANSCRIPT HANDLING
     # ─────────────────────────────────────────────
 
-    # Tracks last partial length per session to throttle prefetch LLM calls
-    _last_prefetch_len: dict[str, int] = {}
-
     async def on_partial_transcript(self, session_id: str, text: str, entities: list[str] | None = None):
         """
         Fires on every is_final fragment while candidate is still speaking.
-        Two paths:
-        - Deepgram NER entities provided → use them directly (zero extra LLM call)
-        - No entities → fall back to ConceptAgent extraction (throttled to avoid hammering)
+        Timing/warmup only — NO LLM calls here.
+        Entity accumulation happens client-side (Deepgram NER). Nothing is sent to agents
+        until handle_transcript() fires on the full committed utterance.
+        TODO: retrieval warmup — pre-fetch rubrics from RAG index using entities (CC-4/CX-2)
         """
+        # Accumulate entities for use when the full turn arrives — no LLM spend
         if entities:
-            # Fast path: Deepgram already extracted entities — skip ConceptAgent entirely
-            state = await self.session_manager.get_state(session_id)
-            prefetched = await self.followup_agent.prefetch(entities, state)
-            if prefetched:
-                self._prefetched[session_id] = prefetched
-            return
+            existing = self._partial_entities.get(session_id, set())
+            existing.update(entities)
+            self._partial_entities[session_id] = existing
 
-        # Slow path: no entities — throttle and run ConceptAgent
-        last_len = self._last_prefetch_len.get(session_id, 0)
-        if len(text) - last_len < 40:
-            return
-        self._last_prefetch_len[session_id] = len(text)
-
-        concepts = await self.concept_agent.extract(text)
-        if concepts:
-            state = await self.session_manager.get_state(session_id)
-            prefetched = await self.followup_agent.prefetch(concepts, state)
-            if prefetched:
-                self._prefetched[session_id] = prefetched
-
-    async def handle_transcript(self, session_id: str, text: str, entities: list[str] | None = None) -> dict:
+    async def handle_transcript(self, session_id: str, text: str, entities: list[str] | None = None, turn_id: str = "") -> dict:
         """
-        Fires on full utterance (UtteranceEnd) with the complete answer.
-        Runs parallel agent pipeline. If Deepgram entities are provided, skips ConceptAgent
-        and uses them directly — faster and more precise (entities surfaced during speech).
+        Fires on full committed utterance with the complete answer.
+        Merges any entities accumulated during partials with entities from the final turn.
+        Runs parallel agent pipeline. turn_id is echoed back so the frontend can detect
+        and discard stale responses (e.g. if user started speaking again before this resolved).
         """
         state = await self.session_manager.get_state(session_id)
 
         if state.get("interview_complete"):
-            return {"response": "The interview has concluded. Thank you.", "complete": True}
+            return {"response": "The interview has concluded. Thank you.", "complete": True, "turn_id": turn_id}
+
+        # Merge entities from partial accumulation with any from the final turn
+        accumulated = self._partial_entities.pop(session_id, set())
+        if entities:
+            accumulated.update(entities)
+        entities = list(accumulated) if accumulated else entities
 
         last_question = state.get("last_question", "")
         persona = state.get("current_persona", "curious_lead")
@@ -245,11 +287,29 @@ class Orchestrator:
         # Fires in background — doesn't slow down the response path
         asyncio.create_task(self._score_answer_async(session_id, last_question, text))
 
+        # ── Consecutive weakness guardrail ────────────────
+        # After 2 consecutive high-severity hits on the same weakness type, force a
+        # sprint question. The signal is already captured — hammering it further adds
+        # no new information and produces an interrogation instead of an interview.
+        wtype = weakness.get("type") if weakness else None
+        if weakness and weakness.get("severity") == "high":
+            if wtype == state.get("last_weakness_type"):
+                state["consecutive_high_weakness_count"] = state.get("consecutive_high_weakness_count", 0) + 1
+            else:
+                state["consecutive_high_weakness_count"] = 1
+            state["last_weakness_type"] = wtype
+        else:
+            state["consecutive_high_weakness_count"] = 0
+            state["last_weakness_type"] = None
+
+        force_sprint_question = state.get("consecutive_high_weakness_count", 0) >= 2
+        pivoting = force_sprint_question  # surfaced to frontend for subtle UI signal
+
         # ── Select follow-up: priority order ──────────────
-        # 1. Resume discrepancy (high): confront it directly — highest priority signal
-        # 2. Reasoning weakness (high): targeted probe with attack strategy
-        # 3. Prefetched question: already generated while candidate was speaking
-        # 4. Sprint question: fresh resume-grounded question for normal progression
+        # 1. Resume discrepancy (high, not exhausted) → direct confrontation
+        # 2. Reasoning weakness (high, not exhausted) → targeted probe
+        # 3. Follow-up deepening question from question bank → go one level deeper on current topic
+        # 4. Sprint question → advance to next topic
 
         discrepancy_conflict = (
             isinstance(discrepancy, dict)
@@ -257,7 +317,9 @@ class Orchestrator:
             and discrepancy.get("severity") == "high"
         )
 
-        if discrepancy_conflict:
+        resume_context = _build_resume_context_for_followup(parsed_resume, resume)
+
+        if discrepancy_conflict and not force_sprint_question:
             followup = await self.followup_agent.generate_discrepancy_challenge(
                 question=last_question,
                 answer=text,
@@ -266,7 +328,7 @@ class Orchestrator:
                 resume=resume,
                 parsed_resume=parsed_resume,
             )
-        elif weakness.get("severity") == "high":
+        elif weakness.get("severity") == "high" and not force_sprint_question:
             followup = await self.followup_agent.generate(
                 question=last_question,
                 answer=text,
@@ -275,10 +337,23 @@ class Orchestrator:
                 resume=resume,
                 parsed_resume=parsed_resume,
             )
-        elif self._prefetched.get(session_id):
-            followup = self._prefetched.pop(session_id)[0]
+        elif (
+            not state.get("current_question_followup_asked")
+            and state.get("current_question_followups")
+        ):
+            # Ask a deepening follow-up from the question bank before advancing topics.
+            # Adapts the raw template to what the candidate actually said.
+            raw_followup = state["current_question_followups"].pop(0)
+            followup = await self.followup_agent.adapt_followup(
+                raw_followup=raw_followup,
+                question=last_question,
+                answer=text,
+                persona=persona,
+                resume_context=resume_context,
+            )
+            state["current_question_followup_asked"] = True
         else:
-            followup = await self.followup_agent.generate_sprint_question(
+            sprint_result = await self.followup_agent.generate_sprint_question(
                 sprint=sprint,
                 persona=persona,
                 resume=resume,
@@ -286,6 +361,11 @@ class Orchestrator:
                 history=state.get("history", []),
                 weakness=weakness,
             )
+            followup, seed_followups = sprint_result
+            # Prefer bank follow-ups; fall back to sprint-keyed universal templates
+            followups_to_store = seed_followups[:1] or _FALLBACK_FOLLOWUPS.get(sprint, [])[:1]
+            state["current_question_followups"] = followups_to_store
+            state["current_question_followup_asked"] = False
 
         # ── Update state ──────────────────────────────────
         state["history"].append({
@@ -324,6 +404,8 @@ class Orchestrator:
                 "sprint": state["current_sprint"],
                 "persona": persona,
                 "complete": True,
+                "pivoting": False,
+                "turn_id": turn_id,
             }
 
         return {
@@ -336,6 +418,8 @@ class Orchestrator:
             "persona": persona,
             "question_count": state["question_count"],
             "complete": False,
+            "pivoting": pivoting,  # True when system consciously moves on from an exhausted gap
+            "turn_id": turn_id,
         }
 
     # ─────────────────────────────────────────────
@@ -359,6 +443,11 @@ class Orchestrator:
         state["current_persona"] = SPRINTS[next_sprint]["persona"]
         state["sprint_name"] = SPRINTS[next_sprint]["name"]
         state["sprint_question_count"] = 0
+        # Reset weakness guard — new sprint, clean slate
+        state["consecutive_high_weakness_count"] = 0
+        state["last_weakness_type"] = None
+        state["current_question_followups"] = []
+        state["current_question_followup_asked"] = False
 
         opener = SPRINT_OPENERS[next_sprint]
         state["last_question"] = opener
