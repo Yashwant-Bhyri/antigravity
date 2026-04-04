@@ -137,6 +137,15 @@ class Orchestrator:
             # Follow-up sequencing — deepening questions from the question bank
             "current_question_followups": [],   # follow-up templates for the current sprint question
             "current_question_followup_asked": False,  # only one follow-up per sprint question
+            # Candidate memory — built across turns so agents don't lose context between turns.
+            # The discrepancy agent otherwise re-evaluates each turn in isolation: Turn 1 maps
+            # the candidate's project to their resume correctly, but Turn 2 forgets that mapping
+            # and flags the same project as "not on resume". This model persists confirmed mappings.
+            "candidate_model": {
+                "project_map": {},          # {"candidate name": {"resume_entry": str, "confirmed_turn": int}}
+                "established_facts": [],    # confirmed truths about the candidate's work
+                "probed_weaknesses": [],    # weakness areas already explored (avoid reprobe)
+            },
         }
         await self.session_manager.save_state(session_id, state)
         return session_id
@@ -260,8 +269,20 @@ class Orchestrator:
         resume = state.get("resume", "")
         parsed_resume = state.get("parsed_resume", {})
         prior_weaknesses = state.get("weaknesses", [])
+        candidate_model = state.get("candidate_model", {"project_map": {}, "established_facts": [], "probed_weaknesses": []})
 
         was_challenged = bool(prior_weaknesses and prior_weaknesses[-1].get("severity") == "high")
+
+        # ── Build cross-turn memory context ──────────────
+        # Agents receive a summary of what's already been established so they
+        # don't re-probe confirmed facts or re-map already-resolved project claims.
+        established_facts = candidate_model.get("established_facts", [])
+        probed_weaknesses = candidate_model.get("probed_weaknesses", [])
+        memory_context = ""
+        if established_facts:
+            memory_context += "Already established as true:\n" + "\n".join(f"- {f}" for f in established_facts[-4:]) + "\n"
+        if probed_weaknesses:
+            memory_context += "Already probed (avoid repeating):\n" + "\n".join(f"- {p}" for p in probed_weaknesses[-4:])
 
         # ── Parallel agent execution ──────────────────────
         # return_exceptions=True: individual agent failures get a fallback value instead
@@ -273,14 +294,18 @@ class Orchestrator:
 
         async def _safe_weakness():
             try:
-                return await self.weakness_agent.detect(last_question, text, sprint=sprint, prior_weaknesses=prior_weaknesses)
+                return await self.weakness_agent.detect(
+                    last_question, text, sprint=sprint,
+                    prior_weaknesses=prior_weaknesses,
+                    memory_context=memory_context,
+                )
             except Exception as e:
                 print(f"[Orchestrator] WeaknessAgent failed: {e}")
                 return _WEAKNESS_FALLBACK
 
         async def _safe_discrepancy():
             try:
-                return await self.discrepancy_agent.check(resume, text)
+                return await self.discrepancy_agent.check(resume, text, memory_context=memory_context)
             except Exception as e:
                 print(f"[Orchestrator] DiscrepancyAgent failed: {e}")
                 return _DISCREPANCY_FALLBACK
@@ -350,6 +375,14 @@ class Orchestrator:
         force_sprint_question = state.get("consecutive_high_weakness_count", 0) >= 2
         pivoting = force_sprint_question  # surfaced to frontend for subtle UI signal
 
+        # ── Sprint 3 strategy remapping ───────────────────
+        # Sprint 3 is System Design — trade-offs, failure modes, scale.
+        # Implementation probes ("walk me through your code") belong in Sprint 2.
+        # If weakness agent recommends an implementation-level attack in Sprint 3,
+        # remap it to scaling so the conversation stays at the right altitude.
+        if sprint == 3 and weakness and weakness.get("attack_strategy") in ("implementation_probe", "step_by_step"):
+            weakness = {**weakness, "attack_strategy": "scaling"}
+
         # ── Select follow-up: priority order ──────────────
         # 1. Resume discrepancy (high, not exhausted) → direct confrontation
         # 2. Reasoning weakness (high, not exhausted) → targeted probe
@@ -411,6 +444,29 @@ class Orchestrator:
             followups_to_store = seed_followups[:1] or _FALLBACK_FOLLOWUPS.get(sprint, [])[:1]
             state["current_question_followups"] = followups_to_store
             state["current_question_followup_asked"] = False
+
+        # ── Update candidate memory ───────────────────────
+        # Accumulate confirmed project mappings and probed areas so agents in future
+        # turns have context about what's already been established or explored.
+        # No LLM call — derived from agent outputs already computed this turn.
+        candidate_model = state.get("candidate_model", {"project_map": {}, "established_facts": [], "probed_weaknesses": []})
+        turn_num = state.get("question_count", 0) + 1
+
+        if isinstance(discrepancy, dict) and not discrepancy.get("conflict") and discrepancy.get("description"):
+            # Discrepancy agent confirmed no conflict → candidate's claim is credible
+            # Extract any project mapping from the discrepancy description (first 120 chars as summary)
+            fact = discrepancy["description"][:120].rstrip(".") + f" (confirmed Turn {turn_num})"
+            if fact not in candidate_model["established_facts"]:
+                candidate_model["established_facts"].append(fact)
+
+        if weakness and weakness.get("type") and weakness.get("weakness"):
+            # Record what's been probed so agents don't hammer the same gap repeatedly
+            probe_note = f"{weakness['type']}: {weakness['weakness'][:80]} (Turn {turn_num})"
+            candidate_model["probed_weaknesses"].append(probe_note)
+            # Cap at last 8 probes — older ones are less relevant
+            candidate_model["probed_weaknesses"] = candidate_model["probed_weaknesses"][-8:]
+
+        state["candidate_model"] = candidate_model
 
         # ── Update state ──────────────────────────────────
         state["history"].append({

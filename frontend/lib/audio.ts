@@ -159,11 +159,15 @@ export class InterviewSession {
           .filter((v) => v.length > 1);
         newEntities.forEach((e) => this.entityBuffer.add(e));
 
-        // Clear any previous safety timer — UtteranceEnd (3s VAD silence) is the
-        // sole flush mechanism. A 5s safety timer caused mid-answer splits: if the
-        // candidate paused >5s mid-thought, the first half flushed, got a new question,
-        // and the second half answered a question the candidate hadn't heard yet.
+        // Reset the failsafe timer on every is_final fragment.
+        // 30s is long enough to never split any normal answer (interviews rarely
+        // have 30s pauses mid-thought), but short enough to recover if Deepgram
+        // fails to fire UtteranceEnd (rare, but happens on unstable connections).
+        // The previous 5s timer was causing mid-answer splits: pause >5s mid-thought
+        // → first half flushed → new question generated → second half answered
+        // a question the candidate hadn't heard yet.
         if (this.utteranceFlushTimer) clearTimeout(this.utteranceFlushTimer);
+        this.utteranceFlushTimer = setTimeout(() => this._flushUtterance(true), 30000);
 
         const accumulated = this.utteranceBuffer.join(" ");
         this.onPartial(accumulated);

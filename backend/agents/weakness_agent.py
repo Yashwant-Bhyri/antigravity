@@ -51,6 +51,7 @@ class WeaknessAgent:
         answer: str,
         sprint: int = 1,
         prior_weaknesses: list[dict] | None = None,
+        memory_context: str = "",
     ) -> dict:
         """
         Detects weakness in the candidate's answer.
@@ -71,7 +72,9 @@ class WeaknessAgent:
             types = [w.get("type", "") for w in recent]
             prior_context = f"\nAlready probed: {', '.join(types)}. Avoid redundant weakness detection."
 
-        user = f"""Sprint {sprint} — {sprint_focus}{prior_context}
+        memory_section = f"\n\nCandidate context from prior turns:\n{memory_context}" if memory_context else ""
+
+        user = f"""Sprint {sprint} — {sprint_focus}{prior_context}{memory_section}
 
 Question: {question}
 
