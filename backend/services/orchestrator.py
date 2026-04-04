@@ -293,11 +293,10 @@ class Orchestrator:
         # This routes Turn 7-style moments ("it's a glorified prompt optimizer") to curiosity
         # instead of another attack probe.
         reasoning_adaptability = reasoning.get("adaptability", "") if isinstance(reasoning, dict) else ""
-        reasoning_calibration = reasoning.get("confidence_calibration", "") if isinstance(reasoning, dict) else ""
-        honest_admission = (
-            reasoning_adaptability == "admitted_gap"
-            or (reasoning_adaptability == "flexible" and reasoning_calibration == "calibrated")
-        )
+        # Only soft-cap on explicit admitted_gap — "flexible" alone is normal good behavior,
+        # not a reason to downgrade a legitimate weakness. WeaknessAgent prompt now handles
+        # honest admission in its own classification; this is a safety-net cross-check only.
+        honest_admission = reasoning_adaptability == "admitted_gap"
         if honest_admission and weakness.get("severity") == "high":
             weakness = {**weakness, "severity": "medium"}  # soft-cap, preserve all other fields
 

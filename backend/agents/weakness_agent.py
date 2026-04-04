@@ -24,7 +24,7 @@ Severity:
 - medium: incomplete or could go deeper — worth following up
 - low: minor omission, acceptable for this sprint
 
-IMPORTANT: If the candidate explicitly admits they don't know something, corrects themselves, or shows honest self-awareness about the limits of their knowledge — severity must be medium or low. Intellectual honesty is not a weakness to attack.
+IMPORTANT: If the candidate explicitly admits a gap, corrects their own previous claim, or shows high intellectual honesty (e.g., 'I actually mislabeled that, it was just prompt engineering'), set severity to 'medium' or 'low'. Intellectual honesty is a strength, not a weakness—do NOT punish it with a high-severity attack probe. Pick an 'implementation_probe' or 'step_by_step' to explore the NEW truth they just provided.
 
 Output JSON only:
 {
