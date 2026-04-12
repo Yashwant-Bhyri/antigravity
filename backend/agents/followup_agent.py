@@ -284,6 +284,69 @@ Output only the adapted question. ONE question, conversational."""
         # Fallback: use the raw template if LLM fails
         return result if isinstance(result, str) else raw_followup
 
+    async def generate_sprint_opener(
+        self,
+        sprint: int,
+        persona: str,
+        resume: str,
+        parsed_resume: dict | None,
+        prior_sprint_history: list[dict],
+    ) -> str:
+        """
+        Generates a context-aware sprint transition question.
+
+        Unlike generate_sprint_question, this is the OPENING of a new sprint — it
+        should feel like a smooth pivot, not a cold restart. It references the most
+        interesting thing that emerged in the previous sprint and uses it as a launchpad
+        into the new sprint's goal.
+
+        Sprint 1→2: "We just explored [project X]. Let's go deeper on [concept Y] you mentioned."
+        Sprint 2→3: "You explained [concept Z]. Now let's think about how that design scales."
+        """
+        resume_context = _build_resume_context(parsed_resume, resume)
+
+        # Summarise the last sprint: last 4 Q&A pairs (avoid huge context)
+        prior_summary = ""
+        if prior_sprint_history:
+            pairs = prior_sprint_history[-4:]
+            prior_summary = "What we just covered in the previous sprint:\n"
+            for i, turn in enumerate(pairs, 1):
+                q = turn.get("question", "")[:120]
+                a = turn.get("answer", "")[:180]
+                if q:
+                    prior_summary += f"  Q{i}: {q}\n"
+                if a:
+                    prior_summary += f"  A{i}: {a}\n"
+
+        transition_context = {
+            2: "Transition from project exploration into the technical concepts that underpin the work they described. "
+               "Reference a specific technology, decision, or claim from the previous sprint — use it as the jumping-off point.",
+            3: "Transition from conceptual discussion into system design and trade-offs. "
+               "Reference something concrete from what they've explained so far — scale it up, introduce a constraint, or ask about failure modes.",
+        }.get(sprint, "")
+
+        system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+        user = f"""You are opening Sprint {sprint} of the interview.
+
+Sprint {sprint} goal: {SPRINT_GOALS.get(sprint, '')}
+Transition guidance: {transition_context}
+
+Candidate background:
+{resume_context}
+
+{prior_summary}
+
+Write ONE transition question that:
+- Feels like a natural continuation of the conversation above (not a cold start)
+- References something specific the candidate said or something concrete from their resume
+- Opens the door to the new sprint goal without immediately going deep
+- Is conversational and clear — a senior engineer talking to a peer
+
+Output only the question."""
+
+        result = await self.llm.call(system=system, user=user)
+        return result if isinstance(result, str) else result.get("question", str(result))
+
     async def prefetch(self, concepts: list[str], state: dict) -> list[str]:
         """
         Speculatively generate follow-ups while the candidate is still speaking.
