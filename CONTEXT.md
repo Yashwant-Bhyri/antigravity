@@ -445,19 +445,6 @@ antigravity/
 
 ---
 
-## § 14. WHAT THE NEXT SESSION SHOULD FOCUS ON
-
-In priority order:
-
-1. **Start Postgres** (`docker-compose up postgres` from `infra/`) — unblocks dashboard, stops silent background task crashes.
-
-2. **`tts_filler` loop investigation** — logs show 15+ calls in one session. Check `onSilence` in `audio.ts` — may be firing repeatedly during a stuck floor state.
-
-3. **Total confession pivot** — implement `full_confession: True` flag in session state. When `admitted_gap` fires AND candidate says "I don't know any of this"/"please end the interview" → all subsequent turns skip resume claims, test only product/conceptual thinking. This addresses the Turn 10-15 failure mode from the second real interview.
-
-4. **Candidate distress detection** — "please end the interview" signal → graceful off-ramp. Could be as simple as keyword matching in the orchestrator before routing to agents.
-
-5. **Second interview full analysis** — session `de5303b2`. Candidate admitted resume inflation at Turn 10. System correctly detected `admitted_gap`, soft-capped severity. But Turns 11-15 still probed technical claims instead of pivoting to product thinking. This is the `full_confession` failure mode.
 
 ---
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { InterviewSession, processTurn, speakText, prefetchAudio, playAudioUrl, FloorState } from "@/lib/audio";
+import { InterviewSession, processTurn, prefetchAudio, playAudioUrl, FloorState } from "@/lib/audio";
 import { AIOrb, Waveform } from "@/components/Waveform";
 
 type Phase = "idle" | "listening" | "thinking" | "speaking";
@@ -16,6 +16,24 @@ type Message = {
   sprint?: number;
 };
 
+type SessionHistoryEntry = {
+  question: string;
+  answer: string;
+  weakness?: { severity?: string } | null;
+  sprint?: number;
+};
+
+type SessionSnapshot = {
+  question_count?: number;
+  interview_complete?: boolean;
+  resume?: string;
+  github_links?: string[];
+  current_sprint?: number;
+  current_persona?: string;
+  last_question?: string;
+  history?: SessionHistoryEntry[];
+};
+
 const SPRINT_LABELS: Record<number, string> = {
   1: "Project Defense",
   2: "Foundations",
@@ -27,6 +45,32 @@ const PERSONA_DESC: Record<string, string> = {
   socratic_mentor: "Testing first principles",
   senior_peer: "Stress-testing your design",
 };
+
+const API = process.env.NEXT_PUBLIC_API_URL;
+
+function buildMessagesFromHistory(history: SessionHistoryEntry[] = []): Message[] {
+  const restored: Message[] = [];
+  let lastSprint = 1;
+
+  history.forEach((turn, index) => {
+    const turnSprint = turn.sprint ?? lastSprint;
+
+    if (index > 0 && turnSprint !== lastSprint) {
+      restored.push({
+        role: "ai",
+        text: `Sprint ${turnSprint} — ${SPRINT_LABELS[turnSprint]}`,
+        isSprintMarker: true,
+        sprint: turnSprint,
+      });
+    }
+
+    restored.push({ role: "ai", text: turn.question, severity: turn.weakness?.severity });
+    restored.push({ role: "candidate", text: turn.answer });
+    lastSprint = turnSprint;
+  });
+
+  return restored;
+}
 
 export default function InterviewPage() {
   const { session_id } = useParams<{ session_id: string }>();
@@ -43,6 +87,9 @@ export default function InterviewPage() {
   const [complete, setComplete] = useState(false);
   const [error, setError] = useState("");
   const [showCamera, setShowCamera] = useState(false);
+  const [sessionSnapshot, setSessionSnapshot] = useState<SessionSnapshot | null>(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(true);
+  const [bootingMode, setBootingMode] = useState<"new" | "resume" | "fresh" | null>(null);
 
   const sessionRef = useRef<InterviewSession | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -57,6 +104,86 @@ export default function InterviewPage() {
   useEffect(() => {
     if (!session_id || session_id === "undefined") router.replace("/");
   }, [session_id, router]);
+
+  const stopCameraStream = useCallback(() => {
+    if (videoRef.current?.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const teardownActiveSession = useCallback(() => {
+    currentTurnIdRef.current = crypto.randomUUID();
+    stopVisualizerRef.current?.();
+    stopVisualizerRef.current = null;
+    sessionRef.current?.stop();
+    sessionRef.current = null;
+    stopCameraStream();
+  }, [stopCameraStream]);
+
+  const resetInterviewUi = useCallback(() => {
+    setPhase("idle");
+    setMessages([]);
+    setPartial("");
+    setSprint(1);
+    setPersona("curious_lead");
+    setQuestionCount(0);
+    setMicLevel(0);
+    setStarted(false);
+    setComplete(false);
+    setError("");
+    prevSprintRef.current = 1;
+    processingRef.current = false;
+    pendingFinalRef.current = null;
+  }, []);
+
+  const fetchSessionSnapshot = useCallback(async (): Promise<SessionSnapshot | null> => {
+    if (!session_id || session_id === "undefined") return null;
+
+    const res = await fetch(`${API}/state/${session_id}`, { cache: "no-store" });
+    if (res.status === 404) {
+      router.replace("/");
+      return null;
+    }
+    if (!res.ok) {
+      throw new Error(`Could not load session ${session_id}: ${res.status}`);
+    }
+    return res.json();
+  }, [router, session_id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSnapshot() {
+      if (!session_id || session_id === "undefined") return;
+
+      teardownActiveSession();
+      resetInterviewUi();
+      setBootingMode(null);
+      setSessionSnapshot(null);
+      setSnapshotLoading(true);
+
+      try {
+        const snapshot = await fetchSessionSnapshot();
+        if (!cancelled && snapshot) {
+          setSessionSnapshot(snapshot);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(`Could not load interview state: ${String(e)}`);
+        }
+      } finally {
+        if (!cancelled) setSnapshotLoading(false);
+      }
+    }
+
+    loadSnapshot();
+
+    return () => {
+      cancelled = true;
+      teardownActiveSession();
+    };
+  }, [fetchSessionSnapshot, resetInterviewUi, session_id, teardownActiveSession]);
 
   // Auto-scroll
   useEffect(() => {
@@ -119,6 +246,7 @@ export default function InterviewPage() {
     // Create abort controller for interruption
     const ac = new AbortController();
     sessionRef.current?.setAbortController(ac);
+    sessionRef.current?.setActivePlaybackText(text);
     sessionRef.current?.transition(FloorState.AI_SPEAKING);
 
     try {
@@ -146,26 +274,43 @@ export default function InterviewPage() {
 
     if (isComplete) {
       setComplete(true);
+      setSessionSnapshot((prev) => ({ ...(prev ?? {}), interview_complete: true }));
       sessionRef.current?.stop();
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/end_interview/${session_id}`, { method: "POST" });
+      await fetch(`${API}/end_interview/${session_id}`, { method: "POST" });
       setTimeout(() => router.push(`/report/${session_id}`), 2500);
     }
   }, [session_id, router]);
 
-  async function startInterview() {
+  async function bootInterview(state: SessionSnapshot, mode: "new" | "resume") {
     setError("");
     setStarted(true);
+    setComplete(false);
+    setBootingMode(mode);
 
-    // Fetch opening question
-    const state = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/state/${session_id}`).then((r) => r.json());
-    const opening = state.last_question;
-    setSprint(state.current_sprint);
-    setPersona(state.current_persona);
+    const opening = state.last_question || "";
+    const nextSprint = state.current_sprint ?? 1;
+    const nextPersona = state.current_persona ?? "curious_lead";
+    const existingCount = state.question_count ?? 0;
 
-    const openingAudioUrl = await prefetchAudio(opening);
-    setMessages([{ role: "ai", text: opening }]);
+    setSprint(nextSprint);
+    setPersona(nextPersona);
+    prevSprintRef.current = nextSprint;
+    setQuestionCount(existingCount);
 
-    // Boot Deepgram session
+    if (mode === "resume") {
+      const restored = buildMessagesFromHistory(state.history ?? []);
+      const lastAskedQuestion = state.history?.length ? state.history[state.history.length - 1]?.question : "";
+      const shouldAppendPendingQuestion = Boolean(opening && opening !== lastAskedQuestion);
+      setMessages([
+        ...restored,
+        ...(shouldAppendPendingQuestion ? [{ role: "ai" as const, text: opening }] : []),
+      ]);
+    } else {
+      setMessages(opening ? [{ role: "ai", text: opening }] : []);
+    }
+
+    const openingAudioUrl = opening ? await prefetchAudio(opening) : null;
+
     const session = new InterviewSession(session_id);
     sessionRef.current = session;
 
@@ -178,37 +323,33 @@ export default function InterviewPage() {
 
     session.onBargeIn = () => {
       console.log("[UI] Barge-in! Invalidating active turn.");
-      currentTurnIdRef.current = crypto.randomUUID(); // Invalidate current turn
+      currentTurnIdRef.current = crypto.randomUUID();
       setPartial("");
     };
 
     session.onSilence = async () => {
       console.log("[UI] User is silent. Nudging.");
-      // Use floor state (ref-based, always current) not `phase` (stale React closure)
       if (processingRef.current || session.floor !== FloorState.USER_SPEAKING) return;
-      
+
       const ac = new AbortController();
       session.setAbortController(ac);
+      session.setActivePlaybackText("Take your time, I'm listening.");
       session.transition(FloorState.AI_SPEAKING);
-      
+
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tts_filler`);
+        const res = await fetch(`${API}/tts_filler`);
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         await playAudioUrl(url, "Take your time, I'm listening.", ac.signal);
-      } catch (e) {
+      } catch {
         console.log("[UI] Silence nudge interrupted");
       }
-      
-      // transition() is a no-op if already USER_SPEAKING (barge-in already handled it)
+
       session.transition(FloorState.USER_SPEAKING);
     };
 
     session.onPartial = (text) => {
       if (processingRef.current && session.floor === FloorState.AI_THINKING) {
-        // The turn was committed too early and the user kept talking.
-        // Invalidate the in-flight response immediately so it cannot be played
-        // while the floor has shifted back to the candidate.
         currentTurnIdRef.current = crypto.randomUUID();
         session.transition(FloorState.USER_SPEAKING);
       }
@@ -217,8 +358,6 @@ export default function InterviewPage() {
 
     session.onFinal = async (text, entities) => {
       if (processingRef.current) {
-        // User continued speaking while a turn is in-flight.
-        // Invalidate the in-flight turn so its result is dropped, then buffer this utterance.
         currentTurnIdRef.current = crypto.randomUUID();
         pendingFinalRef.current = { text, entities };
         return;
@@ -242,12 +381,11 @@ export default function InterviewPage() {
           return;
         }
         await handleFollowup(result, audioUrl, responseTurnId);
-      } catch (e) {
+      } catch {
         setError("Agent pipeline error. Check backend.");
         session.transition(FloorState.USER_SPEAKING);
       } finally {
         processingRef.current = false;
-        // If the user continued speaking while this turn was in-flight, process their buffered utterance now.
         const pending = pendingFinalRef.current;
         pendingFinalRef.current = null;
         if (pending) {
@@ -263,8 +401,7 @@ export default function InterviewPage() {
     try {
       await session.start();
       stopVisualizerRef.current = session.connectVisualizer((level) => setMicLevel(level));
-      
-      // Phase 2: Start Vision if enabled
+
       if (showCamera && videoRef.current) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -275,34 +412,91 @@ export default function InterviewPage() {
         }
       }
 
-      // Play opening question with the session's floor logic
-      const ac = new AbortController();
-      session.setAbortController(ac);
-      session.transition(FloorState.AI_SPEAKING);
-      await playAudioUrl(openingAudioUrl, opening, ac.signal);
-      session.transition(FloorState.USER_SPEAKING);
+      if (opening) {
+        const ac = new AbortController();
+        session.setAbortController(ac);
+        session.setActivePlaybackText(opening);
+        session.transition(FloorState.AI_SPEAKING);
+        await playAudioUrl(openingAudioUrl, opening, ac.signal);
+        session.transition(FloorState.USER_SPEAKING);
+      } else {
+        session.transition(FloorState.USER_SPEAKING);
+      }
     } catch (e) {
       setError(`Could not start mic: ${String(e)}`);
       setStarted(false);
       setPhase("idle");
+    } finally {
+      setBootingMode(null);
+    }
+  }
+
+  async function startInterview() {
+    try {
+      const state = await fetchSessionSnapshot();
+      if (!state) return;
+
+      if ((state.question_count ?? 0) > 0 || state.interview_complete) {
+        setSessionSnapshot(state);
+        return;
+      }
+
+      await bootInterview(state, "new");
+    } catch (e) {
+      setError(`Could not start interview: ${String(e)}`);
+      setBootingMode(null);
+    }
+  }
+
+  async function resumeInterview() {
+    try {
+      const state = await fetchSessionSnapshot();
+      if (!state) return;
+      await bootInterview(state, "resume");
+    } catch (e) {
+      setError(`Could not resume interview: ${String(e)}`);
+      setBootingMode(null);
+    }
+  }
+
+  async function startFreshInterview() {
+    const resume = sessionSnapshot?.resume?.trim();
+    if (!resume) {
+      router.replace("/");
+      return;
+    }
+
+    setError("");
+    setBootingMode("fresh");
+    teardownActiveSession();
+    resetInterviewUi();
+
+    try {
+      const res = await fetch(`${API}/start_interview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resume,
+          github_links: sessionSnapshot?.github_links ?? [],
+        }),
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const data = await res.json();
+      router.replace(`/interview/${data.session_id}`);
+    } catch (e) {
+      setError(`Could not start a fresh run: ${String(e)}`);
+      setBootingMode(null);
     }
   }
 
 
   async function endInterview() {
-    currentTurnIdRef.current = crypto.randomUUID();
-    stopVisualizerRef.current?.();
-    sessionRef.current?.stop();
-
-    // Stop camera
-    if (videoRef.current?.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-    }
+    teardownActiveSession();
 
     // Await end_interview so the report is persisted before navigation.
     // Navigation happens regardless of failure — report page handles partial data gracefully.
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/end_interview/${session_id}`, { method: "POST" });
+      await fetch(`${API}/end_interview/${session_id}`, { method: "POST" });
     } catch {
       // non-fatal — navigate anyway, report will show partial state
     }
@@ -311,13 +505,15 @@ export default function InterviewPage() {
 
   useEffect(() => {
     return () => {
-      currentTurnIdRef.current = crypto.randomUUID();
-      stopVisualizerRef.current?.();
-      sessionRef.current?.stop();
+      teardownActiveSession();
     };
-  }, []);
+  }, [teardownActiveSession]);
 
   const progressPct = Math.min((questionCount / 15) * 100, 100);
+  const existingTurns = sessionSnapshot?.question_count ?? 0;
+  const hasExistingProgress = existingTurns > 0;
+  const isCompletedSession = Boolean(sessionSnapshot?.interview_complete);
+  const showResumeGate = !started && !snapshotLoading && (hasExistingProgress || isCompletedSession);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col select-none">
@@ -427,7 +623,7 @@ export default function InterviewPage() {
             ref={transcriptRef}
             className="flex-1 overflow-y-auto px-10 py-8 space-y-6 relative"
           >
-            {!started && (
+            {!started && !showResumeGate && (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center space-y-4 max-w-sm">
                   <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
@@ -438,6 +634,54 @@ export default function InterviewPage() {
                     A real-time cognitive interrogation system. 3 sprints. No validation. Only the boundary of your reasoning exists here.
                   </p>
                   <p className="text-zinc-700 text-[10px] uppercase tracking-[0.2em] pt-4">Probe → Break → Analyze → Adapt</p>
+                </div>
+              </div>
+            )}
+
+            {showResumeGate && (
+              <div className="flex items-center justify-center h-full">
+                <div className="max-w-md rounded-3xl border border-white/10 bg-white/[0.03] px-8 py-8 text-center space-y-5">
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500">
+                      {isCompletedSession ? "Completed Session" : "Existing Session"}
+                    </p>
+                    <h2 className="text-lg font-medium text-zinc-100">
+                      {isCompletedSession ? "This interview already finished." : "This interview URL already has progress."}
+                    </h2>
+                    <p className="text-sm leading-relaxed text-zinc-400">
+                      {isCompletedSession
+                        ? "Reopening this route will not start a fresh run automatically. View the report or spin up a brand-new interview from the same resume."
+                        : `This session already has ${existingTurns} recorded turn${existingTurns === 1 ? "" : "s"}. Resume it explicitly or start a fresh run from the same resume.`}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {!isCompletedSession && (
+                      <button
+                        onClick={resumeInterview}
+                        disabled={bootingMode !== null}
+                        className="w-full bg-white text-black text-[13px] font-semibold px-8 py-3 rounded-full hover:bg-zinc-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {bootingMode === "resume" ? "Resuming..." : "Resume Session"}
+                      </button>
+                    )}
+                    {isCompletedSession && (
+                      <button
+                        onClick={() => router.push(`/report/${session_id}`)}
+                        disabled={bootingMode !== null}
+                        className="w-full bg-white text-black text-[13px] font-semibold px-8 py-3 rounded-full hover:bg-zinc-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        View Report
+                      </button>
+                    )}
+                    <button
+                      onClick={startFreshInterview}
+                      disabled={bootingMode !== null}
+                      className="w-full border border-white/10 text-white text-[13px] font-semibold px-8 py-3 rounded-full hover:border-white/20 hover:bg-white/[0.03] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bootingMode === "fresh" ? "Starting Fresh..." : "Start Fresh Run"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -480,9 +724,10 @@ export default function InterviewPage() {
             {!started ? (
               <button
                 onClick={startInterview}
-                className="ml-auto bg-white text-black text-[13px] font-semibold px-8 py-3 rounded-full hover:bg-zinc-100 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/10"
+                disabled={snapshotLoading || bootingMode !== null || showResumeGate}
+                className="ml-auto bg-white text-black text-[13px] font-semibold px-8 py-3 rounded-full hover:bg-zinc-100 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                Engage System →
+                {snapshotLoading || bootingMode === "new" ? "Loading..." : "Engage System →"}
               </button>
             ) : (
               <div className="ml-auto flex items-center gap-3 text-[11px] font-medium text-zinc-400">

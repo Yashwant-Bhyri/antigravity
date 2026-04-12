@@ -22,8 +22,9 @@
 
 **In `/Users/yash/antigravity/` (the project root):**
 1. `AGENTS.md` ← you are here — read it entirely, every section
-2. `README.md` — project overview and API reference
-3. `/Users/yash/Downloads/notes.md` — full PRD (Parts 1–5), the product vision, agent design, latency strategy, infra plan. This is the WHY behind every decision.
+2. `PROJECT_STATE.md` ← **THE RELIGIOUS LOG BOOK.** Mandatory reading and mandatory update. Read the chronicle of the project's trajectory before doing any work.
+3. `README.md` — project overview and API reference
+4. `/Users/yash/Downloads/notes.md` — full PRD (Parts 1–5), the product vision, agent design, latency strategy, infra plan. This is the WHY behind every decision.
 
 **Backend — read every file line by line:**
 4. `backend/main.py` — FastAPI app entry, lifespan hooks, CORS
@@ -64,6 +65,7 @@
 - Never re-debate decisions in `## DECISIONS LOG` unless Yash explicitly reopens them
 - Check `## IN PROGRESS` before starting work — don't duplicate
 - After completing work: update `## COMPLETED`, `## DECISIONS LOG`, `## HANDOFF NOTES`
+- **MANDATORY**: Update `PROJECT_STATE.md` with granular logs of **WHAT**, **WHY**, and **IMPACT** of every architectural shift or major code commit. This is non-negotiable.
 - All cross-AI communication goes in `COLLAB.md`
 
 ---
@@ -80,7 +82,8 @@
 1. Move your item from `## In Progress` to `## Completed`
 2. Log what you did and any important decisions in `## Decisions Log`
 3. Update `## Current State` if the architecture changed
-4. Flag anything the other AI needs to know in `## Handoff Notes`
+4. **Update `PROJECT_STATE.md`** with granular logs (What, Why, Impact).
+5. Flag anything the other AI needs to know in `## Handoff Notes`
 
 ---
 

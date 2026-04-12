@@ -10,6 +10,40 @@ export class CVSensor {
   private faceLandmarker: FaceLandmarker | null = null;
   private initState: "idle" | "loading" | "ready" | "failed" = "idle";
   private lastTimestampMs = 0;
+  private readonly suppressedVisionPatterns = [
+    "Created TensorFlow Lite XNNPACK delegate for CPU",
+    "Feedback manager requires a model with a single signature inference",
+    "Sets FaceBlendshapesGraph acceleration to xnnpack by default",
+    "OpenGL error checking is disabled",
+  ];
+
+  private withSuppressedVisionLogs<T>(fn: () => T): T {
+    const originalError = console.error;
+    const originalWarn = console.warn;
+
+    const shouldSuppress = (args: unknown[]) =>
+      args.some((arg) =>
+        typeof arg === "string" &&
+        this.suppressedVisionPatterns.some((pattern) => arg.includes(pattern))
+      );
+
+    console.error = (...args: unknown[]) => {
+      if (shouldSuppress(args)) return;
+      originalError(...args);
+    };
+
+    console.warn = (...args: unknown[]) => {
+      if (shouldSuppress(args)) return;
+      originalWarn(...args);
+    };
+
+    try {
+      return fn();
+    } finally {
+      console.error = originalError;
+      console.warn = originalWarn;
+    }
+  }
 
   private async initialize() {
     if (this.initState !== "idle") return;
@@ -52,7 +86,9 @@ export class CVSensor {
 
     let result;
     try {
-      result = this.faceLandmarker.detectForVideo(video, now);
+      result = this.withSuppressedVisionLogs(() =>
+        this.faceLandmarker!.detectForVideo(video, now)
+      );
     } catch {
       return null;
     }

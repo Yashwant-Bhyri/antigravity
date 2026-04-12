@@ -14,6 +14,8 @@ export enum FloorState {
 
 const FLOOR_CONFIG = {
   bargeInVadMs: 250,
+  bargeInLockMs: 500,
+  aiEchoCooldownMs: 1000,
   bargeInMinChars: 8,
   silenceThresholdMs: 5000,
   ttsFadeOutMs: 100,
@@ -23,6 +25,26 @@ const FLOOR_CONFIG = {
   lipClosureWeight: 0.4,
   gazeStabilityWeight: 0.3,
 };
+
+function normalizeSpeechText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLikelyEchoSnippet(snippet: string, source: string): boolean {
+  if (!snippet || !source) return false;
+  if (snippet.length < 8) return false;
+  if (source.includes(snippet)) return true;
+
+  const words = snippet.split(" ").filter((w) => w.length > 2);
+  if (words.length < 2) return false;
+
+  const overlap = words.filter((w) => source.includes(w)).length;
+  return overlap >= Math.max(2, Math.ceil(words.length * 0.6));
+}
 
 export class InterviewSession {
   private mediaStream: MediaStream | null = null;
@@ -44,6 +66,10 @@ export class InterviewSession {
   // Floor Management
   public floor: FloorState = FloorState.IDLE;
   private currentAbortController: AbortController | null = null;
+  private aiSpeakingStartedAt: number | null = null;
+  private activeAiTextNorm = "";
+  private recentAiTextNorm = "";
+  private recentAiEndedAt: number | null = null;
 
   // Barge-in VAD duration tracking
   private bargeInVadStart: number | null = null;
@@ -68,7 +94,18 @@ export class InterviewSession {
 
   public transition(newState: FloorState) {
     if (this.floor === newState) return;
+
+    if (this.floor === FloorState.AI_SPEAKING && newState !== FloorState.AI_SPEAKING) {
+      if (this.activeAiTextNorm) {
+        this.recentAiTextNorm = this.activeAiTextNorm;
+        this.recentAiEndedAt = performance.now();
+      }
+      this.activeAiTextNorm = "";
+    }
+
     this.floor = newState;
+    this.aiSpeakingStartedAt = newState === FloorState.AI_SPEAKING ? performance.now() : null;
+    this.bargeInVadStart = null;
     this.onFloorChange(newState);
 
     // When AI takes the floor, discard any buffered speech fragments.
@@ -113,6 +150,11 @@ export class InterviewSession {
     // ── Transcript handler ────────────────────────────────────────────────────
     this.dgConnection.on(LiveTranscriptionEvents.Transcript, async (data) => {
       const text = data?.channel?.alternatives?.[0]?.transcript ?? "";
+
+      if (text && this.isLikelyAiEcho(text)) {
+        this.bargeInVadStart = null;
+        return;
+      }
       
       // Update silence tracking
       if (text) {
@@ -122,6 +164,17 @@ export class InterviewSession {
       // Barge-in Check (if AI is speaking)
       // Requires BOTH: sustained VAD for bargeInVadMs AND enough chars — prevents false triggers
       if (this.floor === FloorState.AI_SPEAKING) {
+        const sinceAiStarted = this.aiSpeakingStartedAt === null
+          ? Number.POSITIVE_INFINITY
+          : performance.now() - this.aiSpeakingStartedAt;
+
+        // Ignore the first few hundred milliseconds of ASR after TTS starts.
+        // Without this lock, speaker bleed or the candidate's trailing syllable
+        // can trigger a fake barge-in before the AI question has even landed.
+        if (sinceAiStarted < FLOOR_CONFIG.bargeInLockMs) {
+          return;
+        }
+
         if (text.length >= FLOOR_CONFIG.bargeInMinChars) {
           if (this.bargeInVadStart === null) {
             this.bargeInVadStart = performance.now();
@@ -275,6 +328,34 @@ export class InterviewSession {
     console.log("[Vision] AI Turn Prediction enabled via camera.");
   }
 
+  public setActivePlaybackText(text: string | null) {
+    this.activeAiTextNorm = text ? normalizeSpeechText(text) : "";
+    if (text) {
+      this.recentAiTextNorm = "";
+      this.recentAiEndedAt = null;
+    }
+  }
+
+  private isLikelyAiEcho(text: string): boolean {
+    const normalized = normalizeSpeechText(text);
+    if (!normalized) return false;
+
+    if (this.activeAiTextNorm && isLikelyEchoSnippet(normalized, this.activeAiTextNorm)) {
+      return true;
+    }
+
+    if (
+      this.recentAiTextNorm &&
+      this.recentAiEndedAt !== null &&
+      performance.now() - this.recentAiEndedAt <= FLOOR_CONFIG.aiEchoCooldownMs &&
+      isLikelyEchoSnippet(normalized, this.recentAiTextNorm)
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
   private _flushUtterance(forced = false) {
     // Minimal age gate: block accidental sub-800ms flushes (e.g. CV noise on a single word).
     // CV fusion is the primary early-commit path — don't block it with a long gate.
@@ -311,6 +392,10 @@ export class InterviewSession {
     }
     this.currentAbortController?.abort();
     this.currentAbortController = null;
+    this.aiSpeakingStartedAt = null;
+    this.activeAiTextNorm = "";
+    this.recentAiTextNorm = "";
+    this.recentAiEndedAt = null;
     this.utteranceBuffer = [];
     this.utteranceStartTime = null;
     this.processor?.disconnect();

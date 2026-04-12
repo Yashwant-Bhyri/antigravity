@@ -82,7 +82,7 @@ async def end_interview(session_id: str):
         final_state = await orchestrator.end_session(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
-    evaluation = final_state.get("final_evaluation", {})
+    evaluation = final_state.get("final_evaluation") or {}
     return {
         "session_id": session_id,
         "hire_recommendation": evaluation.get("hire_recommendation", "N/A"),
