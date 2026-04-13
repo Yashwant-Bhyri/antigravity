@@ -46,7 +46,7 @@ const PERSONA_DESC: Record<string, string> = {
   senior_peer: "Stress-testing your design",
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL;
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 function buildMessagesFromHistory(history: SessionHistoryEntry[] = []): Message[] {
   const restored: Message[] = [];
@@ -99,6 +99,14 @@ export default function InterviewPage() {
   const processingRef = useRef(false); // prevents concurrent onFinal handlers
   const currentTurnIdRef = useRef("");
   const pendingFinalRef = useRef<{ text: string; entities: string[] } | null>(null);
+
+  const beginUserTurn = useCallback((session: InterviewSession | null) => {
+    if (!session) return;
+    const turnId = crypto.randomUUID();
+    currentTurnIdRef.current = turnId;
+    session.setActiveTurnId(turnId);
+    session.transition(FloorState.USER_SPEAKING);
+  }, []);
 
   // Guard against malformed URLs (e.g. /interview/undefined)
   useEffect(() => {
@@ -270,7 +278,11 @@ export default function InterviewPage() {
       return;
     }
 
-    sessionRef.current?.transition(isComplete ? FloorState.IDLE : FloorState.USER_SPEAKING);
+    if (isComplete) {
+      sessionRef.current?.transition(FloorState.IDLE);
+    } else {
+      beginUserTurn(sessionRef.current);
+    }
 
     if (isComplete) {
       setComplete(true);
@@ -279,7 +291,7 @@ export default function InterviewPage() {
       await fetch(`${API}/end_interview/${session_id}`, { method: "POST" });
       setTimeout(() => router.push(`/report/${session_id}`), 2500);
     }
-  }, [session_id, router]);
+  }, [beginUserTurn, session_id, router]);
 
   async function bootInterview(state: SessionSnapshot, mode: "new" | "resume") {
     setError("");
@@ -324,6 +336,7 @@ export default function InterviewPage() {
     session.onBargeIn = () => {
       console.log("[UI] Barge-in! Invalidating active turn.");
       currentTurnIdRef.current = crypto.randomUUID();
+      session.setActiveTurnId(currentTurnIdRef.current);
       setPartial("");
     };
 
@@ -345,13 +358,12 @@ export default function InterviewPage() {
         console.log("[UI] Silence nudge interrupted");
       }
 
-      session.transition(FloorState.USER_SPEAKING);
+      beginUserTurn(session);
     };
 
     session.onPartial = (text) => {
       if (processingRef.current && session.floor === FloorState.AI_THINKING) {
-        currentTurnIdRef.current = crypto.randomUUID();
-        session.transition(FloorState.USER_SPEAKING);
+        beginUserTurn(session);
       }
       setPartial(text);
     };
@@ -364,7 +376,8 @@ export default function InterviewPage() {
       }
       processingRef.current = true;
 
-      const turnId = crypto.randomUUID();
+      const turnId = session.getActiveTurnId() || crypto.randomUUID();
+      session.setActiveTurnId(turnId);
       currentTurnIdRef.current = turnId;
       setPartial("");
       setMessages((prev) => [...prev, { role: "candidate", text }]);
@@ -383,7 +396,7 @@ export default function InterviewPage() {
         await handleFollowup(result, audioUrl, responseTurnId);
       } catch {
         setError("Agent pipeline error. Check backend.");
-        session.transition(FloorState.USER_SPEAKING);
+        beginUserTurn(session);
       } finally {
         processingRef.current = false;
         const pending = pendingFinalRef.current;
@@ -418,9 +431,9 @@ export default function InterviewPage() {
         session.setActivePlaybackText(opening);
         session.transition(FloorState.AI_SPEAKING);
         await playAudioUrl(openingAudioUrl, opening, ac.signal);
-        session.transition(FloorState.USER_SPEAKING);
+        beginUserTurn(session);
       } else {
-        session.transition(FloorState.USER_SPEAKING);
+        beginUserTurn(session);
       }
     } catch (e) {
       setError(`Could not start mic: ${String(e)}`);
