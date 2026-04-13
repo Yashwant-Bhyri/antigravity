@@ -5,11 +5,16 @@ Built at startup. search() returns nearest questions by cosine similarity.
 """
 import json
 import os
-import numpy as np
+from typing import Any
+
+try:
+    import numpy as np
+except ImportError:
+    np = None  # Mocked out for lightweight Vercel Serverless deployments
 
 _index = None           # faiss.IndexFlatIP (inner product = cosine on normalised vectors)
 _questions: list[dict] = []
-_embeddings: np.ndarray | None = None
+_embeddings: Any = None
 
 
 def _get_model():
