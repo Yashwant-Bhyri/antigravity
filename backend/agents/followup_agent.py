@@ -126,7 +126,7 @@ class FollowUpAgent:
 
     def __init__(self):
         self.llm = LLMRouter(tier="medium")
-        self.llm_fast = LLMRouter(tier="fast")  # Haiku — speculative + seed generation
+        self.llm_fast = LLMRouter(tier="small")  # Haiku — speculative + seed generation
 
     async def generate(
         self,
@@ -375,7 +375,11 @@ The question should:
 Output only the question."""
 
         result = await self.llm_fast.call(system=system, user=user)
-        return result if isinstance(result, str) else SPRINT_GOALS.get(1, "")
+        if isinstance(result, str):
+            return result
+        if isinstance(result, dict):
+            return result.get("question", str(result))
+        return "What part of that project was most dependent on your own implementation choices?"
 
     async def generate_speculative(
         self,
@@ -425,7 +429,11 @@ Candidate background:
 ONE question, ≤20 words, specific. Output only the question."""
 
         result = await self.llm_fast.call(system=system, user=user)
-        return result if isinstance(result, str) else last_question
+        if isinstance(result, str):
+            return result
+        if isinstance(result, dict):
+            return result.get("question", str(result))
+        return "Say more about the specific mechanism you used there."
 
     async def prefetch(self, concepts: list[str], state: dict) -> list[str]:
         """
