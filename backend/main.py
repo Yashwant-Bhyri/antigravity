@@ -1,5 +1,8 @@
-from dotenv import load_dotenv
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # In Vercel and Docker, environment variables are injected directly; dotenv is not needed.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
