@@ -10,7 +10,8 @@ class SessionManager:
     """
 
     def __init__(self):
-        redis_url = os.environ.get("KV_URL") or os.environ.get("REDIS_URL", "redis://localhost:6379")
+        # Support Upstash/Vercel standard prefixes without crashing
+        redis_url = os.environ.get("KV_URL") or os.environ.get("REDIS_URL") or os.environ.get("STORAGE_URL", "redis://localhost:6379")
         self.redis = redis.from_url(redis_url, decode_responses=True)
         self.ttl = 3600  # 1 hour session expiry
 
