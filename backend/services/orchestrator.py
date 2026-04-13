@@ -41,6 +41,21 @@ _DISCREPANCY_FALLBACK = {"conflict": False, "description": "", "severity": "low"
 _REASONING_FALLBACK   = {"structure_score": 5, "adaptability": "flexible", "confidence_calibration": "calibrated"}
 
 
+_ADMISSION_SIGNALS = re.compile(
+    r"\b(i don'?t know|i'?m not sure|i didn'?t (write|build|implement|code)|"
+    r"to be honest|actually i|i should (mention|clarify|be honest)|"
+    r"i'?m not (certain|familiar|sure)|i haven'?t|i can'?t (explain|tell)|"
+    r"i was just|i only|it'?s basically|it'?s just|i mean it'?s not really|"
+    r"i don'?t (really|actually) know)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_admission(text: str) -> bool:
+    """Detect honesty/gap signals in partial transcript — triggers speculative pivot."""
+    return bool(_ADMISSION_SIGNALS.search(text))
+
+
 def _normalize_transcript(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s]", " ", text.lower())).strip()
 
@@ -195,8 +210,19 @@ class Orchestrator:
             "prepped_next_question": None,
             "prepped_turn_analysis": None,
             "prepped_next_metadata": {},
+            # ── Speculative cache — partial-STT driven, Haiku only ────────────
+            # Written ONLY by _run_speculative_generation (event-driven on partials).
+            # Consumed in the fast path if no canonical prepped_next_question exists.
+            # NEVER writes canonical state (Codex invariant extends here too).
+            "speculative_cache": {},
         }
         await self.session_manager.save_state(session_id, state)
+
+        # Pre-seed the first follow-up question from resume so Turn 1 never hits
+        # the generic fallback. Runs as a background task — completes well before
+        # the candidate finishes answering the sprint opener (~3-5s TTS + answer time).
+        asyncio.create_task(self._seed_first_question(session_id))
+
         return session_id
 
     async def end_session(self, session_id: str) -> dict:
@@ -209,6 +235,7 @@ class Orchestrator:
             self._apply_staged_analysis(state, staged, state.pop("prepped_next_metadata", {}))
         state.pop("prepped_next_question", None)
         state.pop("prepped_next_metadata", None)
+        state.pop("speculative_cache", None)
 
         history = state.get("history", [])
         if history:
@@ -275,13 +302,42 @@ class Orchestrator:
     async def on_partial_transcript(self, session_id: str, text: str, entities: list[str] | None = None):
         """
         Fires on every is_final fragment while candidate is still speaking.
-        Timing/warmup only — NO LLM calls here.
-        TODO: retrieval warmup — pre-fetch rubrics from RAG index using entities (v2)
+
+        Two jobs:
+        1. Entity accumulation — merged into full turn at handle_transcript time
+        2. Speculative question generation (event-driven, Haiku only):
+           - New entity detected → generate entity-anchored follow-up
+           - Admission/gap signal detected → generate exploratory pivot question
+           NO canonical state written here. Codex invariant holds.
         """
+        existing = self._partial_entities.get(session_id, set())
+
         if entities:
-            existing = self._partial_entities.get(session_id, set())
+            new_entities = set(entities) - existing
             existing.update(entities)
             self._partial_entities[session_id] = existing
+
+            # Event trigger: new named entity → speculative follow-up prep
+            if new_entities and text:
+                asyncio.create_task(
+                    self._run_speculative_generation(
+                        session_id=session_id,
+                        partial_text=text,
+                        new_entities=new_entities,
+                        admission=False,
+                    )
+                )
+
+        # Admission/gap signal — pivot to exploratory follow-up regardless of entities
+        if text and _looks_like_admission(text):
+            asyncio.create_task(
+                self._run_speculative_generation(
+                    session_id=session_id,
+                    partial_text=text,
+                    new_entities=set(),
+                    admission=True,
+                )
+            )
 
     async def handle_transcript(
         self,
@@ -343,11 +399,21 @@ class Orchestrator:
             self._apply_staged_analysis(state, staged_analysis, staged_metadata)
 
         # ── Step 2: Determine fast response ──────────────────────────────────
-        # a) prepped adversarial probe from last turn's background pipeline → instant
-        # b) bank follow-up adapted to candidate's answer via Haiku → ~300ms
-        # c) sprint-keyed fallback template → instant, no LLM
+        # Priority:
+        # a) prepped_next_question — adversarial probe from canonical bg pipeline (instant)
+        # b) speculative_cache — entity/admission-triggered Haiku question from partials (instant)
+        # c) bank follow-up adapted via adapt_followup Haiku call (~300ms)
+        # d) sprint fallback template (instant, no LLM)
         prepped_q = state.pop("prepped_next_question", None)
         pivoting = staged_metadata.get("pivoting", False)
+
+        # Promote speculative candidate if no canonical probe and sprint still matches
+        if not prepped_q:
+            spec = state.get("speculative_cache", {})
+            if spec.get("best_ready_question") and spec.get("sprint") == sprint:
+                prepped_q = spec["best_ready_question"]
+                state["speculative_cache"] = {}  # consume and clear
+                print(f"[FastTrack] Speculative candidate promoted for {session_id}")
 
         if prepped_q:
             fast_response = prepped_q
@@ -698,6 +764,105 @@ class Orchestrator:
         except Exception as e:
             # Non-fatal: next turn gracefully falls back to bank follow-up or sprint fallback
             print(f"[BGPipeline] Failed for session {session_id}: {e}")
+
+    # ─────────────────────────────────────────────
+    # SPECULATIVE + SEEDING
+    # ─────────────────────────────────────────────
+
+    async def _seed_first_question(self, session_id: str) -> None:
+        """
+        Fires once as asyncio.create_task at session start.
+        Generates a resume-grounded first follow-up via Haiku and stores it as
+        prepped_next_question — so Turn 1's fast path never hits the generic fallback.
+
+        Completes in ~300ms, well within the sprint opener TTS + candidate answer time (~10-30s).
+        """
+        try:
+            state = await self.session_manager.get_state(session_id)
+            resume_context = _build_resume_context_for_followup(
+                state.get("parsed_resume"), state.get("resume", "")
+            )
+            question = await self.followup_agent.generate_seed_question(
+                sprint=1,
+                persona="curious_lead",
+                resume_context=resume_context,
+            )
+            # Re-read before saving — don't overwrite any parallel changes
+            state = await self.session_manager.get_state(session_id)
+            if state.get("interview_complete") or state.get("prepped_next_question"):
+                return
+            state["prepped_next_question"] = question
+            await self.session_manager.save_state(session_id, state)
+            print(f"[Seed] Turn 1 follow-up pre-seeded for {session_id}")
+        except Exception as e:
+            print(f"[Seed] Failed to pre-seed first question: {e}")
+
+    async def _run_speculative_generation(
+        self,
+        session_id: str,
+        partial_text: str,
+        new_entities: set,
+        admission: bool = False,
+    ) -> None:
+        """
+        Event-driven speculative question generation on partial transcripts.
+        Haiku only. Writes ONLY to speculative_cache — never canonical state.
+
+        Versioned: only the newest job can write. Stale jobs from slower LLM
+        calls are silently dropped. Sprint-tagged: discarded if sprint advances
+        before the job completes.
+
+        Throttled: min 1s between calls to prevent entity-churn thrash.
+        """
+        try:
+            state = await self.session_manager.get_state(session_id)
+            if state.get("interview_complete"):
+                return
+
+            # Throttle
+            cache = state.get("speculative_cache", {})
+            if time.time() - cache.get("last_trigger_time", 0.0) < 1.0:
+                return
+
+            sprint = state.get("current_sprint", 1)
+            persona = state.get("current_persona", "curious_lead")
+            resume_context = _build_resume_context_for_followup(
+                state.get("parsed_resume"), state.get("resume", "")
+            )
+            version = cache.get("speculation_version", 0) + 1
+
+            question = await self.followup_agent.generate_speculative(
+                partial_text=partial_text,
+                new_entities=list(new_entities),
+                last_question=state.get("last_question", ""),
+                persona=persona,
+                sprint=sprint,
+                resume_context=resume_context,
+                admission=admission,
+            )
+
+            # Re-read — only write if still latest version and sprint unchanged
+            state = await self.session_manager.get_state(session_id)
+            if state.get("interview_complete"):
+                return
+            if state.get("current_sprint", 1) != sprint:
+                return  # Sprint advanced while we were generating — discard
+            current_version = state.get("speculative_cache", {}).get("speculation_version", 0)
+            if version <= current_version:
+                return  # A newer job already wrote — discard
+
+            state["speculative_cache"] = {
+                "best_ready_question": question,
+                "speculation_version": version,
+                "last_trigger_time": time.time(),
+                "sprint": sprint,
+            }
+            await self.session_manager.save_state(session_id, state)
+            trigger = "admission" if admission else f"entities: {new_entities}"
+            print(f"[Speculative] v{version} staged ({trigger}) for {session_id}")
+
+        except Exception as e:
+            print(f"[Speculative] Failed for {session_id}: {e}")
 
     # ─────────────────────────────────────────────
     # SPRINT LOGIC

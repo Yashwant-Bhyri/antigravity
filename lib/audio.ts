@@ -219,8 +219,11 @@ export class InterviewSession {
         // The previous 5s timer was causing mid-answer splits: pause >5s mid-thought
         // → first half flushed → new question generated → second half answered
         // a question the candidate hadn't heard yet.
+        // 8s: long enough to cover any real thinking pause (longer than the 3s Deepgram
+        // utterance_end_ms threshold), short enough to recover from silent Deepgram
+        // failures before dead-air UX becomes unacceptable. 30s was too conservative.
         if (this.utteranceFlushTimer) clearTimeout(this.utteranceFlushTimer);
-        this.utteranceFlushTimer = setTimeout(() => this._flushUtterance(true), 30000);
+        this.utteranceFlushTimer = setTimeout(() => this._flushUtterance(true), 8000);
 
         const accumulated = this.utteranceBuffer.join(" ");
         this.onPartial(accumulated);

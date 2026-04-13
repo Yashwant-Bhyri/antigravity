@@ -126,6 +126,7 @@ class FollowUpAgent:
 
     def __init__(self):
         self.llm = LLMRouter(tier="medium")
+        self.llm_fast = LLMRouter(tier="fast")  # Haiku — speculative + seed generation
 
     async def generate(
         self,
@@ -346,6 +347,85 @@ Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
         return result if isinstance(result, str) else result.get("question", str(result))
+
+    async def generate_seed_question(
+        self,
+        sprint: int,
+        persona: str,
+        resume_context: str,
+    ) -> str:
+        """
+        Called once at session start to pre-seed the first follow-up.
+        Runs before any candidate answer exists — generates based on resume alone.
+        Replaces the generic fallback on Turn 1's fast path.
+        """
+        system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+        user = f"""Sprint {sprint} — {SPRINT_GOALS.get(sprint, '')}
+
+Candidate background:
+{resume_context}
+
+The candidate has just been asked: "Tell me about a project you're genuinely proud of."
+Before they've answered, generate ONE follow-up question you'll ask after they respond.
+The question should:
+- Reference a specific project, technology, or claim from their resume above
+- Dig into personal contribution or a key implementation decision
+- Be ≤20 words, conversational
+
+Output only the question."""
+
+        result = await self.llm_fast.call(system=system, user=user)
+        return result if isinstance(result, str) else SPRINT_GOALS.get(1, "")
+
+    async def generate_speculative(
+        self,
+        partial_text: str,
+        new_entities: list[str],
+        last_question: str,
+        persona: str,
+        sprint: int,
+        resume_context: str,
+        admission: bool = False,
+    ) -> str:
+        """
+        Event-driven speculative question — Haiku only, never blocks the fast path.
+        Triggered when a new entity appears in the partial transcript or an
+        admission/gap signal is detected.
+
+        The result is staged in speculative_cache and promoted in the fast path
+        if no canonical prepped_next_question is available. If the speculative
+        candidate is stale (sprint advanced, newer job wrote) it is discarded.
+        """
+        system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+
+        if admission:
+            direction = (
+                "The candidate appears to be admitting a gap or being honest about a limit. "
+                "Generate a curious, exploratory follow-up that rewards their honesty — "
+                "pivot to what they DO know or understand, not what they don't."
+            )
+        elif new_entities:
+            direction = (
+                f"The candidate just introduced: {', '.join(new_entities[:3])}. "
+                "Generate a follow-up that digs one level deeper into one of these specifically."
+            )
+        else:
+            direction = "Generate a deepening follow-up grounded in what the candidate just said."
+
+        user = f"""Sprint {sprint} — partial transcript so far:
+"{partial_text[-400:]}"
+
+Last question asked: {last_question[:150]}
+
+Candidate background:
+{resume_context[:300]}
+
+{direction}
+
+ONE question, ≤20 words, specific. Output only the question."""
+
+        result = await self.llm_fast.call(system=system, user=user)
+        return result if isinstance(result, str) else last_question
 
     async def prefetch(self, concepts: list[str], state: dict) -> list[str]:
         """
