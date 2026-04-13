@@ -10,11 +10,8 @@ class SessionManager:
     """
 
     def __init__(self):
-        self.redis = redis.Redis(
-            host=os.environ.get("REDIS_HOST", "localhost"),
-            port=int(os.environ.get("REDIS_PORT", 6379)),
-            decode_responses=True,
-        )
+        redis_url = os.environ.get("KV_URL") or os.environ.get("REDIS_URL", "redis://localhost:6379")
+        self.redis = redis.from_url(redis_url, decode_responses=True)
         self.ttl = 3600  # 1 hour session expiry
 
     async def save_state(self, session_id: str, state: dict):

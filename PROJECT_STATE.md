@@ -17,10 +17,15 @@
 
 ## 📜 STEP-BY-STEP ACTIVITY LOG
 
-### [2026-04-07] — Initializing the Chronicle
-- **WHAT**: Created `PROJECT_STATE.md` and updated `AGENTS.md` with mandatory logging rules.
-- **WHY**: To prevent idea drift and ensure every architectural decision (and its rationale) is preserved for optimization.
-- **IMPACT**: All agents are now structurally forced to remember the "Why" behind the "What."
+### [2026-04-14] — "Pure Vercel" Deployment Shift
+- **WHAT**: Stripped heavy AI dependencies (FAISS, SentenceTransformers) and configured `vercel.json`.
+- **WHY**: To shrink the backend from ~1GB to <50MB, enabling direct deployment as Vercel Serverless Functions.
+- **IMPACT**: Infrastructure simplified from a Docker-hybrid (Railway/Vercel) to a unified Vercel-only deploy.
+
+### [2026-04-14] — Stabilization: The Memory Core
+- **WHAT**: Implemented `generate_sprint_opener` and initialized Turn 1 pre-seeding logic.
+- **WHY**: To fix the "Cold Start" problem and ensure sprint transitions feel like a continuation, not a reset.
+- **IMPACT**: AI persona feels significantly more intelligent and grounded in previous turns.
 
 ### [2026-04-07] — The Two-Track "Fast/Slow" Response Strategy
 - **WHAT**: Proposed and refined the "Adversarial Shadow" two-track system in `COLLAB.md`.

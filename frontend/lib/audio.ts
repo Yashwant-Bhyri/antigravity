@@ -1,7 +1,7 @@
 import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk";
 import { CVSensor, VisionPrediction } from "./vision";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 // ─── Deepgram browser-side ASR ────────────────────────────────────────────────
 
