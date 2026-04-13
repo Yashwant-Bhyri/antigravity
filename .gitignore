@@ -41,3 +41,9 @@ logs/
 *.bin
 data/raw/
 data/processed/
+
+# Next.js and Node
+node_modules/
+.next/
+out/
+.vercel/
