@@ -4,6 +4,9 @@ from backend.models.llm_router import LLMRouter
 
 PER_ANSWER_PROMPT = """Evaluate this single interview answer.
 
+Score the answer relative to the expected role/experience level provided.
+Do not punish modest claims for lacking senior-level ownership. Reward honest clarification.
+
 Scoring criteria:
 1. Problem framing (0-2): Did they define the problem clearly before solving?
 2. Logical reasoning (0-3): Is the reasoning coherent and stepwise?
@@ -25,22 +28,23 @@ Return JSON:
 
 FULL_INTERVIEW_PROMPT = """You are evaluating the complete transcript of a technical interview.
 
-You will receive the full Q&A history, detected weaknesses, and a COVERAGE NOTE describing how broad the interview actually was.
+You will receive the full Q&A history, detected weaknesses, and a COVERAGE NOTE describing how broad the interview actually was, plus calibration context about the target role and expected experience level.
 
 **Critical instruction:** Read the COVERAGE NOTE carefully. If the interview clustered heavily on one topic, your confidence score must reflect that narrow evidence base — do NOT assign high confidence when few dimensions were actually tested. Separate your claim-level concerns from your overall engineering judgment.
+Score the candidate against the stated role/level, not against an implicit universal senior bar.
 
 Produce a comprehensive evaluation with:
 
 1. Overall score (0-10) — based only on what was actually tested
 2. Per-dimension scores:
-   - reasoning (0-10): logical thinking, structured problem-solving
-   - technical_depth (0-10): correctness, specificity, production awareness
-   - communication (0-10): clarity, conciseness, structured answers
-   - adaptability (0-10): how they handled being challenged or wrong
+   - reasoning (0-10 | inconclusive): logical thinking, structured problem-solving
+   - technical_depth (0-10 | inconclusive): correctness, specificity, production awareness
+   - communication (0-10 | inconclusive): clarity, conciseness, structured answers
+   - adaptability (0-10 | inconclusive): how they handled being challenged or wrong
 
 3. Failure surface: for each technical domain mentioned, estimate knowledge failure point (0.0=strong, 1.0=completely failed)
 
-4. Hire recommendation: HIRE | MAYBE | NO HIRE
+4. Hire recommendation: HIRE | MAYBE | NO HIRE | INSUFFICIENT_DATA
 
 5. Summary: 2-3 sentence honest assessment. If coverage was narrow, say so explicitly.
 
@@ -56,15 +60,15 @@ Return JSON:
 {
   "overall_score": <0-10>,
   "breakdown": {
-    "reasoning": <0-10>,
-    "technical_depth": <0-10>,
-    "communication": <0-10>,
-    "adaptability": <0-10>
+    "reasoning": <0-10 | "inconclusive">,
+    "technical_depth": <0-10 | "inconclusive">,
+    "communication": <0-10 | "inconclusive">,
+    "adaptability": <0-10 | "inconclusive">
   },
   "failure_surface": {
     "<domain>": <0.0-1.0>
   },
-  "hire_recommendation": "HIRE | MAYBE | NO HIRE",
+  "hire_recommendation": "HIRE | MAYBE | NO HIRE | INSUFFICIENT_DATA",
   "confidence_score": <0.0-1.0>,
   "summary": "...",
   "risk_flags": ["...", "..."],
@@ -72,8 +76,57 @@ Return JSON:
   "claim_credibility_risk": {
     "level": "low | medium | high | not_tested",
     "detail": "<one sentence: which claims held up, which didn't>"
-  }
+  },
+  "untested_dimensions": ["..."]
 }"""
+
+
+def _build_calibration_context(
+    target_role: str = "",
+    years_experience: str = "",
+    parsed_resume: dict | None = None,
+) -> str:
+    parsed_resume = parsed_resume or {}
+    parts: list[str] = []
+
+    if target_role:
+        parts.append(f"Target role: {target_role}")
+    if years_experience:
+        parts.append(f"Expected years of experience: {years_experience}")
+
+    experience_tier = parsed_resume.get("experience_tier")
+    if experience_tier:
+        parts.append(f"Resume-inferred experience tier: {experience_tier}")
+
+    claims = parsed_resume.get("claims", [])
+    if claims:
+        formatted_claims = []
+        for claim in claims[:5]:
+            if isinstance(claim, dict):
+                text = claim.get("text", "").strip()
+                strength = claim.get("strength", "moderate")
+                contribution = claim.get("contribution_type", "unspecified")
+                if text:
+                    formatted_claims.append(f"{text} [{strength}, {contribution}]")
+            elif isinstance(claim, str) and claim.strip():
+                formatted_claims.append(claim.strip())
+        if formatted_claims:
+            parts.append("Resume claims: " + "; ".join(formatted_claims))
+
+    projects = parsed_resume.get("projects", [])
+    if projects:
+        summaries = []
+        for project in projects[:3]:
+            if not isinstance(project, dict):
+                continue
+            name = project.get("name", "Unnamed project")
+            ownership = project.get("ownership_level", "unspecified")
+            contribution = project.get("contribution_type", "unspecified")
+            summaries.append(f"{name} [{ownership}, {contribution}]")
+        if summaries:
+            parts.append("Project ownership: " + "; ".join(summaries))
+
+    return "\n".join(parts) if parts else "No explicit calibration context provided."
 
 
 class EvaluationAgent:
@@ -87,15 +140,21 @@ class EvaluationAgent:
     def __init__(self):
         self.llm = LLMRouter(tier="large")  # Opus — accuracy matters here
 
-    async def score_answer(self, question: str, answer: str) -> dict:
+    async def score_answer(
+        self,
+        question: str,
+        answer: str,
+        target_role: str = "",
+        years_experience: str = "",
+    ) -> dict:
         """
         Multi-pass scoring for a single answer. 3 evaluations averaged
         to reduce LLM inconsistency.
         """
         scores = await asyncio.gather(
-            self._score_once(question, answer),
-            self._score_once(question, answer),
-            self._score_once(question, answer),
+            self._score_once(question, answer, target_role=target_role, years_experience=years_experience),
+            self._score_once(question, answer, target_role=target_role, years_experience=years_experience),
+            self._score_once(question, answer, target_role=target_role, years_experience=years_experience),
         )
         valid = [s for s in scores if isinstance(s, dict) and "score" in s]
         if not valid:
@@ -116,6 +175,9 @@ class EvaluationAgent:
         reasoning_signals: list[dict] | None = None,
         per_answer_scores: list[dict] | None = None,
         coverage_ratio: float | None = None,
+        target_role: str = "",
+        years_experience: str = "",
+        parsed_resume: dict | None = None,
     ) -> dict:
         """
         Final evaluation of the complete interview.
@@ -182,8 +244,17 @@ class EvaluationAgent:
                     f"Confidence score must reflect this narrow evidence base (suggest ≤ 0.6)."
                 )
 
+        calibration_context = _build_calibration_context(
+            target_role=target_role,
+            years_experience=years_experience,
+            parsed_resume=parsed_resume,
+        )
+
         user = f"""RESUME:
 {resume[:1500]}
+
+CALIBRATION CONTEXT:
+{calibration_context}
 
 INTERVIEW TRANSCRIPT ({len(history)} turns):
 {transcript}
@@ -200,15 +271,30 @@ Evaluate the full interview."""
             "overall_score": 0,
             "breakdown": {},
             "failure_surface": {},
-            "hire_recommendation": "N/A",
+            "hire_recommendation": "INSUFFICIENT_DATA",
             "confidence_score": 0,
             "summary": "Evaluation failed — LLM did not return valid JSON.",
             "risk_flags": ["Evaluation pipeline error"],
             "strengths": [],
+            "claim_credibility_risk": {"level": "not_tested", "detail": "Evaluation pipeline error."},
+            "untested_dimensions": [],
         }
 
-    async def _score_once(self, question: str, answer: str) -> dict:
+    async def _score_once(
+        self,
+        question: str,
+        answer: str,
+        target_role: str = "",
+        years_experience: str = "",
+    ) -> dict:
+        calibration_context = _build_calibration_context(
+            target_role=target_role,
+            years_experience=years_experience,
+        )
         return await self.llm.call(
             system=PER_ANSWER_PROMPT,
-            user=f"Question: {question}\n\nAnswer: {answer}",
+            user=(
+                f"CALIBRATION CONTEXT:\n{calibration_context}\n\n"
+                f"Question: {question}\n\nAnswer: {answer}"
+            ),
         )

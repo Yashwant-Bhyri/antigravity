@@ -36,8 +36,8 @@ _FALLBACK_FOLLOWUPS: dict[int, list[str]] = {
 }
 
 # Agent fallbacks — individual agent crash → use these so one LLM blip doesn't kill the turn
-_WEAKNESS_FALLBACK    = {"weakness": "", "type": "vague", "severity": "low", "attack_strategy": "step_by_step"}
-_DISCREPANCY_FALLBACK = {"conflict": False, "description": "", "severity": "low"}
+_WEAKNESS_FALLBACK    = {"weakness": "", "type": "vague", "severity": "low", "attack_strategy": "clarification"}
+_DISCREPANCY_FALLBACK = {"conflict_level": "none", "description": "", "severity": "low"}
 _REASONING_FALLBACK   = {"structure_score": 5, "adaptability": "flexible", "confidence_calibration": "calibrated"}
 
 
@@ -85,6 +85,132 @@ def _looks_like_question_echo(answer: str, question: str) -> bool:
     overlap_ratio = len(overlapping) / max(len(answer_words), 1)
     novel_words = [w for w in answer_words if w not in question_word_set]
     return overlap_ratio >= 0.85 and len(novel_words) <= 2
+
+
+def _focus_key(label: str) -> str:
+    key = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+    return key or "general"
+
+
+def _resume_focus_candidates(parsed_resume: dict | None, resume: str) -> list[tuple[str, str, set[str]]]:
+    parsed_resume = parsed_resume or {}
+    candidates: list[tuple[str, str, set[str]]] = []
+    raw_labels: list[str] = []
+
+    for project in parsed_resume.get("projects", []):
+        if isinstance(project, dict) and project.get("name"):
+            raw_labels.append(str(project["name"]))
+    for exp in parsed_resume.get("experiences", []):
+        if not isinstance(exp, dict):
+            continue
+        for value in (exp.get("company"), exp.get("title")):
+            if value:
+                raw_labels.append(str(value))
+    for claim in parsed_resume.get("claims", []):
+        if isinstance(claim, dict):
+            for value in (claim.get("project"), claim.get("text")):
+                if value:
+                    raw_labels.append(str(value))
+
+    if not raw_labels:
+        for line in resume.splitlines():
+            stripped = line.strip()
+            if "@" in stripped or "intern" in stripped.lower() or "research assistant" in stripped.lower():
+                raw_labels.append(stripped.split("@")[0].strip(" :-"))
+
+    seen: set[str] = set()
+    for label in raw_labels:
+        key = _focus_key(label)
+        if not key or key in seen:
+            continue
+        tokens = {
+            token
+            for token in _normalize_transcript(label).split(" ")
+            if len(token) > 2 and token not in {"project", "engineer", "assistant", "intern"}
+        }
+        if not tokens:
+            continue
+        candidates.append((label[:80], key, tokens))
+        seen.add(key)
+    return candidates
+
+
+def _infer_focus(question: str, answer: str, parsed_resume: dict | None, resume: str) -> tuple[str, str]:
+    combined = _normalize_transcript(f"{question} {answer}")
+    combined_tokens = set(token for token in combined.split(" ") if len(token) > 2)
+
+    best_label = ""
+    best_key = ""
+    best_score = 0
+    for label, key, tokens in _resume_focus_candidates(parsed_resume, resume):
+        score = len(tokens & combined_tokens)
+        if score > best_score:
+            best_score = score
+            best_label = label
+            best_key = key
+
+    if best_score > 0:
+        return best_key, best_label
+
+    if "internship" in combined or "resume" in combined:
+        return "resume_background", "resume/background"
+    if "python" in combined or "c++" in combined:
+        return "python_cpp", "Python/C++"
+    if "system" in combined or "scale" in combined or "load" in combined:
+        return "system_design", "system design"
+    if "concept" in combined or "explain" in combined:
+        return "foundations", "foundations"
+    return "general", "general background"
+
+
+def _is_substantive_answer(text: str) -> bool:
+    cleaned = _normalize_transcript(text)
+    if not cleaned or _looks_like_admission(text):
+        return False
+    words = [word for word in cleaned.split(" ") if word]
+    return len(words) >= 18
+
+
+def _collect_overprobed_topics(history: list[dict], current_focus_label: str = "") -> list[str]:
+    counts: dict[str, int] = {}
+    for turn in history:
+        label = turn.get("focus_label") or ""
+        if label:
+            counts[label] = counts.get(label, 0) + 1
+    if current_focus_label:
+        counts[current_focus_label] = counts.get(current_focus_label, 0) + 1
+
+    ranked = sorted(counts.items(), key=lambda item: item[1], reverse=True)
+    return [label for label, count in ranked if count >= 2][:3]
+
+
+def _build_continuity_brief(
+    history: list[dict],
+    candidate_model: dict,
+    current_question: str = "",
+    current_answer: str = "",
+    current_focus_label: str = "",
+) -> str:
+    lines: list[str] = []
+
+    substantive_turns = [turn for turn in history if _is_substantive_answer(turn.get("answer", ""))]
+    if substantive_turns:
+        turn = substantive_turns[-1]
+        lines.append(
+            f"Last substantive thread: {turn.get('question', '')[:110]} -> {turn.get('answer', '')[:180]}"
+        )
+
+    if current_question and current_answer and _is_substantive_answer(current_answer):
+        lines.append(f"Most recent answer to build from: {current_question[:110]} -> {current_answer[:180]}")
+
+    established = candidate_model.get("established_facts", []) if isinstance(candidate_model, dict) else []
+    if established:
+        lines.append("Established facts: " + "; ".join(established[-2:]))
+
+    if current_focus_label and current_focus_label != "general background":
+        lines.append(f"Current thread label: {current_focus_label}")
+
+    return "\n".join(f"- {line}" for line in lines if line)
 
 
 # ─────────────────────────────────────────────
@@ -158,15 +284,26 @@ class Orchestrator:
 
         self._per_answer_scores: dict[str, list[dict]] = {}
         self._partial_entities: dict[str, set] = {}
+        self._speculative_locks: dict[str, asyncio.Lock] = {}
 
     # ─────────────────────────────────────────────
     # SESSION LIFECYCLE
     # ─────────────────────────────────────────────
 
-    async def start_session(self, resume: str, github_links: list[str]) -> str:
+    async def start_session(
+        self,
+        resume: str,
+        github_links: list[str],
+        target_role: str = "",
+        years_experience: str = "",
+    ) -> str:
         session_id = str(uuid.uuid4())
 
-        parsed_resume = await self.resume_agent.parse(resume)
+        parsed_resume = await self.resume_agent.parse(
+            resume,
+            target_role=target_role,
+            years_experience=years_experience,
+        )
         if not isinstance(parsed_resume, dict):
             parsed_resume = {}
 
@@ -182,6 +319,8 @@ class Orchestrator:
             "resume": resume,
             "parsed_resume": parsed_resume,
             "github_links": github_links,
+            "target_role": target_role,
+            "years_experience": years_experience,
             "skills": parsed_resume.get("skills", []),
             "scores": {},
             "weaknesses": [],
@@ -204,17 +343,28 @@ class Orchestrator:
             # Never written by the fast path (Codex invariant).
             #
             # prepped_next_question   — adversarial probe from full pipeline, served instantly
-            # prepped_turn_analysis   — full agent output for the turn processed in background
-            #                           applied to history/weaknesses when consumed next turn
-            # prepped_next_metadata   — guard state + follow-up sequencing from background run
+            # prepped_turn_queue      — ordered queue of completed background analyses
+            #                           (each item contains analysis + metadata + turn_number)
+            #                           consumed on later real turns / session end
+            # prepped_next_context    — metadata attached to prepped_next_question
             "prepped_next_question": None,
-            "prepped_turn_analysis": None,
-            "prepped_next_metadata": {},
+            "prepped_next_question_turn_number": 0,
+            "prepped_next_context": {},
+            "prepped_turn_queue": [],
             # ── Speculative cache — partial-STT driven, Haiku only ────────────
             # Written ONLY by _run_speculative_generation (event-driven on partials).
             # Consumed in the fast path if no canonical prepped_next_question exists.
             # NEVER writes canonical state (Codex invariant extends here too).
             "speculative_cache": {},
+            # Tracks the most recent candidate answer turn currently being resolved.
+            # If the frontend submits another chunk with the same turn_id before the
+            # AI has truly moved on, we treat it as a same-turn revision, not a
+            # brand-new interview turn.
+            "current_answer_turn_id": "",
+            "current_answer_question": "",
+            "current_answer_response": "",
+            "current_answer_context": {},
+            "current_answer_turn_number": 0,
         }
         await self.session_manager.save_state(session_id, state)
 
@@ -230,11 +380,23 @@ class Orchestrator:
         state["interview_complete"] = True
 
         # Flush any staged analysis that hasn't been consumed so evaluation sees complete history
-        staged = state.pop("prepped_turn_analysis", None)
-        if staged and staged.get("session_id") == session_id:
-            self._apply_staged_analysis(state, staged, state.pop("prepped_next_metadata", {}))
+        queue = state.pop("prepped_turn_queue", [])
+        legacy_staged = state.pop("prepped_turn_analysis", None)
+        legacy_metadata = state.pop("prepped_next_metadata", {})
+        if legacy_staged and legacy_staged.get("session_id") == session_id:
+            queue.append({
+                "turn_id": legacy_staged.get("turn_id", ""),
+                "turn_number": legacy_staged.get("turn_number", state.get("question_count", 0)),
+                "analysis": legacy_staged,
+                "metadata": legacy_metadata,
+            })
+        for item in sorted(queue, key=lambda queued: queued.get("turn_number", 0)):
+            analysis = item.get("analysis", {})
+            if analysis.get("session_id") == session_id:
+                self._apply_staged_analysis(state, analysis, item.get("metadata", {}))
         state.pop("prepped_next_question", None)
-        state.pop("prepped_next_metadata", None)
+        state.pop("prepped_next_question_turn_number", None)
+        state.pop("prepped_next_context", None)
         state.pop("speculative_cache", None)
 
         history = state.get("history", [])
@@ -256,6 +418,9 @@ class Orchestrator:
                 reasoning_signals=reasoning_signals,
                 per_answer_scores=per_answer_scores,
                 coverage_ratio=coverage_ratio,
+                target_role=state.get("target_role", ""),
+                years_experience=state.get("years_experience", ""),
+                parsed_resume=state.get("parsed_resume", {}),
             )
             state["final_evaluation"] = evaluation
             state["scores"] = evaluation.get("breakdown", {})
@@ -280,10 +445,22 @@ class Orchestrator:
 
         return state
 
-    async def _score_answer_async(self, session_id: str, question: str, answer: str):
+    async def _score_answer_async(
+        self,
+        session_id: str,
+        question: str,
+        answer: str,
+        target_role: str = "",
+        years_experience: str = "",
+    ):
         """Per-answer scoring — fired from background pipeline, never blocks response path."""
         try:
-            score = await self.evaluation_agent.score_answer(question, answer)
+            score = await self.evaluation_agent.score_answer(
+                question,
+                answer,
+                target_role=target_role,
+                years_experience=years_experience,
+            )
             if isinstance(score, dict) and "score" in score:
                 if session_id not in self._per_answer_scores:
                     self._per_answer_scores[session_id] = []
@@ -299,7 +476,13 @@ class Orchestrator:
     # REAL-TIME TRANSCRIPT HANDLING
     # ─────────────────────────────────────────────
 
-    async def on_partial_transcript(self, session_id: str, text: str, entities: list[str] | None = None):
+    async def on_partial_transcript(
+        self,
+        session_id: str,
+        text: str,
+        entities: list[str] | None = None,
+        turn_id: str = "",
+    ):
         """
         Fires on every is_final fragment while candidate is still speaking.
 
@@ -325,6 +508,7 @@ class Orchestrator:
                         partial_text=text,
                         new_entities=new_entities,
                         admission=False,
+                        turn_id=turn_id,
                     )
                 )
 
@@ -336,6 +520,7 @@ class Orchestrator:
                     partial_text=text,
                     new_entities=set(),
                     admission=True,
+                    turn_id=turn_id,
                 )
             )
 
@@ -361,13 +546,19 @@ class Orchestrator:
         if state.get("interview_complete"):
             return {"response": "The interview has concluded. Thank you.", "complete": True, "turn_id": turn_id}
 
+        is_turn_revision = bool(turn_id and turn_id == state.get("current_answer_turn_id"))
+
         # Merge entities from partial accumulation
         accumulated = self._partial_entities.pop(session_id, set())
         if entities:
             accumulated.update(entities)
         entities = list(accumulated) if accumulated else entities
 
-        last_question = state.get("last_question", "")
+        last_question = (
+            state.get("current_answer_question", "")
+            if is_turn_revision and state.get("current_answer_question")
+            else state.get("last_question", "")
+        )
         sprint = state.get("current_sprint", 1)
         persona = state.get("current_persona", "curious_lead")
         parsed_resume = state.get("parsed_resume", {})
@@ -393,10 +584,31 @@ class Orchestrator:
         # Background pipeline writes turn N's full analysis here.
         # Applied at the START of turn N+1 — never inside the background pipeline.
         # This is the single path that mutates canonical state per committed answer.
-        staged_analysis = state.pop("prepped_turn_analysis", None)
-        staged_metadata = state.pop("prepped_next_metadata", {})
-        if staged_analysis and staged_analysis.get("session_id") == session_id:
-            self._apply_staged_analysis(state, staged_analysis, staged_metadata)
+        queue = state.pop("prepped_turn_queue", [])
+        legacy_staged = state.pop("prepped_turn_analysis", None)
+        legacy_metadata = state.pop("prepped_next_metadata", {})
+        if legacy_staged and legacy_staged.get("session_id") == session_id:
+            queue.append({
+                "turn_id": legacy_staged.get("turn_id", ""),
+                "turn_number": legacy_staged.get("turn_number", state.get("question_count", 0)),
+                "analysis": legacy_staged,
+                "metadata": legacy_metadata,
+            })
+
+        ready_items: list[dict] = []
+        deferred_items: list[dict] = []
+        for item in queue:
+            if turn_id and item.get("turn_id") == turn_id:
+                deferred_items.append(item)
+            else:
+                ready_items.append(item)
+
+        for item in sorted(ready_items, key=lambda queued: queued.get("turn_number", 0)):
+            analysis = item.get("analysis", {})
+            if analysis.get("session_id") == session_id:
+                self._apply_staged_analysis(state, analysis, item.get("metadata", {}))
+        if deferred_items:
+            state["prepped_turn_queue"] = deferred_items
 
         # ── Step 2: Determine fast response ──────────────────────────────────
         # Priority:
@@ -404,21 +616,38 @@ class Orchestrator:
         # b) speculative_cache — entity/admission-triggered Haiku question from partials (instant)
         # c) bank follow-up adapted via adapt_followup Haiku call (~300ms)
         # d) sprint fallback template (instant, no LLM)
-        prepped_q = state.pop("prepped_next_question", None)
-        pivoting = staged_metadata.get("pivoting", False)
+        prepped_q = None
+        prepped_context: dict = {}
+        if is_turn_revision:
+            prepped_q = state.get("current_answer_response")
+            prepped_context = state.get("current_answer_context", {})
+        else:
+            prepped_q = state.pop("prepped_next_question", None)
+            prepped_context = state.pop("prepped_next_context", {})
+            state.pop("prepped_next_question_turn_number", None)
 
-        # Promote speculative candidate if no canonical probe and sprint still matches
+        pivoting = prepped_context.get("pivoting", False)
+
+        spec = state.get("speculative_cache", {})
+        if spec.get("turn_id") and spec.get("turn_id") != turn_id:
+            state["speculative_cache"] = {}
+            spec = {}
+
+        # Promote speculative candidate if no canonical probe and both sprint and turn still match
         if not prepped_q:
-            spec = state.get("speculative_cache", {})
-            if spec.get("best_ready_question") and spec.get("sprint") == sprint:
+            if (
+                spec.get("best_ready_question")
+                and spec.get("sprint") == sprint
+                and spec.get("turn_id") == turn_id
+            ):
                 prepped_q = spec["best_ready_question"]
                 state["speculative_cache"] = {}  # consume and clear
                 print(f"[FastTrack] Speculative candidate promoted for {session_id}")
 
         if prepped_q:
             fast_response = prepped_q
-            # Pass weakness that triggered this probe to frontend (for "BOUNDARY EXPOSED" badge)
-            served_weakness = staged_analysis.get("weakness") if staged_analysis else None
+            served_weakness = prepped_context.get("weakness")
+            served_discrepancy = prepped_context.get("discrepancy")
             print(f"[FastTrack] Adversarial probe ready — serving instantly for {session_id}")
 
         elif (
@@ -436,6 +665,7 @@ class Orchestrator:
             )
             state["current_question_followup_asked"] = True
             served_weakness = None
+            served_discrepancy = None
             print(f"[FastTrack] Bank follow-up adapted for {session_id}")
 
         else:
@@ -444,19 +674,39 @@ class Orchestrator:
             fallbacks = _FALLBACK_FOLLOWUPS.get(sprint, ["Walk me through your thinking on that."])
             fast_response = fallbacks[0]
             served_weakness = None
+            served_discrepancy = None
             print(f"[FastTrack] Sprint fallback served for {session_id}")
 
         # ── Step 3: Update canonical state ───────────────────────────────────
         # Only counters and current question. History/weaknesses/candidate_model
         # are updated when staged analysis is consumed (Step 1).
-        state["question_count"] = state.get("question_count", 0) + 1
-        state["sprint_question_count"] = state.get("sprint_question_count", 0) + 1
-        state["last_question"] = fast_response
-
-        advanced, sprint_opener = await self._maybe_advance_sprint(state, current_answer=text)
-        if advanced:
-            fast_response = sprint_opener
+        current_turn_number = state.get("current_answer_turn_number", state.get("question_count", 0))
+        if not is_turn_revision:
+            state["question_count"] = state.get("question_count", 0) + 1
+            state["sprint_question_count"] = state.get("sprint_question_count", 0) + 1
             state["last_question"] = fast_response
+            current_turn_number = state["question_count"]
+
+            advanced, sprint_opener = await self._maybe_advance_sprint(
+                state,
+                answered_question=last_question,
+                current_answer=text,
+            )
+            if advanced:
+                fast_response = sprint_opener
+                state["last_question"] = fast_response
+        else:
+            state["last_question"] = fast_response
+
+        state["current_answer_turn_id"] = turn_id
+        state["current_answer_question"] = last_question
+        state["current_answer_response"] = fast_response
+        state["current_answer_context"] = {
+            "pivoting": pivoting,
+            "weakness": served_weakness,
+            "discrepancy": served_discrepancy,
+        }
+        state["current_answer_turn_number"] = current_turn_number
 
         complete = self._is_complete(state)
         await self.session_manager.save_state(session_id, state)
@@ -484,6 +734,7 @@ class Orchestrator:
                 entities=entities,
                 last_question=last_question,
                 turn_id=turn_id,
+                turn_number=current_turn_number,
             )
         )
 
@@ -498,7 +749,7 @@ class Orchestrator:
             # Weakness that generated this question (from previous background run)
             # Allows frontend to show "BOUNDARY EXPOSED" on adversarial probes
             "weakness": served_weakness,
-            "discrepancy": staged_analysis.get("discrepancy") if staged_analysis else None,
+            "discrepancy": served_discrepancy,
             "turn_id": turn_id,
         }
 
@@ -510,10 +761,14 @@ class Orchestrator:
         Updates: history, weaknesses, candidate_model, consecutive weakness guard,
                  follow-up sequencing state.
         """
-        turn_num = state.get("question_count", 0)
+        history = state.setdefault("history", [])
+        existing_turn_id = staged.get("turn_id")
+        if existing_turn_id and any(h.get("turn_id") == existing_turn_id for h in history):
+            return
 
         # Append turn record to history
-        state["history"].append({
+        history.append({
+            "turn_id": existing_turn_id,
             "question": staged.get("question", ""),
             "answer": staged.get("answer", ""),
             "weakness": staged.get("weakness"),
@@ -522,6 +777,8 @@ class Orchestrator:
             "reasoning_behavior": staged.get("reasoning_behavior"),
             "sprint": staged.get("sprint", state.get("current_sprint", 1)),
             "persona": staged.get("persona", state.get("current_persona", "curious_lead")),
+            "focus_key": staged.get("focus_key", ""),
+            "focus_label": staged.get("focus_label", ""),
         })
 
         # Append weakness to ledger
@@ -562,6 +819,7 @@ class Orchestrator:
         entities: list[str] | None,
         last_question: str,
         turn_id: str,
+        turn_number: int,
     ) -> None:
         """
         Full reasoning pipeline — runs during the candidate's answer to the fast follow-up.
@@ -583,9 +841,12 @@ class Orchestrator:
             persona = state.get("current_persona", "curious_lead")
             resume = state.get("resume", "")
             parsed_resume = state.get("parsed_resume", {})
+            target_role = state.get("target_role", "")
+            years_experience = state.get("years_experience", "")
             prior_weaknesses = state.get("weaknesses", [])
             candidate_model = state.get("candidate_model", {"project_map": {}, "established_facts": [], "probed_weaknesses": []})
             was_challenged = bool(prior_weaknesses and prior_weaknesses[-1].get("severity") == "high")
+            history = state.get("history", [])
 
             # Memory context for agents — what's been established and probed so far
             established_facts = candidate_model.get("established_facts", [])
@@ -594,7 +855,15 @@ class Orchestrator:
             if established_facts:
                 memory_context += "Already established as true:\n" + "\n".join(f"- {f}" for f in established_facts[-4:]) + "\n"
             if probed_weaknesses_list:
-                memory_context += "Already probed (avoid repeating):\n" + "\n".join(f"- {p}" for p in probed_weaknesses_list[-4:])
+                memory_context += "Already probed (avoid repeating):\n" + "\n".join(f"- {p}" for p in probed_weaknesses_list[-4:]) + "\n"
+            if history:
+                prior_claims = [
+                    f"- Q: {h.get('question', '')[:90]} | A: {h.get('answer', '')[:160]}"
+                    for h in history[-3:]
+                    if h.get("answer")
+                ]
+                if prior_claims:
+                    memory_context += "Candidate claims from prior turns:\n" + "\n".join(prior_claims)
 
             # ── Parallel agent execution ──────────────────────────────────────
             async def _safe_weakness():
@@ -603,6 +872,9 @@ class Orchestrator:
                         last_question, text, sprint=sprint,
                         prior_weaknesses=prior_weaknesses,
                         memory_context=memory_context,
+                        parsed_resume=parsed_resume,
+                        target_role=target_role,
+                        years_experience=years_experience,
                     )
                 except Exception as e:
                     print(f"[BGPipeline] WeaknessAgent failed: {e}")
@@ -640,7 +912,15 @@ class Orchestrator:
                 concepts = concepts_result
 
             # Per-answer scoring — fire and forget, never blocks anything
-            asyncio.create_task(self._score_answer_async(session_id, last_question, text))
+            asyncio.create_task(
+                self._score_answer_async(
+                    session_id,
+                    last_question,
+                    text,
+                    target_role=target_role,
+                    years_experience=years_experience,
+                )
+            )
 
             # ── Honest admission soft-cap ─────────────────────────────────────
             reasoning_adaptability = reasoning.get("adaptability", "") if isinstance(reasoning, dict) else ""
@@ -648,8 +928,54 @@ class Orchestrator:
             if honest_admission and weakness.get("severity") == "high":
                 weakness = {**weakness, "severity": "medium"}
 
+            current_focus_key, current_focus_label = _infer_focus(
+                last_question,
+                text,
+                parsed_resume,
+                resume,
+            )
+            same_focus_history = [
+                turn for turn in history
+                if turn.get("focus_key") == current_focus_key
+            ]
+            same_focus_recent = sum(
+                1 for turn in history[-3:]
+                if turn.get("focus_key") == current_focus_key
+            )
+            same_focus_confirmed = sum(
+                1
+                for turn in same_focus_history
+                if isinstance(turn.get("discrepancy"), dict)
+                and turn["discrepancy"].get("conflict_level") == "confirmed"
+            )
+            same_focus_deflections = sum(
+                1
+                for turn in same_focus_history
+                if isinstance(turn.get("weakness"), dict)
+                and turn["weakness"].get("type") == "deflection"
+            )
+            substantive_recovery = _is_substantive_answer(text) and weakness.get("type") != "deflection"
+            continuity_brief = _build_continuity_brief(
+                history=history,
+                candidate_model=candidate_model,
+                current_question=last_question,
+                current_answer=text,
+                current_focus_label=current_focus_label,
+            )
+            overprobed_topics = _collect_overprobed_topics(history, current_focus_label=current_focus_label)
+
+            # ── Breadth guard ────────────────────────────────────────────────
+            # Preserve coverage by avoiding too many turns on the same weakness family
+            # unless we have a confirmed contradiction worth pressing further.
+            weakness_type = weakness.get("type") if isinstance(weakness, dict) else None
+            recent_same_focus = 0
+            if weakness_type:
+                for prior in prior_weaknesses[-3:]:
+                    if prior.get("type") == weakness_type:
+                        recent_same_focus += 1
+
             # ── Consecutive weakness guardrail ────────────────────────────────
-            wtype = weakness.get("type") if weakness else None
+            wtype = weakness_type
             if weakness and weakness.get("severity") == "high":
                 if wtype == state.get("last_weakness_type"):
                     new_consecutive = state.get("consecutive_high_weakness_count", 0) + 1
@@ -669,8 +995,19 @@ class Orchestrator:
             # ── Full priority chain → generates the next adversarial question ─
             discrepancy_conflict = (
                 isinstance(discrepancy, dict)
-                and discrepancy.get("conflict")
-                and discrepancy.get("severity") == "high"
+                and discrepancy.get("conflict_level") == "confirmed"
+                and discrepancy.get("severity") in ("medium", "high")
+            )
+            repeated_focus = recent_same_focus >= 2 and not discrepancy_conflict
+            contradiction_budget_exhausted = discrepancy_conflict and same_focus_confirmed >= 2 and not substantive_recovery
+            deflection_budget_exhausted = weakness_type == "deflection" and same_focus_deflections >= 2
+            if repeated_focus or contradiction_budget_exhausted or deflection_budget_exhausted:
+                force_sprint_question = True
+                pivoting = True
+            clarification_probe = (
+                isinstance(weakness, dict)
+                and weakness.get("attack_strategy") in ("clarification", "ownership_probe")
+                and weakness.get("severity") in ("medium", "high")
             )
             resume_context = _build_resume_context_for_followup(parsed_resume, resume)
             seed_followups: list[str] = []
@@ -681,7 +1018,7 @@ class Orchestrator:
                     persona=persona, resume=resume, parsed_resume=parsed_resume,
                 )
 
-            elif weakness.get("severity") == "high" and not force_sprint_question:
+            elif (weakness.get("severity") == "high" or clarification_probe) and not force_sprint_question:
                 next_question = await self.followup_agent.generate(
                     question=last_question, answer=text, weakness=weakness,
                     persona=persona, resume=resume, parsed_resume=parsed_resume,
@@ -707,22 +1044,23 @@ class Orchestrator:
                     persona=persona,
                     resume=resume,
                     parsed_resume=parsed_resume,
-                    history=state.get("history", []),
+                    history=history,
                     weakness=weakness,
+                    transition_brief=continuity_brief,
+                    avoid_topics=overprobed_topics,
                 )
                 next_question, seed_followups = sprint_result
 
             # ── Candidate model updates (no LLM call) ────────────────────────
-            turn_num = state.get("question_count", 0)
             candidate_model_updates: dict[str, list] = {"established_facts": [], "probed_weaknesses": []}
 
-            if isinstance(discrepancy, dict) and not discrepancy.get("conflict") and discrepancy.get("description"):
-                fact = discrepancy["description"][:120].rstrip(".") + f" (confirmed Turn {turn_num})"
+            if isinstance(discrepancy, dict) and discrepancy.get("conflict_level") == "none" and discrepancy.get("description"):
+                fact = discrepancy["description"][:120].rstrip(".") + f" (confirmed Turn {turn_number})"
                 if fact not in candidate_model.get("established_facts", []):
                     candidate_model_updates["established_facts"].append(fact)
 
             if weakness and weakness.get("type") and weakness.get("weakness"):
-                probe_note = f"{weakness['type']}: {weakness['weakness'][:80]} (Turn {turn_num})"
+                probe_note = f"{weakness['type']}: {weakness['weakness'][:80]} (Turn {turn_number})"
                 candidate_model_updates["probed_weaknesses"].append(probe_note)
 
             # Follow-up sequencing metadata — passed to _apply_staged_analysis on next turn
@@ -737,9 +1075,53 @@ class Orchestrator:
             if state.get("interview_complete"):
                 return  # Interview ended while we were processing — discard
 
-            state["prepped_next_question"] = next_question
+            queue = [
+                item
+                for item in state.get("prepped_turn_queue", [])
+                if item.get("turn_id") != turn_id
+            ]
+            queue.append({
+                "turn_id": turn_id,
+                "turn_number": turn_number,
+                "analysis": {
+                    "session_id": session_id,
+                    "turn_id": turn_id,
+                    "turn_number": turn_number,
+                    "question": last_question,
+                    "answer": text,
+                    "weakness": weakness,
+                    "concepts": concepts,
+                    "discrepancy": discrepancy,
+                    "reasoning_behavior": reasoning,
+                    "sprint": sprint,
+                    "persona": persona,
+                    "focus_key": current_focus_key,
+                    "focus_label": current_focus_label,
+                    "candidate_model_updates": candidate_model_updates,
+                },
+                "metadata": {
+                    "pivoting": pivoting,
+                    "consecutive_high_weakness_count": new_consecutive,
+                    "last_weakness_type": wtype,
+                    "current_question_followups": followups_to_store,
+                    "current_question_followup_asked": False,
+                },
+            })
+            state["prepped_turn_queue"] = queue
+
+            if turn_number >= state.get("prepped_next_question_turn_number", 0):
+                state["prepped_next_question"] = next_question
+                state["prepped_next_question_turn_number"] = turn_number
+                state["prepped_next_context"] = {
+                    "pivoting": pivoting,
+                    "weakness": weakness,
+                    "discrepancy": discrepancy,
+                    "turn_id": turn_id,
+                }
             state["prepped_turn_analysis"] = {
                 "session_id": session_id,
+                "turn_id": turn_id,
+                "turn_number": turn_number,
                 "question": last_question,
                 "answer": text,
                 "weakness": weakness,
@@ -759,7 +1141,7 @@ class Orchestrator:
             }
 
             await self.session_manager.save_state(session_id, state)
-            print(f"[BGPipeline] Turn {turn_num} complete — adversarial probe staged for {session_id}")
+            print(f"[BGPipeline] Turn {turn_number} complete — adversarial probe staged for {session_id}")
 
         except Exception as e:
             # Non-fatal: next turn gracefully falls back to bank follow-up or sprint fallback
@@ -789,9 +1171,22 @@ class Orchestrator:
             )
             # Re-read before saving — don't overwrite any parallel changes
             state = await self.session_manager.get_state(session_id)
-            if state.get("interview_complete") or state.get("prepped_next_question"):
+            if (
+                state.get("interview_complete")
+                or state.get("prepped_next_question")
+                or state.get("question_count", 0) > 0
+                or state.get("current_sprint", 1) != 1
+                or state.get("last_question") != SPRINT_OPENERS[1]
+            ):
                 return
             state["prepped_next_question"] = question
+            state["prepped_next_question_turn_number"] = 0
+            state["prepped_next_context"] = {
+                "pivoting": False,
+                "weakness": None,
+                "discrepancy": None,
+                "turn_id": "",
+            }
             await self.session_manager.save_state(session_id, state)
             print(f"[Seed] Turn 1 follow-up pre-seeded for {session_id}")
         except Exception as e:
@@ -803,6 +1198,7 @@ class Orchestrator:
         partial_text: str,
         new_entities: set,
         admission: bool = False,
+        turn_id: str = "",
     ) -> None:
         """
         Event-driven speculative question generation on partial transcripts.
@@ -815,21 +1211,42 @@ class Orchestrator:
         Throttled: min 1s between calls to prevent entity-churn thrash.
         """
         try:
-            state = await self.session_manager.get_state(session_id)
-            if state.get("interview_complete"):
+            if not turn_id:
                 return
 
-            # Throttle
-            cache = state.get("speculative_cache", {})
-            if time.time() - cache.get("last_trigger_time", 0.0) < 1.0:
-                return
+            lock = self._speculative_locks.setdefault(session_id, asyncio.Lock())
+            async with lock:
+                state = await self.session_manager.get_state(session_id)
+                if state.get("interview_complete"):
+                    return
 
-            sprint = state.get("current_sprint", 1)
-            persona = state.get("current_persona", "curious_lead")
-            resume_context = _build_resume_context_for_followup(
-                state.get("parsed_resume"), state.get("resume", "")
-            )
-            version = cache.get("speculation_version", 0) + 1
+                sprint = state.get("current_sprint", 1)
+                persona = state.get("current_persona", "curious_lead")
+                resume_context = _build_resume_context_for_followup(
+                    state.get("parsed_resume"), state.get("resume", "")
+                )
+                cache = state.get("speculative_cache", {})
+                now = time.time()
+
+                if cache.get("turn_id") and cache.get("turn_id") != turn_id:
+                    cache = {}
+
+                if cache.get("inflight") and cache.get("turn_id") == turn_id:
+                    return
+
+                if now - cache.get("last_trigger_time", 0.0) < 1.0:
+                    return
+
+                version = cache.get("speculation_version", 0) + 1
+                state["speculative_cache"] = {
+                    **cache,
+                    "turn_id": turn_id,
+                    "sprint": sprint,
+                    "speculation_version": version,
+                    "last_trigger_time": now,
+                    "inflight": True,
+                }
+                await self.session_manager.save_state(session_id, state)
 
             question = await self.followup_agent.generate_speculative(
                 partial_text=partial_text,
@@ -841,23 +1258,27 @@ class Orchestrator:
                 admission=admission,
             )
 
-            # Re-read — only write if still latest version and sprint unchanged
-            state = await self.session_manager.get_state(session_id)
-            if state.get("interview_complete"):
-                return
-            if state.get("current_sprint", 1) != sprint:
-                return  # Sprint advanced while we were generating — discard
-            current_version = state.get("speculative_cache", {}).get("speculation_version", 0)
-            if version <= current_version:
-                return  # A newer job already wrote — discard
+            # Re-read under the same session lock — only write if still the same active answer turn
+            async with lock:
+                state = await self.session_manager.get_state(session_id)
+                if state.get("interview_complete"):
+                    return
+                cache = state.get("speculative_cache", {})
+                if state.get("current_sprint", 1) != sprint:
+                    return  # Sprint advanced while we were generating — discard
+                if cache.get("turn_id") != turn_id:
+                    return
+                if cache.get("speculation_version") != version:
+                    return
+                if not cache.get("inflight"):
+                    return
 
-            state["speculative_cache"] = {
-                "best_ready_question": question,
-                "speculation_version": version,
-                "last_trigger_time": time.time(),
-                "sprint": sprint,
-            }
-            await self.session_manager.save_state(session_id, state)
+                state["speculative_cache"] = {
+                    **cache,
+                    "best_ready_question": question,
+                    "inflight": False,
+                }
+                await self.session_manager.save_state(session_id, state)
             trigger = "admission" if admission else f"entities: {new_entities}"
             print(f"[Speculative] v{version} staged ({trigger}) for {session_id}")
 
@@ -868,7 +1289,12 @@ class Orchestrator:
     # SPRINT LOGIC
     # ─────────────────────────────────────────────
 
-    async def _maybe_advance_sprint(self, state: dict, current_answer: str = "") -> tuple[bool, str]:
+    async def _maybe_advance_sprint(
+        self,
+        state: dict,
+        answered_question: str = "",
+        current_answer: str = "",
+    ) -> tuple[bool, str]:
         """
         Advance sprint if current one is exhausted. Mutates state in place.
 
@@ -901,12 +1327,28 @@ class Orchestrator:
         # asked and the candidate's current answer.
         history = state.get("history", [])
         prior_sprint_history = [h for h in history if h.get("sprint") == prior_sprint]
-        if current_answer and state.get("last_question"):
+        if current_answer and answered_question:
+            answered_focus_key, answered_focus_label = _infer_focus(
+                answered_question,
+                current_answer,
+                state.get("parsed_resume"),
+                state.get("resume", ""),
+            )
             prior_sprint_history = prior_sprint_history + [{
-                "question": state["last_question"],
+                "question": answered_question,
                 "answer": current_answer,
                 "sprint": prior_sprint,
+                "focus_key": answered_focus_key,
+                "focus_label": answered_focus_label,
             }]
+
+        continuity_brief = _build_continuity_brief(
+            history=prior_sprint_history,
+            candidate_model=state.get("candidate_model", {}),
+            current_question=answered_question,
+            current_answer=current_answer,
+        )
+        avoid_topics = _collect_overprobed_topics(prior_sprint_history)
 
         try:
             opener = await self.followup_agent.generate_sprint_opener(
@@ -915,6 +1357,8 @@ class Orchestrator:
                 resume=state.get("resume", ""),
                 parsed_resume=state.get("parsed_resume"),
                 prior_sprint_history=prior_sprint_history,
+                transition_brief=continuity_brief,
+                avoid_topics=avoid_topics,
             )
         except Exception as e:
             print(f"[SprintOpener] LLM failed for sprint {next_sprint}, using static fallback: {e}")

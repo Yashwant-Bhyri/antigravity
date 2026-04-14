@@ -47,3 +47,5 @@ node_modules/
 .next/
 out/
 .vercel/
+.vercel
+.env*.local

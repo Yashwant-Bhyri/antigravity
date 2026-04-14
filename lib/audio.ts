@@ -70,6 +70,7 @@ export class InterviewSession {
   private activeAiTextNorm = "";
   private recentAiTextNorm = "";
   private recentAiEndedAt: number | null = null;
+  private activeTurnId = "";
 
   // Barge-in VAD duration tracking
   private bargeInVadStart: number | null = null;
@@ -90,6 +91,14 @@ export class InterviewSession {
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
+  }
+
+  public setActiveTurnId(turnId: string) {
+    this.activeTurnId = turnId;
+  }
+
+  public getActiveTurnId(): string {
+    return this.activeTurnId;
   }
 
   public transition(newState: FloorState) {
@@ -219,11 +228,11 @@ export class InterviewSession {
         // The previous 5s timer was causing mid-answer splits: pause >5s mid-thought
         // → first half flushed → new question generated → second half answered
         // a question the candidate hadn't heard yet.
-        // 8s: long enough to cover any real thinking pause (longer than the 3s Deepgram
-        // utterance_end_ms threshold), short enough to recover from silent Deepgram
-        // failures before dead-air UX becomes unacceptable. 30s was too conservative.
+        // 15s: a safer middle ground while we stabilize turn handoff behavior.
+        // Long enough to tolerate deeper thinking pauses, still far better than the
+        // original 30s hang if Deepgram silently misses UtteranceEnd.
         if (this.utteranceFlushTimer) clearTimeout(this.utteranceFlushTimer);
-        this.utteranceFlushTimer = setTimeout(() => this._flushUtterance(true), 8000);
+        this.utteranceFlushTimer = setTimeout(() => this._flushUtterance(true), 15000);
 
         const accumulated = this.utteranceBuffer.join(" ");
         this.onPartial(accumulated);
@@ -236,6 +245,7 @@ export class InterviewSession {
             session_id: this.sessionId,
             transcript: accumulated,
             entities: [...this.entityBuffer],
+            turn_id: this.activeTurnId,
           }),
         }).catch(() => {});
 
@@ -396,6 +406,7 @@ export class InterviewSession {
     this.currentAbortController?.abort();
     this.currentAbortController = null;
     this.aiSpeakingStartedAt = null;
+    this.activeTurnId = "";
     this.activeAiTextNorm = "";
     this.recentAiTextNorm = "";
     this.recentAiEndedAt = null;
@@ -463,6 +474,8 @@ export async function processTurn(
 // ─── TTS ──────────────────────────────────────────────────────────────────────
 
 export async function prefetchAudio(text: string): Promise<string | null> {
+  if (!text) return null;
+  console.log(`[TTS] Prefetching: "${text.slice(0, 30)}..."`);
   try {
     const res = await fetch(`${API}/tts`, {
       method: "POST",
@@ -470,13 +483,15 @@ export async function prefetchAudio(text: string): Promise<string | null> {
       body: JSON.stringify({ text }),
     });
     if (!res.ok) {
-      console.warn(`[TTS] ElevenLabs returned ${res.status} — will fall back to browser TTS`);
+      console.warn(`[TTS] ElevenLabs returned ${res.status}. Fallback: browser TTS.`);
       return null;
     }
     const blob = await res.blob();
-    return URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    console.log(`[TTS] Prefetch successful. ObjectURL: ${url}`);
+    return url;
   } catch (e) {
-    console.warn("[TTS] ElevenLabs fetch failed:", e, "— will fall back to browser TTS");
+    console.warn("[TTS] ElevenLabs fetch failed. Fallback: browser TTS.", e);
     return null;
   }
 }
@@ -489,8 +504,10 @@ export async function playAudioUrl(
   if (!url) return speakWithBrowser(text, signal);
 
   const audio = new Audio(url);
+  audio.preload = "auto";
 
   return new Promise((resolve) => {
+    let started = false;
     const onEnded = () => {
       URL.revokeObjectURL(url);
       signal?.removeEventListener("abort", onAbort);
@@ -508,14 +525,34 @@ export async function playAudioUrl(
       return;
     }
 
-    signal?.addEventListener("abort", onAbort);
-    audio.onended = onEnded;
-    audio.onerror = onEnded;
+    const startPlayback = () => {
+      if (started) return;
+      started = true;
+      signal?.addEventListener("abort", onAbort);
+      audio.onended = onEnded;
+      audio.onerror = onEnded;
 
-    audio.play().catch(() => {
-      signal?.removeEventListener("abort", onAbort);
-      speakWithBrowser(text, signal).then(resolve);
-    });
+      audio.play().catch((err) => {
+        console.warn("[Audio] ElevenLabs playback failed, falling back to browser TTS:", err);
+        if (url) URL.revokeObjectURL(url);
+        signal?.removeEventListener("abort", onAbort);
+        speakWithBrowser(text, signal).then(resolve);
+      });
+    };
+
+    if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      startPlayback();
+      return;
+    }
+
+    const onReady = () => {
+      audio.removeEventListener("loadeddata", onReady);
+      audio.removeEventListener("canplaythrough", onReady);
+      startPlayback();
+    };
+    audio.addEventListener("loadeddata", onReady, { once: true });
+    audio.addEventListener("canplaythrough", onReady, { once: true });
+    setTimeout(onReady, 250);
   });
 }
 
@@ -528,7 +565,12 @@ export async function speakText(text: string, signal?: AbortSignal): Promise<voi
 // the beginning. Fix: chunk into sentences and speak sequentially.
 function speakWithBrowser(text: string, signal?: AbortSignal): Promise<void> {
   if (!window.speechSynthesis) return Promise.resolve();
-  console.warn("[TTS] ElevenLabs unavailable — falling back to browser speech synthesis");
+  console.warn(`[TTS] ElevenLabs unavailable. Using browser fallback for: "${text.slice(0, 30)}..."`);
+
+  if (window.speechSynthesis.speaking) {
+    console.log("[TTS] Browser is currently speaking. Cancelling previous to start new.");
+    window.speechSynthesis.cancel();
+  }
 
   // Split on sentence boundaries, keeping the delimiter attached to the sentence.
   const sentences = text.match(/[^.!?]+[.!?]*/g) ?? [text];
@@ -548,12 +590,17 @@ function speakWithBrowser(text: string, signal?: AbortSignal): Promise<void> {
 
       const onAbort = () => { window.speechSynthesis.cancel(); resolve(); };
       signal?.addEventListener("abort", onAbort);
+      
+      u.onstart = () => console.log(`[TTS] Browser started speaking: "${chunk.slice(0, 20)}..."`);
       u.onend = () => { signal?.removeEventListener("abort", onAbort); resolve(); };
-      u.onerror = () => { signal?.removeEventListener("abort", onAbort); resolve(); };
+      u.onerror = (e) => { 
+        console.error("[TTS] Browser Speech Error:", e);
+        signal?.removeEventListener("abort", onAbort); 
+        resolve(); 
+      };
+      
       window.speechSynthesis.speak(u);
     });
-
-  window.speechSynthesis.cancel();
 
   return sentences.reduce(
     (chain, sentence) => chain.then(() => {

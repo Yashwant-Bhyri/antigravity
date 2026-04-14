@@ -206,6 +206,9 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Sprint continuity + anti-tunnel follow-up routing | Codex | 2026-04-14 | Added deterministic resume fallback parsing in `resume_agent.py`, focus-family tracking + finite contradiction/deflection budgets in `orchestrator.py`, and richer sprint handoff briefs / avoid-topic guidance in `followup_agent.py`; also fixed sprint handoff using the answered question instead of the next follow-up; verified with `python3 -m py_compile` and `npm run build` |
+| Split-answer merge + backend staging hardening | Codex | 2026-04-14 | `app/interview/[session_id]/page.tsx` now merges late STT chunks into one candidate turn and supports same-turn revision with the same `turn_id`; `backend/services/orchestrator.py` now uses an ordered `prepped_turn_queue` instead of a single fragile staging slot; `lib/audio.ts` waits for audio readiness before playback; `EvaluationAgent` JSON example now includes `INSUFFICIENT_DATA`; verified with `python3 -m py_compile` and `npm run build` |
+| Role/YOE-calibrated interview flow + report contract | Codex | 2026-04-14 | Added `target_role` + `years_experience` input on landing page, threaded calibration through `ResumeAgent` / `WeaknessAgent` / `EvaluationAgent`, added discrepancy levels (`none/suspected/confirmed`), report `untested_dimensions`, and a light breadth guard in `orchestrator.py`; verified with `python3 -m py_compile` and `npm run build` |
 | Frontend turn-commit hotfix for mid-thought cutoff | Codex | 2026-04-05 | `frontend/lib/audio.ts` no longer lets CV directly flush utterances into the LLM path; `frontend/app/interview/[session_id]/page.tsx` now invalidates AI_THINKING turns as soon as the user resumes partial speech; verified with `npm run build` |
 | Frontend `turn_id` stale-response protection | Codex | 2026-04-04 | `frontend/app/interview/[session_id]/page.tsx` + `frontend/lib/audio.ts`; sends `turn_id`, drops stale replies, invalidates on end/unmount, verified with `npm run build` |
 | GM-2: Multimodal Turn Prediction (MediaPipe CV) | Antigravity | 2026-04-04 | `frontend/lib/vision.ts` + `audio.ts` fusion; Lip closure + Gaze prediction |
@@ -262,6 +265,7 @@ frontend/
 | Frontend: Next.js 14 App Router + TypeScript + Tailwind | Better for recruiter dashboard (SSR) + interview page (real-time) in one framework | 2026-03-30 |
 | V1 scope: full product (candidate + recruiter dashboard + reports) | Yash confirmed — build everything, deploy later | 2026-03-30 |
 | Audio flow: client-side Deepgram SDK (NOT backend WS relay) | Lower latency, simpler architecture. Key exposed via /deepgram_token — acceptable for internal tool. Original decision reversed. | 2026-04-01 |
+| Interview calibration should be role/level-relative, not a universal senior bar | Prevents modest ownership claims from being over-probed and lets reports mark under-tested dimensions as inconclusive rather than low | 2026-04-14 |
 
 ---
 
@@ -278,7 +282,31 @@ frontend/
 - Frontend stale-response protection is now wired in `frontend/app/interview/[session_id]/page.tsx` and `frontend/lib/audio.ts`.
 - Each committed utterance generates a `turn_id`, sends it through `/process_turn`, and silently drops late responses whose echoed `turn_id` no longer matches `currentTurnIdRef`.
 - `endInterview()` and component unmount now invalidate the active `turn_id`.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-14**
+- Role/YOE calibration is now live in code.
+- Landing page collects `target_role` + `years_experience`; `/start_interview` stores them in session state.
+- `ResumeAgent` now emits richer ownership/claim context; `WeaknessAgent` and `EvaluationAgent` use that plus role/YOE to calibrate pressure.
+- `DiscrepancyAgent` now distinguishes `suspected` from `confirmed`.
+- `EvaluationAgent` can return `INSUFFICIENT_DATA` and `untested_dimensions`; report page renders those safely.
+- `orchestrator.py` now has a light breadth guard to avoid repeatedly tunneling on the same weakness family without a confirmed contradiction.
 - When `onBargeIn` lands in Gemini's floor manager, the intended invalidation hook is: `currentTurnIdRef.current = crypto.randomUUID()`.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-14**
+- The broken session `f905995d-6897-45c1-a491-0bf6f9ee8003` matched a real split-answer bug, not just user error.
+- `app/interview/[session_id]/page.tsx` no longer turns a late `onFinal` fragment into a fresh answer turn; it now merges chunks into an `AnswerDraft`, waits a short settle window, and if another chunk arrives mid-processing it resubmits as a same-turn revision with the same `turn_id`.
+- `backend/services/orchestrator.py` now treats same `turn_id` submissions as same-turn revisions and no longer relies on a single `prepped_turn_analysis` slot; queued analyses are ordered and consumed later, so `question_count` and `history` should stop drifting apart under fast successive turns.
+- The exact UI regression path was already present in the `6c7fea5` interview-page changes (`processingRef` + `pendingFinalRef` replay path). `7e9b63e` made turn boundaries more likely to surface under load, but it was not the sole cause.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-14**
+- The dummy-candidate session `6132c99e-34f4-4c05-a462-66bf1248d50b` exposed two real behavior issues:
+  - sprint transitions still felt cold
+  - contradiction pressure on the Wondershare internship was allowed to dominate too long
+- Fixes now in code:
+  - `resume_agent.py` backfills parsed resume structure heuristically when the LLM parse is sparse, so follow-ups and sprint openers have stronger grounding even when the small-model parse underperforms
+  - `orchestrator.py` now tags each turn with a focus family and applies finite budgets for repeated deflection / contradiction on the same focus before forcing broader exploration
+  - `_maybe_advance_sprint()` now uses the question the candidate actually answered when building sprint handoff memory; previously it could accidentally hand off the next follow-up question instead
+  - `followup_agent.py` now gets continuity briefs + over-probed topics to avoid so sprint openers/questions feel more connected and less cold
 
 **→ TO: Antigravity | FROM: Claude Code | Date: 2026-03-30**
 - Full frontend is live in `frontend/`. Next.js 14, App Router, TypeScript, Tailwind.

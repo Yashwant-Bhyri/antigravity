@@ -10,11 +10,18 @@ export class CVSensor {
   private faceLandmarker: FaceLandmarker | null = null;
   private initState: "idle" | "loading" | "ready" | "failed" = "idle";
   private lastTimestampMs = 0;
-  private readonly suppressedVisionPatterns = [
+    private readonly suppressedVisionPatterns = [
     "Created TensorFlow Lite XNNPACK delegate for CPU",
     "Feedback manager requires a model with a single signature inference",
     "Sets FaceBlendshapesGraph acceleration to xnnpack by default",
     "OpenGL error checking is disabled",
+    "TfLiteRuntime",
+    "XNNPACK",
+    "vulkan",
+    "metal",
+    "coreml",
+    "DirectX",
+    "INFO: ",
   ];
 
   private withSuppressedVisionLogs<T>(fn: () => T): T {
@@ -72,6 +79,7 @@ export class CVSensor {
 
   public async getPrediction(video: HTMLVideoElement): Promise<VisionPrediction | null> {
     if (this.initState === "failed") return null;
+    if (this.initState === "loading") return null;
     if (!this.faceLandmarker) {
       await this.initialize();
       return null;

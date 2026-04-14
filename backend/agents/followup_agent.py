@@ -61,9 +61,17 @@ Rules:
 # ─────────────────────────────────────────────
 
 ATTACK_STRATEGY_INSTRUCTIONS = {
+    "clarification": (
+        "Their answer may contain something real, but it is still ambiguous. "
+        "Ask one exploratory clarification question that establishes mechanism, scope, or ownership before escalating."
+    ),
     "implementation_probe": (
         "Ask them to walk through the actual implementation step-by-step. "
         "They were vague — push for the specific mechanism, not the concept."
+    ),
+    "ownership_probe": (
+        "Pin down their personal contribution versus team contribution. "
+        "Ask exactly what they themselves wrote, designed, or changed."
     ),
     "step_by_step": (
         "Their answer lacked structure. Ask them to reason through it explicitly: "
@@ -99,17 +107,42 @@ def _build_resume_context(parsed_resume: dict | None, resume: str) -> str:
     claims = parsed_resume.get("claims", [])
     tools = parsed_resume.get("tools", [])
     experience = parsed_resume.get("experience", {})
+    experiences = parsed_resume.get("experiences", [])
+    experience_tier = parsed_resume.get("experience_tier", "")
+
+    def _claim_text(claim: object) -> str:
+        if isinstance(claim, str):
+            return claim
+        if isinstance(claim, dict):
+            parts = [claim.get("text", "")]
+            if claim.get("project"):
+                parts.append(f"(project: {claim['project']})")
+            meta = [claim.get("strength"), claim.get("contribution_type")]
+            meta = [m for m in meta if m]
+            if meta:
+                parts.append(f"[{' / '.join(meta)}]")
+            return " ".join(p for p in parts if p)
+        return str(claim)
+
     ctx = f"Skills: {', '.join(skills[:15])}\n"
     ctx += f"Tools: {', '.join(tools[:10])}\n"
     if experience:
         ctx += f"Experience: {experience}\n"
+    if experience_tier:
+        ctx += f"Experience tier: {experience_tier}\n"
+    if experiences:
+        ctx += "Roles:\n" + "\n".join(
+            f"  - {e.get('title', '')} @ {e.get('company', '')} ({e.get('duration', '')}) [{e.get('contribution_type', 'contributed')}]"
+            for e in experiences[:4]
+        ) + "\n"
     if projects:
         ctx += "Projects:\n" + "\n".join(
             f"  - {p.get('name', '')}: {p.get('description', '')} [{', '.join(p.get('technologies', [])[:5])}]"
+            f" ownership={p.get('ownership_level', 'unknown')} contribution={p.get('contribution_type', 'contributed')}"
             for p in projects[:5]
         ) + "\n"
     if claims:
-        ctx += "Key claims: " + "; ".join(claims[:6])
+        ctx += "Key claims: " + "; ".join(_claim_text(c) for c in claims[:6])
     return ctx
 
 
@@ -195,6 +228,7 @@ Candidate's answer: {answer}
 
 Discrepancy detected between their answer and their resume:
 {discrepancy.get('description', '')}
+Conflict level: {discrepancy.get('conflict_level', 'unknown')}
 
 Generate ONE question that surfaces this inconsistency — curious and direct, not accusatory.
 The goal is to give them a chance to explain or clarify, not to catch them in a lie.
@@ -212,6 +246,8 @@ Output only the question."""
         history: list[dict],
         weakness: dict | None = None,
         parsed_resume: dict | None = None,
+        transition_brief: str = "",
+        avoid_topics: list[str] | None = None,
     ) -> tuple[str, list[str]]:
         """
         Low/medium severity or clean answer → advance to the next question for this sprint.
@@ -234,6 +270,14 @@ Output only the question."""
             rag_context += "\n".join(f"- {q['text']}" for q in rag_candidates)
             seed_followups = rag_candidates[0].get("followups", [])
 
+        avoid_section = ""
+        if avoid_topics:
+            avoid_section = (
+                "\nTopics already over-probed — do NOT make these the center of the next question:\n"
+                + "\n".join(f"- {topic}" for topic in avoid_topics[:3])
+            )
+        transition_section = f"\nConversation memory to build on:\n{transition_brief}" if transition_brief else ""
+
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
         user = f"""Sprint goal: {SPRINT_GOALS.get(sprint, '')}
 
@@ -241,12 +285,13 @@ Candidate background:
 {resume_context}
 
 Questions already asked (do NOT repeat these):
-{covered_str}{rag_context}
+{covered_str}{rag_context}{avoid_section}{transition_section}
 
 Generate ONE new interview question that:
 - Directly references something specific from their resume (a project by name, a technology they listed, a claim they made)
 - Aligns with the sprint goal above
 - Has not been covered already
+- Uses the conversation memory above if helpful so the interview feels continuous, not cold
 - Fits your interviewer persona
 
 Output only the question."""
@@ -292,6 +337,8 @@ Output only the adapted question. ONE question, conversational."""
         resume: str,
         parsed_resume: dict | None,
         prior_sprint_history: list[dict],
+        transition_brief: str = "",
+        avoid_topics: list[str] | None = None,
     ) -> str:
         """
         Generates a context-aware sprint transition question.
@@ -319,6 +366,15 @@ Output only the adapted question. ONE question, conversational."""
                 if a:
                     prior_summary += f"  A{i}: {a}\n"
 
+        avoid_section = ""
+        if avoid_topics:
+            avoid_section = (
+                "Topics to avoid over-centering again:\n"
+                + "\n".join(f"- {topic}" for topic in avoid_topics[:3])
+                + "\n"
+            )
+        transition_memory = f"Transition memory:\n{transition_brief}\n" if transition_brief else ""
+
         transition_context = {
             2: "Transition from project exploration into the technical concepts that underpin the work they described. "
                "Reference a specific technology, decision, or claim from the previous sprint — use it as the jumping-off point.",
@@ -336,11 +392,13 @@ Candidate background:
 {resume_context}
 
 {prior_summary}
+{transition_memory}{avoid_section}
 
 Write ONE transition question that:
 - Feels like a natural continuation of the conversation above (not a cold start)
 - References something specific the candidate said or something concrete from their resume
 - Opens the door to the new sprint goal without immediately going deep
+- If one topic dominated the last sprint, use it only as a bridge and then pivot broader
 - Is conversational and clear — a senior engineer talking to a peer
 
 Output only the question."""

@@ -13,6 +13,8 @@ tts_service = TTSService()
 class StartInterviewRequest(BaseModel):
     resume: str
     github_links: list[str] = []
+    target_role: str = ""
+    years_experience: str = ""
 
 
 class TTSRequest(BaseModel):
@@ -31,6 +33,7 @@ class PartialRequest(BaseModel):
     session_id: str
     transcript: str
     entities: list[str] = []  # NER entities from current is_final fragment(s)
+    turn_id: str = ""         # Frontend-generated UUID for the active candidate answer turn
 
 
 # ─────────────────────────────────────────────
@@ -39,7 +42,12 @@ class PartialRequest(BaseModel):
 
 @router.post("/start_interview")
 async def start_interview(data: StartInterviewRequest):
-    session_id = await orchestrator.start_session(data.resume, data.github_links)
+    session_id = await orchestrator.start_session(
+        data.resume,
+        data.github_links,
+        target_role=data.target_role,
+        years_experience=data.years_experience,
+    )
     state = await orchestrator.get_session_state(session_id)
     return {
         "session_id": session_id,
@@ -62,7 +70,12 @@ async def partial_transcript(data: PartialRequest):
     Browser sends is_final fragments + NER entities while candidate is still speaking.
     Entities fast-path the prefetch — no ConceptAgent LLM call needed.
     """
-    await orchestrator.on_partial_transcript(data.session_id, data.transcript, entities=data.entities)
+    await orchestrator.on_partial_transcript(
+        data.session_id,
+        data.transcript,
+        entities=data.entities,
+        turn_id=data.turn_id,
+    )
     return {"ok": True}
 
 
@@ -100,14 +113,13 @@ async def get_filler():
     """
     Returns a random pre-cached filler phrase as MP3.
     Pre-generated at startup — responds in <10ms after warm-up.
-    Frontend calls this IMMEDIATELY when candidate stops speaking,
-    before/while the LLM pipeline runs, for true filler-first latency masking.
     """
     from fastapi import HTTPException
     try:
         audio_bytes = await tts_service.get_filler_audio()
         return Response(content=audio_bytes, media_type="audio/mpeg")
     except Exception as e:
+        print(f"[TTS] Filler generation failed: {e}")
         raise HTTPException(status_code=502, detail=f"Filler TTS failed: {str(e)[:80]}")
 
 
@@ -116,17 +128,18 @@ async def synthesize_speech(data: TTSRequest):
     from fastapi import HTTPException
 
     # Always use plain stream() — fillers disabled.
-    # Collect all chunks from a single ElevenLabs call (never call twice).
     chunks: list[bytes] = []
     try:
         async for chunk in tts_service.stream(data.text):
             if chunk:
                 chunks.append(chunk)
         if not chunks:
+            print(f"[TTS] ElevenLabs returned zero chunks for text: '{data.text[:30]}...'")
             raise HTTPException(status_code=502, detail="TTS returned empty audio")
     except HTTPException:
         raise
     except Exception as e:
+        print(f"[TTS] ElevenLabs synthesis failed: {e}")
         raise HTTPException(status_code=502, detail=f"TTS unavailable: {str(e)[:120]}")
 
     async def audio_generator():
@@ -181,6 +194,8 @@ async def get_report(session_id: str):
     return {
         "session_id": session_id,
         "complete": state.get("interview_complete", False),
+        "target_role": state.get("target_role", ""),
+        "years_experience": state.get("years_experience", ""),
         "total_questions": state.get("question_count", 0),
         "overall_score": evaluation.get("overall_score"),
         "hire_recommendation": evaluation.get("hire_recommendation"),
@@ -188,6 +203,7 @@ async def get_report(session_id: str):
         "summary": evaluation.get("summary"),
         "strengths": evaluation.get("strengths", []),
         "risk_flags": evaluation.get("risk_flags", []),
+        "untested_dimensions": evaluation.get("untested_dimensions", []),
         "claim_credibility_risk": evaluation.get("claim_credibility_risk", {"level": "not_tested", "detail": ""}),
         "scores": evaluation.get("breakdown", state.get("scores", {})),
         "failure_surface": evaluation.get("failure_surface", state.get("failure_surface", {})),

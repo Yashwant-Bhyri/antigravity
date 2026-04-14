@@ -87,10 +87,16 @@ class TTSService:
     async def warm_filler_cache(self):
         """
         Pre-generates audio for all filler phrases at startup.
-        Call this once from main.py startup event so the first interview has no lag.
+        Processed sequentially to avoid triggering ElevenLabs concurrency rate limits (429).
         """
-        tasks = [self._cache_phrase(p) for p in FILLER_PHRASES if p not in self._filler_cache]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        for phrase in FILLER_PHRASES:
+            if phrase not in self._filler_cache:
+                try:
+                    await self._cache_phrase(phrase)
+                    # Tiny sleep to ensure ElevenLabs has time to reset internal state
+                    await asyncio.sleep(0.1)
+                except Exception as e:
+                    print(f"[TTS] Failed to pre-cache filler '{phrase}': {e}")
 
     async def _cache_phrase(self, phrase: str):
         chunks: list[bytes] = []

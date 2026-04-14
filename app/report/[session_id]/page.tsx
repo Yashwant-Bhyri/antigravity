@@ -4,6 +4,8 @@ import Link from "next/link";
 type Report = {
   session_id: string;
   complete: boolean;
+  target_role: string;
+  years_experience: string;
   total_questions: number;
   overall_score: number | null;
   hire_recommendation: string | null;
@@ -11,7 +13,8 @@ type Report = {
   summary: string | null;
   strengths: string[];
   risk_flags: string[];
-  scores: Record<string, number>;
+  untested_dimensions: string[];
+  scores: Record<string, number | string>;
   failure_surface: Record<string, number>;
   weakness_summary: Record<string, number>;
   raw_weaknesses: { type: string; severity: string; weakness: string; attack_strategy: string }[];
@@ -31,6 +34,7 @@ function recColor(rec: string | null) {
   if (rec === "HIRE") return "text-green-400";
   if (rec === "MAYBE") return "text-yellow-400";
   if (rec === "NO HIRE") return "text-red-400";
+  if (rec === "INSUFFICIENT_DATA") return "text-sky-400";
   return "text-zinc-500";
 }
 
@@ -41,6 +45,10 @@ function barColor(score: number, max = 10) {
   return "bg-red-500";
 }
 
+function isNumericScore(score: number | string): score is number {
+  return typeof score === "number" && Number.isFinite(score);
+}
+
 export default async function ReportPage({
   params,
 }: {
@@ -48,6 +56,7 @@ export default async function ReportPage({
 }) {
   const { session_id } = await params;
   const r = await getReport(session_id);
+  const untestedDimensions = Array.isArray(r.untested_dimensions) ? r.untested_dimensions : [];
 
   const scoreEntries = Object.entries(r.scores);
   const failureEntries = Object.entries(r.failure_surface);
@@ -63,6 +72,20 @@ export default async function ReportPage({
           <div>
             <h1 className="text-2xl font-bold">Interview Report</h1>
             <p className="text-zinc-500 text-sm mt-1 font-mono truncate max-w-xs">{r.session_id}</p>
+            {(r.target_role || r.years_experience) && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {r.target_role && (
+                  <span className="text-[10px] uppercase tracking-widest border border-zinc-800 rounded-full px-2 py-1 text-zinc-400">
+                    {r.target_role}
+                  </span>
+                )}
+                {r.years_experience && (
+                  <span className="text-[10px] uppercase tracking-widest border border-zinc-800 rounded-full px-2 py-1 text-zinc-400">
+                    {r.years_experience} YOE
+                  </span>
+                )}
+              </div>
+            )}
             {!r.complete && (
               <p className="text-yellow-500 text-xs mt-1">Interview still in progress — partial data</p>
             )}
@@ -131,16 +154,39 @@ export default async function ReportPage({
               <div key={dim}>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-zinc-300 capitalize">{dim.replace(/_/g, " ")}</span>
-                  <span className="text-zinc-500">{score}/10</span>
+                  <span className="text-zinc-500">
+                    {isNumericScore(score) ? `${score}/10` : String(score)}
+                  </span>
                 </div>
-                <div className="w-full bg-zinc-800 rounded-full h-2">
-                  <div
-                    className={`${barColor(score)} h-2 rounded-full transition-all`}
-                    style={{ width: `${(score / 10) * 100}%` }}
-                  />
-                </div>
+                {isNumericScore(score) ? (
+                  <div className="w-full bg-zinc-800 rounded-full h-2">
+                    <div
+                      className={`${barColor(score)} h-2 rounded-full transition-all`}
+                      style={{ width: `${(score / 10) * 100}%` }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-500">
+                    This dimension was not tested broadly enough to score confidently.
+                  </div>
+                )}
               </div>
             ))}
+          </section>
+        )}
+
+        {untestedDimensions.length > 0 && (
+          <section className="bg-zinc-900 rounded-xl px-5 py-4 space-y-2">
+            <h2 className="text-xs font-semibold text-sky-400 uppercase tracking-widest">
+              Untested Dimensions
+            </h2>
+            <ul className="space-y-1">
+              {untestedDimensions.map((dim, i) => (
+                <li key={`${dim}-${i}`} className="text-sm text-zinc-300">
+                  • {dim}
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 

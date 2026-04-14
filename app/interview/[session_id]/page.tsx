@@ -34,6 +34,17 @@ type SessionSnapshot = {
   history?: SessionHistoryEntry[];
 };
 
+type AnswerDraft = {
+  turnId: string;
+  textParts: string[];
+  entitySet: Set<string>;
+  submittedText: string | null;
+  pendingRevision: boolean;
+  requestVersion: number;
+  messageIndex: number | null;
+  commitTimer: ReturnType<typeof setTimeout> | null;
+};
+
 const SPRINT_LABELS: Record<number, string> = {
   1: "Project Defense",
   2: "Foundations",
@@ -46,7 +57,8 @@ const PERSONA_DESC: Record<string, string> = {
   senior_peer: "Stress-testing your design",
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API = process.env.NEXT_PUBLIC_API_URL;
+const ANSWER_SETTLE_MS = 1400;
 
 function buildMessagesFromHistory(history: SessionHistoryEntry[] = []): Message[] {
   const restored: Message[] = [];
@@ -96,17 +108,24 @@ export default function InterviewPage() {
   const prevSprintRef = useRef(1);
   const stopVisualizerRef = useRef<(() => void) | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
-  const processingRef = useRef(false); // prevents concurrent onFinal handlers
+  const processingRef = useRef(false);
   const currentTurnIdRef = useRef("");
-  const pendingFinalRef = useRef<{ text: string; entities: string[] } | null>(null);
+  const answerDraftRef = useRef<AnswerDraft | null>(null);
+
+  const clearAnswerDraft = useCallback(() => {
+    const draft = answerDraftRef.current;
+    if (draft?.commitTimer) clearTimeout(draft.commitTimer);
+    answerDraftRef.current = null;
+  }, []);
 
   const beginUserTurn = useCallback((session: InterviewSession | null) => {
     if (!session) return;
+    clearAnswerDraft();
     const turnId = crypto.randomUUID();
     currentTurnIdRef.current = turnId;
     session.setActiveTurnId(turnId);
     session.transition(FloorState.USER_SPEAKING);
-  }, []);
+  }, [clearAnswerDraft]);
 
   // Guard against malformed URLs (e.g. /interview/undefined)
   useEffect(() => {
@@ -122,12 +141,13 @@ export default function InterviewPage() {
 
   const teardownActiveSession = useCallback(() => {
     currentTurnIdRef.current = crypto.randomUUID();
+    clearAnswerDraft();
     stopVisualizerRef.current?.();
     stopVisualizerRef.current = null;
     sessionRef.current?.stop();
     sessionRef.current = null;
     stopCameraStream();
-  }, [stopCameraStream]);
+  }, [clearAnswerDraft, stopCameraStream]);
 
   const resetInterviewUi = useCallback(() => {
     setPhase("idle");
@@ -142,8 +162,8 @@ export default function InterviewPage() {
     setError("");
     prevSprintRef.current = 1;
     processingRef.current = false;
-    pendingFinalRef.current = null;
-  }, []);
+    clearAnswerDraft();
+  }, [clearAnswerDraft]);
 
   const fetchSessionSnapshot = useCallback(async (): Promise<SessionSnapshot | null> => {
     if (!session_id || session_id === "undefined") return null;
@@ -293,6 +313,139 @@ export default function InterviewPage() {
     }
   }, [beginUserTurn, session_id, router]);
 
+  const commitAnswerDraft = useCallback(async (session: InterviewSession, turnId: string) => {
+    const draft = answerDraftRef.current;
+    if (!draft || draft.turnId !== turnId) return;
+
+    if (draft.commitTimer) {
+      clearTimeout(draft.commitTimer);
+      draft.commitTimer = null;
+    }
+
+    if (processingRef.current) {
+      draft.pendingRevision = true;
+      return;
+    }
+
+    const mergedText = draft.textParts.join(" ").replace(/\s+/g, " ").trim();
+    if (!mergedText) return;
+
+    processingRef.current = true;
+    draft.pendingRevision = false;
+    draft.submittedText = mergedText;
+    draft.requestVersion += 1;
+    const requestVersion = draft.requestVersion;
+    const mergedEntities = [...draft.entitySet];
+
+    let nextMessageIndex = draft.messageIndex;
+    setMessages((prev) => {
+      if (
+        draft.messageIndex !== null &&
+        prev[draft.messageIndex] &&
+        prev[draft.messageIndex].role === "candidate"
+      ) {
+        const updated = [...prev];
+        updated[draft.messageIndex] = { role: "candidate", text: mergedText };
+        return updated;
+      }
+      nextMessageIndex = prev.length;
+      return [...prev, { role: "candidate", text: mergedText }];
+    });
+    draft.messageIndex = nextMessageIndex ?? draft.messageIndex;
+    setPartial("");
+    session.transition(FloorState.AI_THINKING);
+
+    try {
+      const result = await processTurn(session_id, mergedText, mergedEntities, turnId);
+      const draftAfterProcess = answerDraftRef.current;
+      const staleBecauseOfRevision = Boolean(
+        draftAfterProcess &&
+        draftAfterProcess.turnId === turnId &&
+        draftAfterProcess.requestVersion === requestVersion &&
+        draftAfterProcess.pendingRevision &&
+        draftAfterProcess.submittedText !== draftAfterProcess.textParts.join(" ").replace(/\s+/g, " ").trim()
+      );
+      if (staleBecauseOfRevision) return;
+
+      const responseTurnId = typeof result.turn_id === "string" ? result.turn_id : turnId;
+      if (responseTurnId !== currentTurnIdRef.current) return;
+
+      const audioUrl = await prefetchAudio(result.response as string);
+      const draftAfterPrefetch = answerDraftRef.current;
+      const staleAfterPrefetch = Boolean(
+        draftAfterPrefetch &&
+        draftAfterPrefetch.turnId === turnId &&
+        draftAfterPrefetch.requestVersion === requestVersion &&
+        draftAfterPrefetch.pendingRevision &&
+        draftAfterPrefetch.submittedText !== draftAfterPrefetch.textParts.join(" ").replace(/\s+/g, " ").trim()
+      );
+      if (staleAfterPrefetch || responseTurnId !== currentTurnIdRef.current) {
+        if (audioUrl) URL.revokeObjectURL(audioUrl);
+        return;
+      }
+
+      clearAnswerDraft();
+      await handleFollowup(result, audioUrl, responseTurnId);
+    } catch {
+      setError("Agent pipeline error. Check backend.");
+      beginUserTurn(session);
+    } finally {
+      processingRef.current = false;
+      const pendingDraft = answerDraftRef.current;
+      if (
+        pendingDraft &&
+        pendingDraft.turnId === turnId &&
+        pendingDraft.pendingRevision
+      ) {
+        pendingDraft.pendingRevision = false;
+        pendingDraft.commitTimer = setTimeout(() => {
+          void commitAnswerDraft(session, turnId);
+        }, 150);
+      }
+    }
+  }, [beginUserTurn, clearAnswerDraft, handleFollowup, session_id]);
+
+  const queueAnswerChunk = useCallback((
+    session: InterviewSession,
+    text: string,
+    entities: string[],
+  ) => {
+    const cleaned = text.trim();
+    if (!cleaned) return;
+
+    const turnId = session.getActiveTurnId() || crypto.randomUUID();
+    session.setActiveTurnId(turnId);
+    currentTurnIdRef.current = turnId;
+
+    let draft = answerDraftRef.current;
+    if (!draft || draft.turnId !== turnId) {
+      clearAnswerDraft();
+      draft = {
+        turnId,
+        textParts: [],
+        entitySet: new Set<string>(),
+        submittedText: null,
+        pendingRevision: false,
+        requestVersion: 0,
+        messageIndex: null,
+        commitTimer: null,
+      };
+      answerDraftRef.current = draft;
+    }
+
+    const previousPart = draft.textParts[draft.textParts.length - 1];
+    if (previousPart !== cleaned) {
+      draft.textParts.push(cleaned);
+    }
+    entities.forEach((entity) => draft!.entitySet.add(entity));
+    setPartial(draft.textParts.join(" "));
+
+    if (draft.commitTimer) clearTimeout(draft.commitTimer);
+    draft.commitTimer = setTimeout(() => {
+      void commitAnswerDraft(session, turnId);
+    }, ANSWER_SETTLE_MS);
+  }, [clearAnswerDraft, commitAnswerDraft]);
+
   async function bootInterview(state: SessionSnapshot, mode: "new" | "resume") {
     setError("");
     setStarted(true);
@@ -335,6 +488,7 @@ export default function InterviewPage() {
 
     session.onBargeIn = () => {
       console.log("[UI] Barge-in! Invalidating active turn.");
+      clearAnswerDraft();
       currentTurnIdRef.current = crypto.randomUUID();
       session.setActiveTurnId(currentTurnIdRef.current);
       setPartial("");
@@ -362,49 +516,11 @@ export default function InterviewPage() {
     };
 
     session.onPartial = (text) => {
-      if (processingRef.current && session.floor === FloorState.AI_THINKING) {
-        beginUserTurn(session);
-      }
       setPartial(text);
     };
 
     session.onFinal = async (text, entities) => {
-      if (processingRef.current) {
-        currentTurnIdRef.current = crypto.randomUUID();
-        pendingFinalRef.current = { text, entities };
-        return;
-      }
-      processingRef.current = true;
-
-      const turnId = session.getActiveTurnId() || crypto.randomUUID();
-      session.setActiveTurnId(turnId);
-      currentTurnIdRef.current = turnId;
-      setPartial("");
-      setMessages((prev) => [...prev, { role: "candidate", text }]);
-
-      try {
-        const result = await processTurn(session_id, text, entities, turnId);
-        const responseTurnId = typeof result.turn_id === "string" ? result.turn_id : turnId;
-
-        if (responseTurnId !== currentTurnIdRef.current) return;
-
-        const audioUrl = await prefetchAudio(result.response as string);
-        if (responseTurnId !== currentTurnIdRef.current) {
-          if (audioUrl) URL.revokeObjectURL(audioUrl);
-          return;
-        }
-        await handleFollowup(result, audioUrl, responseTurnId);
-      } catch {
-        setError("Agent pipeline error. Check backend.");
-        beginUserTurn(session);
-      } finally {
-        processingRef.current = false;
-        const pending = pendingFinalRef.current;
-        pendingFinalRef.current = null;
-        if (pending) {
-          session.onFinal(pending.text, pending.entities);
-        }
-      }
+      queueAnswerChunk(session, text, entities);
     };
 
     session.onError = (err) => {

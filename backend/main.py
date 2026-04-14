@@ -1,8 +1,19 @@
+import os
+
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    # Explicitly load .env.local (used by Vercel CLI) then fallback to .env
+    if os.path.exists(".env.local"):
+        load_dotenv(".env.local")
+        print("[System] Loaded environment from .env.local")
+    else:
+        load_dotenv()
+        print("[System] Loaded environment from .env")
 except ImportError:
-    pass  # In Vercel and Docker, environment variables are injected directly; dotenv is not needed.
+    pass  # In Vercel/Docker, environment variables are injected natively; no dotenv needed
+except Exception as e:
+    print(f"[System] Warning: Error loading dotenv: {e}")
+    pass  # In Vercel/Docker, environment variables are injected natively; no dotenv needed
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,7 +56,12 @@ app = FastAPI(
 # Add CORS so the frontend can talk to the backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001", "http://localhost:3000", "http://127.0.0.1:3001"],
+    allow_origins=[
+        "http://localhost:3001",
+        "http://localhost:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
