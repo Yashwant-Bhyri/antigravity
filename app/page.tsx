@@ -2,21 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-function getApiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (configured) {
-    const normalized = configured.replace(/\/+$/, "");
-    return normalized.endsWith("/api") ? normalized : `${normalized}/api`;
-  }
-
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname === "127.0.0.1" ? "127.0.0.1" : "localhost";
-    return `http://${host}:8000/api`;
-  }
-
-  return "http://localhost:8000/api";
-}
+import { getApiBaseUrl } from "@/lib/api";
 
 export default function Home() {
   const router = useRouter();

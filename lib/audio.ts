@@ -1,7 +1,33 @@
 import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk";
 import { CVSensor, VisionPrediction } from "./vision";
+import { getApiBaseUrl } from "./api";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API = getApiBaseUrl();
+
+export function trackInterviewEvent(
+  sessionId: string,
+  event: string,
+  fields: Record<string, unknown> = {},
+  source = "frontend.audio",
+  level = "info",
+) {
+  if (!sessionId) return;
+  fetch(`${API}/telemetry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    keepalive: true,
+    body: JSON.stringify({
+      session_id: sessionId,
+      event,
+      source,
+      level,
+      fields: {
+        client_ts_ms: Math.round(performance.now()),
+        ...fields,
+      },
+    }),
+  }).catch(() => {});
+}
 
 // ─── Deepgram browser-side ASR ────────────────────────────────────────────────
 
@@ -19,8 +45,10 @@ const FLOOR_CONFIG = {
   bargeInMinChars: 8,
   silenceThresholdMs: 5000,
   ttsFadeOutMs: 100,
+  interimSnapshotThrottleMs: 350,
+  utteranceSafetyTimeoutMs: 30000,
   // Vision Fusion Thresholds
-  visionPredictionThreshold: 0.85, // score > 0.85 triggers early commit
+  visionPredictionThreshold: 0.85, // high score marks likely turn-yield; it does not commit meaning
   audioWeight: 0.3,
   lipClosureWeight: 0.4,
   gazeStabilityWeight: 0.3,
@@ -60,9 +88,6 @@ export class InterviewSession {
   private latestVision: VisionPrediction | null = null;
   private visionRafActive = false;
 
-  // Utterance age gate — tracks when the first is_final landed for the current utterance
-  private utteranceStartTime: number | null = null;
-
   // Floor Management
   public floor: FloorState = FloorState.IDLE;
   private currentAbortController: AbortController | null = null;
@@ -81,9 +106,16 @@ export class InterviewSession {
 
   // NER entity buffer.
   private entityBuffer: Set<string> = new Set();
+  private lastPartialSnapshotSentAt = 0;
+  private lastPartialSnapshotText = "";
+  private partialSnapshotSeq = 0;
 
   onPartial: (text: string) => void = () => {};
-  onFinal: (text: string, entities: string[]) => void = () => {};
+  onFinal: (
+    text: string,
+    entities: string[],
+    metadata?: { reason: "utterance_end" | "safety_timeout"; forced: boolean },
+  ) => void = () => {};
   onBargeIn: () => void = () => {};
   onSilence: () => void = () => {};
   onFloorChange: (state: FloorState) => void = () => {};
@@ -103,6 +135,7 @@ export class InterviewSession {
 
   public transition(newState: FloorState) {
     if (this.floor === newState) return;
+    const previous = this.floor;
 
     if (this.floor === FloorState.AI_SPEAKING && newState !== FloorState.AI_SPEAKING) {
       if (this.activeAiTextNorm) {
@@ -116,6 +149,10 @@ export class InterviewSession {
     this.aiSpeakingStartedAt = newState === FloorState.AI_SPEAKING ? performance.now() : null;
     this.bargeInVadStart = null;
     this.onFloorChange(newState);
+    trackInterviewEvent(this.sessionId, "floor_transition", {
+      from: previous,
+      to: newState,
+    });
 
     // When AI takes the floor, discard any buffered speech fragments.
     // This prevents TTS reverb (picked up during the echo drain window) from
@@ -123,7 +160,6 @@ export class InterviewSession {
     if (newState === FloorState.AI_SPEAKING || newState === FloorState.AI_THINKING) {
       this.utteranceBuffer = [];
       this.entityBuffer.clear();
-      this.utteranceStartTime = null;
       if (this.utteranceFlushTimer) {
         clearTimeout(this.utteranceFlushTimer);
         this.utteranceFlushTimer = null;
@@ -133,6 +169,7 @@ export class InterviewSession {
 
   async start() {
     const { token } = await fetch(`${API}/deepgram_token`).then((r) => r.json());
+    trackInterviewEvent(this.sessionId, "audio_session_start");
 
     const dg = createClient(token);
     this.dgConnection = dg.listen.live({
@@ -144,8 +181,8 @@ export class InterviewSession {
       interim_results: true,
       vad_events: true,
       ner: true,
-      endpointing: 1200,
-      utterance_end_ms: 3000,
+      endpointing: 1500,
+      utterance_end_ms: 2800,
     });
 
     await new Promise<void>((resolve, reject) => {
@@ -191,6 +228,10 @@ export class InterviewSession {
           const vadDuration = performance.now() - this.bargeInVadStart;
           if (vadDuration >= FLOOR_CONFIG.bargeInVadMs) {
             console.log(`[Audio] Barge-in confirmed (VAD: ${vadDuration.toFixed(0)}ms, chars: ${text.length})`);
+            trackInterviewEvent(this.sessionId, "barge_in_confirmed", {
+              vad_ms: Math.round(vadDuration),
+              chars: text.length,
+            });
             this.bargeInVadStart = null;
             this.currentAbortController?.abort();
             this.currentAbortController = null;
@@ -207,10 +248,6 @@ export class InterviewSession {
       this.bargeInVadStart = null;
 
       if (data.is_final && text) {
-        // Track when this utterance first started accumulating
-        if (this.utteranceBuffer.length === 0) {
-          this.utteranceStartTime = performance.now();
-        }
         this.utteranceBuffer.push(text);
 
         const rawEntities: Array<{ label: string; value: string; confidence: number }> =
@@ -221,38 +258,30 @@ export class InterviewSession {
           .filter((v) => v.length > 1);
         newEntities.forEach((e) => this.entityBuffer.add(e));
 
-        // Reset the failsafe timer on every is_final fragment.
-        // 30s is long enough to never split any normal answer (interviews rarely
-        // have 30s pauses mid-thought), but short enough to recover if Deepgram
-        // fails to fire UtteranceEnd (rare, but happens on unstable connections).
-        // The previous 5s timer was causing mid-answer splits: pause >5s mid-thought
-        // → first half flushed → new question generated → second half answered
-        // a question the candidate hadn't heard yet.
-        // 15s: a safer middle ground while we stabilize turn handoff behavior.
-        // Long enough to tolerate deeper thinking pauses, still far better than the
-        // original 30s hang if Deepgram silently misses UtteranceEnd.
-        if (this.utteranceFlushTimer) clearTimeout(this.utteranceFlushTimer);
-        this.utteranceFlushTimer = setTimeout(() => this._flushUtterance(true), 15000);
-
         const accumulated = this.utteranceBuffer.join(" ");
-        this.onPartial(accumulated);
+        const wordCount = accumulated.split(/\s+/).filter(Boolean).length;
+        if (this.utteranceFlushTimer) clearTimeout(this.utteranceFlushTimer);
+        this.utteranceFlushTimer = setTimeout(
+          () => this._flushUtterance("safety_timeout", true),
+          FLOOR_CONFIG.utteranceSafetyTimeoutMs,
+        );
 
-        // Fetch partial pre-fetch
-        fetch(`${API}/partial_transcript`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            session_id: this.sessionId,
-            transcript: accumulated,
-            entities: [...this.entityBuffer],
-            turn_id: this.activeTurnId,
-          }),
-        }).catch(() => {});
+        trackInterviewEvent(this.sessionId, "final_fragment", {
+          chars: text.length,
+          words: text.split(/\s+/).filter(Boolean).length,
+          accumulated_words: wordCount,
+          entities_count: newEntities.length,
+          snapshot_kind: "final_block",
+        });
+
+        this.onPartial(accumulated);
+        this.sendPartialTranscript(accumulated, [...this.entityBuffer], true);
 
       } else if (text) {
         const accumulated = this.utteranceBuffer.join(" ");
         const display = accumulated ? `${accumulated} ${text}` : text;
         this.onPartial(display);
+        this.sendPartialTranscript(display, [...this.entityBuffer], false);
         
         if (this.floor === FloorState.IDLE || this.floor === FloorState.AI_THINKING) {
           this.transition(FloorState.USER_SPEAKING);
@@ -286,7 +315,8 @@ export class InterviewSession {
         clearTimeout(this.utteranceFlushTimer);
         this.utteranceFlushTimer = null;
       }
-      this._flushUtterance(true);
+      trackInterviewEvent(this.sessionId, "utterance_end");
+      this._flushUtterance("utterance_end", true);
     });
 
     this.dgConnection.on(LiveTranscriptionEvents.Error, (e) => {
@@ -369,29 +399,35 @@ export class InterviewSession {
     return false;
   }
 
-  private _flushUtterance(forced = false) {
-    // Minimal age gate: block accidental sub-800ms flushes (e.g. CV noise on a single word).
-    // CV fusion is the primary early-commit path — don't block it with a long gate.
-    // Safety timer and UtteranceEnd bypass this via forced=true.
-    if (!forced && this.utteranceStartTime !== null) {
-      const elapsed = performance.now() - this.utteranceStartTime;
-      if (elapsed < 800) return;
-    }
-
+  private _flushUtterance(reason: "utterance_end" | "safety_timeout", forced = false) {
     const fullText = this.utteranceBuffer.join(" ").trim();
     const entities = [...this.entityBuffer];
     this.utteranceBuffer = [];
     this.entityBuffer.clear();
-    this.utteranceStartTime = null;
 
     // Reset silence tracker
     this.lastSilenceStart = performance.now();
 
     if (fullText) {
+      trackInterviewEvent(this.sessionId, "utterance_flushed", {
+        reason,
+        forced,
+        chars: fullText.length,
+        words: fullText.split(/\s+/).filter(Boolean).length,
+        entities_count: entities.length,
+      });
       this.transition(FloorState.AI_THINKING);
-      this.onFinal(fullText, entities);
-    } else if (this.floor === FloorState.USER_SPEAKING) {
-      // If we got an UtteranceEnd but no text (silence), call onSilence
+      this.onFinal(fullText, entities, { reason, forced });
+    } else if (this.floor === FloorState.USER_SPEAKING || this.floor === FloorState.AI_THINKING) {
+      // Empty buffer on UtteranceEnd: candidate is confirmed done.
+      // USER_SPEAKING → genuine silence nudge path.
+      // AI_THINKING → a safety-timeout flush already committed the turn; this is the
+      //               late confirmation that releases the defensive TTS hold.
+      trackInterviewEvent(this.sessionId, "utterance_empty_flush", {
+        reason,
+        forced,
+        floor: this.floor,
+      });
       this.onSilence();
     }
   }
@@ -411,7 +447,9 @@ export class InterviewSession {
     this.recentAiTextNorm = "";
     this.recentAiEndedAt = null;
     this.utteranceBuffer = [];
-    this.utteranceStartTime = null;
+    this.lastPartialSnapshotSentAt = 0;
+    this.lastPartialSnapshotText = "";
+    this.partialSnapshotSeq = 0;
     this.processor?.disconnect();
     this.mediaStream?.getTracks().forEach((t) => t.stop());
     if (this.audioContext && this.audioContext.state !== "closed") {
@@ -447,6 +485,42 @@ export class InterviewSession {
   public setAbortController(ac: AbortController) {
     this.currentAbortController = ac;
   }
+
+  private sendPartialTranscript(transcript: string, entities: string[], isFinal: boolean) {
+    const cleaned = transcript.trim();
+    if (!cleaned) return;
+
+    const now = performance.now();
+    if (!isFinal) {
+      const changedMeaningfully = cleaned.length >= this.lastPartialSnapshotText.length + 12;
+      const throttled = now - this.lastPartialSnapshotSentAt < FLOOR_CONFIG.interimSnapshotThrottleMs;
+      if (!changedMeaningfully || throttled) return;
+    }
+
+    this.lastPartialSnapshotSentAt = now;
+    this.lastPartialSnapshotText = cleaned;
+    this.partialSnapshotSeq += 1;
+
+    trackInterviewEvent(this.sessionId, "partial_snapshot_sent", {
+      is_final: isFinal,
+      chars: cleaned.length,
+      words: cleaned.split(/\s+/).filter(Boolean).length,
+      snapshot_seq: this.partialSnapshotSeq,
+    });
+
+    fetch(`${API}/partial_transcript`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: this.sessionId,
+        transcript: cleaned,
+        entities,
+        turn_id: this.activeTurnId,
+        is_final: isFinal,
+        snapshot_seq: this.partialSnapshotSeq,
+      }),
+    }).catch(() => {});
+  }
 }
 
 // ─── Agent pipeline call ──────────────────────────────────────────────────────
@@ -457,6 +531,7 @@ export async function processTurn(
   entities: string[] = [],
   turnId = "",
 ) {
+  const startedAt = performance.now();
   const res = await fetch(`${API}/process_turn`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -467,32 +542,101 @@ export async function processTurn(
       turn_id: turnId,
     }),
   });
-  if (!res.ok) throw new Error(`process_turn failed: ${res.status}`);
-  return res.json();
+  if (!res.ok) {
+    trackInterviewEvent(sessionId, "frontend_process_turn_failed", {
+      turn_id: turnId,
+      status: res.status,
+      elapsed_ms: Math.round(performance.now() - startedAt),
+    }, "frontend.audio", "error");
+    throw new Error(`process_turn failed: ${res.status}`);
+  }
+  const payload = await res.json();
+  trackInterviewEvent(sessionId, "frontend_process_turn", {
+    turn_id: turnId,
+    transcript_chars: transcript.length,
+    transcript_words: transcript.split(/\s+/).filter(Boolean).length,
+    entities_count: entities.length,
+    route_kind: payload?.route_kind ?? null,
+    elapsed_ms: Math.round(performance.now() - startedAt),
+  });
+  return payload;
 }
 
 // ─── TTS ──────────────────────────────────────────────────────────────────────
 
-export async function prefetchAudio(text: string): Promise<string | null> {
+export async function prefetchAudio(text: string, sessionId?: string): Promise<string | null> {
   if (!text) return null;
   console.log(`[TTS] Prefetching: "${text.slice(0, 30)}..."`);
+  const startedAt = performance.now();
   try {
     const res = await fetch(`${API}/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, session_id: sessionId ?? "" }),
     });
     if (!res.ok) {
       console.warn(`[TTS] ElevenLabs returned ${res.status}. Fallback: browser TTS.`);
+      trackInterviewEvent(sessionId ?? "system", "frontend_tts_prefetch_failed", {
+        status: res.status,
+        text_chars: text.length,
+        elapsed_ms: Math.round(performance.now() - startedAt),
+      }, "frontend.audio", "warn");
       return null;
     }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     console.log(`[TTS] Prefetch successful. ObjectURL: ${url}`);
+    trackInterviewEvent(sessionId ?? "system", "frontend_tts_prefetch", {
+      text_chars: text.length,
+      provider: res.headers.get("X-TTS-Provider"),
+      source_kind: res.headers.get("X-TTS-Source"),
+      content_type: res.headers.get("Content-Type"),
+      audio_bytes: blob.size,
+      elapsed_ms: Math.round(performance.now() - startedAt),
+    });
     return url;
   } catch (e) {
     console.warn("[TTS] ElevenLabs fetch failed. Fallback: browser TTS.", e);
+    trackInterviewEvent(sessionId ?? "system", "frontend_tts_prefetch_failed", {
+      text_chars: text.length,
+      error: String(e),
+      elapsed_ms: Math.round(performance.now() - startedAt),
+    }, "frontend.audio", "warn");
     return null;
+  }
+}
+
+export async function prefetchFillerAudio(): Promise<{ url: string | null; text: string }> {
+  const fallbackText = "Interesting.";
+  const startedAt = performance.now();
+  try {
+    const res = await fetch(`${API}/tts_filler`);
+    const fillerText = res.headers.get("X-Filler-Text")?.trim() || fallbackText;
+    if (!res.ok) {
+      console.warn(`[TTS] Filler fetch returned ${res.status}. Falling back to browser TTS filler.`);
+      trackInterviewEvent("system", "frontend_tts_filler_failed", {
+        status: res.status,
+        elapsed_ms: Math.round(performance.now() - startedAt),
+      }, "frontend.audio", "warn");
+      return { url: null, text: fillerText };
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    trackInterviewEvent("system", "frontend_tts_filler", {
+      provider: res.headers.get("X-TTS-Provider"),
+      content_type: res.headers.get("Content-Type"),
+      filler_text: fillerText,
+      audio_bytes: blob.size,
+      elapsed_ms: Math.round(performance.now() - startedAt),
+    });
+    return { url, text: fillerText };
+  } catch (e) {
+    console.warn("[TTS] Filler fetch failed. Falling back to browser TTS filler.", e);
+    trackInterviewEvent("system", "frontend_tts_filler_failed", {
+      error: String(e),
+      elapsed_ms: Math.round(performance.now() - startedAt),
+    }, "frontend.audio", "warn");
+    return { url: null, text: fallbackText };
   }
 }
 
@@ -505,18 +649,27 @@ export async function playAudioUrl(
 
   const audio = new Audio(url);
   audio.preload = "auto";
+  const startedAt = performance.now();
 
   return new Promise((resolve) => {
     let started = false;
     const onEnded = () => {
       URL.revokeObjectURL(url);
       signal?.removeEventListener("abort", onAbort);
+      trackInterviewEvent("system", "frontend_audio_playback_done", {
+        text_chars: text.length,
+        elapsed_ms: Math.round(performance.now() - startedAt),
+      });
       resolve();
     };
 
     const onAbort = () => {
       audio.pause();
       audio.currentTime = 0;
+      trackInterviewEvent("system", "frontend_audio_playback_aborted", {
+        text_chars: text.length,
+        elapsed_ms: Math.round(performance.now() - startedAt),
+      }, "frontend.audio", "warn");
       onEnded();
     };
 
@@ -536,6 +689,11 @@ export async function playAudioUrl(
         console.warn("[Audio] ElevenLabs playback failed, falling back to browser TTS:", err);
         if (url) URL.revokeObjectURL(url);
         signal?.removeEventListener("abort", onAbort);
+        trackInterviewEvent("system", "frontend_audio_playback_fallback", {
+          text_chars: text.length,
+          error: String(err),
+          elapsed_ms: Math.round(performance.now() - startedAt),
+        }, "frontend.audio", "warn");
         speakWithBrowser(text, signal).then(resolve);
       });
     };

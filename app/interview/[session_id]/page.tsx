@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { InterviewSession, processTurn, prefetchAudio, playAudioUrl, FloorState } from "@/lib/audio";
+import { InterviewSession, processTurn, prefetchAudio, prefetchFillerAudio, playAudioUrl, FloorState, trackInterviewEvent } from "@/lib/audio";
+import { getApiBaseUrl } from "@/lib/api";
 import { AIOrb, Waveform } from "@/components/Waveform";
 
 type Phase = "idle" | "listening" | "thinking" | "speaking";
@@ -57,8 +58,11 @@ const PERSONA_DESC: Record<string, string> = {
   senior_peer: "Stress-testing your design",
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL;
-const ANSWER_SETTLE_MS = 1400;
+const API = getApiBaseUrl();
+// Small settle window so duplicate/late flushes on the same natural answer still
+// merge before we call processTurn.
+const ANSWER_SETTLE_MS = 700;
+const TTS_HOLD_CAP_MS = 2500;
 
 function buildMessagesFromHistory(history: SessionHistoryEntry[] = []): Message[] {
   const restored: Message[] = [];
@@ -111,6 +115,11 @@ export default function InterviewPage() {
   const processingRef = useRef(false);
   const currentTurnIdRef = useRef("");
   const answerDraftRef = useRef<AnswerDraft | null>(null);
+  // Set true when we have a real end-of-utterance confirmation. That lets us skip
+  // the defensive TTS hold on normal turns while still protecting safety-timeout flushes.
+  const silenceConfirmedRef = useRef(false);
+  // Timestamp when the current turn was committed (for TTS hold cap).
+  const commitTimeRef = useRef(0);
 
   const clearAnswerDraft = useCallback(() => {
     const draft = answerDraftRef.current;
@@ -121,6 +130,8 @@ export default function InterviewPage() {
   const beginUserTurn = useCallback((session: InterviewSession | null) => {
     if (!session) return;
     clearAnswerDraft();
+    silenceConfirmedRef.current = false;
+    commitTimeRef.current = 0;
     const turnId = crypto.randomUUID();
     currentTurnIdRef.current = turnId;
     session.setActiveTurnId(turnId);
@@ -225,11 +236,17 @@ export default function InterviewPage() {
     expectedTurnId: string,
   ) => {
     if (expectedTurnId !== currentTurnIdRef.current) {
+      trackInterviewEvent(session_id, "ui_followup_discarded_stale", {
+        turn_id: expectedTurnId,
+      }, "frontend.ui", "warn");
       if (preloadedAudioUrl) URL.revokeObjectURL(preloadedAudioUrl);
       return;
     }
 
     if (sessionRef.current?.floor === FloorState.USER_SPEAKING) {
+      trackInterviewEvent(session_id, "ui_followup_discarded_user_speaking", {
+        turn_id: expectedTurnId,
+      }, "frontend.ui", "warn");
       if (preloadedAudioUrl) URL.revokeObjectURL(preloadedAudioUrl);
       return;
     }
@@ -241,7 +258,57 @@ export default function InterviewPage() {
     const weakness = result.weakness as { severity?: string } | null;
     const pivoting = result.pivoting as boolean;
 
-    // Pivoting marker — system consciously moving on from an exhausted gap
+    // ── Silence confirmation hold ─────────────────────────────────────────────
+    // Normal path: a Deepgram UtteranceEnd-backed final marks the turn as settled,
+    // so we can speak immediately. Safety-timeout flushes stay defensive: hold
+    // playback until we either see true silence confirmation or the cap elapses.
+    // UI state is only committed after this resolves so phantom questions do not
+    // appear if the turn gets reopened mid-hold.
+    if (!silenceConfirmedRef.current) {
+      const holdStartedAt = performance.now();
+      const elapsed = performance.now() - commitTimeRef.current;
+      const remaining = Math.max(0, TTS_HOLD_CAP_MS - elapsed);
+      if (remaining > 0) {
+        await new Promise<void>((resolve) => {
+          const interval = setInterval(() => {
+            const speaking = sessionRef.current?.floor === FloorState.USER_SPEAKING;
+            const done = silenceConfirmedRef.current || speaking ||
+              (performance.now() - commitTimeRef.current >= TTS_HOLD_CAP_MS);
+            if (done) { clearInterval(interval); resolve(); }
+          }, 40);
+          setTimeout(() => { clearInterval(interval); resolve(); }, remaining);
+        });
+        trackInterviewEvent(session_id, "ui_followup_hold_resolved", {
+          turn_id: expectedTurnId,
+          hold_ms: Math.round(performance.now() - holdStartedAt),
+          silence_confirmed: silenceConfirmedRef.current,
+          floor_after_hold: sessionRef.current?.floor ?? "unknown",
+        }, "frontend.ui");
+      }
+    }
+
+    // Bail if candidate started speaking during the hold window.
+    // Re-read floor into a local var — TypeScript narrows the ref type after the
+    // early guard above and won't re-widen it across the await boundary.
+    const floorAfterHold = sessionRef.current?.floor as FloorState | undefined;
+    if (floorAfterHold === FloorState.USER_SPEAKING) {
+      trackInterviewEvent(session_id, "ui_followup_revoked_during_hold", {
+        turn_id: expectedTurnId,
+      }, "frontend.ui", "warn");
+      if (preloadedAudioUrl) URL.revokeObjectURL(preloadedAudioUrl);
+      return;
+    }
+    if (expectedTurnId !== currentTurnIdRef.current) {
+      trackInterviewEvent(session_id, "ui_followup_stale_after_hold", {
+        turn_id: expectedTurnId,
+      }, "frontend.ui", "warn");
+      if (preloadedAudioUrl) URL.revokeObjectURL(preloadedAudioUrl);
+      return;
+    }
+
+    // Commit all UI state only after hold confirmed and turn is not revoked.
+    // Pivot marker, sprint transition, AI message, and questionCount all go here
+    // to prevent phantom UI entries if the turn was revoked mid-hold.
     if (pivoting) {
       setMessages((prev) => [...prev, {
         role: "ai",
@@ -250,7 +317,6 @@ export default function InterviewPage() {
       }]);
     }
 
-    // Sprint transition marker
     if (newSprint !== prevSprintRef.current) {
       prevSprintRef.current = newSprint;
       setSprint(newSprint);
@@ -263,7 +329,6 @@ export default function InterviewPage() {
       }]);
     }
 
-    // Show message and start audio simultaneously
     setMessages((prev) => [...prev, {
       role: "ai",
       text,
@@ -281,6 +346,10 @@ export default function InterviewPage() {
       await playAudioUrl(preloadedAudioUrl, text, ac.signal);
     } catch (e) {
       console.log("[UI] Audio play interrupted/failed", e);
+      trackInterviewEvent(session_id, "ui_followup_playback_error", {
+        turn_id: expectedTurnId,
+        error: String(e),
+      }, "frontend.ui", "warn");
     }
 
     if (expectedTurnId !== currentTurnIdRef.current) {
@@ -309,6 +378,10 @@ export default function InterviewPage() {
       setSessionSnapshot((prev) => ({ ...(prev ?? {}), interview_complete: true }));
       sessionRef.current?.stop();
       await fetch(`${API}/end_interview/${session_id}`, { method: "POST" });
+      trackInterviewEvent(session_id, "ui_interview_complete", {
+        turn_id: expectedTurnId,
+        sprint: newSprint,
+      }, "frontend.ui");
       setTimeout(() => router.push(`/report/${session_id}`), 2500);
     }
   }, [beginUserTurn, session_id, router]);
@@ -334,6 +407,7 @@ export default function InterviewPage() {
     draft.pendingRevision = false;
     draft.submittedText = mergedText;
     draft.requestVersion += 1;
+    commitTimeRef.current = performance.now();
     const requestVersion = draft.requestVersion;
     const mergedEntities = [...draft.entitySet];
 
@@ -354,40 +428,83 @@ export default function InterviewPage() {
     draft.messageIndex = nextMessageIndex ?? draft.messageIndex;
     setPartial("");
     session.transition(FloorState.AI_THINKING);
+    const turnStartAt = performance.now();
+    trackInterviewEvent(session_id, "ui_turn_commit", {
+      turn_id: turnId,
+      request_version: requestVersion,
+      chars: mergedText.length,
+      words: mergedText.split(/\s+/).filter(Boolean).length,
+      entities_count: mergedEntities.length,
+    }, "frontend.ui");
+
+    const isRevisionStale = () => {
+      const liveDraft = answerDraftRef.current;
+      return Boolean(
+        liveDraft &&
+        liveDraft.turnId === turnId &&
+        liveDraft.requestVersion === requestVersion &&
+        liveDraft.pendingRevision &&
+        liveDraft.submittedText !== liveDraft.textParts.join(" ").replace(/\s+/g, " ").trim()
+      );
+    };
+
+    let routeKind = "unknown";
 
     try {
+      const processStartAt = performance.now();
       const result = await processTurn(session_id, mergedText, mergedEntities, turnId);
-      const draftAfterProcess = answerDraftRef.current;
-      const staleBecauseOfRevision = Boolean(
-        draftAfterProcess &&
-        draftAfterProcess.turnId === turnId &&
-        draftAfterProcess.requestVersion === requestVersion &&
-        draftAfterProcess.pendingRevision &&
-        draftAfterProcess.submittedText !== draftAfterProcess.textParts.join(" ").replace(/\s+/g, " ").trim()
-      );
-      if (staleBecauseOfRevision) return;
+      const processMs = performance.now() - processStartAt;
+      const staleBecauseOfRevision = isRevisionStale();
+      if (staleBecauseOfRevision) {
+        trackInterviewEvent(session_id, "ui_turn_stale_after_process", {
+          turn_id: turnId,
+          request_version: requestVersion,
+          process_ms: Math.round(processMs),
+        }, "frontend.ui", "warn");
+        return;
+      }
 
       const responseTurnId = typeof result.turn_id === "string" ? result.turn_id : turnId;
+      routeKind = typeof result.route_kind === "string" ? result.route_kind : routeKind;
       if (responseTurnId !== currentTurnIdRef.current) return;
 
-      const audioUrl = await prefetchAudio(result.response as string);
-      const draftAfterPrefetch = answerDraftRef.current;
-      const staleAfterPrefetch = Boolean(
-        draftAfterPrefetch &&
-        draftAfterPrefetch.turnId === turnId &&
-        draftAfterPrefetch.requestVersion === requestVersion &&
-        draftAfterPrefetch.pendingRevision &&
-        draftAfterPrefetch.submittedText !== draftAfterPrefetch.textParts.join(" ").replace(/\s+/g, " ").trim()
-      );
+      const prefetchStartAt = performance.now();
+      const audioUrl = await prefetchAudio(result.response as string, session_id);
+      const prefetchMs = performance.now() - prefetchStartAt;
+      const staleAfterPrefetch = isRevisionStale();
       if (staleAfterPrefetch || responseTurnId !== currentTurnIdRef.current) {
+        trackInterviewEvent(session_id, "ui_turn_stale_after_prefetch", {
+          turn_id: turnId,
+          request_version: requestVersion,
+          prefetch_ms: Math.round(prefetchMs),
+          route_kind: routeKind,
+        }, "frontend.ui", "warn");
         if (audioUrl) URL.revokeObjectURL(audioUrl);
         return;
       }
+
+      console.info(
+        `[Latency] ${routeKind} ready in ${Math.round(performance.now() - turnStartAt)}ms `
+        + `(process=${Math.round(processMs)}ms, tts_prefetch=${Math.round(prefetchMs)}ms)`
+      );
+      trackInterviewEvent(session_id, "ui_turn_ready", {
+        turn_id: turnId,
+        request_version: requestVersion,
+        route_kind: routeKind,
+        total_ms: Math.round(performance.now() - turnStartAt),
+        process_ms: Math.round(processMs),
+        tts_prefetch_ms: Math.round(prefetchMs),
+        has_audio: Boolean(audioUrl),
+      }, "frontend.ui");
 
       clearAnswerDraft();
       await handleFollowup(result, audioUrl, responseTurnId);
     } catch {
       setError("Agent pipeline error. Check backend.");
+      trackInterviewEvent(session_id, "ui_turn_pipeline_error", {
+        turn_id: turnId,
+        request_version: requestVersion,
+      }, "frontend.ui", "error");
       beginUserTurn(session);
     } finally {
       processingRef.current = false;
@@ -440,6 +557,18 @@ export default function InterviewPage() {
     entities.forEach((entity) => draft!.entitySet.add(entity));
     setPartial(draft.textParts.join(" "));
 
+    // Same-turn revision: candidate resumed speaking after a forced safety flush.
+    // Reset silence confirmation so the next follow-up remains defensive until we
+    // see a true end-of-utterance for the revised answer.
+    if (draft.submittedText !== null && silenceConfirmedRef.current) {
+      silenceConfirmedRef.current = false;
+      commitTimeRef.current = performance.now();
+      trackInterviewEvent(session_id, "ui_turn_reopened_same_turn", {
+        turn_id: turnId,
+        parts: draft.textParts.length,
+      }, "frontend.ui");
+    }
+
     if (draft.commitTimer) clearTimeout(draft.commitTimer);
     draft.commitTimer = setTimeout(() => {
       void commitAnswerDraft(session, turnId);
@@ -447,6 +576,11 @@ export default function InterviewPage() {
   }, [clearAnswerDraft, commitAnswerDraft]);
 
   async function bootInterview(state: SessionSnapshot, mode: "new" | "resume") {
+    trackInterviewEvent(session_id, "ui_boot_interview", {
+      mode,
+      existing_turns: state.question_count ?? 0,
+      completed: Boolean(state.interview_complete),
+    }, "frontend.ui");
     setError("");
     setStarted(true);
     setComplete(false);
@@ -488,6 +622,7 @@ export default function InterviewPage() {
 
     session.onBargeIn = () => {
       console.log("[UI] Barge-in! Invalidating active turn.");
+      trackInterviewEvent(session_id, "ui_barge_in", {}, "frontend.ui", "warn");
       clearAnswerDraft();
       currentTurnIdRef.current = crypto.randomUUID();
       session.setActiveTurnId(currentTurnIdRef.current);
@@ -495,19 +630,30 @@ export default function InterviewPage() {
     };
 
     session.onSilence = async () => {
+      // UtteranceEnd fired with an empty buffer after a safety-timeout commit.
+      // This is the late "yes, they really stopped" signal that releases the hold.
+      if (session.floor === FloorState.AI_THINKING) {
+        console.log("[UI] UtteranceEnd confirmed after safety timeout, releasing TTS hold.");
+        silenceConfirmedRef.current = true;
+        trackInterviewEvent(session_id, "ui_silence_confirmed", {}, "frontend.ui");
+        return;
+      }
+
       console.log("[UI] User is silent. Nudging.");
       if (processingRef.current || session.floor !== FloorState.USER_SPEAKING) return;
+      trackInterviewEvent(session_id, "ui_silence_nudge", {
+        floor: session.floor,
+      }, "frontend.ui");
 
       const ac = new AbortController();
+      // Use pre-cached filler audio — avoids a live /tts round-trip for the nudge
+      const { url: nudgeUrl, text: nudgeText } = await prefetchFillerAudio();
       session.setAbortController(ac);
-      session.setActivePlaybackText("Take your time, I'm listening.");
+      session.setActivePlaybackText(nudgeText);
       session.transition(FloorState.AI_SPEAKING);
 
       try {
-        const res = await fetch(`${API}/tts_filler`);
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        await playAudioUrl(url, "Take your time, I'm listening.", ac.signal);
+        await playAudioUrl(nudgeUrl, nudgeText, ac.signal);
       } catch {
         console.log("[UI] Silence nudge interrupted");
       }
@@ -519,12 +665,16 @@ export default function InterviewPage() {
       setPartial(text);
     };
 
-    session.onFinal = async (text, entities) => {
+    session.onFinal = async (text, entities, metadata) => {
+      silenceConfirmedRef.current = metadata?.reason === "utterance_end";
       queueAnswerChunk(session, text, entities);
     };
 
     session.onError = (err) => {
       setError(`Voice error: ${err}`);
+      trackInterviewEvent(session_id, "ui_voice_error", {
+        error: err,
+      }, "frontend.ui", "error");
     };
 
     try {
@@ -553,6 +703,10 @@ export default function InterviewPage() {
       }
     } catch (e) {
       setError(`Could not start mic: ${String(e)}`);
+      trackInterviewEvent(session_id, "ui_boot_failed", {
+        mode,
+        error: String(e),
+      }, "frontend.ui", "error");
       setStarted(false);
       setPhase("idle");
     } finally {
@@ -621,6 +775,7 @@ export default function InterviewPage() {
 
   async function endInterview() {
     teardownActiveSession();
+    trackInterviewEvent(session_id, "ui_end_interview_clicked", {}, "frontend.ui");
 
     // Await end_interview so the report is persisted before navigation.
     // Navigation happens regardless of failure — report page handles partial data gracefully.

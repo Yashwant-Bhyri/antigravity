@@ -1,5 +1,173 @@
+import json
+import re
 from backend.models.llm_router import LLMRouter
 from backend.rag import question_bank
+
+
+def _extract_question_from_serialized_payload(text: str) -> str | None:
+    stripped = text.strip()
+    if not stripped or stripped[0] not in "[{":
+        return None
+
+    try:
+        payload = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+
+    def _extract_candidate(value: object) -> str | None:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, dict):
+            for key in ("question", "followup", "response", "text"):
+                candidate = value.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+        return None
+
+    if isinstance(payload, dict):
+        return _extract_candidate(payload)
+
+    if isinstance(payload, list):
+        for item in payload:
+            candidate = _extract_candidate(item)
+            if candidate:
+                return candidate
+
+    return None
+
+
+def _clean_question_output(text: str) -> str:
+    """
+    Strip LLM meta-commentary that leaks into question output.
+
+    The LLM sometimes ignores "Output only the question" and prepends reasoning like:
+      "I notice the candidate's response was fragmented. Here's my follow-up: ..."
+      "I can't adapt this because... **My recommendation:** Pause here..."
+      "Note: Based on the answer above, here is the question: ..."
+
+    This function extracts just the actual question, stripping everything else.
+    Applied to every question string before it leaves the agent layer.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    text = text.strip()
+
+    payload_question = _extract_question_from_serialized_payload(text)
+    if payload_question:
+        text = payload_question
+
+    # ── Step 1: Extract from common "intro: [question]" delimiter patterns ─────
+    delimiter_patterns = [
+        r"(?i)here(?:'s| is) (?:my |the |an )?(?:adapted |follow-up |follow up |next )?question\s*[:\-–]\s*",
+        r"(?i)follow-up\s*(?:question)?\s*[:\-–]\s*",
+        r"(?i)my (?:recommendation|suggestion)\s*[:\-–]\s*",
+        r"(?i)adapted question\s*[:\-–]\s*",
+        r"(?i)note\s*[:\-–]\s*",
+        r"(?i)\*\*(?:question|follow-up|my recommendation)\*\*\s*[:\-–]?\s*",
+    ]
+    for pattern in delimiter_patterns:
+        parts = re.split(pattern, text, maxsplit=1)
+        if len(parts) == 2 and parts[1].strip():
+            text = parts[1].strip()
+            break
+
+    # ── Step 2: Strip leading meta-commentary sentences ─────────────────────────
+    # Match leading sentences that are clearly internal reasoning, not a question
+    meta_sentence_patterns = [
+        r"^I (?:notice|see|can't|cannot|was unable|couldn't|understand|note)\b[^?]*?[.!]\s*",
+        r"^(?:Based on|Given|Since|Because|Note that|Please note)[^?]*?[.!]\s*",
+        r"^The candidate[^?]*?[.!]\s*",
+        r"^\*\*[^*]+\*\*\s*",  # **bold header** at start
+    ]
+    for _ in range(5):  # max 5 leading meta sentences to strip
+        stripped = False
+        for pattern in meta_sentence_patterns:
+            m = re.match(pattern, text, flags=re.IGNORECASE | re.DOTALL)
+            if m and len(text) - m.end() > 10:  # don't strip if nothing would remain
+                text = text[m.end():].strip()
+                stripped = True
+                break
+        if not stripped:
+            break
+
+    # ── Step 3: If text has a quoted question, extract it ───────────────────────
+    quoted = re.search(r'"([^"]{10,}[?])"', text)
+    if quoted:
+        text = quoted.group(1).strip()
+
+    # ── Step 4: Take only the first question sentence if multiple remain ─────────
+    # Split on sentence boundaries, pick the first one ending in "?"
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    for sentence in sentences:
+        if sentence.strip().endswith("?") and len(sentence.strip()) > 15:
+            text = sentence.strip()
+            break
+
+    # ── Step 5: Strip residual markdown formatting ───────────────────────────────
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)   # **bold**
+    text = re.sub(r'\*([^*]+)\*', r'\1', text)         # *italic*
+    text = re.sub(r'__([^_]+)__', r'\1', text)          # __underline__
+
+    return text.strip('"').strip()
+
+
+def _is_viable_question_output(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if stripped.startswith("{") or stripped.startswith("["):
+        return False
+    if not re.search(r"[A-Za-z]", stripped):
+        return False
+    if len(stripped) < 12 or len(stripped.split()) < 3:
+        return False
+    if re.fullmatch(r"(?i)(question|follow-up|follow up|recommendation|note)\s*[:\-–]?", stripped):
+        return False
+    if stripped.endswith(":") and "?" not in stripped:
+        return False
+    return True
+
+
+def _finalize_question_output(text: str, fallback: str) -> str:
+    cleaned = _clean_question_output(text)
+    if _is_viable_question_output(cleaned):
+        return cleaned
+
+    fallback_cleaned = _clean_question_output(fallback)
+    if _is_viable_question_output(fallback_cleaned):
+        return fallback_cleaned
+    return fallback.strip()
+
+
+def _fallback_for_strategy(attack_strategy: str) -> str:
+    return {
+        "clarification": "What exactly was the mechanism you used there?",
+        "ownership_probe": "Which part of that did you personally implement or decide yourself?",
+        "implementation_probe": "Walk me through the exact implementation path you took there.",
+        "step_by_step": "Walk me through exactly how that worked, step by step.",
+        "contradiction": "Earlier you described that differently. How do those two accounts fit together?",
+        "edge_case": "What happens in the first edge case where that approach starts to break?",
+        "scaling": "If that needed to handle 10x the load, what would break first?",
+    }.get(attack_strategy, "Can you walk me through that in more concrete detail?")
+
+
+def _fallback_sprint_question(sprint: int) -> str:
+    return {
+        1: "What was the most consequential implementation decision you made in that project?",
+        2: "What concept underneath that work did you have to understand most deeply?",
+        3: "If that system had to handle 10x the demand, what would you redesign first?",
+    }.get(sprint, "Can you walk me through the most important trade-off in that work?")
+
+
+def _fallback_sprint_opener(sprint: int) -> str:
+    return {
+        2: "We just talked through your project. What technical concept underneath it mattered most to understand?",
+        3: "Staying with the system you just described, what would become the first real scaling or reliability bottleneck?",
+    }.get(sprint, _fallback_sprint_question(sprint))
+
+
+def _fallback_discrepancy_question() -> str:
+    return "Earlier you described that differently. Can you reconcile the difference for me?"
 
 
 # ─────────────────────────────────────────────
@@ -201,7 +369,72 @@ Ground it in something specific from their resume or answer.
 Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
-        return result if isinstance(result, str) else result.get("followup", str(result))
+        raw = result if isinstance(result, str) else result.get("followup", str(result))
+        return _finalize_question_output(raw, _fallback_for_strategy(attack_strategy))
+
+    async def generate_clarification(
+        self,
+        question: str,
+        answer: str,
+        weakness: dict,
+        persona: str,
+        resume: str,
+        parsed_resume: dict | None = None,
+    ) -> str:
+        """
+        Fast, directed clarification path for ambiguity / ownership uncertainty.
+        This is intentionally lighter than generate(): it should establish mechanism,
+        scope, or ownership without turning into a prosecutorial re-attack.
+        """
+        system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+        resume_context = _build_resume_context(parsed_resume, resume)
+
+        attack_strategy = weakness.get("attack_strategy", "clarification")
+        focus_instruction = {
+            "clarification": (
+                "Ask one precise clarifying question that pins down the mechanism, scope, or concrete decision."
+            ),
+            "ownership_probe": (
+                "Ask one precise ownership question that pins down what the candidate personally built, changed, or decided."
+            ),
+        }.get(
+            attack_strategy,
+            "Ask one precise question that establishes the most important missing detail before escalating."
+        )
+
+        user = f"""Candidate background:
+{resume_context[:900]}
+
+Previous question: {question}
+
+Candidate's answer: {answer}
+
+Why we are clarifying:
+- Weakness type: {weakness.get('type', 'unknown')}
+- Gap: {weakness.get('weakness', '')}
+- Route: {attack_strategy}
+
+Instruction:
+{focus_instruction}
+
+Rules:
+- ONE question only
+- ≤20 words
+- Reference something concrete from their answer or resume
+- Curious and directed, not accusatory
+- Do NOT stack multiple asks in one sentence
+- Do NOT escalate into contradiction yet
+
+Output only the question."""
+
+        result = await self.llm_fast.call(system=system, user=user)
+        fallback = _fallback_for_strategy(attack_strategy)
+        if isinstance(result, str):
+            return _finalize_question_output(result, fallback)
+        if isinstance(result, dict):
+            raw = result.get("question") or result.get("followup") or str(result)
+            return _finalize_question_output(raw, fallback)
+        return fallback
 
     async def generate_discrepancy_challenge(
         self,
@@ -236,7 +469,8 @@ Reference the specific thing from their resume that conflicts.
 Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
-        return result if isinstance(result, str) else result.get("question", str(result))
+        raw = result if isinstance(result, str) else result.get("question", str(result))
+        return _finalize_question_output(raw, _fallback_discrepancy_question())
 
     async def generate_sprint_question(
         self,
@@ -258,10 +492,29 @@ Output only the question."""
         covered = [h.get("question", "") for h in history[-6:]]
         covered_str = "\n".join(f"- {q}" for q in covered) if covered else "None yet."
         resume_context = _build_resume_context(parsed_resume, resume)
+        latest_turn = history[-1] if history else {}
+        topic_anchor = (
+            latest_turn.get("focus_label")
+            or latest_turn.get("question")
+            or latest_turn.get("answer")
+            or ""
+        )
+        weakness_hint = ""
+        if isinstance(weakness, dict):
+            weakness_hint = weakness.get("weakness", "") or weakness.get("type", "")
 
         # Retrieve 2 relevant questions from the bank as structural seeds.
         # The LLM adapts the best fit to this specific candidate — never used verbatim.
-        rag_candidates = question_bank.retrieve(resume_context[:400], sprint=sprint, top_k=2)
+        rag_query = "\n".join(
+            section for section in [
+                transition_brief[:240] if transition_brief else "",
+                topic_anchor[:180] if topic_anchor else "",
+                weakness_hint[:160] if weakness_hint else "",
+                resume_context[:300],
+            ]
+            if section
+        )
+        rag_candidates = question_bank.retrieve(rag_query[:600], sprint=sprint, top_k=2)
         rag_context = ""
         # Capture followups from the best-matching seed for use as the next turn's deepening questions
         seed_followups: list[str] = []
@@ -273,8 +526,9 @@ Output only the question."""
         avoid_section = ""
         if avoid_topics:
             avoid_section = (
-                "\nTopics already over-probed — do NOT make these the center of the next question:\n"
+                "\n⚠️ MANDATORY — These topics have already been probed exhaustively. Do NOT ask about them again:\n"
                 + "\n".join(f"- {topic}" for topic in avoid_topics[:3])
+                + "\nPick a different project, claim, or technology from the candidate's resume entirely."
             )
         transition_section = f"\nConversation memory to build on:\n{transition_brief}" if transition_brief else ""
 
@@ -289,16 +543,19 @@ Questions already asked (do NOT repeat these):
 
 Generate ONE new interview question that:
 - Directly references something specific from their resume (a project by name, a technology they listed, a claim they made)
+- Must feel like it belongs after the immediately preceding exchange, not as a reset
 - Aligns with the sprint goal above
 - Has not been covered already
 - Uses the conversation memory above if helpful so the interview feels continuous, not cold
 - Fits your interviewer persona
+- Do NOT ask a generic placeholder like "imagine a system serving millions of users" unless that exact scale/system came from their background or the prior exchange
 
 Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
         question = result if isinstance(result, str) else result.get("question", str(result))
-        return question, seed_followups
+        fallback = rag_candidates[0]["text"] if rag_candidates else _fallback_sprint_question(sprint)
+        return _finalize_question_output(question, fallback), seed_followups
 
     async def adapt_followup(
         self,
@@ -324,11 +581,23 @@ Candidate background:
 Adapt this follow-up question so it references something specific from their answer above:
 "{raw_followup}"
 
+Rules:
+- Keep it to ONE question
+- ≤20 words
+- Preserve the direction of the template, but make it concrete to what they actually said
+- If they mentioned a specific component, technology, decision, or failure, anchor to that
+- Avoid generic phrasing like "tell me more" unless nothing else is available
+
 Output only the adapted question. ONE question, conversational."""
 
-        result = await self.llm.call(system=system, user=user)
+        result = await self.llm_fast.call(system=system, user=user)
         # Fallback: use the raw template if LLM fails
-        return result if isinstance(result, str) else raw_followup
+        if isinstance(result, str):
+            return _finalize_question_output(result, raw_followup)
+        if isinstance(result, dict):
+            raw = result.get("question") or result.get("followup") or raw_followup
+            return _finalize_question_output(raw, raw_followup)
+        return _finalize_question_output(raw_followup, "Can you walk me through that part in more concrete detail?")
 
     async def generate_sprint_opener(
         self,
@@ -369,9 +638,9 @@ Output only the adapted question. ONE question, conversational."""
         avoid_section = ""
         if avoid_topics:
             avoid_section = (
-                "Topics to avoid over-centering again:\n"
+                "⚠️ MANDATORY — Do NOT re-center on these already-exhausted topics:\n"
                 + "\n".join(f"- {topic}" for topic in avoid_topics[:3])
-                + "\n"
+                + "\nUse a different area from the candidate's background.\n"
             )
         transition_memory = f"Transition memory:\n{transition_brief}\n" if transition_brief else ""
 
@@ -400,11 +669,13 @@ Write ONE transition question that:
 - Opens the door to the new sprint goal without immediately going deep
 - If one topic dominated the last sprint, use it only as a bridge and then pivot broader
 - Is conversational and clear — a senior engineer talking to a peer
+- Avoid vague stock prompts; the question should name a concrete project, concept, technology, or claim from the prior sprint / resume
 
 Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
-        return result if isinstance(result, str) else result.get("question", str(result))
+        raw = result if isinstance(result, str) else result.get("question", str(result))
+        return _finalize_question_output(raw, _fallback_sprint_opener(sprint))
 
     async def generate_seed_question(
         self,
@@ -434,9 +705,9 @@ Output only the question."""
 
         result = await self.llm_fast.call(system=system, user=user)
         if isinstance(result, str):
-            return result
+            return _finalize_question_output(result, "What part of that project was most dependent on your own implementation choices?")
         if isinstance(result, dict):
-            return result.get("question", str(result))
+            return _finalize_question_output(result.get("question", str(result)), "What part of that project was most dependent on your own implementation choices?")
         return "What part of that project was most dependent on your own implementation choices?"
 
     async def generate_speculative(
@@ -488,9 +759,9 @@ ONE question, ≤20 words, specific. Output only the question."""
 
         result = await self.llm_fast.call(system=system, user=user)
         if isinstance(result, str):
-            return result
+            return _finalize_question_output(result, "Say more about the specific mechanism you used there.")
         if isinstance(result, dict):
-            return result.get("question", str(result))
+            return _finalize_question_output(result.get("question", str(result)), "Say more about the specific mechanism you used there.")
         return "Say more about the specific mechanism you used there."
 
     async def prefetch(self, concepts: list[str], state: dict) -> list[str]:

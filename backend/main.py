@@ -1,14 +1,26 @@
 import os
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    # Explicitly load .env.local (used by Vercel CLI) then fallback to .env
-    if os.path.exists(".env.local"):
-        load_dotenv(".env.local")
-        print("[System] Loaded environment from .env.local")
-    else:
-        load_dotenv()
-        print("[System] Loaded environment from .env")
+
+    project_root = Path(__file__).resolve().parents[1]
+    env_file = project_root / ".env"
+    env_local = project_root / ".env.local"
+
+    loaded_any = False
+    if env_file.exists():
+        load_dotenv(env_file, override=True)
+        print(f"[System] Loaded environment from {env_file}")
+        loaded_any = True
+    if env_local.exists():
+        # Treat .env as the source of truth and only use .env.local to fill gaps.
+        # This avoids stale local overrides silently breaking live provider creds.
+        load_dotenv(env_local, override=False)
+        print(f"[System] Loaded environment from {env_local}")
+        loaded_any = True
+    if not loaded_any:
+        print("[System] No project-root .env file found; using inherited environment only")
 except ImportError:
     pass  # In Vercel/Docker, environment variables are injected natively; no dotenv needed
 except Exception as e:

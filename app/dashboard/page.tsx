@@ -5,7 +5,7 @@
  */
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { getApiBaseUrl } from "@/lib/api";
 
 type Session = {
   session_id: string;
@@ -16,10 +16,9 @@ type Session = {
   raw_weaknesses: { severity: string }[];
 };
 
-// TODO: replace with a real /sessions list endpoint once backend supports it
 async function getSessions(): Promise<Session[]> {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sessions`, {
+    const res = await fetch(`${getApiBaseUrl()}/sessions`, {
       cache: "no-store",
     });
     if (!res.ok) return [];

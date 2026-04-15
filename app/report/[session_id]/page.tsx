@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getApiBaseUrl } from "@/lib/api";
 
 type Report = {
   session_id: string;
@@ -23,7 +24,7 @@ type Report = {
 
 async function getReport(sessionId: string): Promise<Report> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/report/${sessionId}`,
+    `${getApiBaseUrl()}/report/${sessionId}`,
     { cache: "no-store" }
   );
   if (!res.ok) notFound();
