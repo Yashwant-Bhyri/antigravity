@@ -206,6 +206,7 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Repo audit docs extended through memory-highway + `lib/audio.ts` pass | Codex | 2026-04-17 | Documentation-only pass. Added/updated `repo_optimization_journal.md`, `bug audit.md`, and `PROJECT_STATE.md` with new systems-level findings around mixed memory layers, data-transfer hot paths, API/LLM call budgets, and `lib/audio.ts` control-plane behavior. No runtime code changed in this pass. |
 | Verified-startup interview map + compact focus keys | Codex | 2026-04-15 | `backend/services/orchestrator.py` now awaits `_seed_first_question()` and `_build_interview_map()` before `start_session()` returns, verifies non-empty `interview_trajectory_map`, and traces a compact map preview; `backend/api/routes.py` now returns `trajectory_focus_areas`; `backend/services/interview_map.py` now compacts fallback/LLM focus keys so they don’t balloon into raw-resume sentences; `frontend/app/interview/[session_id]/page.tsx` no longer waits on a background map and instead expects the startup state to already contain it; verified with `python3 -m py_compile` and `npm run build` |
 | Raw-resume focus packs + trajectory-map retrieval hardening | Codex | 2026-04-15 | `backend/services/interview_map.py` now builds focus areas from raw-resume seeds plus exact supporting snippets, treats those snippets as source-of-truth in the map prompt, and no longer falls back to an arbitrary first focus area when overlap is weak; `backend/services/orchestrator.py` now passes focus-context/snippets into speculative, clarification, discrepancy, attack, bank-followup, sprint-question, and sprint-opener generation; `backend/agents/followup_agent.py` now lets speculative refine/keep contend with a relevant map candidate and requires clearer in-question pivot phrasing; `frontend/lib/audio.ts` normalized to `endpointing=1500` / `utterance_end_ms=2800`; verified with `python3 -m py_compile` and `npm run build` |
 | Short-answer rescue hardening + generic-packet demotion | Codex | 2026-04-15 | `backend/services/orchestrator.py` no longer lets synthetic/generic packets outrank rescue/speculative candidates; rescue now covers 1–18 word answers, generic staged fallback can be overridden by speculative/rescue, and explicit rescue trace events were added; verified with `python3 -m py_compile` and a live terse-answer simulation against the local backend |
@@ -287,6 +288,12 @@ frontend/
 
 ## HANDOFF NOTES
 > Time-sensitive notes from one AI to the other. Clear these once acknowledged.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-17**
+- The latest work is documentation-only and is being pushed: `repo_optimization_journal.md`, `bug audit.md`, `PROJECT_STATE.md`, plus this `AGENTS.md` note.
+- New high-signal audit finding: the runtime no longer truly matches the “Redis-only state” story. Load-bearing live state still lives in orchestrator/TTS process-local sidecars (`_per_answer_scores`, `_partial_entities`, `_partial_snapshot_meta`, `_pipeline_inflight`, `_turn_pipeline_running`, `_speculative_locks`, `_prepped_audio`), so multi-worker or non-sticky execution is a real correctness risk.
+- New `lib/audio.ts` findings logged: telemetry is now part of the hot path and playback telemetry is not consistently session-scoped; the current lexical echo-suppression cooldown can plausibly clip legitimate answer openings when the candidate repeats the just-asked project/technology terms.
+- No code fixes were applied in this pass; this was an audit/logging checkpoint only.
 
 **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-15**
 - The latest raw-resume/focus-pack hardening is local only. Nothing was pushed.
