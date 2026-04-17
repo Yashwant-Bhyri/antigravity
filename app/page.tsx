@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getApiBaseUrl } from "@/lib/api";
 
@@ -13,6 +13,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Warm up the backend on page load so model weights are pre-loaded
+  // before the user clicks "Start Interview". This prevents the cold-start
+  // latency from eating into the request timeout.
+  useEffect(() => {
+    fetch(`${getApiBaseUrl()}/tts_health`, { cache: "no-store" }).catch(() => {});
+  }, []);
+
   async function startInterview() {
     if (!resume.trim()) { setError("Paste your resume to begin."); return; }
     if (!targetRole.trim()) { setError("Enter the target role so we can calibrate the interview."); return; }
@@ -20,7 +27,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
       const API_URL = getApiBaseUrl();

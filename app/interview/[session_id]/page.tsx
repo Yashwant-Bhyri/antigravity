@@ -33,6 +33,7 @@ type SessionSnapshot = {
   current_persona?: string;
   last_question?: string;
   history?: SessionHistoryEntry[];
+  interview_trajectory_map?: { focus_areas?: unknown[] };
 };
 
 type AnswerDraft = {
@@ -724,6 +725,10 @@ export default function InterviewPage() {
         return;
       }
 
+      if (!state.interview_trajectory_map?.focus_areas?.length) {
+        throw new Error("Interview trajectory map missing from session startup state");
+      }
+
       await bootInterview(state, "new");
     } catch (e) {
       setError(`Could not start interview: ${String(e)}`);
@@ -1011,7 +1016,7 @@ export default function InterviewPage() {
                 disabled={snapshotLoading || bootingMode !== null || showResumeGate}
                 className="ml-auto bg-white text-black text-[13px] font-semibold px-8 py-3 rounded-full hover:bg-zinc-100 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                {snapshotLoading || bootingMode === "new" ? "Loading..." : "Engage System →"}
+                {snapshotLoading ? "Loading..." : bootingMode === "new" ? "Preparing interview..." : "Engage System →"}
               </button>
             ) : (
               <div className="ml-auto flex items-center gap-3 text-[11px] font-medium text-zinc-400">

@@ -6,15 +6,12 @@ import httpx
 from elevenlabs import VoiceSettings
 from elevenlabs.client import AsyncElevenLabs
 from elevenlabs.core.api_error import ApiError
+from backend.config.env_runtime import elevenlabs_api_key, elevenlabs_voice_id
 from backend.services.interview_telemetry import interview_telemetry
 
 
 ELEVENLABS_MODEL = "eleven_turbo_v2_5"
-ELEVENLABS_VOICE_ID = (
-    os.environ.get("ELEVENLABS_VOICE_ID")
-    or os.environ.get("TTS_VOICE_ID")
-    or "EXAVITQu4vr4xnSDxMaL"
-)
+ELEVENLABS_VOICE_ID = elevenlabs_voice_id("EXAVITQu4vr4xnSDxMaL")
 
 CARTESIA_MODEL_ID = os.environ.get("CARTESIA_MODEL_ID") or "sonic-turbo"
 CARTESIA_VOICE_ID = os.environ.get("CARTESIA_VOICE_ID") or "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
@@ -42,9 +39,7 @@ class TTSService:
     def __init__(self):
         requested_provider = (os.environ.get("TTS_PROVIDER") or "").strip().lower()
         self._cartesia_api_key = os.environ.get("CARTESIA_API_KEY", "").strip()
-        self._elevenlabs_api_key = (
-            os.environ.get("ELEVENLABS_API_KEY") or os.environ.get("TTS_API_KEY", "")
-        ).strip()
+        self._elevenlabs_api_key = elevenlabs_api_key()
 
         valid_providers = {"elevenlabs", "cartesia"}
         if requested_provider and requested_provider not in valid_providers:

@@ -11,6 +11,12 @@ from backend.agents.evaluation_agent import EvaluationAgent
 from backend.agents.resume_agent import ResumeAgent
 from backend.agents.reasoning_behavior_agent import ReasoningBehaviorAgent
 from backend.rag import question_bank
+from backend.services.interview_map import (
+    generate_interview_map,
+    get_focus_area_context,
+    select_from_trajectory_map,
+    select_from_trajectory_map_detailed,
+)
 from backend.services.interview_telemetry import interview_telemetry
 from backend.state.session_manager import SessionManager
 
@@ -18,6 +24,31 @@ from backend.state.session_manager import SessionManager
 def _build_resume_context_for_followup(parsed_resume: dict | None, resume: str) -> str:
     """Thin wrapper so orchestrator can call the shared helper without circular imports."""
     return _build_resume_context(parsed_resume, resume)
+
+
+def _build_focus_prompt_pack(
+    interview_map: dict,
+    *,
+    focus_key: str,
+    last_question: str = "",
+    answer: str = "",
+    history: list[dict] | None = None,
+) -> dict:
+    area = get_focus_area_context(
+        interview_map,
+        focus_key=focus_key,
+        query_text=f"{last_question} {answer}",
+        history=history or [],
+        limit=3,
+    )
+    if not area:
+        return {
+            "focus_key": focus_key,
+            "focus_label": "",
+            "resume_snippets": [],
+            "prompt_context": "",
+        }
+    return area
 
 
 # Fallback follow-ups: sprint-keyed templates used when no prepped question exists and the
@@ -97,43 +128,90 @@ def _focus_key(label: str) -> str:
 def _resume_focus_candidates(parsed_resume: dict | None, resume: str) -> list[tuple[str, str, set[str]]]:
     parsed_resume = parsed_resume or {}
     candidates: list[tuple[str, str, set[str]]] = []
-    raw_labels: list[str] = []
+    token_stopwords = {
+        "project", "projects", "engineer", "engineering", "assistant", "intern",
+        "built", "build", "using", "with", "present", "current", "custom",
+        "production", "ready", "system", "experience", "worked",
+        "for", "from", "into", "onto", "over", "under", "about", "after",
+        "before", "during", "when", "while", "that", "this", "these", "those",
+        "just", "than", "then", "them", "they", "their", "your", "what",
+        "which", "where", "would", "could", "should", "have", "had",
+        "into", "across", "through",
+    }
+    candidate_map: dict[str, dict] = {}
+
+    def _tokens_from(*sources: object) -> set[str]:
+        tokens: set[str] = set()
+        for source in sources:
+            normalized = _normalize_transcript(str(source or ""))
+            for token in normalized.split(" "):
+                if len(token) <= 2 or token in token_stopwords:
+                    continue
+                tokens.add(token)
+        return tokens
+
+    def _ensure_candidate(label: str, *sources: object) -> None:
+        clean_label = str(label or "").strip()
+        key = _focus_key(clean_label)
+        if not clean_label or not key:
+            return
+        entry = candidate_map.setdefault(key, {"label": clean_label[:80], "tokens": set()})
+        entry["tokens"].update(_tokens_from(clean_label, *sources))
+
+    claims_by_project: dict[str, list[str]] = {}
+    for claim in parsed_resume.get("claims", []):
+        if not isinstance(claim, dict):
+            continue
+        project = str(claim.get("project", "") or "").strip()
+        text = str(claim.get("text", "") or "").strip()
+        if project and text:
+            claims_by_project.setdefault(project.lower(), []).append(text)
 
     for project in parsed_resume.get("projects", []):
-        if isinstance(project, dict) and project.get("name"):
-            raw_labels.append(str(project["name"]))
+        if not isinstance(project, dict):
+            continue
+        name = str(project.get("name", "") or "").strip()
+        if not name:
+            continue
+        project_claims = claims_by_project.get(name.lower(), [])
+        _ensure_candidate(
+            name,
+            project.get("description", ""),
+            " ".join(project.get("technologies", []) or []),
+            " ".join(project_claims),
+        )
+
     for exp in parsed_resume.get("experiences", []):
         if not isinstance(exp, dict):
             continue
-        for value in (exp.get("company"), exp.get("title")):
-            if value:
-                raw_labels.append(str(value))
-    for claim in parsed_resume.get("claims", []):
-        if isinstance(claim, dict):
-            for value in (claim.get("project"), claim.get("text")):
-                if value:
-                    raw_labels.append(str(value))
+        company = str(exp.get("company", "") or "").strip()
+        title = str(exp.get("title", "") or "").strip()
+        if company and title:
+            label = f"{title} at {company}"
+        else:
+            label = company or title
+        if not label:
+            continue
+        _ensure_candidate(
+            label,
+            exp.get("description", ""),
+            exp.get("duration", ""),
+            title,
+            company,
+        )
 
-    if not raw_labels:
+    if not candidate_map:
         for line in resume.splitlines():
             stripped = line.strip()
             if "@" in stripped or "intern" in stripped.lower() or "research assistant" in stripped.lower():
-                raw_labels.append(stripped.split("@")[0].strip(" :-"))
+                label = stripped.split("@")[0].strip(" :-")
+                _ensure_candidate(label, stripped)
 
-    seen: set[str] = set()
-    for label in raw_labels:
-        key = _focus_key(label)
-        if not key or key in seen:
-            continue
-        tokens = {
-            token
-            for token in _normalize_transcript(label).split(" ")
-            if len(token) > 2 and token not in {"project", "engineer", "assistant", "intern"}
-        }
+    for key, entry in candidate_map.items():
+        tokens = entry["tokens"]
         if not tokens:
             continue
-        candidates.append((label[:80], key, tokens))
-        seen.add(key)
+        candidates.append((entry["label"], key, tokens))
     return candidates
 
 
@@ -261,6 +339,7 @@ def _build_continuity_brief(
 def _should_prioritize_bank_followup(
     prepped_context: dict,
     queued_followups: list[str],
+    active_packet: dict | None = None,
 ) -> bool:
     """
     Decide when a stored deepening follow-up should beat the pre-generated next question.
@@ -270,6 +349,12 @@ def _should_prioritize_bank_followup(
     or strong weakness probes still take precedence.
     """
     if not queued_followups:
+        return False
+
+    active_route_kind = ""
+    if isinstance(active_packet, dict):
+        active_route_kind = str(active_packet.get("route_kind", "") or "")
+    if active_route_kind in ("sprint_fallback", "unknown"):
         return False
 
     route_kind = prepped_context.get("route_kind")
@@ -283,6 +368,33 @@ def _should_prioritize_bank_followup(
         return False
 
     return True
+
+
+def _short_answer_rescue_eligible(text: str) -> bool:
+    words = [word for word in _normalize_transcript(text).split(" ") if word]
+    return 1 <= len(words) <= 18
+
+
+def _is_generic_fasttrack_route(route_kind: object) -> bool:
+    return str(route_kind or "") in {"sprint_fallback", "sprint_seed", "unknown"}
+
+
+def _question_already_asked(candidate: str, history: list[dict], window: int = 15) -> bool:
+    """
+    Returns True if this exact question text was already served in this session.
+    Normalised comparison — strips punctuation/case so minor rephrasing is NOT blocked,
+    but verbatim repeated templates ARE caught.
+    """
+    if not candidate:
+        return False
+    normalized = _normalize_transcript(candidate)
+    if not normalized:
+        return False
+    for turn in history[-window:]:
+        asked = _normalize_transcript(str(turn.get("question", "") or ""))
+        if asked and asked == normalized:
+            return True
+    return False
 
 
 def _normalize_followups(followups: list[str] | None, limit: int = 2) -> list[str]:
@@ -306,9 +418,15 @@ def _build_question_packet(
     weakness: dict | None = None,
     discrepancy: dict | None = None,
     source_turn_number: int = 0,
+    focus_key_override: str = "",
+    focus_label_override: str = "",
 ) -> dict:
     followup_templates = _normalize_followups(followups)
-    focus_key, focus_label = _infer_focus(question_text, "", parsed_resume, resume)
+    if focus_key_override or focus_label_override:
+        focus_key = focus_key_override or _focus_key(focus_label_override)
+        focus_label = focus_label_override or focus_key_override
+    else:
+        focus_key, focus_label = _infer_focus(question_text, "", parsed_resume, resume)
     return {
         "question_text": question_text,
         "route_kind": route_kind,
@@ -642,6 +760,12 @@ class Orchestrator:
             # Tracks the newest committed same-turn revision per turn_id so stale
             # background runs can self-discard instead of overwriting newer analysis.
             "latest_turn_versions": {},
+            # ── Interview trajectory map — resume-grounded fallback spine ─────
+            # Generated once by _build_interview_map at session start using
+            # deterministic focus extraction + per-focus LLM generation.
+            # Consulted in the fast path whenever the staged/speculative path
+            # is absent, generic, or weaker than a grounded resume-aware branch.
+            "interview_trajectory_map": {},
         }
         await self.session_manager.save_state(session_id, state)
         await self._trace(
@@ -655,10 +779,24 @@ class Orchestrator:
             elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
         )
 
-        # Pre-seed the first follow-up question from resume so Turn 1 never hits
-        # the generic fallback. Runs as a background task — completes well before
-        # the candidate finishes answering the sprint opener (~3-5s TTS + answer time).
-        asyncio.create_task(self._seed_first_question(session_id))
+        # Build the turn-1 seed and the full trajectory map before returning.
+        # Product decision: startup latency is acceptable; a verified map is required
+        # before the interview can start.
+        seed_result, map_result = await asyncio.gather(
+            self._seed_first_question(session_id),
+            self._build_interview_map(session_id),
+            return_exceptions=True,
+        )
+
+        if isinstance(seed_result, Exception):
+            print(f"[Seed] start_session seed failure for {session_id[:8]}: {seed_result}")
+        if isinstance(map_result, Exception):
+            raise RuntimeError(f"Interview map build failed: {map_result}")
+
+        verified_state = await self.session_manager.get_state(session_id)
+        focus_areas = (verified_state.get("interview_trajectory_map") or {}).get("focus_areas", [])
+        if not focus_areas:
+            raise RuntimeError("Interview map missing after startup build")
 
         return session_id
 
@@ -1025,11 +1163,18 @@ class Orchestrator:
                 route_kind="unknown",
                 parsed_resume=parsed_resume,
                 resume=resume,
-                followups=list(state.get("current_question_followups") or []) or _FALLBACK_FOLLOWUPS.get(sprint, [])[:2],
+                followups=list(state.get("current_question_followups") or []),
                 source_turn_number=max(state.get("question_count", 0), 0),
             )
 
         current_focus_key, current_focus_label = _infer_focus(last_question, text, parsed_resume, resume)
+        focus_prompt_pack = _build_focus_prompt_pack(
+            state.get("interview_trajectory_map", {}),
+            focus_key=current_focus_key,
+            last_question=last_question,
+            answer=text,
+            history=state.get("history", []),
+        )
         if not is_turn_revision:
             _upsert_turn_skeleton(
                 state,
@@ -1068,21 +1213,77 @@ class Orchestrator:
                     prepped_q = None
                     prepped_context = {}
                     prepped_packet = {}
+            if seed_turn_number == 0 and current_focus_key not in ("general", "general background"):
+                trajectory_seed = select_from_trajectory_map_detailed(
+                    state.get("interview_trajectory_map", {}),
+                    sprint=sprint,
+                    focus_key=current_focus_key,
+                    answer=text,
+                    entities=entities or [],
+                    history=state.get("history", []),
+                    admission=_looks_like_admission(text),
+                    has_discrepancy=False,
+                )
+                if trajectory_seed:
+                    trajectory_question = trajectory_seed["question"]
+                    trajectory_route_kind = trajectory_seed["route_kind"]
+                    trajectory_focus_key = trajectory_seed["focus_key"]
+                    trajectory_focus_label = trajectory_seed["focus_label"]
+                    seeded_focus_key, _ = _infer_focus(prepped_q or "", "", parsed_resume, resume)
+                    if trajectory_focus_key == current_focus_key and seeded_focus_key != current_focus_key:
+                        prepped_q = trajectory_question
+                        prepped_context = {
+                            "pivoting": trajectory_route_kind == "trajectory_map_bridge",
+                            "route_kind": trajectory_route_kind,
+                            "weakness": None,
+                            "discrepancy": None,
+                        }
+                        prepped_packet = _build_question_packet(
+                            question_text=prepped_q,
+                            sprint=sprint,
+                            route_kind=trajectory_route_kind,
+                            parsed_resume=parsed_resume,
+                            resume=resume,
+                            followups=[],
+                            pivoting=trajectory_route_kind == "trajectory_map_bridge",
+                            source_turn_number=state.get("question_count", 0),
+                            focus_key_override=trajectory_focus_key,
+                            focus_label_override=trajectory_focus_label,
+                        )
+                        print(f"[FastTrack] Trajectory map replaced seed for {session_id}")
 
         pivoting = prepped_context.get("pivoting", False)
         served_route_kind = prepped_context.get("route_kind")
+        served_weakness: dict | None = None
+        served_discrepancy: dict | None = None
 
         spec = state.get("speculative_cache", {})
         if spec.get("turn_id") and spec.get("turn_id") != turn_id:
             state["speculative_cache"] = {}
             spec = {}
 
+        admission = _looks_like_admission(text)
+        trajectory_admission = None
+        if not is_turn_revision and admission:
+            trajectory_admission = select_from_trajectory_map_detailed(
+                state.get("interview_trajectory_map", {}),
+                sprint=sprint,
+                focus_key=current_focus_key,
+                answer=text,
+                entities=entities or [],
+                history=state.get("history", []),
+                admission=True,
+                has_discrepancy=bool(served_discrepancy),
+                branch_hint="if_honest_gap",
+            )
+
         current_packet_followups = _packet_followups_remaining(active_packet)
         should_use_packet_followup = (
             not is_turn_revision
             and bool(current_packet_followups)
             and not active_packet.get("pivoting")
-            and _should_prioritize_bank_followup(prepped_context, current_packet_followups)
+            and not trajectory_admission
+            and _should_prioritize_bank_followup(prepped_context, current_packet_followups, active_packet)
         )
 
         if should_use_packet_followup:
@@ -1093,6 +1294,8 @@ class Orchestrator:
                 answer=text,
                 persona=persona,
                 resume_context=resume_context,
+                focus_context=focus_prompt_pack.get("prompt_context", ""),
+                resume_snippets=focus_prompt_pack.get("resume_snippets", []),
             )
             active_packet["asked_followup_count"] = active_packet.get("asked_followup_count", 0) + 1
             active_packet["question_text"] = fast_response
@@ -1104,6 +1307,98 @@ class Orchestrator:
             print(f"[FastTrack] Active-packet follow-up served for {session_id}")
 
         else:
+            generic_prepped_fasttrack = bool(prepped_q) and _is_generic_fasttrack_route(
+                prepped_context.get("route_kind")
+            )
+
+            if trajectory_admission and (not prepped_q or generic_prepped_fasttrack):
+                prepped_q = trajectory_admission["question"]
+                trajectory_route_kind = trajectory_admission["route_kind"]
+                prepped_context = {
+                    "pivoting": trajectory_route_kind == "trajectory_map_bridge",
+                    "route_kind": trajectory_route_kind,
+                    "weakness": None,
+                    "discrepancy": None,
+                }
+                prepped_packet = _build_question_packet(
+                    question_text=prepped_q,
+                    sprint=sprint,
+                    route_kind=trajectory_route_kind,
+                    parsed_resume=parsed_resume,
+                    resume=resume,
+                    followups=[],
+                    pivoting=trajectory_route_kind == "trajectory_map_bridge",
+                    source_turn_number=state.get("question_count", 0),
+                    focus_key_override=trajectory_admission["focus_key"],
+                    focus_label_override=trajectory_admission["focus_label"],
+                )
+                generic_prepped_fasttrack = False
+                print(f"[FastTrack] Trajectory-map honesty probe promoted for {session_id}")
+
+            if generic_prepped_fasttrack:
+                if (
+                    spec.get("best_ready_question")
+                    and spec.get("sprint") == sprint
+                    and spec.get("turn_id") == turn_id
+                ):
+                    prepped_q = spec["best_ready_question"]
+                    state["speculative_cache"] = {}
+                    prepped_context = {
+                        "pivoting": False,
+                        "route_kind": "speculative_fast",
+                        "weakness": None,
+                        "discrepancy": None,
+                    }
+                    prepped_packet = _build_question_packet(
+                        question_text=prepped_q,
+                        sprint=sprint,
+                        route_kind="speculative_fast",
+                        parsed_resume=parsed_resume,
+                        resume=resume,
+                        followups=[],
+                        source_turn_number=state.get("question_count", 0),
+                    )
+                    generic_prepped_fasttrack = False
+                    print(
+                        f"[FastTrack] Promoted speculative candidate over generic staged fallback for {session_id}"
+                    )
+                else:
+                    trajectory_generic = select_from_trajectory_map_detailed(
+                        state.get("interview_trajectory_map", {}),
+                        sprint=sprint,
+                        focus_key=current_focus_key,
+                        answer=text,
+                        entities=entities or [],
+                        history=state.get("history", []),
+                        admission=admission,
+                        has_discrepancy=bool(served_discrepancy),
+                    )
+                    if trajectory_generic:
+                        prepped_q = trajectory_generic["question"]
+                        trajectory_route_kind = trajectory_generic["route_kind"]
+                        prepped_context = {
+                            "pivoting": trajectory_route_kind == "trajectory_map_bridge",
+                            "route_kind": trajectory_route_kind,
+                            "weakness": None,
+                            "discrepancy": None,
+                        }
+                        prepped_packet = _build_question_packet(
+                            question_text=prepped_q,
+                            sprint=sprint,
+                            route_kind=trajectory_route_kind,
+                            parsed_resume=parsed_resume,
+                            resume=resume,
+                            followups=[],
+                            pivoting=trajectory_route_kind == "trajectory_map_bridge",
+                            source_turn_number=state.get("question_count", 0),
+                            focus_key_override=trajectory_generic["focus_key"],
+                            focus_label_override=trajectory_generic["focus_label"],
+                        )
+                        generic_prepped_fasttrack = False
+                        print(
+                            f"[FastTrack] Trajectory map promoted over generic staged fallback for {session_id}"
+                        )
+
             if not prepped_q:
                 if (
                     spec.get("best_ready_question")
@@ -1129,7 +1424,142 @@ class Orchestrator:
                     )
                     print(f"[FastTrack] Speculative candidate promoted for {session_id}")
 
-            if prepped_q:
+            rescued = False
+            should_try_short_answer_rescue = (
+                not is_turn_revision
+                and _short_answer_rescue_eligible(text)
+                and (not prepped_q or generic_prepped_fasttrack)
+            )
+            if should_try_short_answer_rescue:
+                # ── 1. Instant: trajectory map short-answer track (no latency) ──
+                traj_short = select_from_trajectory_map_detailed(
+                    state.get("interview_trajectory_map", {}),
+                    sprint=sprint,
+                    focus_key=current_focus_key,
+                    answer=text,
+                    entities=entities or [],
+                    history=state.get("history", []),
+                    admission=admission,
+                    has_discrepancy=bool(served_discrepancy),
+                    branch_hint="if_short_answer",
+                )
+                if traj_short:
+                    fast_response = traj_short["question"]
+                    served_route_kind = traj_short["route_kind"]
+                    served_weakness = None
+                    served_discrepancy = None
+                    active_packet = _build_question_packet(
+                        question_text=fast_response,
+                        sprint=sprint,
+                        route_kind=served_route_kind,
+                        parsed_resume=parsed_resume,
+                        resume=resume,
+                        followups=[],
+                        source_turn_number=state.get("question_count", 0),
+                        focus_key_override=traj_short["focus_key"],
+                        focus_label_override=traj_short["focus_label"],
+                    )
+                    pivoting = False
+                    rescued = True
+                    await self._trace(
+                        session_id,
+                        "trajectory_map_short_answer_served",
+                        turn_id=turn_id,
+                        word_count=len(text.split()),
+                        route_kind=served_route_kind,
+                        focus_key=current_focus_key,
+                    )
+                    print(f"[FastTrack] Trajectory-map short-answer served ({served_route_kind}) for {session_id}")
+
+                # ── 2. Live Haiku rescue — only when map didn't help ──────────
+                if not rescued:
+                    try:
+                        await self._trace(
+                            session_id,
+                            "short_answer_rescue_attempt",
+                            turn_id=turn_id,
+                            word_count=len(text.split()),
+                            generic_prepped_fasttrack=generic_prepped_fasttrack,
+                        )
+                        rescue_decision = await asyncio.wait_for(
+                            self.followup_agent.generate_speculative(
+                                partial_text=text,
+                                new_entities=entities or [],
+                                last_question=last_question,
+                                persona=persona,
+                                sprint=sprint,
+                                resume_context=resume_context,
+                                admission=admission,
+                                current_best_question="",
+                                short_answer_rescue=True,
+                                focus_context=focus_prompt_pack.get("prompt_context", ""),
+                                resume_snippets=focus_prompt_pack.get("resume_snippets", []),
+                            ),
+                            timeout=1.6,
+                        )
+                        rescue_question = str(rescue_decision.get("question", "") or "").strip()
+                        if rescue_question:
+                            fast_response = rescue_question
+                            served_weakness = None
+                            served_discrepancy = None
+                            served_route_kind = "short_answer_rescue"
+                            active_packet = _build_question_packet(
+                                question_text=fast_response,
+                                sprint=sprint,
+                                route_kind=served_route_kind,
+                                parsed_resume=parsed_resume,
+                                resume=resume,
+                                followups=[],
+                                source_turn_number=state.get("question_count", 0),
+                            )
+                            pivoting = False
+                            rescued = True
+                            await self._trace(
+                                session_id,
+                                "short_answer_rescue_succeeded",
+                                turn_id=turn_id,
+                                word_count=len(text.split()),
+                                rescue_question_chars=len(rescue_question),
+                                generic_prepped_fasttrack=generic_prepped_fasttrack,
+                            )
+                            print(f"[FastTrack] Short-answer rescue served for {session_id}")
+                    except asyncio.TimeoutError:
+                        await self._trace(
+                            session_id,
+                            "short_answer_rescue_timed_out",
+                            turn_id=turn_id,
+                            word_count=len(text.split()),
+                            generic_prepped_fasttrack=generic_prepped_fasttrack,
+                            level="warn",
+                        )
+                        print(f"[FastTrack] Short-answer rescue timed out for {session_id}")
+                    except Exception as e:
+                        await self._trace(
+                            session_id,
+                            "short_answer_rescue_failed",
+                            turn_id=turn_id,
+                            word_count=len(text.split()),
+                            generic_prepped_fasttrack=generic_prepped_fasttrack,
+                            level="warn",
+                            error_type=type(e).__name__,
+                            error=str(e)[:300],
+                        )
+                        print(f"[FastTrack] Short-answer rescue failed for {session_id}: {e}")
+
+            # Dedup guard: if the prepped question was already served this session,
+            # discard it so we don't repeat the same text back-to-back.
+            if prepped_q and not rescued and not is_turn_revision:
+                if _question_already_asked(prepped_q, state.get("history", [])):
+                    print(f"[FastTrack] Dedup: prepped_q already in history — discarding for {session_id}")
+                    prepped_q = None
+                    state.pop("prepped_next_question", None)
+                    state.pop("prepped_next_question_turn_number", None)
+                    state.pop("prepped_next_context", None)
+                    state.pop("prepped_next_packet", None)
+                    prepped_context = {}
+                    prepped_packet = {}
+
+            if prepped_q and not rescued:
                 fast_response = prepped_q
                 served_weakness = prepped_context.get("weakness")
                 served_discrepancy = prepped_context.get("discrepancy")
@@ -1153,26 +1583,69 @@ class Orchestrator:
                 state.pop("prepped_next_packet", None)
                 print(f"[FastTrack] {served_route_kind} ready — serving instantly for {session_id}")
 
-            else:
-                fallbacks = _FALLBACK_FOLLOWUPS.get(sprint, ["Walk me through your thinking on that."])
-                fast_response = fallbacks[0]
-                served_weakness = None
-                served_discrepancy = None
-                served_route_kind = "sprint_fallback"
-                # No generic follow-ups chained off a fallback — the BGPipeline will generate
-                # a proper question packet after this answer. Chaining fallbacks creates a generic
-                # loop that's worse than waiting for the background pipeline.
-                active_packet = _build_question_packet(
-                    question_text=fast_response,
-                    sprint=sprint,
-                    route_kind="sprint_fallback",
-                    parsed_resume=parsed_resume,
-                    resume=resume,
-                    followups=[],
-                    source_turn_number=state.get("question_count", 0),
-                )
-                pivoting = False
-                print(f"[FastTrack] Sprint fallback served for {session_id}")
+            elif not rescued:
+                    # ── 1. Trajectory map — resume-grounded, instant ──────────
+                    traj_result = select_from_trajectory_map_detailed(
+                        state.get("interview_trajectory_map", {}),
+                        sprint=sprint,
+                        focus_key=current_focus_key,
+                        answer=text,
+                        entities=entities or [],
+                        history=state.get("history", []),
+                        admission=admission,
+                        has_discrepancy=bool(served_discrepancy),
+                    )
+                    if traj_result:
+                        fast_response = traj_result["question"]
+                        served_route_kind = traj_result["route_kind"]
+                        active_packet = _build_question_packet(
+                            question_text=fast_response,
+                            sprint=sprint,
+                            route_kind=served_route_kind,
+                            parsed_resume=parsed_resume,
+                            resume=resume,
+                            followups=[],
+                            pivoting=served_route_kind == "trajectory_map_bridge",
+                            source_turn_number=state.get("question_count", 0),
+                            focus_key_override=traj_result["focus_key"],
+                            focus_label_override=traj_result["focus_label"],
+                        )
+                        await self._trace(
+                            session_id,
+                            "trajectory_map_served",
+                            turn_id=turn_id,
+                            route_kind=served_route_kind,
+                            focus_key=current_focus_key,
+                        )
+                        print(f"[FastTrack] Trajectory map served ({served_route_kind}) for {session_id}")
+                    else:
+                        # ── 2. Generic fallback — last resort ─────────────────
+                        fallbacks = _FALLBACK_FOLLOWUPS.get(sprint, ["Walk me through your thinking on that."])
+                        history_for_dedup = state.get("history", [])
+                        # Pick the first fallback not already in session history.
+                        # If all are exhausted (very long generic sessions), cycle back to [0].
+                        fast_response = next(
+                            (fb for fb in fallbacks if not _question_already_asked(fb, history_for_dedup)),
+                            fallbacks[0],
+                        )
+                        served_route_kind = "sprint_fallback"
+                        print(f"[FastTrack] Sprint fallback served for {session_id}")
+
+                    served_weakness = None
+                    served_discrepancy = None
+                    # No generic follow-ups chained off a fallback — the BGPipeline will generate
+                    # a proper question packet after this answer. Chaining fallbacks creates a generic
+                    # loop that's worse than waiting for the background pipeline.
+                    active_packet = _build_question_packet(
+                        question_text=fast_response,
+                        sprint=sprint,
+                        route_kind=served_route_kind,
+                        parsed_resume=parsed_resume,
+                        resume=resume,
+                        followups=[],
+                        source_turn_number=state.get("question_count", 0),
+                    )
+                    pivoting = False
 
         await self._trace(
             session_id,
@@ -1618,6 +2091,13 @@ class Orchestrator:
                 parsed_resume,
                 resume,
             )
+            focus_prompt_pack = _build_focus_prompt_pack(
+                state.get("interview_trajectory_map", {}),
+                focus_key=current_focus_key,
+                last_question=last_question,
+                answer=text,
+                history=history,
+            )
             same_focus_history = [
                 turn for turn in history
                 if turn.get("focus_key") == current_focus_key
@@ -1712,11 +2192,23 @@ class Orchestrator:
             resume_context = _build_resume_context_for_followup(parsed_resume, resume)
             seed_followups: list[str] = []
             route_kind = "sprint_seed"
+            trajectory_hint = select_from_trajectory_map_detailed(
+                state.get("interview_trajectory_map", {}),
+                sprint=sprint,
+                focus_key=current_focus_key,
+                answer=text,
+                entities=entities or [],
+                history=history,
+                admission=honest_admission,
+                has_discrepancy=discrepancy_conflict,
+            )
 
             if discrepancy_conflict and not force_sprint_question:
                 next_question = await self.followup_agent.generate_discrepancy_challenge(
                     question=last_question, answer=text, discrepancy=discrepancy,
                     persona=persona, resume=resume, parsed_resume=parsed_resume,
+                    focus_context=focus_prompt_pack.get("prompt_context", ""),
+                    resume_snippets=focus_prompt_pack.get("resume_snippets", []),
                 )
                 route_kind = "discrepancy_challenge"
 
@@ -1728,6 +2220,8 @@ class Orchestrator:
                     persona=persona,
                     resume=resume,
                     parsed_resume=parsed_resume,
+                    focus_context=focus_prompt_pack.get("prompt_context", ""),
+                    resume_snippets=focus_prompt_pack.get("resume_snippets", []),
                 )
                 route_kind = "clarification_fast"
 
@@ -1735,10 +2229,14 @@ class Orchestrator:
                 next_question = await self.followup_agent.generate(
                     question=last_question, answer=text, weakness=weakness,
                     persona=persona, resume=resume, parsed_resume=parsed_resume,
+                    focus_context=focus_prompt_pack.get("prompt_context", ""),
+                    resume_snippets=focus_prompt_pack.get("resume_snippets", []),
                 )
                 route_kind = "attack_probe"
 
-            elif state.get("current_question_followups"):
+            elif state.get("current_question_followups") and not _is_generic_fasttrack_route(
+                (state.get("active_question_packet") or {}).get("route_kind")
+            ):
                 # A bank follow-up is queued — adapt it for the next turn
                 raw_followup = state["current_question_followups"][0]  # peek only, don't pop
                 next_question = await self.followup_agent.adapt_followup(
@@ -1747,6 +2245,8 @@ class Orchestrator:
                     answer=text,
                     persona=persona,
                     resume_context=resume_context,
+                    focus_context=focus_prompt_pack.get("prompt_context", ""),
+                    resume_snippets=focus_prompt_pack.get("resume_snippets", []),
                 )
                 route_kind = "bank_followup_fast"
 
@@ -1760,6 +2260,10 @@ class Orchestrator:
                     weakness=weakness,
                     transition_brief=continuity_brief,
                     avoid_topics=overprobed_topics,
+                    focus_context=focus_prompt_pack.get("prompt_context", ""),
+                    resume_snippets=focus_prompt_pack.get("resume_snippets", []),
+                    trajectory_hint_question=(trajectory_hint or {}).get("question", ""),
+                    pivoting_hint=pivoting,
                 )
                 next_question, seed_followups = sprint_result
                 route_kind = "sprint_seed"
@@ -2048,6 +2552,57 @@ class Orchestrator:
                 elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
             )
 
+    async def _build_interview_map(self, session_id: str) -> bool:
+        """
+        Runs once at session start as an asyncio.create_task.
+        Generates the resume-grounded trajectory map (Haiku, ~400ms) and stores it
+        in session state.  Completes well before the candidate finishes answering
+        the opening question.  Purely additive — never overwrites canonical state.
+        """
+        started_at = time.perf_counter()
+        try:
+            state = await self.session_manager.get_state(session_id)
+            # Don't overwrite if somehow already set (race with a restart)
+            if state.get("interview_trajectory_map"):
+                return True
+            interview_map = await generate_interview_map(
+                resume=state.get("resume", ""),
+                session_id=session_id,
+            )
+            if not interview_map:
+                await self._trace(session_id, "interview_map_empty", level="warn",
+                                  elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3))
+                return False
+            # Re-read state before saving to avoid trampling concurrent writes
+            state = await self.session_manager.get_state(session_id)
+            if state.get("interview_complete"):
+                return False
+            state["interview_trajectory_map"] = interview_map
+            await self.session_manager.save_state(session_id, state)
+            focus_count = len(interview_map.get("focus_areas", []))
+            preview = [
+                {
+                    "label": str(area.get("label", "") or ""),
+                    "focus_key": str(area.get("focus_key", "") or ""),
+                    "sprint_1_if_vague": str(((area.get("sprint_1") or {}).get("if_vague", "")) or ""),
+                }
+                for area in interview_map.get("focus_areas", [])[:3]
+            ]
+            await self._trace(
+                session_id,
+                "interview_map_ready",
+                focus_areas=focus_count,
+                focus_preview=preview,
+                elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
+            )
+            return focus_count > 0
+        except Exception as e:
+            print(f"[TrajectoryMap] Build failed for {session_id[:8]}: {e}")
+            await self._trace(session_id, "interview_map_failed", level="warn",
+                              error=str(e)[:200],
+                              elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3))
+            raise
+
     async def _run_speculative_generation(
         self,
         session_id: str,
@@ -2083,11 +2638,38 @@ class Orchestrator:
                 resume_context = _build_resume_context_for_followup(
                     state.get("parsed_resume"), state.get("resume", "")
                 )
+                focus_key, _ = _infer_focus(
+                    state.get("last_question", ""),
+                    partial_text,
+                    state.get("parsed_resume"),
+                    state.get("resume", ""),
+                )
+                focus_prompt_pack = _build_focus_prompt_pack(
+                    state.get("interview_trajectory_map", {}),
+                    focus_key=focus_key,
+                    last_question=state.get("last_question", ""),
+                    answer=partial_text,
+                    history=state.get("history", []),
+                )
+                map_candidate = select_from_trajectory_map_detailed(
+                    state.get("interview_trajectory_map", {}),
+                    sprint=sprint,
+                    focus_key=focus_key,
+                    answer=partial_text,
+                    entities=list(new_entities),
+                    history=state.get("history", []),
+                    admission=admission,
+                    has_discrepancy=False,
+                    branch_hint="if_honest_gap" if admission else "",
+                )
                 cache = state.get("speculative_cache", {})
                 now = time.time()
+                current_best_question = ""
 
                 if cache.get("turn_id") and cache.get("turn_id") != turn_id:
                     cache = {}
+                else:
+                    current_best_question = str(cache.get("best_ready_question", "") or "").strip()
 
                 if cache.get("inflight") and cache.get("turn_id") == turn_id:
                     return
@@ -2116,6 +2698,10 @@ class Orchestrator:
                 sprint=sprint,
                 resume_context=resume_context,
                 admission=admission,
+                current_best_question=current_best_question,
+                focus_context=focus_prompt_pack.get("prompt_context", ""),
+                resume_snippets=focus_prompt_pack.get("resume_snippets", []),
+                current_map_candidate=(map_candidate or {}).get("question", ""),
             )
 
             # Re-read under the same session lock — only write if still the same active answer turn
@@ -2133,18 +2719,26 @@ class Orchestrator:
                 if not cache.get("inflight"):
                     return
 
+                resolved_question = str(question.get("question", "") or "").strip()
+                if question.get("action") == "keep" and cache.get("best_ready_question"):
+                    resolved_question = str(cache.get("best_ready_question", "") or "").strip()
+
                 state["speculative_cache"] = {
                     **cache,
-                    "best_ready_question": question,
+                    "best_ready_question": resolved_question or str(cache.get("best_ready_question", "") or ""),
                     "last_snapshot_seq": snapshot_seq,
                     "last_snapshot_is_final": is_final,
+                    "last_refine_action": question.get("action", "replace"),
                     "inflight": False,
                 }
                 await self.session_manager.save_state(session_id, state)
             trigger = "admission" if admission else f"entities: {new_entities}"
             if not new_entities and not admission:
                 trigger = "rolling_interim" if not is_final else "final_snapshot"
-            print(f"[Speculative] v{version} staged ({trigger}) for {session_id}")
+            print(
+                f"[Speculative] v{version} staged ({trigger}, action={question.get('action', 'replace')}) "
+                f"for {session_id}"
+            )
 
         except Exception as e:
             print(f"[Speculative] Failed for {session_id}: {e}")
@@ -2213,6 +2807,13 @@ class Orchestrator:
             current_answer=current_answer,
         )
         avoid_topics = _collect_overprobed_topics(prior_sprint_history)
+        opener_focus_pack = _build_focus_prompt_pack(
+            state.get("interview_trajectory_map", {}),
+            focus_key=answered_focus_key if current_answer and answered_question else "",
+            last_question=answered_question,
+            answer=current_answer,
+            history=prior_sprint_history,
+        )
 
         try:
             opener = await self.followup_agent.generate_sprint_opener(
@@ -2223,6 +2824,8 @@ class Orchestrator:
                 prior_sprint_history=prior_sprint_history,
                 transition_brief=continuity_brief,
                 avoid_topics=avoid_topics,
+                focus_context=opener_focus_pack.get("prompt_context", ""),
+                resume_snippets=opener_focus_pack.get("resume_snippets", []),
             )
         except Exception as e:
             print(f"[SprintOpener] LLM failed for sprint {next_sprint}, using context fallback: {e}")

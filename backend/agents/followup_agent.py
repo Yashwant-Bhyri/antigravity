@@ -139,6 +139,69 @@ def _finalize_question_output(text: str, fallback: str) -> str:
     return fallback.strip()
 
 
+def _normalize_speculative_decision(
+    result: dict | str,
+    fallback: str,
+    current_best_question: str = "",
+    current_map_candidate: str = "",
+) -> dict:
+    """
+    Normalize speculative generation into:
+      {"action": "keep" | "replace", "question": str}
+
+    If an existing speculative candidate is already good enough, the model may
+    return a keep signal. Otherwise we finalize the replacement question safely.
+    """
+    existing = current_best_question.strip()
+    map_candidate = current_map_candidate.strip()
+
+    if isinstance(result, dict):
+        action = str(result.get("action", "")).strip().lower()
+        raw_question = (
+            result.get("question")
+            or result.get("followup")
+            or result.get("response")
+            or result.get("text")
+            or ""
+        )
+        if action == "keep" and existing:
+            return {"action": "keep", "question": existing}
+        if action in {"use_map", "use_map_candidate", "promote_map"} and map_candidate:
+            return {"action": "replace", "question": map_candidate}
+        finalized = _finalize_question_output(str(raw_question), fallback)
+        return {"action": "replace", "question": finalized}
+
+    if isinstance(result, str):
+        stripped = result.strip()
+        if existing and re.fullmatch(r"(?i)keep(?:\s+current)?", stripped):
+            return {"action": "keep", "question": existing}
+        if map_candidate and re.fullmatch(r"(?i)(use[_ ]?map(?:[_ ]?candidate)?|promote[_ ]?map)", stripped):
+            return {"action": "replace", "question": map_candidate}
+        finalized = _finalize_question_output(stripped, fallback)
+        return {"action": "replace", "question": finalized}
+
+    if existing:
+        return {"action": "keep", "question": existing}
+    return {"action": "replace", "question": _finalize_question_output(fallback, fallback)}
+
+
+def _join_focus_context(
+    focus_context: str = "",
+    resume_snippets: list[str] | None = None,
+) -> str:
+    lines: list[str] = []
+    if focus_context.strip():
+        lines.append(focus_context.strip())
+    cleaned_snippets = [snippet.strip() for snippet in (resume_snippets or []) if snippet and snippet.strip()]
+    if cleaned_snippets:
+        if lines:
+            lines.append("Additional exact resume snippets:")
+        else:
+            lines.append("Exact resume snippets:")
+        lines.extend(f"- {snippet}" for snippet in cleaned_snippets[:3])
+    return "\n".join(lines).strip()
+
+
 def _fallback_for_strategy(attack_strategy: str) -> str:
     return {
         "clarification": "What exactly was the mechanism you used there?",
@@ -337,6 +400,8 @@ class FollowUpAgent:
         persona: str,
         resume: str,
         parsed_resume: dict | None = None,
+        focus_context: str = "",
+        resume_snippets: list[str] | None = None,
     ) -> str:
         """
         High-severity weakness detected → generate a targeted probe.
@@ -344,6 +409,7 @@ class FollowUpAgent:
         """
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
         resume_context = _build_resume_context(parsed_resume, resume)
+        focus_context_block = _join_focus_context(focus_context, resume_snippets)
 
         attack_strategy = weakness.get("attack_strategy", "step_by_step")
         strategy_instruction = ATTACK_STRATEGY_INSTRUCTIONS.get(
@@ -353,6 +419,9 @@ class FollowUpAgent:
 
         user = f"""Candidate background:
 {resume_context}
+
+Current focus context:
+{focus_context_block or "Use the exact project or claim under discussion."}
 
 Previous question: {question}
 
@@ -366,6 +435,7 @@ Weakness detected:
 
 Generate ONE follow-up question that executes this attack strategy.
 Ground it in something specific from their resume or answer.
+If you are staying on the same project, explicitly signal continuity in the wording.
 Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
@@ -380,6 +450,8 @@ Output only the question."""
         persona: str,
         resume: str,
         parsed_resume: dict | None = None,
+        focus_context: str = "",
+        resume_snippets: list[str] | None = None,
     ) -> str:
         """
         Fast, directed clarification path for ambiguity / ownership uncertainty.
@@ -388,6 +460,7 @@ Output only the question."""
         """
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
         resume_context = _build_resume_context(parsed_resume, resume)
+        focus_context_block = _join_focus_context(focus_context, resume_snippets)
 
         attack_strategy = weakness.get("attack_strategy", "clarification")
         focus_instruction = {
@@ -404,6 +477,9 @@ Output only the question."""
 
         user = f"""Candidate background:
 {resume_context[:900]}
+
+Current focus context:
+{focus_context_block or "Use the exact project or claim under discussion."}
 
 Previous question: {question}
 
@@ -422,6 +498,7 @@ Rules:
 - ≤20 words
 - Reference something concrete from their answer or resume
 - Curious and directed, not accusatory
+- If you are staying on the same project, make that continuity explicit in the question
 - Do NOT stack multiple asks in one sentence
 - Do NOT escalate into contradiction yet
 
@@ -444,6 +521,8 @@ Output only the question."""
         persona: str,
         resume: str,
         parsed_resume: dict | None = None,
+        focus_context: str = "",
+        resume_snippets: list[str] | None = None,
     ) -> str:
         """
         Resume discrepancy detected → generate a direct but non-accusatory confrontation.
@@ -451,9 +530,13 @@ Output only the question."""
         """
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
         resume_context = _build_resume_context(parsed_resume, resume)
+        focus_context_block = _join_focus_context(focus_context, resume_snippets)
 
         user = f"""Candidate background:
 {resume_context}
+
+Current focus context:
+{focus_context_block or "Use the exact project or claim under discussion."}
 
 Previous question: {question}
 
@@ -466,6 +549,7 @@ Conflict level: {discrepancy.get('conflict_level', 'unknown')}
 Generate ONE question that surfaces this inconsistency — curious and direct, not accusatory.
 The goal is to give them a chance to explain or clarify, not to catch them in a lie.
 Reference the specific thing from their resume that conflicts.
+If you are staying on the same project, make that continuity explicit in the wording.
 Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
@@ -482,6 +566,10 @@ Output only the question."""
         parsed_resume: dict | None = None,
         transition_brief: str = "",
         avoid_topics: list[str] | None = None,
+        focus_context: str = "",
+        resume_snippets: list[str] | None = None,
+        trajectory_hint_question: str = "",
+        pivoting_hint: bool = False,
     ) -> tuple[str, list[str]]:
         """
         Low/medium severity or clean answer → advance to the next question for this sprint.
@@ -492,6 +580,7 @@ Output only the question."""
         covered = [h.get("question", "") for h in history[-6:]]
         covered_str = "\n".join(f"- {q}" for q in covered) if covered else "None yet."
         resume_context = _build_resume_context(parsed_resume, resume)
+        focus_context_block = _join_focus_context(focus_context, resume_snippets)
         latest_turn = history[-1] if history else {}
         topic_anchor = (
             latest_turn.get("focus_label")
@@ -522,6 +611,12 @@ Output only the question."""
             rag_context = "\n\nStructural question seeds (adapt to the candidate — do NOT copy verbatim):\n"
             rag_context += "\n".join(f"- {q['text']}" for q in rag_candidates)
             seed_followups = rag_candidates[0].get("followups", [])
+        trajectory_hint_section = ""
+        if trajectory_hint_question.strip():
+            trajectory_hint_section = (
+                "\nInterview-map candidate question (use as a grounded backbone if helpful):\n"
+                f"- {trajectory_hint_question.strip()}"
+            )
 
         avoid_section = ""
         if avoid_topics:
@@ -538,8 +633,11 @@ Output only the question."""
 Candidate background:
 {resume_context}
 
+Current focus context:
+{focus_context_block or "Use the most relevant exact project or claim from the resume."}
+
 Questions already asked (do NOT repeat these):
-{covered_str}{rag_context}{avoid_section}{transition_section}
+{covered_str}{rag_context}{trajectory_hint_section}{avoid_section}{transition_section}
 
 Generate ONE new interview question that:
 - Directly references something specific from their resume (a project by name, a technology they listed, a claim they made)
@@ -548,7 +646,9 @@ Generate ONE new interview question that:
 - Has not been covered already
 - Uses the conversation memory above if helpful so the interview feels continuous, not cold
 - Fits your interviewer persona
+- If this is a pivot, explicitly name the transition in the question itself, e.g. "Switching to your TinyML pipeline..." or "On the systems side of that same Filmora workflow..."
 - Do NOT ask a generic placeholder like "imagine a system serving millions of users" unless that exact scale/system came from their background or the prior exchange
+{"- This is a pivot turn. The question must make the new project / tech context explicit." if pivoting_hint else "- If staying on the same project, explicit continuity phrasing is preferred."}
 
 Output only the question."""
 
@@ -564,6 +664,8 @@ Output only the question."""
         answer: str,
         persona: str,
         resume_context: str,
+        focus_context: str = "",
+        resume_snippets: list[str] | None = None,
     ) -> str:
         """
         Takes a raw follow-up template from the question bank and grounds it in the
@@ -571,12 +673,16 @@ Output only the question."""
         before advancing to the next topic.
         """
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+        focus_context_block = _join_focus_context(focus_context, resume_snippets)
         user = f"""The interview just covered this exchange:
 Q: {question}
 A: {answer[:400]}
 
 Candidate background:
 {resume_context[:300]}
+
+Current focus context:
+{focus_context_block or "Stay on the exact project or mechanism the exchange was about."}
 
 Adapt this follow-up question so it references something specific from their answer above:
 "{raw_followup}"
@@ -587,6 +693,7 @@ Rules:
 - Preserve the direction of the template, but make it concrete to what they actually said
 - If they mentioned a specific component, technology, decision, or failure, anchor to that
 - Avoid generic phrasing like "tell me more" unless nothing else is available
+- If you are staying on the same project, make that continuity explicit in the question itself
 
 Output only the adapted question. ONE question, conversational."""
 
@@ -608,6 +715,8 @@ Output only the adapted question. ONE question, conversational."""
         prior_sprint_history: list[dict],
         transition_brief: str = "",
         avoid_topics: list[str] | None = None,
+        focus_context: str = "",
+        resume_snippets: list[str] | None = None,
     ) -> str:
         """
         Generates a context-aware sprint transition question.
@@ -621,6 +730,7 @@ Output only the adapted question. ONE question, conversational."""
         Sprint 2→3: "You explained [concept Z]. Now let's think about how that design scales."
         """
         resume_context = _build_resume_context(parsed_resume, resume)
+        focus_context_block = _join_focus_context(focus_context, resume_snippets)
 
         # Summarise the last sprint: last 4 Q&A pairs (avoid huge context)
         prior_summary = ""
@@ -660,6 +770,9 @@ Transition guidance: {transition_context}
 Candidate background:
 {resume_context}
 
+Current focus context:
+{focus_context_block or "Name the specific project or technology you are transitioning from / to."}
+
 {prior_summary}
 {transition_memory}{avoid_section}
 
@@ -670,6 +783,7 @@ Write ONE transition question that:
 - If one topic dominated the last sprint, use it only as a bridge and then pivot broader
 - Is conversational and clear — a senior engineer talking to a peer
 - Avoid vague stock prompts; the question should name a concrete project, concept, technology, or claim from the prior sprint / resume
+- The question itself must explicitly signal the transition, e.g. "Staying with...", "Switching to...", or "On the systems side of..."
 
 Output only the question."""
 
@@ -719,7 +833,12 @@ Output only the question."""
         sprint: int,
         resume_context: str,
         admission: bool = False,
-    ) -> str:
+        current_best_question: str = "",
+        short_answer_rescue: bool = False,
+        focus_context: str = "",
+        resume_snippets: list[str] | None = None,
+        current_map_candidate: str = "",
+    ) -> dict:
         """
         Event-driven speculative question — Haiku only, never blocks the fast path.
         Triggered when a new entity appears in the partial transcript or an
@@ -730,6 +849,8 @@ Output only the question."""
         candidate is stale (sprint advanced, newer job wrote) it is discarded.
         """
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+        fallback = "Say more about the specific mechanism you used there."
+        focus_context_block = _join_focus_context(focus_context, resume_snippets)
 
         if admission:
             direction = (
@@ -737,13 +858,39 @@ Output only the question."""
                 "Generate a curious, exploratory follow-up that rewards their honesty — "
                 "pivot to what they DO know or understand, not what they don't."
             )
+            fallback = "What part of that are you most confident about, even if the rest was handled by the framework?"
         elif new_entities:
             direction = (
                 f"The candidate just introduced: {', '.join(new_entities[:3])}. "
                 "Generate a follow-up that digs one level deeper into one of these specifically."
             )
+        elif short_answer_rescue:
+            direction = (
+                "The candidate gave a very short answer. Generate a light but specific rescue follow-up "
+                "that stays attached to what they just said or to the last question, so the conversation "
+                "does not collapse into a generic fallback."
+            )
+            fallback = "What exactly in that answer is the key detail you want me to understand?"
         else:
             direction = "Generate a deepening follow-up grounded in what the candidate just said."
+
+        current_best_section = ""
+        if current_best_question.strip():
+            current_best_section = f"""
+Current best speculative follow-up:
+"{current_best_question[:180]}"
+
+If the new transcript does NOT materially improve this question, keep it.
+Only replace it if you can make it more specific, more grounded, or more useful.
+"""
+        map_candidate_section = ""
+        if current_map_candidate.strip():
+            map_candidate_section = f"""
+Interview-map candidate question:
+"{current_map_candidate[:180]}"
+
+If this candidate is more grounded than the current speculative question, prefer it.
+"""
 
         user = f"""Sprint {sprint} — partial transcript so far:
 "{partial_text[-400:]}"
@@ -753,16 +900,34 @@ Last question asked: {last_question[:150]}
 Candidate background:
 {resume_context[:300]}
 
-{direction}
+Current focus context:
+{focus_context_block or "Stay on the most relevant project or claim from the resume."}
 
-ONE question, ≤20 words, specific. Output only the question."""
+{direction}
+{current_best_section}
+{map_candidate_section}
+
+Return JSON only:
+- If the current best question is still good enough: {{"action": "keep"}}
+- If you can improve it directly: {{"action": "replace", "question": "..."}} 
+- If the interview-map candidate is better than the current best: {{"action": "use_map_candidate"}}
+
+Rules:
+- ONE question only
+- ≤20 words
+- Keep it specific and grounded
+- Do not return commentary
+- Do not pivot topics unless the candidate clearly admitted a gap
+- Prefer exact resume/project wording over generic abstractions
+"""
 
         result = await self.llm_fast.call(system=system, user=user)
-        if isinstance(result, str):
-            return _finalize_question_output(result, "Say more about the specific mechanism you used there.")
-        if isinstance(result, dict):
-            return _finalize_question_output(result.get("question", str(result)), "Say more about the specific mechanism you used there.")
-        return "Say more about the specific mechanism you used there."
+        return _normalize_speculative_decision(
+            result,
+            fallback=fallback,
+            current_best_question=current_best_question,
+            current_map_candidate=current_map_candidate,
+        )
 
     async def prefetch(self, concepts: list[str], state: dict) -> list[str]:
         """

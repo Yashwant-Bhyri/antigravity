@@ -10,14 +10,15 @@ try:
 
     loaded_any = False
     if env_file.exists():
-        load_dotenv(env_file, override=True)
-        print(f"[System] Loaded environment from {env_file}")
+        # Base defaults live in .env.
+        load_dotenv(env_file, override=False)
+        print(f"[System] Loaded base environment from {env_file}")
         loaded_any = True
     if env_local.exists():
-        # Treat .env as the source of truth and only use .env.local to fill gaps.
-        # This avoids stale local overrides silently breaking live provider creds.
-        load_dotenv(env_local, override=False)
-        print(f"[System] Loaded environment from {env_local}")
+        # Local/runtime overrides must win so key/model rotations can happen in one place
+        # without silently losing to stale values in .env.
+        load_dotenv(env_local, override=True)
+        print(f"[System] Loaded override environment from {env_local}")
         loaded_any = True
     if not loaded_any:
         print("[System] No project-root .env file found; using inherited environment only")

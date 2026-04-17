@@ -56,18 +56,37 @@ class TelemetryEventRequest(BaseModel):
 @router.post("/start_interview")
 async def start_interview(data: StartInterviewRequest):
     started = time.perf_counter()
-    session_id = await orchestrator.start_session(
-        data.resume,
-        data.github_links,
-        target_role=data.target_role,
-        years_experience=data.years_experience,
-    )
+    try:
+        session_id = await orchestrator.start_session(
+            data.resume,
+            data.github_links,
+            target_role=data.target_role,
+            years_experience=data.years_experience,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     state = await orchestrator.get_session_state(session_id)
+    focus_areas = ((state.get("interview_trajectory_map") or {}).get("focus_areas", []) or [])
+    trajectory_focus_preview = [
+        {
+            "label": str(area.get("label", "") or ""),
+            "focus_key": str(area.get("focus_key", "") or ""),
+            "resume_snippets": [str(snippet) for snippet in (area.get("resume_snippets") or [])[:2]],
+            "sprint_1": {
+                "if_vague": str(((area.get("sprint_1") or {}).get("if_vague", "")) or ""),
+                "if_short_answer": str(((area.get("sprint_1") or {}).get("if_short_answer", "")) or ""),
+                "bridge_to_next_focus": str(((area.get("sprint_1") or {}).get("bridge_to_next_focus", "")) or ""),
+            },
+        }
+        for area in focus_areas[:3]
+    ]
     response = {
         "session_id": session_id,
         "opening_question": state["last_question"],
         "sprint": state["current_sprint"],
         "sprint_name": state["sprint_name"],
+        "trajectory_focus_areas": len(focus_areas),
+        "trajectory_focus_preview": trajectory_focus_preview,
     }
     await interview_telemetry.log(
         session_id,

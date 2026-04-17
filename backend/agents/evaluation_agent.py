@@ -138,7 +138,7 @@ class EvaluationAgent:
     """
 
     def __init__(self):
-        self.llm = LLMRouter(tier="large")  # Opus — accuracy matters here
+        self.llm = LLMRouter(tier="large")  # strongest reasoning tier — accuracy matters here
 
     async def score_answer(
         self,
@@ -181,7 +181,7 @@ class EvaluationAgent:
     ) -> dict:
         """
         Final evaluation of the complete interview.
-        Called once at session end. Uses Opus for maximum accuracy.
+        Called once at session end. Uses the large reasoning tier for maximum accuracy.
         Incorporates reasoning behavior signals and per-answer scores for richer context.
         """
         transcript_lines = []

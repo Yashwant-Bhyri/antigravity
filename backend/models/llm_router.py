@@ -1,14 +1,20 @@
 import os
 import json
 from openai import AsyncOpenAI
+from backend.config.env_runtime import model_tier
 
 
 # Model routing tiers via OpenRouter
 # OpenRouter model IDs: https://openrouter.ai/models
+DEFAULT_MODEL_TIERS = {
+    "small": "anthropic/claude-haiku-4-5",   # concept extraction, resume parsing
+    "medium": "anthropic/claude-sonnet-4-5", # weakness detection, follow-ups
+    "large": "deepseek/deepseek-r1",         # strongest reasoning/evaluation path for now
+}
+
 MODEL_TIERS = {
-    "small": "anthropic/claude-haiku-4-5",      # concept extraction, resume parsing (~50ms)
-    "medium": "anthropic/claude-sonnet-4-5",    # weakness detection, follow-ups (~200ms)
-    "large": "anthropic/claude-opus-4-5",       # deep evaluation, scoring (~500ms)
+    tier: model_tier(tier, default_model)
+    for tier, default_model in DEFAULT_MODEL_TIERS.items()
 }
 
 # Default max_tokens per tier — small tasks need less space, evaluation needs headroom
@@ -55,21 +61,30 @@ class LLMRouter:
                 {"role": "user", "content": user},
             ],
         )
-        text = response.choices[0].message.content.strip()
+        text = response.choices[0].message.content or ""
+        text = text.strip()
+
+        # Strip reasoning model thinking blocks (<think>...</think>)
+        import re as _re
+        text = _re.sub(r"<think>[\s\S]*?</think>", "", text).strip()
 
         # Try to parse as JSON; fall back to raw string
         try:
             return json.loads(text)
         except json.JSONDecodeError:
             # Strip markdown code fences if present
-            if text.startswith("```"):
-                parts = text.split("```")
-                if len(parts) >= 2:
-                    inner = parts[1]
-                    if inner.startswith("json"):
-                        inner = inner[4:]
+            if "```" in text:
+                fenced = _re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+                if fenced:
                     try:
-                        return json.loads(inner.strip())
+                        return json.loads(fenced.group(1).strip())
                     except json.JSONDecodeError:
                         pass
+            # Last resort: find the first { ... } JSON object in the text
+            obj_match = _re.search(r"\{[\s\S]*\}", text)
+            if obj_match:
+                try:
+                    return json.loads(obj_match.group(0))
+                except json.JSONDecodeError:
+                    pass
             return text
