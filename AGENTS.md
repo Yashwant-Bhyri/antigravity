@@ -206,6 +206,7 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Deployed API-origin fallback fix + ProvenHire service compatibility check | Codex | 2026-04-23 | `lib/api.ts` now uses same-origin `/api` on deployed hosts when `NEXT_PUBLIC_API_URL` is unset instead of incorrectly calling `localhost:8000`; verified with `npm run build`. Also re-checked the service contract: ProvenHire still calls `ANTIGRAVITY_API_URL/api/start_interview` directly via `server/src/routes/aiInterviewAdapter.ts`, and `backend/services/orchestrator.py` remains backward-compatible because `start_session()` now runs strict `prepare_session_map()` before `start_prepared_session()`. |
 | Frontend visual system overhaul + design-team UI port | Codex | 2026-04-22 | Ported the design-team Antigravity UI language into the real Next.js app: new shared design system in `components/design-system.tsx`, new visual tokens/animations in `app/globals.css`, upgraded `components/Waveform.tsx`, and redesigned `app/page.tsx`, `app/interview/[session_id]/page.tsx`, `app/report/[session_id]/page.tsx`, and `app/dashboard/page.tsx` while preserving live interview logic; `npm run build` passed |
 | Repo audit docs extended through memory-highway + `lib/audio.ts` pass | Codex | 2026-04-17 | Documentation-only pass. Added/updated `repo_optimization_journal.md`, `bug audit.md`, and `PROJECT_STATE.md` with new systems-level findings around mixed memory layers, data-transfer hot paths, API/LLM call budgets, and `lib/audio.ts` control-plane behavior. No runtime code changed in this pass. |
 | Verified-startup interview map + compact focus keys | Codex | 2026-04-15 | `backend/services/orchestrator.py` now awaits `_seed_first_question()` and `_build_interview_map()` before `start_session()` returns, verifies non-empty `interview_trajectory_map`, and traces a compact map preview; `backend/api/routes.py` now returns `trajectory_focus_areas`; `backend/services/interview_map.py` now compacts fallback/LLM focus keys so they don’t balloon into raw-resume sentences; `frontend/app/interview/[session_id]/page.tsx` no longer waits on a background map and instead expects the startup state to already contain it; verified with `python3 -m py_compile` and `npm run build` |
@@ -289,6 +290,11 @@ frontend/
 
 ## HANDOFF NOTES
 > Time-sensitive notes from one AI to the other. Clear these once acknowledged.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-23**
+- ProvenHire production flow is confirmed to call `ANTIGRAVITY_API_URL/api/start_interview` directly from `server/src/routes/aiInterviewAdapter.ts`; it does **not** depend on the Antigravity frontend’s browser-side two-step launch flow.
+- The strict map-first backend work is still compatible because `backend/services/orchestrator.py:start_session()` now performs `prepare_session_map()` and only then `start_prepared_session()`.
+- Separate deployment bug fixed: `lib/api.ts` now defaults to same-origin `/api` on deployed hosts instead of `localhost:8000`, which was the most likely cause of broken standalone Vercel behavior after a correct GitHub push.
 
 **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-22**
 - The Antigravity frontend now has a real shared visual system and a full design-language port across the home, interview, report, and dashboard surfaces.

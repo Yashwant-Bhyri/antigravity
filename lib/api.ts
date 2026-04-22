@@ -10,10 +10,13 @@ export function getApiBaseUrl(): string {
   if (configured) return configured;
 
   if (typeof window !== "undefined") {
-    const host = window.location.hostname === "127.0.0.1" ? "127.0.0.1" : "localhost";
-    return `http://${host}:8000/api`;
+    const { hostname, origin } = window.location;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      const host = hostname === "127.0.0.1" ? "127.0.0.1" : "localhost";
+      return `http://${host}:8000/api`;
+    }
+    return `${origin}/api`;
   }
 
   return "http://localhost:8000/api";
 }
-
