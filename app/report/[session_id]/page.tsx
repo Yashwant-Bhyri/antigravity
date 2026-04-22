@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import { AGButton, AGMetricCard, AGScoreBar, AGScoreGauge, AGSectionLabel, AGSeverityPip, AGSurface, AGVerdictBadge } from "@/components/design-system";
 import { getApiBaseUrl } from "@/lib/api";
 
 type Report = {
@@ -23,31 +23,20 @@ type Report = {
 };
 
 async function getReport(sessionId: string): Promise<Report> {
-  const res = await fetch(
-    `${getApiBaseUrl()}/report/${sessionId}`,
-    { cache: "no-store" }
-  );
+  const res = await fetch(`${getApiBaseUrl()}/report/${sessionId}`, { cache: "no-store" });
   if (!res.ok) notFound();
   return res.json();
 }
 
-function recColor(rec: string | null) {
-  if (rec === "HIRE") return "text-green-400";
-  if (rec === "MAYBE") return "text-yellow-400";
-  if (rec === "NO HIRE") return "text-red-400";
-  if (rec === "INSUFFICIENT_DATA") return "text-sky-400";
-  return "text-zinc-500";
-}
-
-function barColor(score: number, max = 10) {
-  const pct = score / max;
-  if (pct >= 0.7) return "bg-green-500";
-  if (pct >= 0.4) return "bg-yellow-500";
-  return "bg-red-500";
-}
-
 function isNumericScore(score: number | string): score is number {
   return typeof score === "number" && Number.isFinite(score);
+}
+
+function metricEmphasis(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "default" as const;
+  if (value >= 7) return "green" as const;
+  if (value >= 4) return "amber" as const;
+  return "red" as const;
 }
 
 export default async function ReportPage({
@@ -56,221 +45,202 @@ export default async function ReportPage({
   params: Promise<{ session_id: string }>;
 }) {
   const { session_id } = await params;
-  const r = await getReport(session_id);
-  const untestedDimensions = Array.isArray(r.untested_dimensions) ? r.untested_dimensions : [];
-
-  const scoreEntries = Object.entries(r.scores);
-  const failureEntries = Object.entries(r.failure_surface);
-  const weaknessByType = Object.entries(r.weakness_summary);
-  const highCount = r.raw_weaknesses.filter((w) => w.severity === "high").length;
+  const report = await getReport(session_id);
+  const scoreEntries = Object.entries(report.scores ?? {});
+  const failureEntries = Object.entries(report.failure_surface ?? {});
+  const highSeverityCount = report.raw_weaknesses.filter((item) => item.severity === "high").length;
 
   return (
-    <main className="min-h-screen bg-black text-white px-6 py-10">
-      <div className="max-w-3xl mx-auto space-y-10">
-
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Interview Report</h1>
-            <p className="text-zinc-500 text-sm mt-1 font-mono truncate max-w-xs">{r.session_id}</p>
-            {(r.target_role || r.years_experience) && (
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {r.target_role && (
-                  <span className="text-[10px] uppercase tracking-widest border border-zinc-800 rounded-full px-2 py-1 text-zinc-400">
-                    {r.target_role}
-                  </span>
-                )}
-                {r.years_experience && (
-                  <span className="text-[10px] uppercase tracking-widest border border-zinc-800 rounded-full px-2 py-1 text-zinc-400">
-                    {r.years_experience} YOE
-                  </span>
-                )}
+    <main className="ag-shell min-h-screen px-6 py-8 md:px-10">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-4">
+            <AGButton href="/dashboard" variant="ghost" className="w-fit px-0 py-0 text-sm">
+              ← Dashboard
+            </AGButton>
+            <div className="space-y-3">
+              <AGSectionLabel>Interview Report</AGSectionLabel>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--ag-text-0)] md:text-5xl">
+                  Failure boundary analysis
+                </h1>
+                <AGVerdictBadge verdict={report.hire_recommendation} size="lg" />
               </div>
-            )}
-            {!r.complete && (
-              <p className="text-yellow-500 text-xs mt-1">Interview still in progress — partial data</p>
-            )}
+              <p className="font-mono text-xs text-[var(--ag-text-3)]">{report.session_id}</p>
+              <div className="flex flex-wrap gap-2">
+                {report.target_role && <span className="rounded-lg border border-[var(--ag-border)] px-3 py-1 text-xs text-[var(--ag-text-2)]">{report.target_role}</span>}
+                {report.years_experience && <span className="rounded-lg border border-[var(--ag-border)] px-3 py-1 text-xs text-[var(--ag-text-2)]">{report.years_experience} YOE</span>}
+                {!report.complete && <span className="rounded-lg border border-[oklch(0.8_0.16_72_/_0.28)] bg-[oklch(0.8_0.16_72_/_0.08)] px-3 py-1 text-xs text-[var(--ag-amber)]">Partial report</span>}
+              </div>
+            </div>
           </div>
-          <div className="text-right">
-            <p className={`text-3xl font-bold ${recColor(r.hire_recommendation)}`}>
-              {r.hire_recommendation ?? "—"}
-            </p>
-            {r.confidence_score != null && (
-              <p className="text-xs text-zinc-600 mt-1">
-                {Math.round(r.confidence_score * 100)}% confidence
+
+          <AGSurface className="flex flex-col items-center gap-4 px-6 py-6 md:min-w-[280px]">
+            <AGScoreGauge score={report.overall_score} label="overall" size={150} />
+            {report.confidence_score != null && (
+              <p className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+                {Math.round(report.confidence_score * 100)}% confidence
               </p>
             )}
-          </div>
+          </AGSurface>
         </div>
 
-        {/* Summary */}
-        {r.summary && (
-          <div className="bg-zinc-900 rounded-xl px-5 py-4">
-            <p className="text-sm text-zinc-300 leading-relaxed">{r.summary}</p>
-          </div>
-        )}
-
-        {/* Claim Credibility Risk — separate from overall score */}
-        {r.claim_credibility_risk && r.claim_credibility_risk.level !== "not_tested" && (
-          <div className={`rounded-xl px-5 py-4 border ${
-            r.claim_credibility_risk.level === "high"
-              ? "bg-red-950/30 border-red-500/20"
-              : r.claim_credibility_risk.level === "medium"
-              ? "bg-yellow-950/30 border-yellow-500/20"
-              : "bg-green-950/30 border-green-500/20"
-          }`}>
-            <p className="text-[10px] uppercase tracking-widest font-bold mb-1 text-zinc-500">Resume Claim Credibility</p>
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-xs font-bold uppercase ${
-                r.claim_credibility_risk.level === "high" ? "text-red-400"
-                : r.claim_credibility_risk.level === "medium" ? "text-yellow-400"
-                : "text-green-400"
-              }`}>{r.claim_credibility_risk.level} risk</span>
-            </div>
-            <p className="text-sm text-zinc-400">{r.claim_credibility_risk.detail}</p>
-          </div>
-        )}
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: "Overall Score", value: r.overall_score != null ? `${r.overall_score}/10` : "—" },
-            { label: "Questions", value: r.total_questions },
-            { label: "High Severity", value: highCount },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-zinc-900 rounded-xl px-5 py-4 text-center">
-              <p className="text-3xl font-bold">{value}</p>
-              <p className="text-zinc-500 text-xs mt-1">{label}</p>
-            </div>
-          ))}
+        <div className="grid gap-4 md:grid-cols-3">
+          <AGMetricCard
+            label="Questions"
+            value={report.total_questions}
+            subtext="asked across the full interview"
+            emphasis="blue"
+          />
+          <AGMetricCard
+            label="High Severity"
+            value={highSeverityCount}
+            subtext="pressure points judged materially weak"
+            emphasis={highSeverityCount > 0 ? "red" : "green"}
+          />
+          <AGMetricCard
+            label="Overall Score"
+            value={report.overall_score != null ? `${report.overall_score.toFixed(1)}/10` : "—"}
+            subtext="aggregate signal after full synthesis"
+            emphasis={metricEmphasis(report.overall_score)}
+          />
         </div>
 
-        {/* Dimension scores */}
-        {scoreEntries.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-              Score Breakdown
-            </h2>
-            {scoreEntries.map(([dim, score]) => (
-              <div key={dim}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-zinc-300 capitalize">{dim.replace(/_/g, " ")}</span>
-                  <span className="text-zinc-500">
-                    {isNumericScore(score) ? `${score}/10` : String(score)}
-                  </span>
+        {report.summary && (
+          <AGSurface className="px-6 py-6">
+            <AGSectionLabel>Assessment Summary</AGSectionLabel>
+            <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--ag-text-1)]">{report.summary}</p>
+          </AGSurface>
+        )}
+
+        {report.claim_credibility_risk && report.claim_credibility_risk.level !== "not_tested" && (
+          <AGSurface className="border-[oklch(0.8_0.16_72_/_0.2)] px-6 py-5">
+            <AGSectionLabel>Resume Claim Credibility</AGSectionLabel>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <AGVerdictBadge verdict={`${report.claim_credibility_risk.level.toUpperCase()} RISK`} />
+            </div>
+            <p className="mt-4 text-sm leading-7 text-[var(--ag-text-1)]">{report.claim_credibility_risk.detail}</p>
+          </AGSurface>
+        )}
+
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="space-y-6">
+            {scoreEntries.length > 0 && (
+              <AGSurface className="px-6 py-6">
+                <AGSectionLabel>Score Breakdown</AGSectionLabel>
+                <div className="mt-5 space-y-4">
+                  {scoreEntries.map(([dimension, score]) =>
+                    isNumericScore(score) ? (
+                      <AGScoreBar key={dimension} label={dimension} score={score} />
+                    ) : (
+                      <div key={dimension} className="rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="capitalize text-[var(--ag-text-1)]">{dimension.replace(/_/g, " ")}</span>
+                          <span className="font-mono text-xs text-[var(--ag-text-3)]">{String(score)}</span>
+                        </div>
+                        <p className="mt-3 text-xs leading-6 text-[var(--ag-text-3)]">
+                          This dimension did not have enough coverage to score numerically.
+                        </p>
+                      </div>
+                    ),
+                  )}
                 </div>
-                {isNumericScore(score) ? (
-                  <div className="w-full bg-zinc-800 rounded-full h-2">
+              </AGSurface>
+            )}
+
+            {failureEntries.length > 0 && (
+              <AGSurface className="px-6 py-6">
+                <AGSectionLabel>Failure Surface</AGSectionLabel>
+                <p className="mt-3 text-xs text-[var(--ag-text-3)]">Higher means the candidate broke earlier under pressure.</p>
+                <div className="mt-5 space-y-4">
+                  {failureEntries.map(([area, score]) => {
+                    const pct = Math.round(score * 100);
+                    const barColor = score >= 0.6 ? "var(--ag-red)" : score >= 0.35 ? "var(--ag-amber)" : "var(--ag-green)";
+                    return (
+                      <div key={area} className="space-y-2">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="capitalize text-sm text-[var(--ag-text-1)]">{area.replace(/_/g, " ")}</span>
+                          <span className="font-mono text-xs text-[var(--ag-text-3)]">{pct}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-[var(--ag-surface-2)]">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 12px ${barColor}` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </AGSurface>
+            )}
+
+            {report.raw_weaknesses.length > 0 && (
+              <AGSurface className="px-6 py-6">
+                <AGSectionLabel>Detected Weaknesses</AGSectionLabel>
+                <div className="mt-5 space-y-3">
+                  {report.raw_weaknesses.map((weakness, index) => (
                     <div
-                      className={`${barColor(score)} h-2 rounded-full transition-all`}
-                      style={{ width: `${(score / 10) * 100}%` }}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-500">
-                    This dimension was not tested broadly enough to score confidently.
-                  </div>
-                )}
-              </div>
-            ))}
-          </section>
-        )}
-
-        {untestedDimensions.length > 0 && (
-          <section className="bg-zinc-900 rounded-xl px-5 py-4 space-y-2">
-            <h2 className="text-xs font-semibold text-sky-400 uppercase tracking-widest">
-              Untested Dimensions
-            </h2>
-            <ul className="space-y-1">
-              {untestedDimensions.map((dim, i) => (
-                <li key={`${dim}-${i}`} className="text-sm text-zinc-300">
-                  • {dim}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {/* Failure surface */}
-        {failureEntries.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-              Failure Surface
-            </h2>
-            <p className="text-xs text-zinc-600">Higher = harder failure boundary reached</p>
-            {failureEntries.map(([area, score]) => (
-              <div key={area}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-zinc-300">{area.replace(/_/g, " ")}</span>
-                  <span className="text-zinc-500">{Math.round(score * 100)}%</span>
+                      key={`${weakness.weakness}-${index}`}
+                      className="rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <AGSeverityPip severity={weakness.severity} />
+                        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+                          {weakness.severity} · {weakness.type.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-7 text-[var(--ag-text-0)]">{weakness.weakness}</p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.12em] text-[var(--ag-text-3)]">
+                        Strategy used: {weakness.attack_strategy.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-                <div className="w-full bg-zinc-800 rounded-full h-2">
-                  <div
-                    className={`${barColor(score * 10)} h-2 rounded-full`}
-                    style={{ width: `${score * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </section>
-        )}
+              </AGSurface>
+            )}
+          </div>
 
-        {/* Strengths + Risk flags */}
-        <div className="grid grid-cols-2 gap-4">
-          {r.strengths.length > 0 && (
-            <div className="bg-zinc-900 rounded-xl px-4 py-4 space-y-2">
-              <h3 className="text-xs font-semibold text-green-500 uppercase tracking-widest">Strengths</h3>
-              <ul className="space-y-1">
-                {r.strengths.map((s, i) => (
-                  <li key={i} className="text-sm text-zinc-300">• {s}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {r.risk_flags.length > 0 && (
-            <div className="bg-zinc-900 rounded-xl px-4 py-4 space-y-2">
-              <h3 className="text-xs font-semibold text-red-500 uppercase tracking-widest">Risk Flags</h3>
-              <ul className="space-y-1">
-                {r.risk_flags.map((f, i) => (
-                  <li key={i} className="text-sm text-zinc-300">⚠ {f}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+          <div className="space-y-6">
+            {report.strengths.length > 0 && (
+              <AGSurface className="px-6 py-6">
+                <AGSectionLabel>Strengths</AGSectionLabel>
+                <ul className="mt-5 space-y-3 text-sm leading-7 text-[var(--ag-text-1)]">
+                  {report.strengths.map((strength, index) => (
+                    <li key={`${strength}-${index}`} className="rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-4">
+                      {strength}
+                    </li>
+                  ))}
+                </ul>
+              </AGSurface>
+            )}
 
-        {/* Weakness log */}
-        {r.raw_weaknesses.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-              Detected Weaknesses ({r.raw_weaknesses.length})
-            </h2>
-            <div className="space-y-2">
-              {r.raw_weaknesses.map((w, i) => (
-                <div key={i} className="bg-zinc-900 rounded-xl px-4 py-3 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      w.severity === "high" ? "bg-red-900 text-red-300"
-                      : w.severity === "medium" ? "bg-yellow-900 text-yellow-300"
-                      : "bg-zinc-700 text-zinc-400"
-                    }`}>{w.severity}</span>
-                    <span className="text-xs text-zinc-500 capitalize">{w.type?.replace(/_/g, " ")}</span>
-                  </div>
-                  <p className="text-sm text-zinc-200">{w.weakness}</p>
-                  <p className="text-xs text-zinc-600">Strategy used: {w.attack_strategy?.replace(/_/g, " ")}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+            {report.risk_flags.length > 0 && (
+              <AGSurface className="px-6 py-6">
+                <AGSectionLabel>Risk Flags</AGSectionLabel>
+                <ul className="mt-5 space-y-3 text-sm leading-7 text-[var(--ag-text-1)]">
+                  {report.risk_flags.map((flag, index) => (
+                    <li
+                      key={`${flag}-${index}`}
+                      className="rounded-xl border border-[oklch(0.66_0.21_24_/_0.22)] bg-[oklch(0.66_0.21_24_/_0.08)] px-4 py-4"
+                    >
+                      {flag}
+                    </li>
+                  ))}
+                </ul>
+              </AGSurface>
+            )}
 
-        <div className="flex gap-4 pt-4">
-          <Link href="/" className="flex-1 text-center bg-white text-black font-semibold py-3 rounded-lg hover:bg-zinc-200 transition text-sm">
-            New Interview
-          </Link>
-          <Link href="/dashboard" className="flex-1 text-center bg-zinc-900 text-white font-semibold py-3 rounded-lg hover:bg-zinc-800 transition text-sm">
-            Dashboard
-          </Link>
+            {report.untested_dimensions.length > 0 && (
+              <AGSurface className="px-6 py-6">
+                <AGSectionLabel>Untested Dimensions</AGSectionLabel>
+                <ul className="mt-5 space-y-3 text-sm leading-7 text-[var(--ag-text-1)]">
+                  {report.untested_dimensions.map((dimension, index) => (
+                    <li key={`${dimension}-${index}`} className="rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-4">
+                      {dimension}
+                    </li>
+                  ))}
+                </ul>
+              </AGSurface>
+            )}
+          </div>
         </div>
       </div>
     </main>

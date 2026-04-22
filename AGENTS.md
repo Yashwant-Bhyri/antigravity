@@ -206,6 +206,7 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Frontend visual system overhaul + design-team UI port | Codex | 2026-04-22 | Ported the design-team Antigravity UI language into the real Next.js app: new shared design system in `components/design-system.tsx`, new visual tokens/animations in `app/globals.css`, upgraded `components/Waveform.tsx`, and redesigned `app/page.tsx`, `app/interview/[session_id]/page.tsx`, `app/report/[session_id]/page.tsx`, and `app/dashboard/page.tsx` while preserving live interview logic; `npm run build` passed |
 | Repo audit docs extended through memory-highway + `lib/audio.ts` pass | Codex | 2026-04-17 | Documentation-only pass. Added/updated `repo_optimization_journal.md`, `bug audit.md`, and `PROJECT_STATE.md` with new systems-level findings around mixed memory layers, data-transfer hot paths, API/LLM call budgets, and `lib/audio.ts` control-plane behavior. No runtime code changed in this pass. |
 | Verified-startup interview map + compact focus keys | Codex | 2026-04-15 | `backend/services/orchestrator.py` now awaits `_seed_first_question()` and `_build_interview_map()` before `start_session()` returns, verifies non-empty `interview_trajectory_map`, and traces a compact map preview; `backend/api/routes.py` now returns `trajectory_focus_areas`; `backend/services/interview_map.py` now compacts fallback/LLM focus keys so they don’t balloon into raw-resume sentences; `frontend/app/interview/[session_id]/page.tsx` no longer waits on a background map and instead expects the startup state to already contain it; verified with `python3 -m py_compile` and `npm run build` |
 | Raw-resume focus packs + trajectory-map retrieval hardening | Codex | 2026-04-15 | `backend/services/interview_map.py` now builds focus areas from raw-resume seeds plus exact supporting snippets, treats those snippets as source-of-truth in the map prompt, and no longer falls back to an arbitrary first focus area when overlap is weak; `backend/services/orchestrator.py` now passes focus-context/snippets into speculative, clarification, discrepancy, attack, bank-followup, sprint-question, and sprint-opener generation; `backend/agents/followup_agent.py` now lets speculative refine/keep contend with a relevant map candidate and requires clearer in-question pivot phrasing; `frontend/lib/audio.ts` normalized to `endpointing=1500` / `utterance_end_ms=2800`; verified with `python3 -m py_compile` and `npm run build` |
@@ -288,6 +289,17 @@ frontend/
 
 ## HANDOFF NOTES
 > Time-sensitive notes from one AI to the other. Clear these once acknowledged.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-22**
+- The Antigravity frontend now has a real shared visual system and a full design-language port across the home, interview, report, and dashboard surfaces.
+- New shared layer:
+  - `components/design-system.tsx`
+  - `app/globals.css`
+  - refreshed `components/Waveform.tsx`
+- Important implementation detail: this was a UI-shell rewrite, not a behavioral rewrite. The live interview turn logic, stale-turn protection, barge-in handling, snapshot boot/resume flow, and report/dashboard data wiring were preserved.
+- I also fixed one functional gap while porting: `startFreshInterview()` in `app/interview/[session_id]/page.tsx` now forwards `target_role` and `years_experience` from the loaded session snapshot instead of dropping calibration on fresh reruns.
+- Validation: `npm run build` passed after the port.
+- I have **not** committed or pushed these changes.
 
 **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-17**
 - The latest work is documentation-only and is being pushed: `repo_optimization_journal.md`, `bug audit.md`, `PROJECT_STATE.md`, plus this `AGENTS.md` note.
@@ -422,6 +434,89 @@ frontend/
   - `"Mostly cost."` now hit `route_kind="short_answer_rescue"` with a grounded cost-specific follow-up
   - `"Quality tradeoffs."` then hit `clarification_fast`
 - Remaining gap: the first 1–2 turns can still miss when nothing useful is staged yet; that is now a cold-start preparation problem, not the old generic-packet precedence bug.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-22**
+- I hardened the interview-map startup path for the current OpenRouter/Qwen-in-China environment.
+- `backend/services/orchestrator.py` now lets a deterministic map land instead of failing startup when `generate_interview_map()` times out.
+- `backend/services/interview_map.py` now builds its focus-source text from work/research experience instead of the whole raw resume blob, filters out contact/education/awards/skill-bucket metadata, shortens the seed-extraction LLM prompt, and logs timeout failures with exception type.
+- Important current state: the map quality on raw noisy resumes is much better in fallback mode now, but the LLM-backed map path still times out frequently enough that deterministic fallback remains common on this network/provider path.
+- Verified on Yash's raw pasted resume: the old bad fallback focused on phone number / degree / scholarship lines; the improved fallback now focuses on work like the AIGC video pipeline, semantic UI-to-latent interface, Optek model work, classifier optimization, and benchmark framework.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-22**
+- I pushed the interview-map robustness work one level further.
+- The map builder now returns `track_source` per focus area plus `pending_hydration_focus_keys`, and `orchestrator.py` schedules background hydration for any focus tracks that had to fall back during startup.
+- Verified behavior on Yash's raw resume:
+  - startup now lands a correct LLM-selected focus list like `Filmora AIGC Internship`, `ML Feature-Map Control System`, `Semantic UI-to-Latent Interface`, and `TinyML Audio Pipeline`
+  - after a short wait, the saved session state showed some tracks upgraded to `track_source="llm"` (`Semantic UI-to-Latent Interface`, `TinyML Audio Pipeline`) while slower ones remained deterministic
+- This means the map is no longer "one shot or bust" at startup. It can now improve itself after boot instead of staying permanently degraded.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-22**
+- I smoothed two product-critical UX seams in the live interview loop.
+- `backend/agents/followup_agent.py` now biases the startup seed follow-up toward a warm, context-first phrasing that names the specific experience before probing contribution. Verified live on Yash's raw resume: the pre-seeded first follow-up is now `I’d love to start with your TinyML Audio Classification Pipeline — what part of that work felt most yours?`
+- `backend/services/orchestrator.py` now detects the last two questions of Sprint 3 and decorates those questions with explicit runway language (`last_two` / `final_question`). The fast-track response payload now also includes `closing_phase` and `questions_remaining` so the frontend can later render a matching visual cue instead of relying only on spoken wording.
+- Important current state: the focus-area selection on Yash's raw resume is now good (`Filmora AIGC Internship`, `ML Feature-Map Control System`, `Semantic UI-to-Latent Interface`, `TinyML Audio Pipeline`), but this particular startup still returned deterministic focus tracks after 8s. So the product feel is better immediately, while the remaining technical gap is still LLM branch hydration reliability on the current provider/network path.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-23**
+- I hardened the interview-map core rather than just tuning prompts.
+- `backend/models/llm_router.py` now recovers JSON arrays from noisy model output, which matters because focus-seed extraction expects an array and the old last-resort parser only looked for `{...}` objects.
+- `backend/services/interview_map.py` now fixes a real segmentation bug where bullet lines like `Engineered ...` or `Built ...` could be misread as new work headers. Fallback seed extraction is now detail-first: it prefers artifact labels from bullet content (`Feature-Map Control System`, `TinyML Audio Classification Pipeline`, `Multi-Modal Benchmark Framework`) before broad role headers.
+- Deterministic fallback tracks are also stronger now: they pull concrete technologies and constraints out of the seed snippets (`Google ADK`, `TensorFlow Lite-Micro INT8`, `OCR`, `95%+`, `<10 ms`, etc.) so a fallback map is still interview-worthy, not just technically present.
+- Important current state: yes, the map still hydrates in background via `pending_hydration_focus_keys` + `hydrate_interview_map_tracks(...)`, but the remaining weakness is still provider-sensitive LLM branch hydration. The default map quality when hydration misses is significantly better now, which is the correct robustness direction for a load-bearing component.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-23**
+- I added the user-requested hybrid fallback layer to the map pipeline.
+- `backend/services/interview_map.py` now has a second tiny `small`-tier artifact extractor that runs with a very constrained prompt when the primary focus-seed pass is thin. This extractor is artifact-only: it asks for things like pipelines, interfaces, benchmarks, classifiers, and control systems, and explicitly forbids education/awards/locations/role-title clutter.
+- I also added overlap-based dedupe so fallback seeds no longer keep near-duplicates like `TinyML Audio Classification Pipeline` plus `Audio Classification Pipeline`.
+- Added a regression check in `backend/test_interview_map_fallback.py`; verified with `python3 -m backend.test_interview_map_fallback`.
+- Important current state: the strongest remaining issue is still not seed extraction, it is LLM-authored branch hydration reliability under the current provider/network path. The default map that exists before hydration is now much healthier than before.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-23**
+- I fixed the next interview-map failure mode: evidence misbinding inside deterministic tracks.
+- `backend/services/interview_map.py` now binds `resume_snippets` from the best matching work entry before it ever falls back to generic resume-unit scoring. This stops focus areas like TinyML from inheriting unrelated Filmora/AIGC snippets and stops benchmark work from pulling `Top Skills` lines.
+- I also fixed the deterministic tech selector so family-aware priority survives all the way through ranking. Before this, TinyML could still ask about `Google ADK` or `MediaPipe Audio`; after the fix it correctly centers `TensorFlow Lite-Micro INT8`, and feature-map work correctly centers `Google Veo 3`.
+- Added a broader contract test in `backend/test_interview_map_contract.py` and verified:
+  - `python3 -m py_compile backend/services/interview_map.py backend/test_interview_map_fallback.py backend/test_interview_map_contract.py`
+  - `python3 -m backend.test_interview_map_fallback`
+  - `python3 -m backend.test_interview_map_contract`
+- I also ran an isolated live smoke against a clean local backend on `127.0.0.1:8011`:
+  - `POST /api/start_interview` returned `200`
+  - stored map contained the intended four focus areas from Yash's resume
+  - live `process_turn` on the TinyML path produced the exact map-grounded short-answer prompt: `On TinyML Audio Classification Pipeline, what specific part of TensorFlow Lite-Micro INT8 are you referring to?`
+- Important current state: deterministic fallback quality is now substantially stronger and locally verified. Background hydration is still provider-latency-sensitive, but the startup map is no longer embarrassing or off-artifact when hydration misses.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-23**
+- I implemented the architecture Yash explicitly asked for: **prepare the interview map first, validate it, persist it, then and only then allow interview start**.
+- Backend changes:
+  - `backend/services/interview_map.py`
+    - added branch-provenance tracking (`llm_branch_count`, `fallback_branch_count`, `llm_branches`, `fallback_branches`)
+    - added `validate_interview_map(...)`
+    - fixed hydration so upgraded focus areas keep their provenance metadata
+    - strengthened the slow hydration path with longer timeouts and a large-tier retry
+  - `backend/services/orchestrator.py`
+    - added a strict preparation gate with ~120s budget
+    - `prepare_session_map(...)` now initializes the session and blocks on a validated rich map
+    - `start_prepared_session(...)` now refuses to start unless `interview_map_status == "ready"`
+    - launch no longer treats deterministic fallback as startup success
+  - `backend/api/routes.py`
+    - added `POST /prepare_interview_map`
+    - added `GET /interview_map_status/{session_id}`
+    - `POST /start_interview` now accepts `prepared_session_id`
+  - frontend launch updated in `app/page.tsx` and fresh-rerun flow updated in `app/interview/[session_id]/page.tsx` to use the two-step contract
+- Verification:
+  - `python3 -m py_compile backend/services/interview_map.py backend/services/orchestrator.py backend/api/routes.py backend/test_interview_map_validation.py`
+  - `python3 -m backend.test_interview_map_fallback`
+  - `python3 -m backend.test_interview_map_contract`
+  - `python3 -m backend.test_interview_map_validation`
+  - `npm run build`
+- Live strict-flow verification on a clean local backend (`127.0.0.1:8011`):
+  - first strict prep failure surfaced real unmet richness constraints and exposed a provenance bug
+  - after fixing that bug and strengthening hydration, `POST /api/prepare_interview_map` returned `200`
+  - ready result on Yash's resume:
+    - `llm_focus_count = 4`
+    - `rich_focus_count = 4`
+    - `pending_focus_keys = []`
+  - `POST /api/start_interview` with the prepared session id then returned `200` and served rich LLM-authored preview branches
+- Important current state: the product contract is now finally aligned with Yash’s intent. We no longer launch just because a deterministic fallback map exists. The interview starts only after a validated rich map is ready.
 
 **→ TO: Antigravity | FROM: Claude Code | Date: 2026-03-30**
 - Full frontend is live in `frontend/`. Next.js 14, App Router, TypeScript, Tailwind.

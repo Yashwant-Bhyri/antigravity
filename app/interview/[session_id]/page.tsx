@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { InterviewSession, processTurn, prefetchAudio, prefetchFillerAudio, playAudioUrl, FloorState, trackInterviewEvent } from "@/lib/audio";
+import { AGButton, AGChip, AGLogo, AGSectionLabel, AGSeverityPip, AGSprintDivider, AGSurface } from "@/components/design-system";
 import { getApiBaseUrl } from "@/lib/api";
 import { AIOrb, Waveform } from "@/components/Waveform";
 
@@ -29,6 +30,8 @@ type SessionSnapshot = {
   interview_complete?: boolean;
   resume?: string;
   github_links?: string[];
+  target_role?: string;
+  years_experience?: string;
   current_sprint?: number;
   current_persona?: string;
   last_question?: string;
@@ -102,6 +105,7 @@ export default function InterviewPage() {
   const [micLevel, setMicLevel] = useState(0);
   const [started, setStarted] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [nearEnd, setNearEnd] = useState(false);
   const [error, setError] = useState("");
   const [showCamera, setShowCamera] = useState(false);
   const [sessionSnapshot, setSessionSnapshot] = useState<SessionSnapshot | null>(null);
@@ -225,6 +229,15 @@ export default function InterviewPage() {
     };
   }, [fetchSessionSnapshot, resetInterviewUi, session_id, teardownActiveSession]);
 
+  // Notify parent frame (e.g. ProvenHire iframe wrapper) that this page is ready.
+  // The parent responds with PROVENHIRE_AUTH carrying the user's JWT.
+  useEffect(() => {
+    if (snapshotLoading) return;
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: "ANTIGRAVITY_READY" }, "*");
+    }
+  }, [snapshotLoading]);
+
   // Auto-scroll
   useEffect(() => {
     transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" });
@@ -258,6 +271,11 @@ export default function InterviewPage() {
     const isComplete = result.complete as boolean;
     const weakness = result.weakness as { severity?: string } | null;
     const pivoting = result.pivoting as boolean;
+    const backendQuestionCount = typeof result.question_count === "number" ? result.question_count : null;
+
+    if (backendQuestionCount !== null && backendQuestionCount >= 13 && !isComplete) {
+      setNearEnd(true);
+    }
 
     // ── Silence confirmation hold ─────────────────────────────────────────────
     // Normal path: a Deepgram UtteranceEnd-backed final marks the turn as settled,
@@ -370,11 +388,7 @@ export default function InterviewPage() {
 
     if (isComplete) {
       sessionRef.current?.transition(FloorState.IDLE);
-    } else {
-      beginUserTurn(sessionRef.current);
-    }
-
-    if (isComplete) {
+      setNearEnd(false);
       setComplete(true);
       setSessionSnapshot((prev) => ({ ...(prev ?? {}), interview_complete: true }));
       sessionRef.current?.stop();
@@ -383,9 +397,11 @@ export default function InterviewPage() {
         turn_id: expectedTurnId,
         sprint: newSprint,
       }, "frontend.ui");
-      setTimeout(() => router.push(`/report/${session_id}`), 2500);
+      // No auto-navigate — user exits manually via the button.
+    } else {
+      beginUserTurn(sessionRef.current);
     }
-  }, [beginUserTurn, session_id, router]);
+  }, [beginUserTurn, session_id]);
 
   const commitAnswerDraft = useCallback(async (session: InterviewSession, turnId: string) => {
     const draft = answerDraftRef.current;
@@ -760,17 +776,34 @@ export default function InterviewPage() {
     resetInterviewUi();
 
     try {
-      const res = await fetch(`${API}/start_interview`, {
+      const prepareRes = await fetch(`${API}/prepare_interview_map`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           resume,
           github_links: sessionSnapshot?.github_links ?? [],
+          target_role: sessionSnapshot?.target_role ?? "",
+          years_experience: sessionSnapshot?.years_experience ?? "",
         }),
       });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const data = await res.json();
-      router.replace(`/interview/${data.session_id}`);
+      const prepareData = await prepareRes.json().catch(() => ({}));
+      if (!prepareRes.ok) {
+        throw new Error(prepareData?.detail || `Server error ${prepareRes.status}`);
+      }
+      if (prepareData?.map_status !== "ready") {
+        throw new Error("Interview map did not reach ready state.");
+      }
+
+      const startRes = await fetch(`${API}/start_interview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prepared_session_id: prepareData.session_id,
+        }),
+      });
+      const startData = await startRes.json().catch(() => ({}));
+      if (!startRes.ok) throw new Error(startData?.detail || `Server error ${startRes.status}`);
+      router.replace(`/interview/${startData.session_id}`);
     } catch (e) {
       setError(`Could not start a fresh run: ${String(e)}`);
       setBootingMode(null);
@@ -803,239 +836,299 @@ export default function InterviewPage() {
   const hasExistingProgress = existingTurns > 0;
   const isCompletedSession = Boolean(sessionSnapshot?.interview_complete);
   const showResumeGate = !started && !snapshotLoading && (hasExistingProgress || isCompletedSession);
+  const phaseLabel =
+    phase === "listening"
+      ? "Listening"
+      : phase === "thinking"
+      ? "Analyzing"
+      : phase === "speaking"
+      ? "Speaking"
+      : started
+      ? "Idle"
+      : "Ready";
+  const phaseDotClass =
+    phase === "listening"
+      ? "bg-[oklch(0.87_0.01_260)] shadow-[0_0_12px_oklch(0.87_0.01_260)]"
+      : phase === "thinking"
+      ? "bg-[var(--ag-amber)] shadow-[0_0_12px_var(--ag-amber)]"
+      : phase === "speaking"
+      ? "bg-[var(--ag-blue)] shadow-[0_0_12px_var(--ag-blue)]"
+      : "bg-[var(--ag-text-3)]";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col select-none">
-
-      {/* ── Top bar ── */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold tracking-tight">Antigravity</span>
-          {started && (
-            <span className="text-xs px-2 py-0.5 rounded-md bg-white/5 text-zinc-400">
-              Sprint {sprint} — {SPRINT_LABELS[sprint]}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* Camera toggle */}
-          {!started && (
-            <button 
-              onClick={() => setShowCamera(!showCamera)}
-              className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all text-[11px] ${
-                showCamera ? "bg-white/10 border-white/20 text-white" : "border-white/5 text-zinc-500 hover:border-white/10"
-              }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${showCamera ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-zinc-700"}`} />
-              Lens Early-Turn {showCamera ? "ON" : "OFF"}
-            </button>
-          )}
-
-          {/* Progress bar */}
-          {started && (
-            <div className="flex items-center gap-2">
-              <div className="w-20 h-[3px] bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white/60 rounded-full transition-all duration-700"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-              <span className="text-[11px] text-zinc-600 tabular-nums">{questionCount}/15</span>
-            </div>
-          )}
-          {started && !complete && (
-            <button onClick={endInterview} className="text-[11px] text-zinc-600 hover:text-red-400 transition-colors">
-              End
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* ── Main ── */}
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* ── Left: AI panel ── */}
-        <div className="w-80 flex-shrink-0 border-r border-white/5 flex flex-col items-center justify-center gap-6 px-6">
-          
-          <div className="relative w-full aspect-square max-w-[200px] flex items-center justify-center">
-             {/* Camera feed (background) */}
-             {showCamera && (
-                <div className="absolute inset-0 rounded-full overflow-hidden border border-white/5 bg-black/40 mix-blend-screen opacity-40 grayscale">
-                   <video 
-                     ref={videoRef}
-                     autoPlay 
-                     playsInline 
-                     muted 
-                     className="w-full h-full object-cover scale-x-[-1]"
-                   />
-                </div>
-             )}
-             <AIOrb state={phase} />
+    <div className="ag-shell min-h-screen select-none px-4 py-4 text-[var(--ag-text-0)] md:px-6">
+      <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4">
+        <header className="flex flex-col gap-4 rounded-2xl border border-[var(--ag-border)] bg-[oklch(0.1_0.014_265_/_0.82)] px-5 py-4 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <AGLogo compact />
+            {started && <AGChip active>S{sprint} · {SPRINT_LABELS[sprint]}</AGChip>}
+            {sessionSnapshot?.target_role && <AGChip>{sessionSnapshot.target_role}</AGChip>}
           </div>
 
-          <div className="text-center space-y-1">
-            <p className="text-xs font-medium text-zinc-300">
-              {phase === "idle" && !started && "Ready"}
-              {phase === "listening" && "Listening"}
-              {phase === "thinking" && "Analyzing..."}
-              {phase === "speaking" && "Speaking"}
-            </p>
+          <div className="flex flex-wrap items-center gap-3">
+            {!started && (
+              <button
+                onClick={() => setShowCamera(!showCamera)}
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all ${
+                  showCamera
+                    ? "border-[var(--ag-border-strong)] bg-[var(--ag-blue-soft)] text-[var(--ag-text-0)]"
+                    : "border-[var(--ag-border)] bg-[var(--ag-surface-0)] text-[var(--ag-text-2)]"
+                }`}
+              >
+                <span className={`h-2 w-2 rounded-full ${showCamera ? "bg-[var(--ag-green)]" : "bg-[var(--ag-text-3)]"}`} />
+                Lens Early-Turn {showCamera ? "ON" : "OFF"}
+              </button>
+            )}
+
             {started && (
-              <p className="text-[11px] text-zinc-600 font-mono tracking-wider">{PERSONA_DESC[persona]}</p>
-            )}
-          </div>
-
-          {/* Mic waveform — only when listening */}
-          {phase === "listening" && (
-            <Waveform level={micLevel} active={true} />
-          )}
-
-          {started && showCamera && (
-             <div className="mt-8 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
-                <p className="text-[9px] text-zinc-600 uppercase tracking-widest text-center">Lens Active</p>
-                <div className="mt-1 flex items-center gap-1">
-                   <div className="flex-1 h-[2px] bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500/40 w-full animate-pulse" />
-                   </div>
+              <div className="flex items-center gap-3 rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-3 py-2">
+                <div className="h-[4px] w-24 overflow-hidden rounded-full bg-[var(--ag-surface-2)]">
+                  <div
+                    className="h-full rounded-full bg-[var(--ag-blue)] transition-all duration-700"
+                    style={{ width: `${progressPct}%`, boxShadow: "0 0 14px var(--ag-blue)" }}
+                  />
                 </div>
-             </div>
-          )}
-        </div>
-
-        {/* ── Right: Transcript ── */}
-        <div className="flex-1 flex flex-col overflow-hidden relative">
-          {/* Subtle noise texture */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
-          
-          <div
-            ref={transcriptRef}
-            className="flex-1 overflow-y-auto px-10 py-8 space-y-6 relative"
-          >
-            {!started && !showResumeGate && (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center space-y-4 max-w-sm">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
-                    <span className="text-xl">∞</span>
-                  </div>
-                  <h2 className="text-lg font-medium text-zinc-200">Antigravity Protocol</h2>
-                  <p className="text-zinc-500 text-sm leading-relaxed">
-                    A real-time cognitive interrogation system. 3 sprints. No validation. Only the boundary of your reasoning exists here.
-                  </p>
-                  <p className="text-zinc-700 text-[10px] uppercase tracking-[0.2em] pt-4">Probe → Break → Analyze → Adapt</p>
-                </div>
+                <span className="font-mono text-xs text-[var(--ag-text-3)]">{questionCount}/15</span>
               </div>
             )}
 
-            {showResumeGate && (
-              <div className="flex items-center justify-center h-full">
-                <div className="max-w-md rounded-3xl border border-white/10 bg-white/[0.03] px-8 py-8 text-center space-y-5">
-                  <div className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500">
-                      {isCompletedSession ? "Completed Session" : "Existing Session"}
-                    </p>
-                    <h2 className="text-lg font-medium text-zinc-100">
-                      {isCompletedSession ? "This interview already finished." : "This interview URL already has progress."}
+            {started && !complete && (
+              <AGButton variant="ghost" onClick={endInterview} className="px-3 py-2 text-xs">
+                End session
+              </AGButton>
+            )}
+          </div>
+        </header>
+
+        <div className="grid flex-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <AGSurface className="flex flex-col items-center justify-between gap-6 px-6 py-6">
+            <div className="w-full space-y-6">
+              <div className="space-y-2">
+                <AGSectionLabel>Live Interrogator</AGSectionLabel>
+                <p className="text-sm leading-7 text-[var(--ag-text-2)]">
+                  Real-time cognitive pressure loop. No validation. No hints. Just the boundary of what is actually defensible.
+                </p>
+              </div>
+
+              <div className="relative flex min-h-[240px] items-center justify-center rounded-[28px] border border-[var(--ag-border)] bg-[linear-gradient(180deg,oklch(0.11_0.016_265_/_0.88),oklch(0.08_0.012_265_/_0.96))]">
+                {showCamera && (
+                  <div className="absolute inset-6 overflow-hidden rounded-full border border-[var(--ag-border)] bg-black/30 opacity-40 mix-blend-screen grayscale">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="h-full w-full scale-x-[-1] object-cover"
+                    />
+                  </div>
+                )}
+                <AIOrb state={phase} />
+              </div>
+
+              <div className="space-y-3 text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${phaseDotClass}`} style={{ animation: started ? "agBlink 2s ease-in-out infinite" : "none" }} />
+                  <span className="text-sm font-semibold text-[var(--ag-text-0)]">{phaseLabel}</span>
+                </div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ag-text-3)]">
+                  {PERSONA_DESC[persona]}
+                </p>
+              </div>
+
+              <div className="flex min-h-[48px] items-center justify-center">
+                {phase === "listening" ? (
+                  <Waveform level={micLevel} active />
+                ) : (
+                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+                    Waiting for the next turn boundary
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="w-full space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <AGSectionLabel>Sprint Progress</AGSectionLabel>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+                    Turn {questionCount}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3].map((stage) => (
+                    <div key={stage} className="flex-1">
+                      <div
+                        className="h-1.5 rounded-full transition-all"
+                        style={{
+                          background:
+                            stage < sprint
+                              ? "var(--ag-blue)"
+                              : stage === sprint
+                              ? "linear-gradient(90deg, var(--ag-blue), oklch(0.82 0.14 72))"
+                              : "var(--ag-surface-2)",
+                          boxShadow: stage === sprint ? "0 0 12px var(--ag-blue)" : "none",
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {showCamera && (
+                <div className="rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">Lens Active</p>
+                  <p className="mt-2 text-xs leading-6 text-[var(--ag-text-2)]">
+                    Early-turn camera signal is enabled for the voice floor manager.
+                  </p>
+                </div>
+              )}
+            </div>
+          </AGSurface>
+
+          <AGSurface className="flex min-h-[720px] flex-col overflow-hidden">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--ag-border)] px-6 py-5">
+              <div>
+                <AGSectionLabel>Live Transcript</AGSectionLabel>
+                <p className="mt-2 text-sm text-[var(--ag-text-2)]">
+                  Session {session_id.slice(0, 8)} · {started ? "interview active" : "awaiting launch"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <AGChip active={phase === "listening"}>{phase === "listening" ? "Open Mic" : "Mic gated"}</AGChip>
+                <AGChip>{currentTurnIdRef.current ? currentTurnIdRef.current.slice(0, 8) : "pending"}</AGChip>
+              </div>
+            </div>
+
+            <div ref={transcriptRef} className="ag-scrollbar flex-1 space-y-5 overflow-y-auto px-6 py-6">
+              {!started && !showResumeGate && (
+                <div className="flex h-full min-h-[420px] items-center justify-center">
+                  <div className="max-w-lg text-center">
+                    <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--ag-border-strong)] bg-[var(--ag-blue-soft)] text-xl text-[var(--ag-blue)]">
+                      ∞
+                    </div>
+                    <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[var(--ag-text-0)]">
+                      Antigravity Protocol
                     </h2>
-                    <p className="text-sm leading-relaxed text-zinc-400">
+                    <p className="mt-4 text-sm leading-7 text-[var(--ag-text-2)]">
+                      A voice-native interview system built to test ownership, fundamentals, and systems reasoning under live pressure.
+                    </p>
+                    <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--ag-text-3)]">
+                      Probe → Break → Analyze → Adapt
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {showResumeGate && (
+                <div className="flex min-h-[420px] items-center justify-center">
+                  <AGSurface className="max-w-xl px-8 py-8 text-center">
+                    <AGSectionLabel>{isCompletedSession ? "Completed Session" : "Existing Session"}</AGSectionLabel>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[var(--ag-text-0)]">
                       {isCompletedSession
-                        ? "Reopening this route will not start a fresh run automatically. View the report or spin up a brand-new interview from the same resume."
+                        ? "This interview already finished."
+                        : "This interview URL already has progress."}
+                    </h2>
+                    <p className="mt-4 text-sm leading-7 text-[var(--ag-text-2)]">
+                      {isCompletedSession
+                        ? "Reopening this route should not silently restart the session. View the report or spin up a fresh run from the same resume."
                         : `This session already has ${existingTurns} recorded turn${existingTurns === 1 ? "" : "s"}. Resume it explicitly or start a fresh run from the same resume.`}
                     </p>
-                  </div>
 
-                  <div className="flex flex-col gap-3">
-                    {!isCompletedSession && (
-                      <button
-                        onClick={resumeInterview}
+                    <div className="mt-6 flex flex-col gap-3">
+                      {!isCompletedSession && (
+                        <AGButton onClick={resumeInterview} disabled={bootingMode !== null} className="w-full">
+                          {bootingMode === "resume" ? "Resuming…" : "Resume Session"}
+                        </AGButton>
+                      )}
+                      {isCompletedSession && (
+                        <AGButton onClick={() => router.push(`/report/${session_id}`)} disabled={bootingMode !== null} className="w-full">
+                          View Report
+                        </AGButton>
+                      )}
+                      <AGButton
+                        onClick={startFreshInterview}
                         disabled={bootingMode !== null}
-                        className="w-full bg-white text-black text-[13px] font-semibold px-8 py-3 rounded-full hover:bg-zinc-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        variant="secondary"
+                        className="w-full"
                       >
-                        {bootingMode === "resume" ? "Resuming..." : "Resume Session"}
-                      </button>
-                    )}
-                    {isCompletedSession && (
-                      <button
-                        onClick={() => router.push(`/report/${session_id}`)}
-                        disabled={bootingMode !== null}
-                        className="w-full bg-white text-black text-[13px] font-semibold px-8 py-3 rounded-full hover:bg-zinc-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        View Report
-                      </button>
-                    )}
-                    <button
-                      onClick={startFreshInterview}
-                      disabled={bootingMode !== null}
-                      className="w-full border border-white/10 text-white text-[13px] font-semibold px-8 py-3 rounded-full hover:border-white/20 hover:bg-white/[0.03] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {bootingMode === "fresh" ? "Starting Fresh..." : "Start Fresh Run"}
-                    </button>
+                        {bootingMode === "fresh" ? "Starting Fresh…" : "Start Fresh Run"}
+                      </AGButton>
+                    </div>
+                  </AGSurface>
+                </div>
+              )}
+
+              {messages.map((msg, i) => (
+                <MessageItem key={i} msg={msg} />
+              ))}
+
+              {partial && (
+                <div className="flex justify-end">
+                  <div className="max-w-[82%] rounded-[22px] border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-5 py-4">
+                    <p className="mb-2 text-right font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+                      Accumulating
+                    </p>
+                    <p className="text-sm italic leading-7 text-[var(--ag-text-2)]">{partial}</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {messages.map((msg, i) => (
-               <MessageItem key={i} msg={msg} />
-            ))}
+              {nearEnd && !complete && (
+                <div className="rounded-xl border border-[oklch(0.8_0.16_72_/_0.24)] bg-[oklch(0.8_0.16_72_/_0.08)] px-4 py-3 text-sm text-[var(--ag-amber)]">
+                  Two questions remaining. The interview is closing in on its final boundary check.
+                </div>
+              )}
 
-            {/* Live partial */}
-            {partial && (
-              <div className="flex justify-end pr-4">
-                <div className="max-w-[80%]">
-                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-2 text-right">Accumulating</p>
-                  <div className="rounded-2xl px-5 py-3.5 text-[13px] bg-white/[0.03] text-zinc-400 border border-white/[0.05] italic">
-                    {partial}
+              {complete && (
+                <div className="py-8 text-center">
+                  <AGChip active>Complete</AGChip>
+                  <p className="mt-4 text-lg font-semibold text-[var(--ag-text-0)]">
+                    Thank you for attending the interview.
+                  </p>
+                  <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[var(--ag-text-2)]">
+                    The live interrogation is over. Exit this screen whenever you are ready and review the full report.
+                  </p>
+                  <div className="mt-6 flex justify-center">
+                    <AGButton onClick={() => router.push(`/report/${session_id}`)}>View Report →</AGButton>
                   </div>
                 </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-4 border-t border-[var(--ag-border)] px-6 py-5 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                {error ? (
+                  <p className="text-sm text-[var(--ag-red)]">{error}</p>
+                ) : (
+                  <p className="text-sm text-[var(--ag-text-2)]">
+                    {started
+                      ? "Stay natural. The system will pick up the next turn when your utterance settles."
+                      : "The transcript pane will activate once the live interview loop starts."}
+                  </p>
+                )}
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+                  Turn Trace · {currentTurnIdRef.current ? currentTurnIdRef.current.slice(0, 8) : "waiting"}
+                </p>
               </div>
-            )}
 
-            {complete && (
-              <div className="text-center py-12 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-1000">
-                <div className="inline-block px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] mb-2 uppercase tracking-widest">Complete</div>
-                <p className="text-zinc-200 text-sm font-medium">Session Terminated.</p>
-                <p className="text-zinc-500 text-[11px]">Compiling adversarial report and reasoning metrics...</p>
-              </div>
-            )}
-          </div>
-
-          {/* ── Bottom action bar ── */}
-          <div className="border-t border-white/5 px-10 py-6 flex items-center justify-between bg-[#0a0a0a]/80 backdrop-blur-xl">
-            {error && (
-               <div className="flex items-center gap-2 text-red-400 text-[11px] animate-pulse">
-                  <div className="w-1 ha-1 rounded-full bg-red-400" />
-                  {error}
-               </div>
-            )}
-            {!error && <span />}
-
-            {!started ? (
-              <button
-                onClick={startInterview}
-                disabled={snapshotLoading || bootingMode !== null || showResumeGate}
-                className="ml-auto bg-white text-black text-[13px] font-semibold px-8 py-3 rounded-full hover:bg-zinc-100 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                {snapshotLoading ? "Loading..." : bootingMode === "new" ? "Preparing interview..." : "Engage System →"}
-              </button>
-            ) : (
-              <div className="ml-auto flex items-center gap-3 text-[11px] font-medium text-zinc-400">
-                <div className="flex items-center gap-2">
-                   {phase === "listening" && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
-                   {phase === "thinking" && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
-                   {phase === "speaking" && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
-                   <span className="uppercase tracking-widest text-[10px] text-zinc-500">
-                     {phase === "listening" ? "Listening"
-                      : phase === "thinking" ? "Reasoning"
-                      : phase === "speaking" ? "Speaking"
-                      : "Idle"}
-                   </span>
+              {!started ? (
+                <AGButton
+                  onClick={startInterview}
+                  disabled={snapshotLoading || bootingMode !== null || showResumeGate}
+                  className="w-full md:w-auto"
+                >
+                  {snapshotLoading ? "Loading…" : bootingMode === "new" ? "Preparing interview…" : "Engage System →"}
+                </AGButton>
+              ) : (
+                <div className="flex items-center gap-3 rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-3">
+                  <span className={`h-2 w-2 rounded-full ${phaseDotClass}`} style={{ animation: "agBlink 2s ease-in-out infinite" }} />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+                    {phase === "listening" ? "Listening" : phase === "thinking" ? "Reasoning" : phase === "speaking" ? "Speaking" : "Idle"}
+                  </span>
                 </div>
-                <div className="h-4 w-px bg-white/10" />
-                <span className="text-zinc-600 tabular-nums uppercase text-[10px]">Turn Trace: {currentTurnIdRef.current.slice(0, 8)}</span>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          </AGSurface>
         </div>
       </div>
     </div>
@@ -1044,46 +1137,48 @@ export default function InterviewPage() {
 
 function MessageItem({ msg }: { msg: Message }) {
   if (msg.isSprintMarker) {
-    return (
-      <div className="flex items-center gap-6 py-6 px-10">
-        <div className="flex-1 h-px bg-white/5" />
-        <span className="text-[10px] text-zinc-600 uppercase tracking-[0.3em] font-medium">
-          {msg.text}
-        </span>
-        <div className="flex-1 h-px bg-white/5" />
-      </div>
-    );
+    return <AGSprintDivider sprint={msg.sprint ?? 1} label={SPRINT_LABELS[msg.sprint ?? 1]} />;
   }
 
   if (msg.isPivotMarker) {
     return (
-      <div className="flex items-center gap-4 py-2 px-10">
-        <div className="flex-1 h-px bg-white/[0.03]" />
-        <span className="text-[9px] text-zinc-700 uppercase tracking-[0.25em]">shifting focus</span>
-        <div className="flex-1 h-px bg-white/[0.03]" />
+      <div className="flex items-center gap-3 py-1">
+        <div className="h-px flex-1 bg-[var(--ag-border)]" />
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+          pivoting focus area
+        </span>
+        <div className="h-px flex-1 bg-[var(--ag-border)]" />
       </div>
     );
   }
 
   const isAI = msg.role === "ai";
   return (
-    <div className={`flex ${isAI ? "justify-start" : "justify-end"} group animate-in fade-in slide-in-from-bottom-1 duration-500`}>
-      <div className={`max-w-[85%] space-y-2`}>
-        <div className={`flex items-center gap-2 ${isAI ? "" : "flex-row-reverse"}`}>
-           <p className={`text-[10px] uppercase tracking-widest font-bold ${
-             isAI ? "text-zinc-500" : "text-zinc-500"
-           }`}>
-             {isAI ? "Protocol" : "Candidate"}
-           </p>
-           {msg.severity === "high" && (
-             <span className="text-[9px] bg-red-500/10 text-red-500 border border-red-500/20 px-1.5 py-0.5 rounded-md font-bold animate-pulse">BOUNDARY EXPOSED</span>
-           )}
+    <div className={`flex ${isAI ? "justify-start" : "justify-end"}`}>
+      <div className="max-w-[84%] space-y-2">
+        <div className={`flex items-center gap-2 ${isAI ? "" : "justify-end"}`}>
+          {isAI && msg.severity && <AGSeverityPip severity={msg.severity} />}
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">
+            {isAI ? "Interrogator" : "Candidate"}
+          </p>
+          {msg.severity === "high" && (
+            <span className="rounded-md border border-[oklch(0.66_0.21_24_/_0.28)] bg-[oklch(0.66_0.21_24_/_0.1)] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--ag-red)]">
+              Boundary Exposed
+            </span>
+          )}
         </div>
-        <div className={`rounded-3xl px-6 py-4.5 text-[14px] leading-[1.6] ${
-          isAI
-            ? "bg-white/[0.03] text-zinc-300 border border-white/[0.05] shadow-sm"
-            : "bg-white/[0.07] text-white border border-white/[0.1] shadow-md"
-        }`}>
+        <div
+          className={`rounded-[22px] border px-5 py-4 text-sm leading-7 ${
+            isAI
+              ? "border-[var(--ag-border)] bg-[var(--ag-surface-0)] text-[var(--ag-text-1)]"
+              : "border-[var(--ag-border-strong)] bg-[oklch(0.68_0.19_255_/_0.08)] text-[var(--ag-text-0)]"
+          }`}
+          style={
+            isAI && msg.severity && msg.severity !== "low"
+              ? { borderLeftWidth: "2px", borderLeftColor: msg.severity === "high" ? "var(--ag-red)" : "var(--ag-amber)" }
+              : undefined
+          }
+        >
           {msg.text}
         </div>
       </div>

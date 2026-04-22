@@ -67,14 +67,21 @@ app = FastAPI(
 )
 
 # Add CORS so the frontend can talk to the backend
+_cors_extra = [o.strip() for o in os.getenv("ANTIGRAVITY_CORS_ORIGINS", "").split(",") if o.strip()]
+_allow_origins = _cors_extra or [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173",
+    "http://localhost:8080",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "https://provenhire.in",
+    "https://www.provenhire.in",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3001",
-        "http://localhost:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

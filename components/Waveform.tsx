@@ -2,37 +2,38 @@
 
 import { useEffect, useRef } from "react";
 
-const BAR_COUNT = 28;
+const BAR_COUNT = 40;
 
-/**
- * Audio-reactive waveform — driven by a real 0–1 level value from the mic analyser.
- * When level=0 (idle), bars sit at minimum. When speaking, they bounce.
- */
 export function Waveform({ level, active }: { level: number; active: boolean }) {
   const barsRef = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     barsRef.current.forEach((bar, i) => {
       if (!bar) return;
-      const wave = active
-        ? Math.abs(Math.sin((Date.now() / 150 + i * 0.6))) * level * 40 + 4
-        : 4;
-      bar.style.height = `${wave}px`;
+      const mid = BAR_COUNT / 2;
+      const dist = Math.abs(i - mid) / mid;
+      const base = active ? 10 : 5;
+      const animated = active ? Math.abs(Math.sin(Date.now() / 180 + i * 0.55)) * level * 48 : 0;
+      const height = Math.max(base, Math.round(base + animated * (1 - dist * 0.32)));
+      bar.style.height = `${height}px`;
     });
   });
 
   return (
-    <div className="flex items-center gap-[3px] h-12">
+    <div className="flex h-12 items-center gap-[2px]">
       {Array.from({ length: BAR_COUNT }).map((_, i) => (
         <div
           key={i}
-          ref={(el) => { barsRef.current[i] = el; }}
-          className="w-[3px] rounded-full transition-all duration-75"
+          ref={(el) => {
+            barsRef.current[i] = el;
+          }}
+          className="w-[2.5px] rounded-full transition-[height,background] duration-100"
           style={{
-            height: "4px",
+            height: "6px",
             background: active
-              ? `hsl(${200 + i * 3}, 80%, ${55 + i % 3 * 5}%)`
-              : "rgb(63 63 70)",
+              ? `oklch(${0.72 - Math.abs(i - BAR_COUNT / 2) * 0.0025} ${0.16 + (i % 5) * 0.01} ${250 + (i - BAR_COUNT / 2) * 0.9})`
+              : "oklch(0.24 0.01 265)",
+            opacity: active ? 1 : 0.55,
           }}
         />
       ))}
@@ -40,74 +41,146 @@ export function Waveform({ level, active }: { level: number; active: boolean }) 
   );
 }
 
-/**
- * Orb — the main AI avatar. Pulses while AI is speaking, steady while listening.
- */
-export function AIOrb({ state }: { state: "idle" | "listening" | "thinking" | "speaking" }) {
+function OrbIdleContent() {
   return (
-    <div className="relative flex items-center justify-center w-32 h-32">
-      {/* Outer pulse rings */}
-      {state === "speaking" && (
-        <>
-          <div className="absolute inset-0 rounded-full border border-blue-500/20 animate-ping" style={{ animationDuration: "1.5s" }} />
-          <div className="absolute inset-[-8px] rounded-full border border-blue-500/10 animate-ping" style={{ animationDuration: "2s" }} />
-        </>
-      )}
-      {state === "listening" && (
-        <div className="absolute inset-0 rounded-full border border-white/10 animate-ping" style={{ animationDuration: "2s" }} />
-      )}
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      <circle cx="18" cy="18" r="5" stroke="oklch(0.38 0.04 265)" strokeWidth="1.5" />
+      <circle cx="18" cy="18" r="11" stroke="oklch(0.24 0.03 265)" strokeWidth="0.75" strokeDasharray="2.5 4" />
+      <circle cx="18" cy="18" r="2" fill="oklch(0.3 0.03 265)" />
+    </svg>
+  );
+}
 
-      {/* Core orb */}
-      <div
-        className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500
-          ${state === "speaking" ? "bg-blue-600/20 border-2 border-blue-500/60 shadow-[0_0_40px_rgba(59,130,246,0.3)]"
-          : state === "thinking" ? "bg-amber-600/10 border-2 border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.2)]"
-          : state === "listening" ? "bg-white/5 border-2 border-white/30"
-          : "bg-zinc-900 border-2 border-zinc-700"}`}
-      >
-        <OrbIcon state={state} />
-      </div>
+function OrbListeningContent() {
+  return (
+    <div className="flex h-[30px] items-end gap-[3px] pb-[3px]">
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+        <div
+          key={i}
+          className="w-[3px] rounded-[2px] bg-[oklch(0.92_0.006_260)]"
+          style={{
+            animation: `agWaveBar ${350 + i * 60}ms ease-in-out ${i * 50}ms infinite alternate`,
+          }}
+        />
+      ))}
     </div>
   );
 }
 
-function OrbIcon({ state }: { state: string }) {
-  if (state === "thinking") {
-    return (
-      <div className="flex gap-1">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="w-2 h-2 rounded-full bg-amber-400 animate-bounce"
-            style={{ animationDelay: `${i * 150}ms` }}
-          />
-        ))}
-      </div>
-    );
-  }
-  if (state === "speaking") {
-    return (
-      <svg className="w-8 h-8 text-blue-400" fill="none" viewBox="0 0 24 24">
-        <path d="M12 2a3 3 0 013 3v6a3 3 0 01-6 0V5a3 3 0 013-3z" fill="currentColor" opacity="0.8" />
-        <path d="M5 10a7 7 0 0014 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="12" y1="21" x2="12" y2="17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (state === "listening") {
-    return (
-      <svg className="w-8 h-8 text-white/70" fill="none" viewBox="0 0 24 24">
-        <path d="M12 2a3 3 0 013 3v6a3 3 0 01-6 0V5a3 3 0 013-3z" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M5 10a7 7 0 0014 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="12" y1="21" x2="12" y2="17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
+function OrbThinkingContent() {
   return (
-    <svg className="w-7 h-7 text-zinc-600" fill="none" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
+    <div className="flex items-center gap-[6px]">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="h-[7px] w-[7px] rounded-full bg-[var(--ag-amber)]"
+          style={{ animation: `agBounce 900ms ease-in-out ${i * 200}ms infinite` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function OrbSpeakingContent() {
+  return (
+    <div className="relative flex h-11 w-11 items-center justify-center">
+      {[14, 22, 30].map((r, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: r * 2,
+            height: r * 2,
+            border: `1.5px solid oklch(0.65 0.22 258 / ${0.75 - i * 0.22})`,
+            animation: `agRingPulse ${700 + i * 250}ms ease-out ${i * 180}ms infinite`,
+          }}
+        />
+      ))}
+      <div className="h-2 w-2 rounded-full bg-[oklch(0.88_0.18_258)] shadow-[0_0_12px_oklch(0.65_0.22_258)]" />
+    </div>
+  );
+}
+
+export function AIOrb({ state }: { state: "idle" | "listening" | "thinking" | "speaking" }) {
+  const orbConfig = {
+    idle: {
+      bg: "radial-gradient(ellipse at 38% 30%, oklch(0.22 0.025 265) 0%, oklch(0.11 0.015 265) 55%, oklch(0.07 0.01 270) 100%)",
+      border: "1px solid oklch(0.27 0.03 265 / 0.9)",
+      shadow: "none",
+      glow: "transparent",
+      rings: [] as string[],
+    },
+    listening: {
+      bg: "radial-gradient(ellipse at 38% 30%, oklch(0.93 0.007 260) 0%, oklch(0.65 0.035 260) 40%, oklch(0.18 0.02 265) 100%)",
+      border: "1px solid oklch(0.85 0.012 260 / 0.6)",
+      shadow: "0 0 30px oklch(0.85 0.01 260 / 0.15), 0 0 80px oklch(0.85 0.01 260 / 0.07)",
+      glow: "oklch(0.85 0.01 260 / 0.18)",
+      rings: ["oklch(0.85 0.01 260 / 0.22)", "oklch(0.85 0.01 260 / 0.12)", "oklch(0.85 0.01 260 / 0.06)"],
+    },
+    thinking: {
+      bg: "radial-gradient(ellipse at 38% 30%, oklch(0.82 0.14 68) 0%, oklch(0.52 0.16 65) 42%, oklch(0.13 0.02 265) 100%)",
+      border: "1px solid oklch(0.65 0.18 68 / 0.55)",
+      shadow: "0 0 30px oklch(0.65 0.18 68 / 0.18), 0 0 70px oklch(0.65 0.18 68 / 0.08)",
+      glow: "oklch(0.65 0.18 68 / 0.22)",
+      rings: [] as string[],
+    },
+    speaking: {
+      bg: "radial-gradient(ellipse at 38% 30%, oklch(0.8 0.2 258) 0%, oklch(0.46 0.22 258) 42%, oklch(0.12 0.02 265) 100%)",
+      border: "1px solid oklch(0.63 0.22 258 / 0.65)",
+      shadow: "0 0 40px oklch(0.6 0.22 258 / 0.22), 0 0 100px oklch(0.5 0.2 258 / 0.12)",
+      glow: "oklch(0.6 0.22 258 / 0.28)",
+      rings: ["oklch(0.63 0.22 258 / 0.3)", "oklch(0.63 0.22 258 / 0.14)"],
+    },
+  } as const;
+
+  const cfg = orbConfig[state] ?? orbConfig.idle;
+
+  return (
+    <div className="relative flex h-[200px] w-[200px] items-center justify-center">
+      {cfg.glow !== "transparent" && (
+        <div
+          className="absolute inset-[-40px] rounded-full blur-[18px]"
+          style={{
+            background: `radial-gradient(ellipse at 50% 50%, ${cfg.glow}, transparent 65%)`,
+          }}
+        />
+      )}
+      {cfg.rings.map((color, i) => (
+        <div
+          key={`${state}-${i}`}
+          className="absolute rounded-full"
+          style={{
+            inset: -(16 + i * 16),
+            border: `1px solid ${color}`,
+            animation: `agRingPulse ${1400 + i * 500}ms ease-out ${i * 350}ms infinite`,
+          }}
+        />
+      ))}
+      {state === "thinking" && (
+        <div
+          className="absolute inset-[-14px] rounded-full border-[1.5px] border-dashed border-[oklch(0.65_0.18_68_/_0.45)]"
+          style={{ animation: "agSpin 4s linear infinite" }}
+        />
+      )}
+      <div
+        className="relative flex h-[148px] w-[148px] items-center justify-center overflow-hidden rounded-full transition-all duration-700"
+        style={{
+          background: cfg.bg,
+          border: cfg.border,
+          boxShadow: cfg.shadow,
+        }}
+      >
+        <div
+          className="pointer-events-none absolute left-[16%] top-[9%] h-[24%] w-[36%] rounded-full"
+          style={{
+            background: "radial-gradient(ellipse, rgba(255,255,255,0.14), transparent 80%)",
+          }}
+        />
+        {state === "idle" && <OrbIdleContent />}
+        {state === "listening" && <OrbListeningContent />}
+        {state === "thinking" && <OrbThinkingContent />}
+        {state === "speaking" && <OrbSpeakingContent />}
+      </div>
+    </div>
   );
 }
