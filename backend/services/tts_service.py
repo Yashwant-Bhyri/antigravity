@@ -171,7 +171,18 @@ class TTSService:
         if isinstance(error, ApiError):
             detail = str(error).lower()
             quota_exhausted = "quota_exceeded" in detail or "credits remaining" in detail
+            unusual_activity_block = (
+                "detected_unusual_activity" in detail
+                or "unusual activity detected" in detail
+                or "free tier usage disabled" in detail
+            )
             if quota_exhausted:
+                return True
+            if unusual_activity_block:
+                return True
+            if error.status_code == 401:
+                # Authentication or policy-based blocks from ElevenLabs should not
+                # hard-fail the interview when Cartesia is available.
                 return True
             return error.status_code in {429, 500, 502, 503, 504}
         return False

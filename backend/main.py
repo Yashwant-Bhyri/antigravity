@@ -68,6 +68,7 @@ app = FastAPI(
 
 # Add CORS so the frontend can talk to the backend
 _cors_extra = [o.strip() for o in os.getenv("ANTIGRAVITY_CORS_ORIGINS", "").split(",") if o.strip()]
+_frontend_url = (os.getenv("FRONTEND_URL") or "").strip()
 _allow_origins = _cors_extra or [
     "http://localhost:3000",
     "http://localhost:3001",
@@ -78,10 +79,14 @@ _allow_origins = _cors_extra or [
     "https://provenhire.in",
     "https://www.provenhire.in",
 ]
+if _frontend_url:
+    _allow_origins.append(_frontend_url)
+_allow_origins = list(dict.fromkeys(_allow_origins))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allow_origins,
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
