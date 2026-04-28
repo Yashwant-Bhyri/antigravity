@@ -107,7 +107,7 @@ export default function InterviewPage() {
   const [complete, setComplete] = useState(false);
   const [nearEnd, setNearEnd] = useState(false);
   const [error, setError] = useState("");
-  const [showCamera, setShowCamera] = useState(false);
+  const [showCamera, setShowCamera] = useState(true);
   const [sessionSnapshot, setSessionSnapshot] = useState<SessionSnapshot | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(true);
   const [bootingMode, setBootingMode] = useState<"new" | "resume" | "fresh" | null>(null);
@@ -153,6 +153,14 @@ export default function InterviewPage() {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     }
+  }, []);
+
+  const ensureMediaPermissions = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("This browser cannot request microphone and camera permissions.");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    stream.getTracks().forEach((track) => track.stop());
   }, []);
 
   const teardownActiveSession = useCallback(() => {
@@ -733,6 +741,7 @@ export default function InterviewPage() {
 
   async function startInterview() {
     try {
+      await ensureMediaPermissions();
       const state = await fetchSessionSnapshot();
       if (!state) return;
 
@@ -754,6 +763,7 @@ export default function InterviewPage() {
 
   async function resumeInterview() {
     try {
+      await ensureMediaPermissions();
       const state = await fetchSessionSnapshot();
       if (!state) return;
       await bootInterview(state, "resume");
@@ -776,6 +786,7 @@ export default function InterviewPage() {
     resetInterviewUi();
 
     try {
+      await ensureMediaPermissions();
       const prepareRes = await fetch(`${API}/prepare_interview_map`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

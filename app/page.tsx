@@ -42,12 +42,20 @@ export default function Home() {
   const [targetRole, setTargetRole] = useState("");
   const [yearsExperience, setYearsExperience] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState<"preparing" | "starting" | "">("");
+  const [loadingStage, setLoadingStage] = useState<"permissions" | "preparing" | "starting" | "">("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     fetch(`${getApiBaseUrl()}/tts_health`, { cache: "no-store" }).catch(() => {});
   }, []);
+
+  async function ensureMediaPermissions() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("This browser cannot request microphone and camera permissions.");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    stream.getTracks().forEach((track) => track.stop());
+  }
 
   async function startInterview() {
     if (!resume.trim()) {
@@ -64,10 +72,20 @@ export default function Home() {
     }
 
     setLoading(true);
-    setLoadingStage("preparing");
+    setLoadingStage("permissions");
     setError("");
+    try {
+      await ensureMediaPermissions();
+    } catch (e) {
+      setError(`Microphone and camera access are required before the interview can start: ${String(e)}`);
+      setLoading(false);
+      setLoadingStage("");
+      return;
+    }
+
+    setLoadingStage("preparing");
     const prepareController = new AbortController();
-    const prepareTimeout = setTimeout(() => prepareController.abort(), 125000);
+    const prepareTimeout = setTimeout(() => prepareController.abort(), 245000);
 
     try {
       const prepareRes = await fetch(`${getApiBaseUrl()}/prepare_interview_map`, {
@@ -170,7 +188,7 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--ag-text-3)]">
               <span>~30 minute session</span>
               <span className="h-1 w-1 rounded-full bg-[var(--ag-border-strong)]" />
-              <span>Microphone required</span>
+              <span>Mic + camera required</span>
               <span className="h-1 w-1 rounded-full bg-[var(--ag-border-strong)]" />
               <span>Resume-grounded pressure test</span>
             </div>
@@ -249,13 +267,15 @@ export default function Home() {
                 <div className="space-y-3 pt-2">
                   <AGButton onClick={startInterview} disabled={loading} className="w-full">
                     {loading
-                      ? loadingStage === "starting"
+                      ? loadingStage === "permissions"
+                        ? "Checking mic + camera…"
+                        : loadingStage === "starting"
                         ? "Starting interview…"
                         : "Preparing interview map…"
                       : "Begin Interview →"}
                   </AGButton>
                   <p className="text-center text-xs text-[var(--ag-text-3)]">
-                    We build the questioning map before launch. Allow microphone access when prompted and let the silence boundaries settle.
+                    We request microphone and camera access before launch, then build the questioning map before the live interview engages.
                   </p>
                 </div>
               </div>

@@ -20,8 +20,97 @@ import asyncio
 import json
 import re
 import time
+from typing import Any
+
+from pydantic import BaseModel, Field, ValidationError
 
 from backend.models.llm_router import LLMRouter
+
+
+# ── Pydantic output schemas ───────────────────────────────────────────────────
+# These enforce structure on LLM-generated JSON. Validation errors are caught
+# and converted to partial-recovery dicts — never raised to callers.
+
+class _DimensionSchema(BaseModel):
+    id: str = ""
+    label: str = ""
+    resume_anchor: str = ""
+    surface: str = ""
+    mechanism: str = ""
+    boundary: str = ""
+
+class _RecoverySchema(BaseModel):
+    short_answer: str = ""
+    honest_gap: str = ""
+    claim_conflict: str = ""
+    metric_risk: str = ""
+    overclaim_risk: str = ""
+    bridge: str = ""
+
+class _TrackSchema(BaseModel):
+    opener: str = ""
+    dimensions: list[_DimensionSchema] = Field(default_factory=list)
+    recovery: _RecoverySchema = Field(default_factory=_RecoverySchema)
+
+class _FocusAreaPlanSchema(BaseModel):
+    label: str = ""
+    focus_key: str = ""
+    anchor_context: str = ""
+    sub_focuses: list[str] = Field(default_factory=list)
+    resume_snippets: list[str] = Field(default_factory=list)
+    why_priority: str = ""
+
+class _FocusPlanSchema(BaseModel):
+    focus_areas: list[_FocusAreaPlanSchema] = Field(default_factory=list)
+
+class _FocusReviewSchema(BaseModel):
+    focus_key: str = ""
+    label: str = ""
+    score: float = 6.0
+    opener_issue: str = ""
+    issues: list[str] = Field(default_factory=list)
+
+class _CriticSchema(BaseModel):
+    ready: bool = False
+    overall_score: float = 6.0
+    top_two_score: float = 6.0
+    opener_quality_score: float = 6.0
+    dimension_depth_score: float = 6.0
+    strengths: list[str] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
+    repair_instructions: list[str] = Field(default_factory=list)
+    focus_reviews: list[_FocusReviewSchema] = Field(default_factory=list)
+
+
+def _validate_schema(raw: Any, model_cls: type[BaseModel]) -> tuple[dict, list[str]]:
+    """
+    Validate `raw` against `model_cls`. Returns (validated_dict, schema_errors).
+    Never raises. On partial failure, falls back field-by-field so valid data is kept.
+    """
+    if not isinstance(raw, dict):
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except json.JSONDecodeError:
+                return model_cls().model_dump(), ["raw output was not valid JSON"]
+        else:
+            return model_cls().model_dump(), [f"raw output type {type(raw).__name__} not a dict"]
+
+    try:
+        return model_cls.model_validate(raw).model_dump(), []
+    except ValidationError as exc:
+        errors = [f"{e['loc']}: {e['msg']}" for e in exc.errors()]
+        # Partial recovery: start from model defaults, override with valid fields
+        defaults = model_cls().model_dump()
+        for key, value in raw.items():
+            if key not in defaults:
+                continue
+            try:
+                partial = model_cls.model_validate({key: value})
+                defaults[key] = getattr(partial, key)
+            except (ValidationError, Exception):
+                pass
+        return defaults, errors
 
 
 _VALID_BRANCHES = {
@@ -66,6 +155,12 @@ ROUTE_FOLLOWUP = "trajectory_map_followup"
 ROUTE_BRIDGE = "trajectory_map_bridge"
 ROUTE_CHALLENGE = "trajectory_map_challenge"
 ROUTE_STRONG = "trajectory_map_strong_followup"
+ROUTE_OPENER = "trajectory_map_opener"
+ROUTE_METRIC_PROBE = "trajectory_map_metric_probe"
+ROUTE_OVERCLAIM_PROBE = "trajectory_map_overclaim_probe"
+ROUTE_SURFACE = "trajectory_map_surface"
+ROUTE_MECHANISM = "trajectory_map_mechanism"
+ROUTE_BOUNDARY = "trajectory_map_boundary"
 
 _BRANCH_TO_ROUTE = {
     "if_short_answer": ROUTE_SHORT_ANSWER_RESCUE,
@@ -76,18 +171,54 @@ _BRANCH_TO_ROUTE = {
     "if_vague": ROUTE_FOLLOWUP,
 }
 
+_DEPTH_TO_ROUTE = {
+    1: ROUTE_SURFACE,
+    2: ROUTE_MECHANISM,
+    3: ROUTE_BOUNDARY,
+}
 
-_TRACK_SYSTEM = """You are designing an elite interviewer's fallback spine for one specific resume focus area.
+_OVERCLAIM_VOCAB: frozenset[str] = frozenset({
+    "latent", "manifold", "diffusion", "embedding", "embeddings",
+    "semantic", "attention", "transformer", "feature", "conditioning",
+    "steering", "activation", "gradient", "inference", "quantization",
+    "distillation", "fine-tuning", "finetuning", "alignment", "rlhf",
+})
 
-Your job is not to brainstorm generic prompts. Your job is to write surgical, interviewer-quality moves that:
-- stay on the exact focus area named
-- test ownership, implementation detail, mechanism understanding, honesty, and design judgment
-- sound like a strong human interviewer who remembers the candidate's background
-- treat the provided exact resume snippets as the source of truth for what the candidate claimed
 
-You must avoid all lazy or generic interview language.
-Every branch should feel usable in a real adversarial technical interview without further editing.
-Do not invent technologies, scale requirements, ownership, or artifacts that are not grounded in the provided resume context."""
+_TRACK_SYSTEM = """You are an expert technical interviewer designing a precision interview track for one specific resume focus area.
+
+Your goal: write questions that find where a candidate's knowledge actually ends — not what vocabulary they know, but what they can explain mechanistically from genuine hands-on experience.
+
+The track has three layers:
+1. opener — one question anchored on the most specific, provable claim in this focus area
+2. dimensions — 4–6 axes along which knowledge can be probed, grounded in resume evidence
+3. recovery — 6 response-type overlays usable at any point regardless of which dimension is active
+
+Opener rules:
+- Reference the single most specific artifact or technology named in the resume snippets
+- Pick one end of the problem as a starting hypothesis — do not ask about everything at once
+- Must be consistent with dimensions[0]: the opener enters that dimension
+- Max 24 words. No "walk me through" or "tell me about" — those invite monologue
+- The answer should be answerable at different depths: shallowness reveals itself quickly
+
+Dimension rules (generate 4–6, each grounded in actual resume evidence):
+- surface: confirms the concept exists in their experience (basic familiarity is enough to answer)
+- mechanism: tests whether they understand WHY it works — genuine implementation depth required
+- boundary: designed to be unanswerable if they only read documentation or didn't personally own this
+- Each probe must name the specific artifact, technology, or result from resume_anchor
+- Probes must escalate: surface < mechanism < boundary in required depth
+- Do not repeat angles across dimensions
+- If sub_focuses are listed, ensure at least one dedicated dimension per sub_focus — a multi-surface focus area must probe every listed surface, not just the first one
+
+Recovery rules (one set covers the entire focus area):
+- short_answer: rescue a 1–8 word answer by naming the specific artifact and asking one concrete thing
+- honest_gap: reward admission, pivot to what they do understand in this focus area
+- claim_conflict: confront a specific contradiction between their answer and the resume claim
+- metric_risk: when they cite a number without methodology — ask for baseline, measurement method, what was counted
+- overclaim_risk: when they use domain vocabulary without operational grounding — ask what that term does in their specific implementation
+- bridge: natural pivot that explicitly names the next focus area
+
+Output: return ONLY JSON. No commentary, no markdown fences, no placeholders."""
 
 _TRACK_USER_TEMPLATE = """Candidate background:
 {resume_context}
@@ -95,61 +226,43 @@ _TRACK_USER_TEMPLATE = """Candidate background:
 Current focus area:
 - Label: {label}
 - Focus key: {focus_key}
-- Supporting resume details: {anchor_context}
-- Exact resume snippets:
+- Resume anchor: {anchor_context}
+{sub_focuses_block}- Exact resume snippets:
 {resume_snippets}
-- Example next focus for a natural bridge: {next_focus_label}
-
-Return ONLY a JSON object with this exact structure:
+- Next focus area (for bridge): {next_focus_label}
+- Critic guidance: {repair_guidance}
+{prior_track_context}
+Return ONLY this JSON structure (no markdown, no commentary):
 {{
-  "sprint_1": {{
-    "if_strong": "implementation/depth follow-up if they show real ownership",
-    "if_vague": "ownership/mechanism probe if they answer vaguely",
-    "if_honest_gap": "honesty-aware question that rewards admission and pivots to what they do know",
-    "if_claim_conflict": "specific contradiction probe if answer conflicts with resume claim",
-    "if_short_answer": "rescue question for a 1-5 word answer",
-    "bridge_to_next_focus": "natural pivot from this focus area toward {next_focus_label}"
-  }},
-  "sprint_2": {{
-    "if_strong": "...",
-    "if_vague": "...",
-    "if_honest_gap": "...",
-    "if_claim_conflict": "...",
-    "if_short_answer": "...",
-    "bridge_to_next_focus": "..."
-  }},
-  "sprint_3": {{
-    "if_strong": "...",
-    "if_vague": "...",
-    "if_honest_gap": "...",
-    "if_claim_conflict": "...",
-    "if_short_answer": "...",
-    "bridge_to_next_focus": "..."
+  "opener": "one question — specific hypothesis anchored on exact artifact/tech, max 24 words",
+  "dimensions": [
+    {{
+      "id": "snake_case_dimension_id",
+      "label": "short dimension label",
+      "resume_anchor": "exact or near-exact resume claim this dimension probes",
+      "surface": "question confirming basic familiarity — answerable with minimal depth",
+      "mechanism": "question requiring genuine implementation understanding",
+      "boundary": "question unanswerable without real hands-on ownership of this artifact"
+    }}
+  ],
+  "recovery": {{
+    "short_answer": "rescue for 1-8 word answers — names artifact, asks one concrete thing",
+    "honest_gap": "reward honesty, pivot to what they do understand here",
+    "claim_conflict": "confront the specific contradiction between answer and resume claim",
+    "metric_risk": "probe measurement methodology — what was counted, what baseline, what method",
+    "overclaim_risk": "ask what the technical vocabulary does in their specific implementation",
+    "bridge": "pivot that explicitly names {next_focus_label}"
   }}
 }}
 
-Branch intent:
-- sprint_1 / if_strong: deepen ownership, implementation decision, concrete build choices
-- sprint_1 / if_vague: force specificity about what they personally built or configured
-- sprint_1 / if_honest_gap: reward honesty, then pivot to the part they do understand
-- sprint_1 / if_claim_conflict: confront mismatch between claim and answer with a concrete ownership probe
-- sprint_1 / if_short_answer: rescue a 1-5 word answer without sounding generic
-- sprint_1 / bridge_to_next_focus: natural pivot sentence that names the next focus
-
-- sprint_2 branches: mechanism, concepts, tradeoffs, measurement, debugging, instrumentation
-- sprint_3 branches: scale, failure modes, reliability, production design consequences
-
 Hard rules:
-- every question must explicitly reference this focus area, its artifact, or its technologies/claims
-- every question must stay grounded in the exact resume snippets / anchor context above
-- do not drift to another project unless the branch is bridge_to_next_focus
-- do not ask broad generic questions like "what would you do differently?" unless tied to a named artifact, mechanism, or constraint
-- do not produce filler phrases like "interesting" or "got it"
-- avoid repeating the exact same angle across branches
-- keep each question <= 24 words
-- bridge_to_next_focus and sprint pivots must explicitly signal the transition in the question itself, e.g. "Switching to your..." or "On the systems side of..."
-- do not invent technologies, scale, latency targets, or ownership claims missing from the snippets above
-- no markdown fences, no commentary, JSON only
+- opener must enter dimensions[0] — they must be consistent
+- 4–6 dimensions, every dimension must have a real resume_anchor from the snippets above
+- boundary probes must be unanswerable by someone who only read documentation
+- recovery.bridge must explicitly name "{next_focus_label}"
+- keep each question ≤ 24 words
+- do not invent technologies, metrics, ownership, or scale not present in the resume snippets
+- no markdown, no commentary, JSON only
 """
 
 _GENERIC_PHRASES = (
@@ -390,12 +503,18 @@ def _resume_work_entries(resume: str) -> list[dict]:
 
 def _derive_entry_label(header: str, details: list[str]) -> str:
     header = re.sub(r"\s+", " ", header).strip(" -,:")
-    for separator in (":", "@"):
-        if separator in header:
-            header = header.split(separator, 1)[0 if separator == "@" else 1].strip(" -,:")
-            break
+    # Em-dash separates "Role — Topic [Org]  Dates": take the topic side
+    if "—" in header or " - " in header:
+        sep = "—" if "—" in header else " - "
+        header = header.split(sep, 1)[1].strip(" -,:")
+    else:
+        for separator in (":", "@"):
+            if separator in header:
+                header = header.split(separator, 1)[0 if separator == "@" else 1].strip(" -,:")
+                break
+    header = re.sub(r"\[(.*?)\]", r"\1", header).strip()  # expand brackets: [HKU x Google] → HKU x Google
+    header = re.sub(r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s–\-]+[A-Za-z]*\s*(20\d{2})?\b", "", header, flags=re.IGNORECASE).strip(" -,:")
     header = re.sub(r"\b(20\d{2}.*|present)\b", "", header, flags=re.IGNORECASE).strip(" -,:")
-    header = re.sub(r"\[(.*?)\]", "", header).strip()
     if "," in header and len(header.split()) > 6:
         header = header.split(",", 1)[0].strip()
 
@@ -417,6 +536,23 @@ def _prettify_focus_label(label: str) -> str:
     cleaned = re.sub(r"\s+", " ", label).strip(" -,.")
     if not cleaned:
         return "Recent Technical Work"
+    # Strip role prefix before em-dash: "Research Assistant — Topic" → "Topic"
+    if "—" in cleaned or " – " in cleaned:
+        sep = "—" if "—" in cleaned else " – "
+        right = cleaned.split(sep, 1)[1].strip(" -,.")
+        if right:
+            cleaned = right
+    # Strip month ranges like "Jun–Sep 2025" and bare years
+    cleaned = re.sub(
+        r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s–\-]+[A-Za-z]*\s*(20\d{2})?\b",
+        "", cleaned, flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"\b20\d{2}\b", "", cleaned)
+    # Normalize square brackets to parens so org names stay in token set
+    cleaned = re.sub(r"\[([^\]]*?)\]", r"(\1)", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" -,.")
+    if not cleaned:
+        return "Recent Technical Work"
     replacements = {
         "Aigc": "AIGC",
         "Tinyml": "TinyML",
@@ -427,6 +563,10 @@ def _prettify_focus_label(label: str) -> str:
         "Mfcc": "MFCC",
         "Npu": "NPU",
         "Dsp": "DSP",
+        "Llms": "LLMs",
+        "Llm": "LLM",
+        "Hku": "HKU",
+        "Ml": "ML",
     }
     words = []
     for word in cleaned.title().split():
@@ -694,55 +834,10 @@ def _fallback_focus_seeds_from_resume(resume: str, limit: int = 5) -> list[dict]
     return seeds
 
 
-_SEED_SYSTEM = """You are reading a candidate's resume to identify the most interview-worthy focus areas.
-Return only real projects, internships, research efforts, or technical work from the resume text itself.
-Never return locations, universities, URLs, section headers, scholarships, or generic skill buckets.
-Do not invent focus areas that are not explicitly supported by the resume."""
-
-_SEED_USER_TEMPLATE = """Resume:
-{resume}
-
-Return a JSON array of 3-5 focus areas worth interviewing on. Each must be a specific project, role, or technical claim from this resume.
-
-Return ONLY a JSON array, no commentary:
-[
-  {{
-    "label": "short human-readable name (e.g. 'TinyML Audio Pipeline' or 'Filmora AIGC Internship')",
-    "focus_key": "snake_case_identifier",
-    "anchor_context": "1-2 sentence summary of what they claimed to build or do here"
-  }}
-]
-
-Rules:
-- Only include real technical work: projects, internships, research, deployed systems
-- Never include: universities, cities, countries, URLs, skill lists, GPA, scholarship names
-- focus_key must be lowercase with underscores, max 6 words"""
-
-_ARTIFACT_SYSTEM = """You extract only the most interview-worthy technical artifacts from a resume.
-Return concrete build surfaces like pipelines, systems, interfaces, benchmarks, classifiers, schema work, or control systems.
-Never return education, awards, locations, contact details, or role titles by themselves."""
-
-_ARTIFACT_USER_TEMPLATE = """Resume:
-{resume}
-
-Return ONLY a JSON array:
-[
-  {{
-    "label": "artifact label like 'TinyML Audio Classification Pipeline' or 'Feature-Map Control System'",
-    "anchor_context": "the exact claim or short paraphrase of what they built"
-  }}
-]
-
-Rules:
-- prefer artifact labels over role labels
-- if a role contains multiple real artifacts, split them
-- never return schools, scholarships, cities, countries, or skill buckets
-- keep labels short and human-readable
-- JSON only"""
 
 _FOCUS_SEED_TIMEOUT_SECONDS = 8.0
 _FOCUS_TRACK_TIMEOUT_SECONDS = 6.5
-_FOCUS_TRACK_BACKGROUND_TIMEOUT_SECONDS = 20.0
+_FOCUS_TRACK_BACKGROUND_TIMEOUT_SECONDS = 75.0  # Sonnet 4.6 at 1500 tokens takes 30-60s
 _FOCUS_TRACK_BUILD_DEADLINE_SECONDS = 15.0
 _FOCUS_TRACK_MAX_AREAS = 4
 _RICH_MAP_BANNED_LABEL_TOKENS = (
@@ -763,6 +858,714 @@ _RICH_MAP_CORE_BRANCHES = {
     "sprint_2.if_strong",
     "sprint_3.if_strong",
 }
+# Equivalent richness gate for new dimension schema — must have opener + ≥3 dims + full recovery
+_DIM_RECOVERY_REQUIRED = {
+    "short_answer", "honest_gap", "claim_conflict", "metric_risk", "overclaim_risk", "bridge",
+}
+_MAP_TARGET_FOCUS_AREAS = 5   # upper bound — Haiku decides actual count (2–5) from resume quality
+_MAP_MIN_FOCUS_AREAS = 2      # minimum acceptable after Haiku selection
+_MAP_PASS_ONE_TRACKS = 2      # startup-critical focus areas that must be strong before launch
+_MAP_MIN_READY_SCORE = 7.0
+_MAP_GENERATOR_MODEL = "anthropic/claude-sonnet-4-6"
+_MAP_CRITIC_MODEL = "anthropic/claude-sonnet-4-6"
+_MAP_PRIMARY_MAX_TOKENS = 2200
+_MAP_RETRY_MAX_TOKENS = 1600
+_MAP_JSON_RESPONSE_FORMAT = {"type": "json_object"}
+_FOCUS_PLAN_PRIMARY_MAX_TOKENS = 1600  # up to 5 areas × ~300 tokens each
+_FOCUS_PLAN_RETRY_MAX_TOKENS = 1000
+_MAP_CRITIC_MAX_TOKENS = 1800   # critic JSON with up to 5 focus reviews
+
+_MAP_CRITIC_SYSTEM = """You are a pragmatic interview-map critic.
+
+Review the proposed map like a strong senior interviewer. Your job is to improve the map, not to block it over minor imperfections.
+
+Judge all focus areas carefully — the map may have 2 to 5 areas and every one is startup-critical:
+- are the chosen focus areas distinct and non-redundant? Two areas from the same role must probe different technical surfaces.
+- is each opener anchored to a specific, provable resume claim? No "walk me through" or generic invitations to monologue.
+- does each opener enter a clear first dimension rather than asking about everything at once?
+- do the dimensions have genuine resume grounding — not generic dimension types applied without evidence?
+- does each dimension escalate correctly: surface (basic familiarity) → mechanism (genuine depth) → boundary (unanswerable without real ownership)?
+- do the boundary probes require actual hands-on work to answer — not just documentation reading?
+- does the recovery set cover short answers, honest gaps, claim conflicts, metric claims without methodology, and vocabulary overclaims?
+- does the bridge explicitly name the next focus area?
+
+Mark ready=true when every focus area has a strong opener, ≥3 grounded dimensions, and a complete recovery overlay.
+Prioritize actionable repair instructions over harsh rejection.
+
+Return JSON only."""
+
+_FOCUS_PLAN_SYSTEM = """You are a senior technical interviewer deciding which resume experiences are worth deep probing.
+
+Return 2 to 5 focus areas. Exactly as many as genuinely qualify — stop at 2 if only 2 experiences are truly interview-worthy, go to 5 if 5 distinct experiences each clear the bar. Do not pad; do not artificially cap.
+
+RANKING PRIORITY (apply in order):
+1. Most recent internship with specific technical system names (e.g. "Google ADK pipeline", "Veo-3 seed regeneration") — rank this #1
+2. Second most recent internship or research with measurable technical claims (latency, accuracy %, cost reduction)
+3–5. Additional entries only if each one introduces genuinely different technical territory (different domain, stack, or problem class) and contains defensible implementation depth
+
+INCLUDE:
+- systems the candidate claims to have personally built end-to-end
+- experiences with specific model names, API names, architecture decisions, or metrics the candidate would have to defend
+- work where "how did you measure that?" or "what did you personally write?" has an interesting answer
+
+EXCLUDE:
+- education, scholarships, skills lists, contact info
+- coursework with no novel contribution beyond the assignment
+- bullets that only list tool names with no architecture ("used Python, Pandas, SQL")
+- vague contributions ("contributed to", "helped with", "assisted")
+- rudimentary or introductory work not worth a senior interviewer's time
+
+DEDUPLICATION RULES (critical — violations cause map failure):
+- If one internship or project has multiple impressive technical angles, merge them into ONE wider focus area. The dimensions inside that area will cover all the angles — do not allocate two separate focus area slots to the same work.
+- Each additional focus area slot must represent a DIFFERENT company, project, or research effort from all prior slots.
+- If you are tempted to create two areas from the same company/project, combine their technical surfaces into one richer area and use the freed slot for a genuinely different project.
+
+SUB-FOCUS INSTRUCTION:
+When a single focus area covers multiple distinct technical surfaces (e.g. an ADK orchestration pipeline AND a feature-map control system), list each surface as a short phrase in sub_focuses. The track generator uses this list to guarantee at least one dimension per sub-focus — so be explicit. Sub-focus phrases should be 5–12 words, grounded in the resume. If a focus area has only one coherent technical surface, sub_focuses may be empty or contain just that one phrase.
+
+JSON only, no markdown, no commentary."""
+
+
+def _json_text(value: object) -> str:
+    return json.dumps(value, ensure_ascii=True, indent=2, sort_keys=True)
+
+
+def _affordable_token_budget_from_error(exc: Exception) -> int | None:
+    message = str(exc or "")
+    match = re.search(r"can only afford (\d+) tokens", message, flags=re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        affordable = int(match.group(1))
+    except Exception:
+        return None
+    return max(256, affordable - 32)
+
+
+
+def _map_critic_user_prompt(*, resume: str, candidate: dict, stage: str) -> str:
+    area_count = len((candidate.get("focus_areas") or []) if isinstance(candidate, dict) else [])
+    return "\n".join([
+        f"Review stage: {stage}",
+        "",
+        "Candidate resume:",
+        resume,
+        "",
+        "Proposed interview map candidate:",
+        _json_text(candidate),
+        "",
+        "Return ONLY JSON with this schema:",
+        "{",
+        '  "ready": true,',
+        '  "overall_score": 0,',
+        '  "top_two_score": 0,',
+        '  "opener_quality_score": 0,',
+        '  "dimension_depth_score": 0,',
+        '  "strengths": ["..."],',
+        '  "issues": ["..."],',
+        '  "repair_instructions": ["..."],',
+        '  "focus_reviews": [',
+        "    {",
+        '      "focus_key": "snake_case_identifier",',
+        '      "label": "focus label",',
+        '      "score": 0,',
+        '      "opener_issue": "",',
+        '      "issues": ["..."]',
+        "    }",
+        "  ]",
+        "}",
+        "",
+        "Scoring expectations:",
+        f"- use {_MAP_MIN_READY_SCORE} as a guideline for strong launch quality, not a rigid blocker",
+        f"- mark ready=true when all {area_count} focus areas have strong openers and ≥3 grounded dimensions",
+        "- opener_quality_score: 0-10, penalise generic walk-through openers, reward hypothesis-style anchored openers",
+        "- dimension_depth_score: 0-10, penalise dimensions where boundary probes could be answered from documentation alone",
+        "- prioritize actionable repair instructions over harsh rejection",
+        f"- keep response compact: at most 3 strengths, 3 issues, 4 repair instructions, focus_reviews for all {area_count} areas",
+        "- JSON only",
+    ])
+
+
+def _focus_plan_user_prompt(*, resume: str, dedup_hint: str = "") -> str:
+    lines = [
+        "Resume (full text):",
+        resume,
+        "",
+        "Return ONLY JSON with this schema:",
+        "{",
+        '  "focus_areas": [',
+        "    {",
+        '      "label": "topic-focused name, no dates, no role titles",',
+        '      "focus_key": "snake_case_identifier",',
+        '      "anchor_context": "one sentence: the exact system built or the specific technical claim",',
+        '      "sub_focuses": ["distinct technical surface 1", "distinct technical surface 2"],',
+        '      "resume_snippets": ["exact or near-exact quote from resume"],',
+        '      "why_priority": "what makes this worth probing hard"',
+        "    }",
+        "  ]",
+        "}",
+        "",
+        "Rules:",
+        "- 2 to 5 focus_areas, exactly as many as genuinely qualify — never pad, never cut a qualifying area",
+        "- area[0] must be the single most technically rich and recent experience",
+        "- each additional area must represent a DIFFERENT company, project, or research effort from the previous ones",
+        "- if one project has multiple technical angles, merge them into one wider area with those surfaces listed in sub_focuses — do not allocate two focus area slots to the same work",
+        "- each additional area must introduce genuinely different technical territory (different domain, stack, or problem class)",
+        "- labels: topic-focused ('AIGC Video Pipeline' not 'Software Engineer Intern')",
+        "- keep anchor_context under 180 chars, snippets under 160 chars each",
+        "- every value must be a single-line JSON string",
+        "- no track key, no extra keys, no markdown",
+    ]
+    if dedup_hint:
+        lines.extend([
+            "",
+            "CRITICAL — fix these problems from the previous attempt before returning:",
+            dedup_hint,
+            "In particular: if the same project appeared in multiple focus areas, merge those technical surfaces into one wider focus area and use the freed slot(s) for genuinely different projects.",
+        ])
+    return "\n".join(lines)
+
+
+def _clean_resume_snippets(snippets: object) -> list[str]:
+    cleaned: list[str] = []
+    for item in snippets if isinstance(snippets, list) else []:
+        value = _clean_track_value(item)
+        if value and value not in cleaned:
+            cleaned.append(value[:180])
+        if len(cleaned) >= 2:
+            break
+    return cleaned
+
+
+def _fallback_quality_review(candidate: dict, *, stage: str, issue: str) -> dict:
+    focus_areas = list(candidate.get("focus_areas", []) or []) if isinstance(candidate, dict) else []
+    detailed_tracks = sum(1 for area in focus_areas if isinstance(area.get("track"), dict))
+    top_two_detailed = sum(1 for area in focus_areas[:2] if isinstance(area.get("track"), dict))
+    overall_score = 7.6 if len(focus_areas) >= _MAP_MIN_FOCUS_AREAS and detailed_tracks >= 2 else 6.0
+    return {
+        "stage": stage,
+        "critic_model": _MAP_CRITIC_MODEL,
+        "ready": overall_score >= _MAP_MIN_READY_SCORE,
+        "overall_score": overall_score,
+        "top_two_score": 8.0 if top_two_detailed >= 2 else 6.0,
+        "opener_quality_score": min(len(focus_areas), _MAP_TARGET_FOCUS_AREAS) / _MAP_TARGET_FOCUS_AREAS * 10.0,
+        "dimension_depth_score": min(detailed_tracks, _MAP_TARGET_FOCUS_AREAS) / _MAP_TARGET_FOCUS_AREAS * 10.0,
+        "strengths": [
+            "Map generation completed and preserved the ranked focus areas.",
+            "Critic fallback kept the map moving instead of failing startup over malformed review JSON.",
+        ],
+        "issues": [issue],
+        "repair_instructions": [
+            "Sharpen weak or generic questions in the first two focus areas.",
+            "Regenerate any tracks that still rely on fallback phrasing.",
+        ],
+        "focus_reviews": [
+            {
+                "focus_key": _clean_track_value(area.get("focus_key", "")),
+                "label": _clean_track_value(area.get("label", "")),
+                "score": 8.0 if isinstance(area.get("track"), dict) else 6.0,
+                "issues": [] if isinstance(area.get("track"), dict) else ["Track missing or incomplete."],
+            }
+            for area in focus_areas[:_MAP_TARGET_FOCUS_AREAS]
+            if isinstance(area, dict)
+        ],
+    }
+
+
+def _coerce_critic_payload(raw: dict | str) -> dict:
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str):
+        raise ValueError("Critic response was not a JSON object.")
+
+    cleaned = raw.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        first = cleaned.find("{")
+        last = cleaned.rfind("}")
+        if first != -1 and last != -1 and last > first:
+            snippet = cleaned[first:last + 1]
+            try:
+                return json.loads(snippet)
+            except json.JSONDecodeError:
+                pass
+        raise
+
+
+def _recover_focus_areas_from_text(raw: str) -> list[dict]:
+    recovered: list[dict] = []
+    if not isinstance(raw, str):
+        return recovered
+    cleaned = raw.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+    object_pattern = re.compile(r"\{[^{}]*\"label\"\s*:\s*\"(?:[^\"\\\\]|\\\\.)*\"[\s\S]*?\}", re.MULTILINE)
+    for match in object_pattern.finditer(cleaned):
+        chunk = match.group(0)
+        label_match = re.search(r'"label"\s*:\s*"((?:[^"\\]|\\.)*)"', chunk)
+        if not label_match:
+            continue
+        focus_key_match = re.search(r'"focus_key"\s*:\s*"((?:[^"\\]|\\.)*)"', chunk)
+        anchor_match = re.search(r'"anchor_context"\s*:\s*"((?:[^"\\]|\\.)*)"', chunk)
+        priority_match = re.search(r'"why_priority"\s*:\s*"((?:[^"\\]|\\.)*)"', chunk)
+        snippets_match = re.search(r'"resume_snippets"\s*:\s*\[(.*?)\]', chunk, flags=re.S)
+        snippets: list[str] = []
+        if snippets_match:
+            snippets = [
+                _clean_track_value(bytes(value, "utf-8").decode("unicode_escape"))
+                for value in re.findall(r'"((?:[^"\\]|\\.)*)"', snippets_match.group(1))
+            ]
+        recovered.append({
+            "label": _clean_track_value(bytes(label_match.group(1), "utf-8").decode("unicode_escape")),
+            "focus_key": _clean_track_value(bytes((focus_key_match.group(1) if focus_key_match else ""), "utf-8").decode("unicode_escape")),
+            "anchor_context": _clean_track_value(bytes((anchor_match.group(1) if anchor_match else ""), "utf-8").decode("unicode_escape")),
+            "resume_snippets": snippets,
+            "why_priority": _clean_track_value(bytes((priority_match.group(1) if priority_match else ""), "utf-8").decode("unicode_escape")),
+        })
+        if len(recovered) >= _MAP_TARGET_FOCUS_AREAS:
+            break
+    return recovered
+
+
+def _normalize_candidate_focus_area(area: dict, *, resume: str, existing_labels: list[str]) -> dict | None:
+    if not isinstance(area, dict):
+        return None
+    label = _prettify_focus_label(_clean_track_value(area.get("label", "")))
+    if not label or _is_redundant_label(label, existing_labels):
+        return None
+    anchor_context = _clean_track_value(area.get("anchor_context", ""))
+    focus_key = _compact_focus_key(label, _clean_track_value(area.get("focus_key", "")))
+    if not focus_key:
+        return None
+    sub_focuses = [
+        _clean_track_value(s)[:100]
+        for s in (area.get("sub_focuses") or [])
+        if isinstance(s, str) and _clean_track_value(s)
+    ][:6]
+    seed = {
+        "label": label,
+        "focus_key": focus_key,
+        "anchor_context": anchor_context,
+        "sub_focuses": sub_focuses,
+    }
+    resume_snippets = _clean_resume_snippets(
+        area.get("resume_snippets")
+        or area.get("resume_evidence")
+        or area.get("supporting_lines")
+    )
+    if not resume_snippets:
+        resume_snippets = _extract_resume_snippets(resume, seed, limit=3)
+    if not anchor_context:
+        anchor_context = resume_snippets[0] if resume_snippets else label
+    return {
+        "label": label,
+        "focus_key": focus_key,
+        "anchor_context": anchor_context[:180],
+        "sub_focuses": sub_focuses,
+        "resume_snippets": resume_snippets[:2],
+        "why_priority": _clean_track_value(area.get("why_priority", ""))[:120],
+        "track": area.get("track") if isinstance(area.get("track"), dict) else None,
+    }
+
+
+def _normalize_map_candidate(candidate: dict | str, *, resume: str) -> dict:
+    if isinstance(candidate, str):
+        cleaned = candidate.strip()
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        try:
+            candidate = json.loads(cleaned)
+        except json.JSONDecodeError:
+            recovered = _recover_focus_areas_from_text(cleaned)
+            if recovered:
+                candidate = {"focus_areas": recovered}
+            else:
+                raise
+    if not isinstance(candidate, dict):
+        raise ValueError("Interview map candidate must be a JSON object.")
+
+    normalized: list[dict] = []
+    existing_labels: list[str] = []
+    seen_focus_keys: set[str] = set()
+    for raw_area in candidate.get("focus_areas", []) if isinstance(candidate.get("focus_areas", []), list) else []:
+        area = _normalize_candidate_focus_area(raw_area, resume=resume, existing_labels=existing_labels)
+        if not area:
+            continue
+        if area["focus_key"] in seen_focus_keys:
+            continue
+        normalized.append(area)
+        existing_labels.append(area["label"])
+        seen_focus_keys.add(area["focus_key"])
+        if len(normalized) >= _MAP_TARGET_FOCUS_AREAS:
+            break
+
+    # Only pad with deterministic seeds if Haiku returned fewer than the minimum.
+    # If Haiku returned ≥ _MAP_MIN_FOCUS_AREAS we trust its judgment about which
+    # experiences are worth probing — do NOT pad with rudimentary fallback entries.
+    if len(normalized) < _MAP_MIN_FOCUS_AREAS:
+        for seed in _fallback_focus_seeds_from_resume(resume, limit=_MAP_MIN_FOCUS_AREAS):
+            if seed["focus_key"] in seen_focus_keys:
+                continue
+            if _is_redundant_label(seed["label"], existing_labels):
+                continue
+            snippets = _extract_resume_snippets(resume, seed, limit=3)
+            normalized.append({
+                "label": seed["label"],
+                "focus_key": seed["focus_key"],
+                "anchor_context": seed["anchor_context"],
+                "resume_snippets": snippets[:3],
+                "why_priority": "",
+                "track": None,
+            })
+            existing_labels.append(seed["label"])
+            seen_focus_keys.add(seed["focus_key"])
+            if len(normalized) >= _MAP_MIN_FOCUS_AREAS:
+                break
+
+    return {
+        "focus_areas": normalized[:_MAP_TARGET_FOCUS_AREAS],
+        "notes": _clean_track_value(candidate.get("notes", "")) if isinstance(candidate, dict) else "",
+    }
+
+
+
+async def _run_focus_plan_call(llm: "LLMRouter", user_prompt: str, primary_max_tokens: int, retry_max_tokens: int) -> dict | None:
+    """Single model attempt at focus area selection. Returns raw dict or None."""
+    last_error: Exception | None = None
+    for max_tokens in (primary_max_tokens, retry_max_tokens):
+        try:
+            raw = await llm.call(
+                system=_FOCUS_PLAN_SYSTEM,
+                user=user_prompt,
+                max_tokens=max_tokens,
+                response_format=_MAP_JSON_RESPONSE_FORMAT,
+            )
+            return raw if isinstance(raw, dict) else None
+        except Exception as exc:
+            last_error = exc
+            message = str(exc).lower()
+            affordable_tokens = _affordable_token_budget_from_error(exc)
+            if affordable_tokens and affordable_tokens < max_tokens:
+                try:
+                    raw = await llm.call(
+                        system=_FOCUS_PLAN_SYSTEM,
+                        user=user_prompt,
+                        max_tokens=affordable_tokens,
+                        response_format=_MAP_JSON_RESPONSE_FORMAT,
+                    )
+                    return raw if isinstance(raw, dict) else None
+                except Exception:
+                    pass
+            if "fewer max_tokens" not in message and "credits" not in message:
+                break  # non-recoverable — stop trying this model
+    return None
+
+
+def _critic_signals_plan_problem(review: dict) -> bool:
+    """True when the critic's output indicates the focus plan itself is bad (duplicates/same-project splits)."""
+    if not isinstance(review, dict):
+        return False
+    texts = [
+        *[str(s) for s in (review.get("issues") or [])],
+        *[str(s) for s in (review.get("repair_instructions") or [])],
+    ]
+    joined = " ".join(texts).lower()
+    problem_signals = ("merge", "duplic", "redundant", "overlap", "same project", "same company",
+                       "same role", "split", "collapse", "combine", "consolidate", "too similar")
+    return any(sig in joined for sig in problem_signals)
+
+
+def _extract_plan_repair_hint(review: dict) -> str:
+    """Pull the critic's specific complaints into a short string for the plan-regeneration prompt."""
+    if not isinstance(review, dict):
+        return ""
+    fragments: list[str] = []
+    for issue in (review.get("issues") or [])[:3]:
+        text = str(issue or "").strip()
+        if text:
+            fragments.append(text)
+    for instruction in (review.get("repair_instructions") or [])[:2]:
+        text = str(instruction or "").strip()
+        if text:
+            fragments.append(text)
+    return " | ".join(fragments)[:400]
+
+
+async def _generate_focus_area_plan(*, resume: str, session_id: str, dedup_hint: str = "") -> dict:
+    user_prompt = _focus_plan_user_prompt(resume=resume, dedup_hint=dedup_hint)
+
+    # Tier 1: Haiku — fast, cheap, good enough for selection/ranking
+    raw = await _run_focus_plan_call(
+        LLMRouter(tier="small", timeout_override=30.0),
+        user_prompt,
+        _FOCUS_PLAN_PRIMARY_MAX_TOKENS,
+        _FOCUS_PLAN_RETRY_MAX_TOKENS,
+    )
+
+    # Validate Haiku output before trusting it
+    haiku_area_count = 0
+    if isinstance(raw, dict):
+        validated, _ = _validate_schema(raw, _FocusPlanSchema)
+        haiku_area_count = len([a for a in validated.get("focus_areas", []) if a.get("label")])
+
+    if haiku_area_count < _MAP_MIN_FOCUS_AREAS:
+        # Tier 2: Sonnet fallback — Haiku underdelivered or failed
+        print(
+            f"[TrajectoryMap] Haiku returned {haiku_area_count} usable focus areas"
+            f" — retrying with medium model"
+            + (f" for {session_id[:8]}" if session_id else "")
+        )
+        fallback_raw = await _run_focus_plan_call(
+            LLMRouter(tier="medium", timeout_override=60.0),
+            user_prompt,
+            _FOCUS_PLAN_PRIMARY_MAX_TOKENS,
+            _FOCUS_PLAN_RETRY_MAX_TOKENS,
+        )
+        if isinstance(fallback_raw, dict):
+            raw = fallback_raw
+
+    if not isinstance(raw, dict):
+        raise RuntimeError("Focus-area planning failed: both Haiku and medium model returned no usable output.")
+
+    validated_plan, plan_errors = _validate_schema(raw, _FocusPlanSchema)
+    if plan_errors:
+        print(f"[TrajectoryMap] Focus plan schema issues: {plan_errors[:3]}")
+    raw = {**raw, "focus_areas": validated_plan["focus_areas"]}
+
+    normalized = _normalize_map_candidate(raw, resume=resume)
+    n = len(normalized.get("focus_areas", []) or [])
+    if n < _MAP_MIN_FOCUS_AREAS:
+        raise ValueError(f"Focus-area plan returned fewer than {_MAP_MIN_FOCUS_AREAS} usable areas (got {n}).")
+
+    print(
+        f"[TrajectoryMap] Planned {n} focus areas"
+        + (f" for {session_id[:8]}" if session_id else "")
+    )
+    return normalized
+
+
+def _build_critic_review(payload: dict, *, stage: str, critic_model: str) -> dict:
+    """Normalise a raw critic response into the canonical review shape."""
+    return {
+        "stage": stage,
+        "critic_model": critic_model,
+        "ready": bool(payload.get("ready", False)),
+        "overall_score": float(payload.get("overall_score", 0) or 0),
+        "top_two_score": float(payload.get("top_two_score", 0) or 0),
+        # New fields from updated critic prompt; fall back to old names for backward compat
+        "opener_quality_score": float(payload.get("opener_quality_score", payload.get("coverage_score", 0)) or 0),
+        "dimension_depth_score": float(payload.get("dimension_depth_score", payload.get("branch_richness_score", 0)) or 0),
+        "strengths": [str(s).strip() for s in (payload.get("strengths") or []) if str(s).strip()][:8],
+        "issues": [str(s).strip() for s in (payload.get("issues") or []) if str(s).strip()][:8],
+        "repair_instructions": [str(s).strip() for s in (payload.get("repair_instructions") or []) if str(s).strip()][:8],
+        "focus_reviews": [
+            {
+                "focus_key": _clean_track_value(item.get("focus_key", "")),
+                "label": _clean_track_value(item.get("label", "")),
+                "score": float(item.get("score", 0) or 0),
+                "issues": [str(v).strip() for v in (item.get("issues") or []) if str(v).strip()][:4],
+            }
+            for item in (payload.get("focus_reviews") or [])
+            if isinstance(item, dict)
+        ][: _MAP_TARGET_FOCUS_AREAS],
+    }
+
+
+async def _critique_map_candidate(*, resume: str, candidate: dict, stage: str) -> dict:
+    critic = LLMRouter(
+        tier="medium",
+        model_override=_MAP_CRITIC_MODEL,
+        timeout_override=90.0,
+    )
+    user_prompt = _map_critic_user_prompt(resume=resume, candidate=candidate, stage=stage)
+    try:
+        raw = await critic.call(
+            system=_MAP_CRITIC_SYSTEM,
+            user=user_prompt,
+            max_tokens=_MAP_CRITIC_MAX_TOKENS,
+            response_format=_MAP_JSON_RESPONSE_FORMAT,
+        )
+        validated, schema_errors = _validate_schema(raw, _CriticSchema)
+        if schema_errors:
+            print(f"[TrajectoryMap] Critic schema issues during {stage}: {schema_errors[:3]}")
+        return _build_critic_review(validated, stage=stage, critic_model=critic.model)
+    except Exception as exc:
+        affordable_tokens = _affordable_token_budget_from_error(exc)
+        if affordable_tokens and affordable_tokens < _MAP_CRITIC_MAX_TOKENS:
+            try:
+                raw = await critic.call(
+                    system=_MAP_CRITIC_SYSTEM,
+                    user=user_prompt,
+                    max_tokens=affordable_tokens,
+                    response_format=_MAP_JSON_RESPONSE_FORMAT,
+                )
+                validated, schema_errors = _validate_schema(raw, _CriticSchema)
+                if schema_errors:
+                    print(f"[TrajectoryMap] Critic schema issues (retry) during {stage}: {schema_errors[:3]}")
+                return _build_critic_review(validated, stage=stage, critic_model=critic.model)
+            except Exception:
+                pass
+        print(
+            f"[TrajectoryMap] Critic call failed during {stage}; using heuristic fallback: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        return _fallback_quality_review(
+            candidate,
+            stage=stage,
+            issue=f"Critic call failed during {stage}: {type(exc).__name__}: {exc}",
+        )
+
+
+def _review_score(review: dict | None) -> float:
+    if not isinstance(review, dict):
+        return 0.0
+    try:
+        return float(review.get("overall_score", 0) or 0)
+    except Exception:
+        return 0.0
+
+
+def _review_is_ready(review: dict | None) -> bool:
+    if not isinstance(review, dict):
+        return False
+    if bool(review.get("ready")):
+        return True
+    return _review_score(review) >= _MAP_MIN_READY_SCORE
+
+
+def _coerce_llm_track(raw_track: dict | None, *, seed: dict, next_focus_label: str, source_override: str | None = None) -> dict:
+    fallback_dim = _fallback_dimension_track(seed, next_focus_label)
+
+    if not isinstance(raw_track, dict):
+        fallback_dims = fallback_dim.get("dimensions", [])
+        return {
+            "track": fallback_dim,
+            "source": "deterministic_fallback",
+            "llm_branches": [],
+            "fallback_branches": [d["id"] for d in fallback_dims],
+            "llm_branch_count": 0,
+            "fallback_branch_count": len(fallback_dims),
+        }
+
+    # New dimension schema: opener + dimensions + recovery
+    if "opener" in raw_track or "dimensions" in raw_track:
+        parsed = _parse_dimension_output(raw_track, seed, fallback_dim)
+        dims = parsed.get("dimensions", [])
+        fallback_dim_ids = {d["id"] for d in fallback_dim.get("dimensions", [])}
+        llm_branches = [d["id"] for d in dims if d["id"] not in fallback_dim_ids]
+        fallback_branches = [d["id"] for d in dims if d["id"] in fallback_dim_ids]
+        # Use preserved source provenance — do NOT infer from content (fallback dicts also have
+        # opener/dimensions keys and would be mislabelled as "llm" without this override).
+        source = source_override if source_override in ("llm", "deterministic_fallback") else "llm"
+        return {
+            "track": parsed,
+            "source": source,
+            "llm_branches": llm_branches,
+            "fallback_branches": fallback_branches,
+            "llm_branch_count": len(llm_branches),
+            "fallback_branch_count": len(fallback_branches),
+        }
+
+    # Legacy sprint/branch schema — backward compat for old maps in Redis
+    fallback_track = _fallback_track(seed, next_focus_label)
+    cleaned_result: dict[str, dict[str, str]] = {}
+    llm_branches: list[str] = []
+    fallback_branches: list[str] = []
+    for sprint_key in _SPRINT_KEYS:
+        sprint = raw_track.get(sprint_key, {})
+        fallback_sprint = fallback_track.get(sprint_key, {})
+        if not isinstance(sprint, dict):
+            sprint = {}
+        cleaned_sprint: dict[str, str] = {}
+        for branch in _VALID_BRANCHES:
+            value = _clean_track_value(sprint.get(branch, ""))
+            branch_key = f"{sprint_key}.{branch}"
+            if value:
+                cleaned_sprint[branch] = value
+                llm_branches.append(branch_key)
+            else:
+                cleaned_sprint[branch] = _clean_track_value(fallback_sprint.get(branch, ""))
+                fallback_branches.append(branch_key)
+        cleaned_result[sprint_key] = cleaned_sprint
+
+    return {
+        "track": cleaned_result,
+        "source": "llm",
+        "llm_branches": llm_branches,
+        "fallback_branches": fallback_branches,
+        "llm_branch_count": len(llm_branches),
+        "fallback_branch_count": len(fallback_branches),
+    }
+
+
+def _candidate_to_runtime_map(
+    *,
+    resume: str,
+    candidate: dict,
+    pass_one_review: dict | None,
+    final_review: dict | None,
+    session_id: str = "",
+) -> dict:
+    focus_areas_raw = list(candidate.get("focus_areas", []) or [])
+    focus_areas: list[dict] = []
+    for index, area in enumerate(focus_areas_raw[:_MAP_TARGET_FOCUS_AREAS]):
+        next_focus_label = (
+            str(focus_areas_raw[(index + 1) % len(focus_areas_raw)].get("label", "") or "").strip()
+            if len(focus_areas_raw) > 1
+            else "another area from the candidate's background"
+        )
+        seed = {
+            "label": str(area.get("label", "") or f"Focus Area {index + 1}").strip(),
+            "focus_key": str(area.get("focus_key", "") or f"focus_{index + 1}").strip(),
+            "anchor_context": str(area.get("anchor_context", "") or "").strip(),
+            "sub_focuses": [str(s).strip() for s in (area.get("sub_focuses") or []) if str(s).strip()],
+            "resume_snippets": list(area.get("resume_snippets", []) or []),
+        }
+        if not seed["resume_snippets"]:
+            seed["resume_snippets"] = _extract_resume_snippets(resume, seed, limit=3)
+        if not seed["anchor_context"]:
+            seed["anchor_context"] = seed["resume_snippets"][0] if seed["resume_snippets"] else seed["label"]
+        track_result = _coerce_llm_track(
+            area.get("track"),
+            seed=seed,
+            next_focus_label=next_focus_label,
+            source_override=str(area.get("_gen_source", "") or ""),
+        )
+        track_data = track_result["track"]
+        schema_version = "dimension" if ("opener" in track_data or "dimensions" in track_data) else "sprint"
+        focus_areas.append({
+            "label": seed["label"],
+            "focus_key": seed["focus_key"],
+            "anchor_context": seed["anchor_context"],
+            "sub_focuses": seed["sub_focuses"],
+            "resume_snippets": seed["resume_snippets"][:3],
+            "track_source": track_result.get("source", "deterministic_fallback"),
+            "track_schema": schema_version,
+            "llm_branch_count": int(track_result.get("llm_branch_count", 0) or 0),
+            "fallback_branch_count": int(track_result.get("fallback_branch_count", 0) or 0),
+            "llm_branches": list(track_result.get("llm_branches", []) or []),
+            "fallback_branches": list(track_result.get("fallback_branches", []) or []),
+            "why_priority": str(area.get("why_priority", "") or "").strip(),
+            **track_data,
+        })
+
+    if session_id:
+        print(
+            f"[TrajectoryMap] Finalized two-pass map with {len(focus_areas)} focus areas for {session_id[:8]}"
+        )
+
+    return {
+        "focus_areas": focus_areas,
+        "generated_at": time.time(),
+        "pending_hydration_focus_keys": [],
+        "generation_strategy": "two_pass_full_resume_reasoning",
+        "pass_1_review": pass_one_review or {},
+        "quality_review": final_review or {},
+        "generation_notes": str(candidate.get("notes", "") or "").strip(),
+    }
 
 
 def _label_token_set(label: str) -> set[str]:
@@ -771,6 +1574,31 @@ def _label_token_set(label: str) -> set[str]:
         for token in re.findall(r"[a-z0-9]+", (label or "").lower())
         if len(token) > 2 and token not in {"system", "project", "work", "technical"}
     }
+
+
+_OVERLAP_STOPWORDS: frozenset[str] = frozenset({
+    "the", "and", "for", "with", "how", "did", "you", "your", "was", "that", "this",
+    "what", "when", "why", "have", "had", "can", "would", "could", "should", "from",
+    "into", "than", "which", "not", "any", "are", "were", "will", "its", "but", "all",
+    "one", "two", "three", "more", "also", "each", "per", "use", "used", "using",
+    "then", "them", "they", "their", "been", "being", "tell", "about", "explain",
+    "describe", "walk", "through", "give", "show", "what", "where", "there",
+})
+
+
+def _content_tokens(text: str) -> frozenset[str]:
+    """Content tokens for overlap detection — stopwords removed, min length 3."""
+    return frozenset(
+        token
+        for token in re.findall(r"[a-z0-9]+", (text or "").lower())
+        if len(token) >= 4 and token not in _OVERLAP_STOPWORDS
+    )
+
+
+def _jaccard_score(a: frozenset[str], b: frozenset[str]) -> float:
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
 
 
 def _is_redundant_label(label: str, existing_labels: list[str]) -> bool:
@@ -819,68 +1647,6 @@ def _normalize_seed_candidates(items: list[dict], limit: int = 5) -> list[dict]:
             break
     return normalized
 
-
-async def _extract_focus_seeds_llm(resume: str, session_id: str = "") -> list[dict]:
-    """
-    Ask Haiku to read the raw resume and return structured focus area seeds.
-    This replaces all brittle manual parsing.
-    """
-    llm = LLMRouter(tier="small")
-    resume_focus = _resume_focus_source(resume) or resume
-    user = _SEED_USER_TEMPLATE.format(resume=resume_focus[:1800])
-    try:
-        raw = await asyncio.wait_for(
-            llm.call(system=_SEED_SYSTEM, user=user, max_tokens=360),
-            timeout=_FOCUS_SEED_TIMEOUT_SECONDS,
-        )
-        if isinstance(raw, list):
-            result = raw
-        elif isinstance(raw, str):
-            cleaned = raw.strip()
-            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-            cleaned = re.sub(r"\s*```$", "", cleaned)
-            result = json.loads(cleaned)
-        elif isinstance(raw, dict) and "focus_areas" in raw:
-            result = raw["focus_areas"]
-        else:
-            result = []
-
-        return _normalize_seed_candidates(result, limit=5)
-    except Exception as e:
-        print(
-            f"[TrajectoryMap] Seed extraction failed"
-            + (f" for {session_id[:8]}" if session_id else "")
-            + f": {type(e).__name__}: {e}"
-        )
-        return []
-
-
-async def _extract_focus_artifacts_llm(resume: str, session_id: str = "") -> list[dict]:
-    llm = LLMRouter(tier="small")
-    resume_focus = _resume_focus_source(resume) or resume
-    user = _ARTIFACT_USER_TEMPLATE.format(resume=resume_focus[:1500])
-    try:
-        raw = await asyncio.wait_for(
-            llm.call(system=_ARTIFACT_SYSTEM, user=user, max_tokens=260),
-            timeout=4.5,
-        )
-        if isinstance(raw, list):
-            result = raw
-        elif isinstance(raw, str):
-            cleaned = raw.strip()
-            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-            cleaned = re.sub(r"\s*```$", "", cleaned)
-            result = json.loads(cleaned)
-        else:
-            result = []
-        return _normalize_seed_candidates(result, limit=5)
-    except Exception as e:
-        print(
-            f"[TrajectoryMap] Artifact extraction failed"
-            + (f" for {session_id[:8]}" if session_id else "")
-            + f": {type(e).__name__}: {e}"
-        )
-        return []
 
 
 def _extract_focus_signals(seed: dict) -> dict[str, str]:
@@ -1078,6 +1844,156 @@ def _fallback_track(seed: dict, next_focus_label: str) -> dict:
     }
 
 
+def _fallback_dimension_track(seed: dict, next_focus_label: str) -> dict:
+    """Deterministic opener + dimensions + recovery when LLM generation fails."""
+    signals = _extract_focus_signals(seed)
+    artifact = signals["artifact"]
+    primary_tech = signals["primary_tech"]
+    secondary_tech = signals["secondary_tech"]
+    metric = signals["metric"]
+    domain = signals["domain"]
+    family = _artifact_family(signals)
+    metric_clause = f" around {metric}" if metric else ""
+    next_label = next_focus_label or "another area from your background"
+
+    if family == "classifier":
+        opener = f"On {artifact} — how did you approach the inference pipeline from feature extraction through model output?"
+        dim_surface = f"Which component of the {artifact} inference path did you personally own?"
+        dim_mech = f"What did {primary_tech} contribute specifically versus what you wrote from scratch?"
+        dim_boundary = f"When the classifier degraded on real data, what was the first place you looked inside {primary_tech}?"
+    elif family == "interface":
+        opener = f"In {artifact} — how did user-facing controls translate into {primary_tech} instructions?"
+        dim_surface = f"What was the internal representation between UI input and {primary_tech} behavior?"
+        dim_mech = f"How did you keep multiple controls from interfering with each other inside {primary_tech}?"
+        dim_boundary = f"If a control produced no visible effect in {artifact}, what would you check first?"
+    elif family == "benchmark":
+        opener = f"In {artifact} — how did you design the evaluation challenge to require genuine reasoning, not pattern matching?"
+        dim_surface = f"What made {artifact} harder than simpler benchmarks in the same space?"
+        dim_mech = f"How did you validate that {primary_tech} difficulty was calibrated correctly?"
+        dim_boundary = f"What data-quality problem in {artifact} would most undermine its results?"
+    elif family == "data_modeling":
+        opener = f"In {artifact} — how did you approach the schema design to support the query workload?"
+        dim_surface = f"Which part of the {artifact} schema did you personally design versus inherit?"
+        dim_mech = f"What was the hardest query in {artifact} to make both correct and performant?"
+        dim_boundary = f"If the {artifact} query volume tripled, where would the schema break first?"
+    else:
+        opener = f"On {artifact} — start with how you approached {domain} specifically."
+        dim_surface = f"Which exact component of {artifact} did you personally build rather than integrate?"
+        dim_mech = f"What was the mechanism inside {primary_tech} that made {domain} work correctly?"
+        dim_boundary = f"If {artifact} had to handle production pressure{metric_clause}, what would break first in your current design?"
+
+    return {
+        "opener": opener,
+        "dimensions": [
+            {
+                "id": "implementation_ownership",
+                "label": "What they personally built",
+                "resume_anchor": _anchor_context_for_focus(seed) or artifact,
+                "surface": dim_surface,
+                "mechanism": dim_mech,
+                "boundary": dim_boundary,
+            },
+            {
+                "id": "technology_choice",
+                "label": "Technology decisions",
+                "resume_anchor": primary_tech or artifact,
+                "surface": f"Why did you choose {primary_tech} for {artifact} over simpler alternatives?",
+                "mechanism": f"What did {primary_tech} specifically contribute that justified the complexity?",
+                "boundary": f"If {primary_tech} were unavailable, what specifically would change in {artifact}?",
+            },
+            {
+                "id": "failure_modes",
+                "label": "Failures and debugging",
+                "resume_anchor": _anchor_context_for_focus(seed) or artifact,
+                "surface": f"What was the hardest bug you encountered in {artifact}?",
+                "mechanism": f"What did that failure reveal about how {primary_tech} behaves under stress?",
+                "boundary": f"If {artifact} ran in a more demanding environment, where would it degrade first and why?",
+            },
+        ],
+        "recovery": {
+            "short_answer": f"On {artifact} specifically — what part of {primary_tech} are you referring to?",
+            "honest_gap": f"Fair. Which part of {artifact} can you explain most confidently end-to-end?",
+            "claim_conflict": f"Your resume describes {artifact} as hands-on work. Which module did you actually own versus review?",
+            "metric_risk": f"You mentioned a metric{metric_clause} — what was the baseline you compared against and how did you measure it?",
+            "overclaim_risk": f"You used that term — what does it do specifically in your {artifact} implementation?",
+            "bridge": f"Switching to {next_label} — how does the design thinking there contrast with what you just described?",
+        },
+    }
+
+
+def _parse_dimension_output(raw: dict | str, seed: dict, fallback: dict) -> dict:
+    """Parse new opener+dimensions+recovery schema. Falls back gracefully on bad output."""
+    if isinstance(raw, str):
+        cleaned = raw.strip()
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        try:
+            raw = json.loads(cleaned)
+        except json.JSONDecodeError:
+            obj_match = re.search(r"\{[\s\S]*\}", cleaned)
+            if obj_match:
+                try:
+                    raw = json.loads(obj_match.group(0))
+                except json.JSONDecodeError:
+                    return fallback
+            else:
+                return fallback
+
+    if not isinstance(raw, dict):
+        return fallback
+
+    # Pydantic validation: coerce types and catch structural errors early
+    validated, schema_errors = _validate_schema(raw, _TrackSchema)
+    if schema_errors:
+        print(f"[TrajectoryMap] Track schema issues for '{seed.get('label', '?')}': {schema_errors[:3]}")
+
+    opener = _clean_track_value(validated.get("opener", ""))
+    dims_raw = validated.get("dimensions") or []
+    recovery_raw = validated.get("recovery") or {}
+
+    dims: list[dict] = []
+    for d in dims_raw:
+        if not isinstance(d, dict):
+            continue
+        dim_id = _clean_track_value(d.get("id", ""))
+        dim_label = _clean_track_value(d.get("label", ""))
+        resume_anchor = _clean_track_value(d.get("resume_anchor", ""))
+        surface = _clean_track_value(d.get("surface", ""))
+        mechanism = _clean_track_value(d.get("mechanism", ""))
+        boundary = _clean_track_value(d.get("boundary", ""))
+        if not (dim_id and surface and mechanism and boundary):
+            continue
+        dims.append({
+            "id": dim_id,
+            "label": dim_label or dim_id,
+            "resume_anchor": resume_anchor,
+            "surface": surface,
+            "mechanism": mechanism,
+            "boundary": boundary,
+        })
+
+    recovery_fields = ("short_answer", "honest_gap", "claim_conflict", "metric_risk", "overclaim_risk", "bridge")
+    recovery: dict[str, str] = {}
+    fallback_recovery = fallback.get("recovery", {})
+    for field in recovery_fields:
+        val = _clean_track_value(recovery_raw.get(field, "") if isinstance(recovery_raw, dict) else "")
+        recovery[field] = val or _clean_track_value(fallback_recovery.get(field, ""))
+
+    if not opener or len(dims) < 3:
+        fallback_dims = fallback.get("dimensions", [])
+        if not opener:
+            opener = fallback.get("opener", "")
+        if len(dims) < 3:
+            dims = dims + [d for d in fallback_dims if d.get("id") not in {x["id"] for x in dims}]
+            dims = dims[:6]
+
+    return {
+        "opener": opener,
+        "dimensions": dims[:6],
+        "recovery": recovery,
+    }
+
+
 def _clean_track_value(value: object) -> str:
     return re.sub(r"\s+", " ", str(value or "").strip())
 
@@ -1148,88 +2064,287 @@ async def _generate_focus_track(
     next_focus_label: str,
     session_id: str,
     fast_mode: bool = True,
+    repair_guidance: str = "",
+    prior_track_context: str = "",
 ) -> dict:
-    # Startup-critical path: use the fast tier here so branch generation lands
-    # inside the interview startup budget more reliably on high-latency networks.
-    llm = LLMRouter(tier="small" if fast_mode else "medium")
-    fallback_track = _fallback_track(seed, next_focus_label)
-    user = _TRACK_USER_TEMPLATE.format(
-        resume_context=resume_context[:900],
-        label=seed["label"],
-        focus_key=seed["focus_key"][:64],
-        anchor_context=_anchor_context_for_focus(seed)[:260] or seed["label"],
-        resume_snippets="\n".join(f"- {snippet}" for snippet in seed.get("resume_snippets", [])[:3]) or "- None available",
-        next_focus_label=next_focus_label or "another area from the candidate's background",
+    fallback_dim = _fallback_dimension_track(seed, next_focus_label)
+
+    def _make_user(snippets_limit: int, anchor_limit: int) -> str:
+        prior_block = (
+            f"\nPrior track context (for deduplication):\n{prior_track_context}\n"
+            if prior_track_context.strip()
+            else ""
+        )
+        sub_focuses = [str(s).strip() for s in (seed.get("sub_focuses") or []) if str(s).strip()]
+        sub_focuses_block = (
+            "- Sub-focuses (must have ≥1 dimension each): "
+            + " | ".join(sub_focuses)
+            + "\n"
+            if sub_focuses
+            else ""
+        )
+        return _TRACK_USER_TEMPLATE.format(
+            resume_context=resume_context,
+            label=seed["label"],
+            focus_key=seed["focus_key"][:64],
+            anchor_context=_anchor_context_for_focus(seed)[:anchor_limit] or seed["label"],
+            sub_focuses_block=sub_focuses_block,
+            resume_snippets="\n".join(f"- {s}" for s in seed.get("resume_snippets", [])[:snippets_limit]) or "- None available",
+            next_focus_label=next_focus_label or "another area from the candidate's background",
+            repair_guidance=repair_guidance.strip() or "None. Write the strongest grounded track you can.",
+            prior_track_context=prior_block,
+        )
+
+    # Startup-critical path: small model first for speed, medium fallback for quality.
+    primary_tokens = 1300 if fast_mode else 1500
+    primary_timeout = _FOCUS_TRACK_TIMEOUT_SECONDS if fast_mode else _FOCUS_TRACK_BACKGROUND_TIMEOUT_SECONDS
+    llm = LLMRouter(
+        tier="small" if fast_mode else "medium",
+        model_override=None if fast_mode else _MAP_GENERATOR_MODEL,
+        timeout_override=None if fast_mode else 90.0,
     )
+    user = _make_user(snippets_limit=3, anchor_limit=260)
     last_error: Exception | None = None
-    try:
-        raw = await asyncio.wait_for(
-            llm.call(system=_TRACK_SYSTEM, user=user, max_tokens=850 if fast_mode else 1100),
-            timeout=_FOCUS_TRACK_TIMEOUT_SECONDS if fast_mode else _FOCUS_TRACK_BACKGROUND_TIMEOUT_SECONDS,
-        )
-        parsed = _parse_track_output(raw, seed, fallback_track)
-        return {
-            **parsed,
-            "source": "llm",
-        }
-    except Exception as exc:
-        last_error = exc
+
+    async def _attempt(llm_: LLMRouter, prompt: str, max_tok: int, timeout: float) -> dict | None:
+        try:
+            raw = await asyncio.wait_for(
+                llm_.call(
+                    system=_TRACK_SYSTEM,
+                    user=prompt,
+                    max_tokens=max_tok,
+                    response_format=_MAP_JSON_RESPONSE_FORMAT,
+                ),
+                timeout=timeout,
+            )
+            return {"track": _parse_dimension_output(raw, seed, fallback_dim), "source": "llm"}
+        except Exception as exc:
+            nonlocal last_error
+            last_error = exc
+            affordable = _affordable_token_budget_from_error(exc)
+            if affordable and affordable < max_tok:
+                try:
+                    raw2 = await asyncio.wait_for(
+                        llm_.call(
+                            system=_TRACK_SYSTEM,
+                            user=prompt,
+                            max_tokens=affordable,
+                            response_format=_MAP_JSON_RESPONSE_FORMAT,
+                        ),
+                        timeout=timeout,
+                    )
+                    return {"track": _parse_dimension_output(raw2, seed, fallback_dim), "source": "llm"}
+                except Exception as exc2:
+                    last_error = exc2
+            return None
+
+    result = await _attempt(llm, user, primary_tokens, primary_timeout)
+    if result:
+        return result
+
+    # Upgrade-tier retry
     if fast_mode:
-        retry_llm = LLMRouter(tier="medium")
-        retry_user = _TRACK_USER_TEMPLATE.format(
-            resume_context=resume_context[:650],
-            label=seed["label"],
-            focus_key=seed["focus_key"][:64],
-            anchor_context=_anchor_context_for_focus(seed)[:200] or seed["label"],
-            resume_snippets="\n".join(f"- {snippet}" for snippet in seed.get("resume_snippets", [])[:2]) or "- None available",
-            next_focus_label=next_focus_label or "another area from the candidate's background",
-        )
-        try:
-            raw = await asyncio.wait_for(
-                retry_llm.call(system=_TRACK_SYSTEM, user=retry_user, max_tokens=900),
-                timeout=8.5,
-            )
-            parsed = _parse_track_output(raw, seed, fallback_track)
-            return {
-                **parsed,
-                "source": "llm",
-            }
-        except Exception as exc:
-            last_error = exc
+        retry_llm = LLMRouter(tier="medium", timeout_override=10.0)
+        retry_user = _make_user(snippets_limit=2, anchor_limit=200)
+        result = await _attempt(retry_llm, retry_user, 1280, 10.0)
     else:
-        retry_llm = LLMRouter(tier="large")
-        retry_user = _TRACK_USER_TEMPLATE.format(
-            resume_context=resume_context[:700],
-            label=seed["label"],
-            focus_key=seed["focus_key"][:64],
-            anchor_context=_anchor_context_for_focus(seed)[:220] or seed["label"],
-            resume_snippets="\n".join(f"- {snippet}" for snippet in seed.get("resume_snippets", [])[:3]) or "- None available",
-            next_focus_label=next_focus_label or "another area from the candidate's background",
-        )
-        try:
-            raw = await asyncio.wait_for(
-                retry_llm.call(system=_TRACK_SYSTEM, user=retry_user, max_tokens=1100),
-                timeout=22.0,
-            )
-            parsed = _parse_track_output(raw, seed, fallback_track)
-            return {
-                **parsed,
-                "source": "llm",
-            }
-        except Exception as exc:
-            last_error = exc
+        retry_llm = LLMRouter(tier="large", model_override=_MAP_GENERATOR_MODEL, timeout_override=90.0)
+        retry_user = _make_user(snippets_limit=3, anchor_limit=220)
+        result = await _attempt(retry_llm, retry_user, 1400, 90.0)
+
+    if result:
+        return result
+
     print(
         f"[TrajectoryMap] Focus {seed['focus_key']} fell back to deterministic templates"
         + (f" for {session_id[:8]}" if session_id else "")
-        + f": {last_error}"
+        + f": {type(last_error).__name__}: {str(last_error) or '(no message)'}"
     )
+    fallback_dims = fallback_dim.get("dimensions", [])
     return {
-        "track": fallback_track,
+        "track": fallback_dim,
         "source": "deterministic_fallback",
         "llm_branches": [],
-        "fallback_branches": [f"{sprint_key}.{branch}" for sprint_key in _SPRINT_KEYS for branch in sorted(_VALID_BRANCHES)],
+        "fallback_branches": [d["id"] for d in fallback_dims],
         "llm_branch_count": 0,
-        "fallback_branch_count": len(_SPRINT_KEYS) * len(_VALID_BRANCHES),
+        "fallback_branch_count": len(fallback_dims),
+    }
+
+
+def _critic_guidance_for_focus(review: dict | None, focus_key: str) -> str:
+    if not isinstance(review, dict):
+        return ""
+    guidance: list[str] = []
+    for instruction in review.get("repair_instructions", []) or []:
+        text = _clean_track_value(instruction)
+        if text:
+            guidance.append(text)
+    for item in review.get("focus_reviews", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if _clean_track_value(item.get("focus_key", "")) != focus_key:
+            continue
+        for issue in item.get("issues", []) or []:
+            text = _clean_track_value(issue)
+            if text:
+                guidance.append(f"Fix this focus-specific weakness: {text}")
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for item in guidance:
+        key = item.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+        if len(deduped) >= 6:
+            break
+    return " ".join(deduped)
+
+
+def _dim_context_summary(area_label: str, track: dict | None) -> str:
+    """Return a one-line deduplication hint from a completed track-1 dimension result."""
+    if not isinstance(track, dict):
+        return ""
+    dims = track.get("dimensions", [])
+    if not dims:
+        return ""
+    dim_labels = ", ".join(
+        _clean_track_value(d.get("label") or d.get("id", ""))
+        for d in dims[:6]
+        if isinstance(d, dict)
+    )
+    if not dim_labels:
+        return ""
+    return (
+        f"Track already generated for '{area_label}' examines: {dim_labels}. "
+        f"Do not duplicate these angles in the dimensions you generate now."
+    )
+
+
+def _check_cross_area_overlap(areas: list[dict], *, session_id: str = "") -> list[str]:
+    """
+    Comprehensive post-generation overlap check across ALL content in every area.
+
+    Checks: openers, dimension labels, surface/mechanism/boundary probe texts.
+    Bridge text is excluded — bridges intentionally reference adjacent area names.
+    Returns list of warning strings (and also prints each one).
+    """
+    # slot_type → Jaccard threshold to flag as overlap
+    THRESHOLDS = {"opener": 0.60, "label": 0.50, "probe": 0.58}
+
+    # Collect (area_label, slot_type, slot_name, tokens) tuples
+    slots: list[tuple[str, str, str, frozenset[str]]] = []
+    for area in areas:
+        area_label = str(area.get("label", "") or "")
+        opener = str(area.get("opener", "") or "")
+        if opener:
+            slots.append((area_label, "opener", "opener", _content_tokens(opener)))
+        for dim in (area.get("dimensions") or []):
+            if not isinstance(dim, dict):
+                continue
+            dim_id = str(dim.get("id", "") or dim.get("label", "") or "dim")
+            dim_label_text = str(dim.get("label", "") or "")
+            if dim_label_text:
+                slots.append((area_label, "label", f"dim:{dim_id}:label", _content_tokens(dim_label_text)))
+            for probe_key in ("surface", "mechanism", "boundary"):
+                probe_text = str(dim.get(probe_key, "") or "")
+                if probe_text:
+                    slots.append((area_label, "probe", f"dim:{dim_id}:{probe_key}", _content_tokens(probe_text)))
+
+    warnings_out: list[str] = []
+    for i in range(len(slots)):
+        area_a, type_a, name_a, toks_a = slots[i]
+        for j in range(i + 1, len(slots)):
+            area_b, type_b, name_b, toks_b = slots[j]
+            if area_a == area_b:
+                continue  # intra-area is fine
+            if type_a != type_b:
+                continue  # compare like-for-like only
+            threshold = THRESHOLDS.get(type_a, 0.60)
+            score = _jaccard_score(toks_a, toks_b)
+            if score >= threshold:
+                msg = (
+                    f"[TrajectoryMap] Content overlap"
+                    + (f" for {session_id[:8]}" if session_id else "")
+                    + f": '{name_a}' in '{area_a}' ↔ '{name_b}' in '{area_b}'"
+                    + f" (Jaccard={score:.2f})"
+                )
+                print(msg)
+                warnings_out.append(msg)
+    return warnings_out
+
+
+async def _generate_priority_tracks_for_candidate(
+    *,
+    resume: str,
+    candidate: dict,
+    session_id: str,
+    critic_feedback: dict | None = None,
+) -> dict:
+    focus_areas = list(candidate.get("focus_areas", []) or [])
+    if not focus_areas:
+        return candidate
+
+    def _make_seed(index: int, area: dict) -> dict:
+        return {
+            "label": str(area.get("label", "") or f"Focus Area {index + 1}").strip(),
+            "focus_key": str(area.get("focus_key", "") or f"focus_{index + 1}").strip(),
+            "anchor_context": str(area.get("anchor_context", "") or "").strip(),
+            "sub_focuses": [str(s).strip() for s in (area.get("sub_focuses") or []) if str(s).strip()],
+            "resume_snippets": list(area.get("resume_snippets", []) or []),
+        }
+
+    def _next_label(index: int) -> str:
+        return (
+            str(focus_areas[(index + 1) % len(focus_areas)].get("label", "") or "").strip()
+            if len(focus_areas) > 1
+            else "another area from the candidate's background"
+        )
+
+    def _apply_result(area: dict, result: dict) -> dict:
+        """Merge generation result into area — preserve source provenance alongside track."""
+        updated = dict(area)
+        updated["track"] = result.get("track")
+        # Preserve provenance so _candidate_to_runtime_map can set track_source correctly.
+        # Fallback tracks are fully populated dicts so we can't detect source from content alone.
+        updated["_gen_source"] = result.get("source", "deterministic_fallback")
+        return updated
+
+    # Phase 2: generate ALL fixated areas in parallel — areas were fixated in phase 1 (focus plan)
+    # so we know exactly which experiences to probe; no sequential dependency.
+    all_indices = list(range(len(focus_areas)))
+
+    async def _gen_track(index: int) -> dict:
+        area = focus_areas[index]
+        seed = _make_seed(index, area)
+        result = await _generate_focus_track(
+            resume_context=resume,
+            seed=seed,
+            next_focus_label=_next_label(index),
+            session_id=session_id,
+            fast_mode=False,
+            repair_guidance=_critic_guidance_for_focus(critic_feedback, seed["focus_key"]),
+            prior_track_context="",
+        )
+        return _apply_result(area, result)
+
+    results = await asyncio.gather(*[_gen_track(i) for i in all_indices])
+    for i, result in zip(all_indices, results):
+        focus_areas[i] = result
+
+    # Post-generation: comprehensive overlap check across ALL content in all generated areas.
+    overlap_warnings = _check_cross_area_overlap(focus_areas, session_id=session_id)
+    if overlap_warnings:
+        print(
+            f"[TrajectoryMap] {len(overlap_warnings)} cross-area overlap(s) detected"
+            + (f" for {session_id[:8]}" if session_id else "")
+            + " — consider regenerating affected areas with tighter deduplication guidance"
+        )
+
+    return {
+        **candidate,
+        "focus_areas": focus_areas,
+        "_overlap_warnings": overlap_warnings,
     }
 
 
@@ -1239,119 +2354,167 @@ async def generate_interview_map(
     session_id: str = "",
 ) -> dict:
     """
-    Build a structured fallback spine with 3-5 focus areas and full multi-sprint branches.
-    Step 1: Haiku reads the raw resume and extracts real focus area seeds (no manual parsing).
-    Step 2: DeepSeek R1 generates full question tracks per focus area in parallel.
+    Build the startup-critical interview map using the full resume.
+
+    Pass 1:
+    - read the full resume
+    - choose 5 focus areas with one structured planning call
+    - fully detail the top 2 tracks in parallel
+
+    Critique 1:
+    - Sonnet grades launch readiness and gives compact repair direction
+
+    Optional repair:
+    - if the first two tracks are not strong enough, regenerate only those startup tracks once
+
+    Startup contract:
+    - if the first two priority tracks are robust, the interview may start immediately
+    - remaining focus areas may still use deterministic tracks for now
     """
     started = time.perf_counter()
-    resume_focus = _resume_focus_source(resume) or resume
-    seeds = await _extract_focus_seeds_llm(resume, session_id)
-    if len(seeds) < 3:
-        artifact_seeds = await _extract_focus_artifacts_llm(resume, session_id)
-        if artifact_seeds:
-            seeds = _normalize_seed_candidates([*seeds, *artifact_seeds], limit=5)
-    if not seeds:
-        seeds = _fallback_focus_seeds_from_resume(resume)
-    enriched_seeds: list[dict] = []
-    seen_focus_keys: set[str] = set()
-    for seed in seeds:
-        focus_key = _compact_focus_key(
-            str(seed.get("label", "") or ""),
-            str(seed.get("focus_key", "") or ""),
+    try:
+        focus_plan = await _generate_focus_area_plan(
+            resume=resume,
+            session_id=session_id,
         )
-        if not focus_key or focus_key in seen_focus_keys:
-            continue
-        snippets = _extract_resume_snippets(resume, seed, limit=3)
-        if not snippets:
-            continue
-        enriched_seed = {
-            **seed,
-            "focus_key": focus_key,
-            "resume_snippets": snippets,
-        }
-        enriched_seeds.append(enriched_seed)
-        seen_focus_keys.add(focus_key)
-    seeds = enriched_seeds
-    if not seeds:
-        print(f"[TrajectoryMap] No focus seeds extracted" + (f" for {session_id[:8]}" if session_id else ""))
-        return {}
-
-    limited_seeds = seeds[:_FOCUS_TRACK_MAX_AREAS]
-    tasks: dict[asyncio.Task, tuple[dict, str]] = {}
-    for index, seed in enumerate(limited_seeds):
-        next_focus_label = seeds[(index + 1) % len(seeds)]["label"] if len(seeds) > 1 else "another area from the candidate's background"
-        task = asyncio.create_task(
-            _generate_focus_track(
-                resume_context=resume_focus,
-                seed=seed,
-                next_focus_label=next_focus_label,
-                session_id=session_id,
-            )
+        pass_one_candidate = await _generate_priority_tracks_for_candidate(
+            resume=resume,
+            candidate=focus_plan,
+            session_id=session_id,
         )
-        tasks[task] = (seed, next_focus_label)
+        pass_one_review = await _critique_map_candidate(
+            resume=resume,
+            candidate=pass_one_candidate,
+            stage="pass_1",
+        )
 
-    generated_tracks: dict[str, dict] = {}
-    done, pending = await asyncio.wait(
-        tasks.keys(),
-        timeout=_FOCUS_TRACK_BUILD_DEADLINE_SECONDS,
-    )
-    for task in done:
-        seed, next_focus_label = tasks[task]
-        try:
-            generated_tracks[seed["focus_key"]] = task.result()
-        except Exception:
-            generated_tracks[seed["focus_key"]] = {
-                "track": _fallback_track(seed, next_focus_label),
-                "source": "deterministic_fallback",
-            }
+        final_candidate = pass_one_candidate
+        final_review = pass_one_review
 
-    for task in pending:
-        seed, next_focus_label = tasks[task]
-        task.cancel()
-        generated_tracks[seed["focus_key"]] = {
-            "track": _fallback_track(seed, next_focus_label),
-            "source": "deterministic_fallback",
-        }
+        if not _review_is_ready(pass_one_review):
+            try:
+                # If the critic is telling us the focus plan itself is wrong (duplicate splits,
+                # redundant areas, same project in multiple slots), regenerate the plan first.
+                # Retrying tracks against a bad plan cannot fix a bad plan.
+                repair_base_plan = focus_plan
+                if _critic_signals_plan_problem(pass_one_review):
+                    hint = _extract_plan_repair_hint(pass_one_review)
+                    print(
+                        f"[TrajectoryMap] Critic flagged plan-level problem"
+                        + (f" for {session_id[:8]}" if session_id else "")
+                        + f"; regenerating focus plan with dedup hint"
+                    )
+                    try:
+                        repair_base_plan = await _generate_focus_area_plan(
+                            resume=resume,
+                            session_id=session_id,
+                            dedup_hint=hint,
+                        )
+                    except Exception as plan_exc:
+                        print(
+                            f"[TrajectoryMap] Focus plan regeneration failed"
+                            + (f" for {session_id[:8]}" if session_id else "")
+                            + f"; falling back to original plan: {type(plan_exc).__name__}: {plan_exc}"
+                        )
+                        repair_base_plan = focus_plan
 
-    focus_areas: list[dict] = []
-    pending_hydration_focus_keys: list[str] = []
-    for index, seed in enumerate(limited_seeds):
-        next_focus_label = limited_seeds[(index + 1) % len(limited_seeds)]["label"] if len(limited_seeds) > 1 else "another area from the candidate's background"
-        track_result = generated_tracks.get(seed["focus_key"]) or {
-            "track": _fallback_track(seed, next_focus_label),
-            "source": "deterministic_fallback",
-        }
-        if track_result.get("source") != "llm":
-            pending_hydration_focus_keys.append(seed["focus_key"])
-        focus_areas.append({
-            "label": seed["label"],
-            "focus_key": seed["focus_key"],
-            "anchor_context": _anchor_context_for_focus(seed),
-            "resume_snippets": list(seed.get("resume_snippets", [])[:3]),
-            "track_source": track_result.get("source", "deterministic_fallback"),
-            "llm_branch_count": int(track_result.get("llm_branch_count", 0) or 0),
-            "fallback_branch_count": int(track_result.get("fallback_branch_count", 0) or 0),
-            "llm_branches": list(track_result.get("llm_branches", []) or []),
-            "fallback_branches": list(track_result.get("fallback_branches", []) or []),
-            **track_result["track"],
-        })
+                repaired_candidate = await _generate_priority_tracks_for_candidate(
+                    resume=resume,
+                    candidate=repair_base_plan,
+                    session_id=session_id,
+                    critic_feedback=pass_one_review,
+                )
+                repaired_review = await _critique_map_candidate(
+                    resume=resume,
+                    candidate=repaired_candidate,
+                    stage="pass_1_repair",
+                )
+                if _review_score(repaired_review) >= _review_score(pass_one_review):
+                    final_candidate = repaired_candidate
+                    final_review = repaired_review
+            except Exception as exc:
+                print(
+                    f"[TrajectoryMap] Startup repair pass failed"
+                    + (f" for {session_id[:8]}" if session_id else "")
+                    + f"; keeping pass 1 map: {type(exc).__name__}: {exc}"
+                )
+                final_candidate = pass_one_candidate
+                final_review = _fallback_quality_review(
+                    pass_one_candidate,
+                    stage="pass_1_degraded",
+                    issue=f"Startup repair pass failed; keeping the first-pass map: {type(exc).__name__}: {exc}",
+                )
 
-    if pending:
+        interview_map = _candidate_to_runtime_map(
+            resume=resume,
+            candidate=final_candidate,
+            pass_one_review=pass_one_review,
+            final_review=final_review,
+            session_id=session_id,
+        )
+
+        startup_validation = validate_interview_map(
+            interview_map,
+            require_all_llm=False,
+            min_llm_branch_ratio=0.72,
+        )
+        # Startup only needs _MAP_MIN_FOCUS_AREAS LLM-ready areas — remaining can be hydrated
+        # later by the caller. Requiring all areas here caused the 6-minute blocking wait in prod.
+        if startup_validation.get("priority_llm_ready_count", 0) < _MAP_MIN_FOCUS_AREAS:
+            missing_priority_keys = [
+                str(area.get("focus_key", "") or "")
+                for area in (interview_map.get("focus_areas") or [])
+                if str(area.get("track_source", "") or "") != "llm"
+            ]
+            missing_priority_keys = [key for key in missing_priority_keys if key]
+            if missing_priority_keys:
+                print(
+                    f"[TrajectoryMap] Fewer than {_MAP_MIN_FOCUS_AREAS} LLM-ready tracks; repairing"
+                    + (f" for {session_id[:8]}" if session_id else "")
+                    + f": {', '.join(missing_priority_keys)}"
+                )
+                interview_map = await hydrate_interview_map_tracks(
+                    interview_map=interview_map,
+                    resume=resume,
+                    session_id=session_id,
+                    focus_keys=missing_priority_keys,
+                )
+
+        elapsed_ms = round((time.perf_counter() - started) * 1000)
         print(
-            f"[TrajectoryMap] Deadline hit with {len(pending)} pending focus tracks"
+            f"[TrajectoryMap] Built {len(interview_map.get('focus_areas', []))} focus areas in {elapsed_ms}ms"
             + (f" for {session_id[:8]}" if session_id else "")
         )
-
-    elapsed_ms = round((time.perf_counter() - started) * 1000)
-    print(
-        f"[TrajectoryMap] Built {len(focus_areas)} focus areas in {elapsed_ms}ms"
-        + (f" for {session_id[:8]}" if session_id else "")
-    )
-    return {
-        "focus_areas": focus_areas,
-        "generated_at": time.time(),
-        "pending_hydration_focus_keys": pending_hydration_focus_keys,
-    }
+        return interview_map
+    except Exception as exc:
+        print(
+            f"[TrajectoryMap] Startup map generation failed"
+            + (f" for {session_id[:8]}" if session_id else "")
+            + f": {type(exc).__name__}: {exc}"
+        )
+        fallback = build_deterministic_interview_map(resume=resume, session_id=session_id)
+        priority_keys = [
+            str(area.get("focus_key", "") or "")
+            for area in (fallback.get("focus_areas") or [])
+            if str(area.get("focus_key", "") or "")
+        ]
+        if priority_keys:
+            fallback = await hydrate_interview_map_tracks(
+                interview_map=fallback,
+                resume=resume,
+                session_id=session_id,
+                focus_keys=priority_keys,
+            )
+        fallback["quality_review"] = {
+            "stage": "fallback",
+            "critic_model": "none",
+            "ready": True,
+            "overall_score": 7.0,
+            "issues": [f"Startup planner failed; used deterministic focus plan plus targeted track recovery: {type(exc).__name__}: {exc}"],
+            "repair_instructions": [],
+            "focus_reviews": [],
+        }
+        return fallback
 
 
 def build_deterministic_interview_map(
@@ -1398,17 +2561,20 @@ def build_deterministic_interview_map(
             if len(seeds) > 1
             else "another area from the candidate's background"
         )
+        fallback_dim = _fallback_dimension_track(normalized_seed, next_focus_label)
+        fallback_dims = fallback_dim.get("dimensions", [])
         focus_areas.append({
             "label": str(normalized_seed.get("label", "") or f"Focus Area {index + 1}").strip(),
             "focus_key": normalized_seed["focus_key"],
             "anchor_context": _anchor_context_for_focus(normalized_seed),
             "resume_snippets": list(normalized_seed.get("resume_snippets", [])[:3]),
             "track_source": "deterministic_fallback",
+            "track_schema": "dimension",
             "llm_branch_count": 0,
-            "fallback_branch_count": len(_SPRINT_KEYS) * len(_VALID_BRANCHES),
+            "fallback_branch_count": len(fallback_dims),
             "llm_branches": [],
-            "fallback_branches": [f"{sprint_key}.{branch}" for sprint_key in _SPRINT_KEYS for branch in sorted(_VALID_BRANCHES)],
-            **_fallback_track(normalized_seed, next_focus_label),
+            "fallback_branches": [d["id"] for d in fallback_dims],
+            **fallback_dim,
         })
 
     elapsed_ms = round((time.perf_counter() - started) * 1000)
@@ -1428,7 +2594,7 @@ def validate_interview_map(
     interview_map: dict,
     *,
     require_all_llm: bool = False,
-    min_focus_areas: int = 3,
+    min_focus_areas: int = _MAP_MIN_FOCUS_AREAS,
     min_llm_branch_ratio: float = 0.72,
 ) -> dict:
     errors: list[str] = []
@@ -1441,20 +2607,30 @@ def validate_interview_map(
     if len(focus_areas) < min_focus_areas:
         errors.append(f"Map has only {len(focus_areas)} focus areas; need at least {min_focus_areas}.")
 
+    quality_review = interview_map.get("quality_review", {}) if isinstance(interview_map, dict) else {}
+    if isinstance(quality_review, dict):
+        review_ready = quality_review.get("ready")
+        review_score = _review_score(quality_review)
+        if review_ready is False:
+            warnings.append("Map critic suggested further improvements before launch.")
+        elif review_score and review_score < _MAP_MIN_READY_SCORE:
+            warnings.append(
+                f"Map critic score is {review_score:.1f}; need at least {_MAP_MIN_READY_SCORE:.1f}."
+            )
+
     llm_focus_count = 0
     rich_focus_count = 0
+    priority_llm_ready_count = 0
     focus_reports: list[dict] = []
-    for area in focus_areas:
+    for index, area in enumerate(focus_areas):
         label = str(area.get("label", "") or "").strip()
         focus_key = str(area.get("focus_key", "") or "").strip()
         track_source = str(area.get("track_source", "") or "")
+        schema_version = str(area.get("track_schema", "") or "")
         llm_branch_count = int(area.get("llm_branch_count", 0) or 0)
         fallback_branch_count = int(area.get("fallback_branch_count", 0) or 0)
         llm_branches = set(str(item) for item in (area.get("llm_branches", []) or []))
-        if track_source == "deterministic_fallback" and llm_branch_count == 0 and fallback_branch_count == 0:
-            fallback_branch_count = len(_SPRINT_KEYS) * len(_VALID_BRANCHES)
-        total_branches = llm_branch_count + fallback_branch_count
-        llm_ratio = llm_branch_count / total_branches if total_branches else 0.0
+        is_dim_schema = schema_version == "dimension" or ("opener" in area or "dimensions" in area)
         focus_errors: list[str] = []
 
         if not label or not focus_key:
@@ -1462,28 +2638,58 @@ def validate_interview_map(
         if any(token in label.lower() for token in _RICH_MAP_BANNED_LABEL_TOKENS):
             focus_errors.append(f"label '{label}' looks like metadata noise")
 
-        for sprint_key in _SPRINT_KEYS:
-            sprint = area.get(sprint_key, {})
-            if not isinstance(sprint, dict):
-                focus_errors.append(f"{label}: {sprint_key} missing")
-                continue
-            for branch in _VALID_BRANCHES:
-                if not _clean_track_value(sprint.get(branch, "")):
-                    focus_errors.append(f"{label}: {sprint_key}.{branch} empty")
+        if is_dim_schema:
+            # Validate new dimension schema
+            opener = _clean_track_value(area.get("opener", ""))
+            dims = area.get("dimensions", []) if isinstance(area.get("dimensions"), list) else []
+            recovery = area.get("recovery", {}) if isinstance(area.get("recovery"), dict) else {}
+            if not opener:
+                focus_errors.append(f"{label}: opener missing")
+            if len(dims) < 3:
+                focus_errors.append(f"{label}: only {len(dims)} dimensions (need ≥3)")
+            missing_recovery = sorted(_DIM_RECOVERY_REQUIRED - set(recovery.keys()))
+            if missing_recovery:
+                focus_errors.append(f"{label}: recovery missing fields: {', '.join(missing_recovery)}")
+            for dim in dims[:6]:
+                if not isinstance(dim, dict):
+                    continue
+                for probe_key in ("surface", "mechanism", "boundary"):
+                    if not _clean_track_value(dim.get(probe_key, "")):
+                        focus_errors.append(f"{label}/{dim.get('id', '?')}: {probe_key} probe empty")
+
+            total_branches = llm_branch_count + fallback_branch_count
+            if total_branches == 0:
+                total_branches = len(dims) or 1
+            llm_ratio = llm_branch_count / total_branches if total_branches else 0.0
+            # is_rich requires LLM provenance — a complete fallback track must not count as ready.
+            is_rich = track_source == "llm" and opener and len(dims) >= 3 and not missing_recovery
+        else:
+            # Legacy sprint/branch schema
+            if track_source == "deterministic_fallback" and llm_branch_count == 0 and fallback_branch_count == 0:
+                fallback_branch_count = len(_SPRINT_KEYS) * len(_VALID_BRANCHES)
+            total_branches = llm_branch_count + fallback_branch_count
+            llm_ratio = llm_branch_count / total_branches if total_branches else 0.0
+            for sprint_key in _SPRINT_KEYS:
+                sprint = area.get(sprint_key, {})
+                if not isinstance(sprint, dict):
+                    focus_errors.append(f"{label}: {sprint_key} missing")
+                    continue
+                for branch in _VALID_BRANCHES:
+                    if not _clean_track_value(sprint.get(branch, "")):
+                        focus_errors.append(f"{label}: {sprint_key}.{branch} empty")
+            is_rich = llm_ratio >= min_llm_branch_ratio and _RICH_MAP_CORE_BRANCHES <= llm_branches
 
         if track_source == "llm":
             llm_focus_count += 1
-        if llm_ratio >= min_llm_branch_ratio and _RICH_MAP_CORE_BRANCHES <= llm_branches:
+        if is_rich:
             rich_focus_count += 1
+            priority_llm_ready_count += 1  # all areas are generated in phase 2, so all are "priority"
 
         if require_all_llm:
             if track_source != "llm":
                 focus_errors.append(f"{label}: track_source is {track_source}, expected llm")
-            if llm_ratio < min_llm_branch_ratio:
-                focus_errors.append(f"{label}: only {llm_branch_count}/{total_branches} branches are LLM-authored")
-            missing_core = sorted(_RICH_MAP_CORE_BRANCHES - llm_branches)
-            if missing_core:
-                focus_errors.append(f"{label}: missing core LLM branches: {', '.join(missing_core)}")
+            if not is_rich:
+                focus_errors.append(f"{label}: does not meet richness gate")
 
         if focus_errors:
             errors.extend(focus_errors)
@@ -1492,17 +2698,26 @@ def validate_interview_map(
             "label": label,
             "focus_key": focus_key,
             "track_source": track_source,
+            "track_schema": schema_version or ("dimension" if is_dim_schema else "sprint"),
             "llm_branch_count": llm_branch_count,
             "fallback_branch_count": fallback_branch_count,
             "llm_branch_ratio": round(llm_ratio, 3),
             "pending": focus_key in pending_focuses,
             "ready": not focus_errors,
+            "is_rich": is_rich,
         })
 
     if require_all_llm and pending_focuses:
         errors.append(f"Map still has pending hydration focuses: {', '.join(pending_focuses)}")
-    if llm_focus_count < len(focus_areas):
-        warnings.append(f"Only {llm_focus_count}/{len(focus_areas)} focus areas are fully marked as llm.")
+    # Startup contract: need ≥ _MAP_MIN_FOCUS_AREAS LLM-ready areas to launch.
+    # Remaining areas can be hydrated by the orchestrator after startup.
+    if not require_all_llm and priority_llm_ready_count < _MAP_MIN_FOCUS_AREAS:
+        errors.append(
+            f"Only {priority_llm_ready_count}/{len(focus_areas)} focus areas are LLM-ready"
+            f" (need ≥{_MAP_MIN_FOCUS_AREAS} to launch)."
+        )
+    if not require_all_llm and llm_focus_count < len(focus_areas):
+        warnings.append(f"Only {llm_focus_count}/{len(focus_areas)} focus areas are fully LLM-sourced; remaining will be hydrated.")
 
     return {
         "ready": not errors,
@@ -1511,6 +2726,7 @@ def validate_interview_map(
         "focus_count": len(focus_areas),
         "llm_focus_count": llm_focus_count,
         "rich_focus_count": rich_focus_count,
+        "priority_llm_ready_count": priority_llm_ready_count,
         "pending_focus_keys": pending_focuses,
         "focus_reports": focus_reports,
         "require_all_llm": require_all_llm,
@@ -1541,42 +2757,64 @@ async def hydrate_interview_map_tracks(
             if str(area.get("track_source", "") or "") != "llm"
         }
 
-    updated_focus_areas: list[dict] = []
-    hydrated_keys: list[str] = []
-    for index, area in enumerate(focus_areas):
+    # Build list of (index, area) pairs that need hydration
+    pending_pairs = [
+        (index, area)
+        for index, area in enumerate(focus_areas)
+        if str(area.get("focus_key", "") or "") in target_keys
+    ]
+
+    async def _hydrate_one(index: int, area: dict) -> tuple[int, dict]:
         focus_key = str(area.get("focus_key", "") or "")
         next_focus_label = (
             str(focus_areas[(index + 1) % len(focus_areas)].get("label", "") or "").strip()
             if len(focus_areas) > 1
             else "another area from the candidate's background"
         )
-        if focus_key and focus_key in target_keys:
-            seed = {
-                "label": str(area.get("label", "") or ""),
-                "focus_key": focus_key,
-                "anchor_context": str(area.get("anchor_context", "") or ""),
-                "resume_snippets": list(area.get("resume_snippets", []) or []),
+        seed = {
+            "label": str(area.get("label", "") or ""),
+            "focus_key": focus_key,
+            "anchor_context": str(area.get("anchor_context", "") or ""),
+            "resume_snippets": list(area.get("resume_snippets", []) or []),
+        }
+        result = await _generate_focus_track(
+            resume_context=resume_focus,
+            seed=seed,
+            next_focus_label=next_focus_label,
+            session_id=session_id,
+            fast_mode=False,
+        )
+        if result.get("source") == "llm":
+            track_data = result["track"]
+            schema_v = "dimension" if ("opener" in track_data or "dimensions" in track_data) else "sprint"
+            return index, {
+                **area,
+                "track_source": "llm",
+                "track_schema": schema_v,
+                "llm_branch_count": int(result.get("llm_branch_count", 0) or 0),
+                "fallback_branch_count": int(result.get("fallback_branch_count", 0) or 0),
+                "llm_branches": list(result.get("llm_branches", []) or []),
+                "fallback_branches": list(result.get("fallback_branches", []) or []),
+                **track_data,
             }
-            result = await _generate_focus_track(
-                resume_context=resume_focus,
-                seed=seed,
-                next_focus_label=next_focus_label,
-                session_id=session_id,
-                fast_mode=False,
-            )
-            if result.get("source") == "llm":
-                updated_focus_areas.append({
-                    **area,
-                    "track_source": "llm",
-                    "llm_branch_count": int(result.get("llm_branch_count", 0) or 0),
-                    "fallback_branch_count": int(result.get("fallback_branch_count", 0) or 0),
-                    "llm_branches": list(result.get("llm_branches", []) or []),
-                    "fallback_branches": list(result.get("fallback_branches", []) or []),
-                    **result["track"],
-                })
-                hydrated_keys.append(focus_key)
-                continue
-        updated_focus_areas.append(area)
+        return index, area  # source was fallback — keep original
+
+    # Fire all pending hydrations in parallel
+    hydration_results = await asyncio.gather(
+        *[_hydrate_one(i, a) for i, a in pending_pairs],
+        return_exceptions=True,
+    )
+
+    updated_focus_areas = list(focus_areas)
+    hydrated_keys: list[str] = []
+    for outcome in hydration_results:
+        if isinstance(outcome, BaseException):
+            print(f"[TrajectoryMap] Hydration task raised: {type(outcome).__name__}: {outcome}")
+            continue
+        index, updated_area = outcome
+        updated_focus_areas[index] = updated_area
+        if updated_area.get("track_source") == "llm":
+            hydrated_keys.append(str(updated_area.get("focus_key", "") or ""))
 
     remaining = [
         str(area.get("focus_key", "") or "")
@@ -1656,6 +2894,45 @@ def get_focus_area_context(
         "resume_snippets": snippets,
         "prompt_context": "\n".join(prompt_context_lines),
     }
+
+
+_METRIC_NUMBER_RE = re.compile(
+    r"\b\d+\s*%"                                                      # 40%
+    r"|\b\d+\s*percent\b"                                              # 40 percent
+    r"|\b\d+x\b"                                                       # 3x
+    r"|\b\d+\s*times\b"                                                # 3 times
+    r"|\b\d+\s*(?:ms|milliseconds?|seconds?|minutes?|hours?|days?)\b" # 200ms
+    r"|\b(?:reduced?|improved?|increased?|decreased?)\s+(?:by\s+)?\d+"# reduced by 35
+    r"|\b\d+\s*fold\b",                                                # 3 fold
+    re.IGNORECASE,
+)
+_METHODOLOGY_KEYWORDS = frozenset({
+    # Verbs/procedures that indicate HOW they measured — naming a baseline alone is not methodology
+    "measured", "compared", "benchmarked", "evaluated", "tracked",
+    "logged", "profiled", "instrumented", "a/b", "experiment", "dataset",
+    "formula", "calculated", "computation", "ablation",
+})
+
+
+def _has_metric_risk(answer: str) -> bool:
+    """True when the answer cites a number but gives no methodology to back it up."""
+    if not _METRIC_NUMBER_RE.search(answer):
+        return False
+    answer_lower = answer.lower()
+    return not any(kw in answer_lower for kw in _METHODOLOGY_KEYWORDS)
+
+
+def _has_overclaim_risk(answer: str) -> bool:
+    """True when the answer uses domain vocabulary from _OVERCLAIM_VOCAB with no operational context."""
+    answer_lower = answer.lower()
+    tokens = set(re.findall(r"[a-z0-9]+", answer_lower)) | set(re.findall(r"[a-z0-9-]+", answer_lower))
+    found = _OVERCLAIM_VOCAB & tokens
+    if not found:
+        return False
+    # Only flag when the term is used without any concrete operational grounding —
+    # look for phrases that indicate real work: "I built", "we called", "the pipeline", etc.
+    grounding_phrases = ("built", "called", "implemented", "wrote", "pipeline", "function", "class", "module", "api")
+    return not any(phrase in answer_lower for phrase in grounding_phrases)
 
 
 def _branch_priority(
@@ -1748,6 +3025,80 @@ def select_from_trajectory_map(
     return result["question"], result["route_kind"]
 
 
+def _select_from_dimension_area(
+    area: dict,
+    *,
+    history: list[dict],
+    depth: int,
+    dimension_id: str,
+    is_short: bool,
+    admission: bool,
+    has_discrepancy: bool,
+    metric_risk: bool,
+    overclaim_risk: bool,
+    branch_hint: str,
+    allow_bridge: bool,
+) -> dict | None:
+    """Route a question from a dimension-schema focus area."""
+    recovery = area.get("recovery", {})
+    dims = area.get("dimensions", [])
+    focus_key_out = str(area.get("focus_key", "") or "")
+    focus_label_out = str(area.get("label", "") or "")
+
+    def _ret(q: str, route: str, branch: str) -> dict | None:
+        q = q.strip()
+        if not q or _already_asked(q, history):
+            return None
+        return {"question": q, "route_kind": route, "focus_key": focus_key_out, "focus_label": focus_label_out, "branch": branch}
+
+    # Recovery signals take absolute priority (order matters)
+    if branch_hint == "if_short_answer" or is_short:
+        r = _ret(recovery.get("short_answer", ""), ROUTE_SHORT_ANSWER_RESCUE, "short_answer")
+        if r:
+            return r
+    if branch_hint == "if_honest_gap" or admission:
+        r = _ret(recovery.get("honest_gap", ""), ROUTE_HONESTY_PROBE, "honest_gap")
+        if r:
+            return r
+    if branch_hint == "if_claim_conflict" or has_discrepancy:
+        r = _ret(recovery.get("claim_conflict", ""), ROUTE_CHALLENGE, "claim_conflict")
+        if r:
+            return r
+    if metric_risk:
+        r = _ret(recovery.get("metric_risk", ""), ROUTE_METRIC_PROBE, "metric_risk")
+        if r:
+            return r
+    if overclaim_risk:
+        r = _ret(recovery.get("overclaim_risk", ""), ROUTE_OVERCLAIM_PROBE, "overclaim_risk")
+        if r:
+            return r
+
+    # Normal depth-based probing: try active dimension first, then any unused dimension
+    depth_key = {1: "surface", 2: "mechanism", 3: "boundary"}.get(max(1, min(3, depth)), "surface")
+    route_kind = _DEPTH_TO_ROUTE.get(max(1, min(3, depth)), ROUTE_SURFACE)
+    active_dims = [d for d in dims if isinstance(d, dict) and d.get("id") == dimension_id]
+    other_dims = [d for d in dims if isinstance(d, dict) and d.get("id") != dimension_id]
+    for dim in active_dims + other_dims:
+        probe = _clean_track_value(dim.get(depth_key, ""))
+        r = _ret(probe, route_kind, f"dim_{dim.get('id', '')}_{depth_key}")
+        if r:
+            return r
+        # Fall back to surface within the same dim if deeper probe was asked
+        if depth_key != "surface":
+            probe_s = _clean_track_value(dim.get("surface", ""))
+            r = _ret(probe_s, ROUTE_SURFACE, f"dim_{dim.get('id', '')}_surface")
+            if r:
+                return r
+
+    # Bridge as last resort when allowed
+    if allow_bridge:
+        r = _ret(recovery.get("bridge", ""), ROUTE_BRIDGE, "bridge")
+        if r:
+            return r
+
+    return None
+
+
 def select_from_trajectory_map_detailed(
     interview_map: dict,
     *,
@@ -1759,6 +3110,10 @@ def select_from_trajectory_map_detailed(
     admission: bool = False,
     has_discrepancy: bool = False,
     branch_hint: str = "",
+    depth: int = 1,
+    dimension_id: str = "",
+    metric_risk: bool = False,
+    overclaim_risk: bool = False,
 ) -> dict | None:
     if not isinstance(interview_map, dict):
         return None
@@ -1767,15 +3122,14 @@ def select_from_trajectory_map_detailed(
     if not isinstance(focus_areas, list) or not focus_areas:
         return None
 
-    sprint_key = _SPRINT_KEY.get(sprint, "sprint_1")
     word_count = len([word for word in answer.split() if word])
-    is_short = 1 <= word_count <= 18
-    priority = _branch_priority(
-        is_short=is_short,
-        admission=admission,
-        has_discrepancy=has_discrepancy,
-        branch_hint=branch_hint,
-    )
+    is_short = 1 <= word_count <= 8
+
+    # Auto-detect signals from answer text if not provided by caller
+    if not metric_risk:
+        metric_risk = _has_metric_risk(answer)
+    if not overclaim_risk:
+        overclaim_risk = _has_overclaim_risk(answer)
 
     current_matches = [area for area in focus_areas if _focus_area_matches(area, focus_key)]
     last_focus_key = _last_substantive_focus(history)
@@ -1818,6 +3172,35 @@ def select_from_trajectory_map_detailed(
         if not group:
             continue
         for area in group:
+            schema = str(area.get("track_schema", "") or "")
+            is_dimension_schema = schema == "dimension" or ("opener" in area or "dimensions" in area)
+
+            if is_dimension_schema:
+                result = _select_from_dimension_area(
+                    area,
+                    history=history,
+                    depth=depth,
+                    dimension_id=dimension_id,
+                    is_short=is_short,
+                    admission=admission,
+                    has_discrepancy=has_discrepancy,
+                    metric_risk=metric_risk,
+                    overclaim_risk=overclaim_risk,
+                    branch_hint=branch_hint,
+                    allow_bridge=(group_index == 0 and branch_hint == "bridge_to_next_focus") or group_index > 0,
+                )
+                if result:
+                    return result
+                continue
+
+            # Legacy sprint/branch schema path
+            sprint_key = _SPRINT_KEY.get(sprint, "sprint_1")
+            priority = _branch_priority(
+                is_short=is_short,
+                admission=admission,
+                has_discrepancy=has_discrepancy,
+                branch_hint=branch_hint,
+            )
             track = area.get(sprint_key, {})
             if not isinstance(track, dict):
                 continue
@@ -1839,8 +3222,13 @@ def select_from_trajectory_map_detailed(
                     "branch": branch,
                 }
 
+        # Bridge fallback for group 0 on legacy schema
         if group_index == 0:
             for area in group:
+                schema = str(area.get("track_schema", "") or "")
+                if schema == "dimension" or "opener" in area or "dimensions" in area:
+                    continue
+                sprint_key = _SPRINT_KEY.get(sprint, "sprint_1")
                 track = area.get(sprint_key, {})
                 if not isinstance(track, dict):
                     continue

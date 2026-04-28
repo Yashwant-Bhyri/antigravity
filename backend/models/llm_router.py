@@ -8,7 +8,7 @@ from backend.config.env_runtime import model_tier
 # OpenRouter model IDs: https://openrouter.ai/models
 DEFAULT_MODEL_TIERS = {
     "small": "anthropic/claude-haiku-4-5",   # concept extraction, resume parsing
-    "medium": "anthropic/claude-sonnet-4-5", # weakness detection, follow-ups
+    "medium": "anthropic/claude-sonnet-4-6", # weakness detection, follow-ups
     "large": "deepseek/deepseek-r1",         # strongest reasoning/evaluation path for now
 }
 
@@ -17,17 +17,18 @@ MODEL_TIERS = {
     for tier, default_model in DEFAULT_MODEL_TIERS.items()
 }
 
-# Default max_tokens per tier — small tasks need less space, evaluation needs headroom
+# Default max_tokens per tier. Interview-map generation now sends the full
+# resume plus prior pass context, so the stronger tiers need much more room.
 TIER_MAX_TOKENS = {
-    "small": 256,
-    "medium": 768,
-    "large": 2500,   # full interview evaluation with JSON schema needs real space
+    "small": 512,
+    "medium": 1800,
+    "large": 7000,
 }
 
 TIER_TIMEOUT_SECONDS = {
-    "small": 12.0,
-    "medium": 20.0,
-    "large": 45.0,
+    "small": 20.0,
+    "medium": 75.0,
+    "large": 180.0,
 }
 
 # Alternative cheap/fast options for cost optimization:
@@ -42,32 +43,47 @@ class LLMRouter:
     OpenRouter is OpenAI API-compatible — one key, all models.
 
     Tiers:
-    - small  → fast classification tasks (~50ms)
-    - medium → follow-up generation, weakness detection (~200ms)
-    - large  → deep evaluation, scoring (~500ms)
+    - small  → lightweight extraction or utility tasks
+    - medium → critique, follow-up generation, evaluation
+    - large  → full-resume reasoning and rich map construction
     """
 
-    def __init__(self, tier: str = "medium"):
+    def __init__(
+        self,
+        tier: str = "medium",
+        *,
+        model_override: str | None = None,
+        timeout_override: float | None = None,
+    ):
         assert tier in MODEL_TIERS, f"Unknown tier: {tier}. Choose from: {list(MODEL_TIERS.keys())}"
         self.tier = tier
-        self.model = MODEL_TIERS[tier]
+        self.model = (model_override or MODEL_TIERS[tier]).strip()
         self.client = AsyncOpenAI(
             api_key=os.environ["OPENROUTER_API_KEY"],
             base_url="https://openrouter.ai/api/v1",
-            timeout=TIER_TIMEOUT_SECONDS[tier],
+            timeout=timeout_override or TIER_TIMEOUT_SECONDS[tier],
         )
 
-    async def call(self, system: str, user: str, max_tokens: int | None = None) -> dict | str:
+    async def call(
+        self,
+        system: str,
+        user: str,
+        max_tokens: int | None = None,
+        response_format: dict | None = None,
+    ) -> dict | str:
         if max_tokens is None:
             max_tokens = TIER_MAX_TOKENS[self.tier]
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            messages=[
+        request_payload = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-        )
+        }
+        if response_format:
+            request_payload["response_format"] = response_format
+        response = await self.client.chat.completions.create(**request_payload)
         text = response.choices[0].message.content or ""
         text = text.strip()
 
