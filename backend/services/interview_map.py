@@ -864,7 +864,6 @@ _DIM_RECOVERY_REQUIRED = {
 }
 _MAP_TARGET_FOCUS_AREAS = 5   # upper bound — Haiku decides actual count (2–5) from resume quality
 _MAP_MIN_FOCUS_AREAS = 2      # minimum acceptable after Haiku selection
-_MAP_PASS_ONE_TRACKS = 2      # startup-critical focus areas that must be strong before launch
 _MAP_MIN_READY_SCORE = 7.0
 _MAP_GENERATOR_MODEL = "anthropic/claude-sonnet-4-6"
 _MAP_CRITIC_MODEL = "anthropic/claude-sonnet-4-6"
