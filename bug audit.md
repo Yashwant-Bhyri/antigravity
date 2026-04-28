@@ -5,6 +5,197 @@ Date: 2026-04-17
 This file captures the important bugs found during the exhaustive audit of the runtime codebase.
 Each finding includes severity, confidence, affected area, why it matters, evidence, and a likely fix direction.
 
+## 2026-04-28 Branch Revalidation (`codex/dimension-map-runtime`)
+
+This branch materially diverges from the older `main`-branch audit.
+The findings below were revalidated against the current branch state.
+
+### Revalidated / Updated Status
+- The old double-finalization concern is partially addressed on this branch:
+  `backend/services/orchestrator.py:895-899` now short-circuits `end_session()` once
+  `final_evaluation` and `interview_complete` already exist.
+- Report durability is stronger than before:
+  `backend/state/session_manager.py:16-21` now gives completed sessions a 24-hour TTL,
+  and `backend/api/routes.py:464-470` falls back to Postgres for `/report/{session_id}`.
+- The branch introduced new startup/runtime contracts that older audit notes do not fully cover:
+  `POST /prepare_interview_map`, `GET /interview_map_status/{session_id}`, and
+  `POST /start_interview` with `prepared_session_id`.
+
+## Critical
+
+### 0. Recruiter dashboard contract is broken on the current branch
+- Severity: `critical`
+- Confidence: `proven`
+- Affected area: `app/dashboard/page.tsx`, `backend/api/routes.py`, `backend/db/postgres.py`
+- Why it matters: the recruiter dashboard is not just incomplete; once completed sessions exist, it can crash or render nonsense because the frontend and backend disagree on the shape of `/sessions`.
+- Evidence:
+  - The dashboard expects top-level `failure_surface`, `raw_weaknesses`, `total_questions`, and `scores`.
+  - `/sessions` returns raw Postgres rows straight from `list_sessions()`.
+  - Postgres stores summary columns plus `full_report`, but the route never reshapes those rows into the dashboard contract.
+  - The dashboard directly reads `session.raw_weaknesses.length`, which will hit `undefined.length` for those raw rows.
+- Code references:
+  - `app/dashboard/page.tsx:4-19`
+  - `app/dashboard/page.tsx:32-40`
+  - `app/dashboard/page.tsx:108-132`
+  - `backend/api/routes.py:444-453`
+  - `backend/db/postgres.py:71-80`
+  - `backend/db/postgres.py:162-175`
+- Likely fix direction:
+  - Make `/sessions` return a dashboard-shaped summary derived from `full_report`, or
+  - change the dashboard to consume only the persisted summary columns it actually receives.
+
+## High
+
+### 1. Server-rendered frontend pages still fall back to `localhost` in deployment
+- Severity: `high`
+- Confidence: `proven`
+- Affected area: `lib/api.ts`, `app/dashboard/page.tsx`, `app/report/[session_id]/page.tsx`
+- Why it matters: the client-side API-origin fix helped browser code, but the server-rendered report and dashboard pages will still call `http://localhost:8000/api` whenever `NEXT_PUBLIC_API_URL` is unset. On a deployed same-origin frontend, that breaks those pages outright.
+- Evidence:
+  - `getApiBaseUrl()` only uses same-origin inference when `window` exists.
+  - On the server, the fallback is hard-coded to `http://localhost:8000/api`.
+  - `app/dashboard/page.tsx` and `app/report/[session_id]/page.tsx` are async server components that call `getApiBaseUrl()` during render.
+- Code references:
+  - `lib/api.ts:8-21`
+  - `app/dashboard/page.tsx:13-18`
+  - `app/report/[session_id]/page.tsx:25-28`
+- Likely fix direction:
+  - Use relative fetches for same-origin server components, or
+  - derive the origin from request headers in server context instead of falling back to localhost.
+
+### 2. Core interview correctness still depends on process-local memory
+- Severity: `high`
+- Confidence: `proven`
+- Affected area: `backend/services/orchestrator.py`, `backend/services/tts_service.py`
+- Why it matters: the repo says session state lives in Redis, but important correctness and latency state still lives only in Python process memory. In multi-worker, serverless, or restart-prone environments, sessions can lose partial-entity accumulation, per-answer scores, speculative locks, and pre-generated TTS audio.
+- Evidence:
+  - Orchestrator stores `_per_answer_scores`, `_partial_entities`, `_partial_snapshot_meta`, `_pipeline_inflight`, `_turn_pipeline_running`, and `_speculative_locks` in-memory.
+  - `end_session()` consumes `_per_answer_scores` from memory, not Redis.
+  - TTS pre-generation and filler caches are also process-local.
+- Code references:
+  - `backend/services/orchestrator.py:688-697`
+  - `backend/services/orchestrator.py:945`
+  - `backend/services/orchestrator.py:1035-1037`
+  - `backend/services/orchestrator.py:1077-1105`
+  - `backend/services/orchestrator.py:1175-1178`
+  - `backend/services/orchestrator.py:2045-2063`
+  - `backend/services/orchestrator.py:2943`
+  - `backend/services/tts_service.py:76-80`
+  - `backend/services/tts_service.py:250-260`
+  - `backend/services/tts_service.py:288-309`
+- Likely fix direction:
+  - Move correctness-bearing state into Redis or another shared store.
+  - Keep only opportunistic caches process-local.
+  - Treat pre-generated TTS and per-answer scores as shared session artifacts if they affect product behavior.
+
+### 3. Session writes still have a structural lost-update race
+- Severity: `high`
+- Confidence: `proven`
+- Affected area: `backend/state/session_manager.py`, `backend/services/orchestrator.py`
+- Why it matters: this branch added more background tasks and more map-hydration concurrency, but the storage model is still full-blob Redis replacement. Parallel read-modify-write flows can silently overwrite each other's changes.
+- Evidence:
+  - `SessionManager.save_state()` serializes the whole session and writes it with one `setex`.
+  - Orchestrator launches concurrent background work with `asyncio.create_task(...)` across scoring, map hydration, TTS pre-generation, speculative work, and persistence.
+  - The orchestrator frequently re-reads state to avoid stale counters, which is a good symptom-level mitigation but not a real conflict-control mechanism.
+- Code references:
+  - `backend/state/session_manager.py:19-27`
+  - `backend/services/orchestrator.py:1004`
+  - `backend/services/orchestrator.py:1119`
+  - `backend/services/orchestrator.py:1880`
+  - `backend/services/orchestrator.py:1988`
+  - `backend/services/orchestrator.py:2210`
+  - `backend/services/orchestrator.py:2451-2569`
+  - `backend/services/orchestrator.py:2804-2815`
+- Likely fix direction:
+  - Use field-level Redis structures or optimistic concurrency/versioned compare-and-swap.
+  - Stop treating the whole session blob as the atomic unit for every hot-path mutation.
+
+### 4. ASGI fallback leaks stack traces and import paths to clients
+- Severity: `high`
+- Confidence: `proven`
+- Affected area: `api/index.py`
+- Why it matters: any backend boot/import failure returns internal traceback details and `sys.path` directly to the caller. That is risky in production and exposes internals during the exact class of failure where operators most want controlled behavior.
+- Evidence:
+  - The fallback JSON includes `exception`, full `traceback`, and `sys_path`.
+- Code references:
+  - `api/index.py:21-28`
+- Likely fix direction:
+  - Return a sanitized error payload to clients and log the detailed traceback server-side only.
+
+## Medium
+
+### 5. Startup still silently declares success when important subsystems fail
+- Severity: `medium`
+- Confidence: `proven`
+- Affected area: `backend/main.py`
+- Why it matters: the app can boot into a degraded mode with broken filler warmup, missing Postgres schema, or no question bank, but there is no surfaced health signal beyond silent `pass` branches.
+- Evidence:
+  - Filler cache warm-up, Postgres init, and question-bank load each swallow all exceptions and continue startup.
+- Code references:
+  - `backend/main.py:39-59`
+- Likely fix direction:
+  - Record structured startup warnings and expose them through health/status endpoints.
+  - Reserve silent fallback for truly optional subsystems only.
+
+### 6. The deterministic interview-map contract test is stale and fails on this branch
+- Severity: `medium`
+- Confidence: `proven`
+- Affected area: `backend/test_interview_map_contract.py`, `backend/services/interview_map.py`
+- Why it matters: the checked-in regression suite no longer matches the runtime map schema, so one of the main map tests fails immediately and no longer protects the current branch.
+- Evidence:
+  - Running `python -m backend.test_interview_map_contract` fails with:
+    `AssertionError: ('Agent Based AIGC Video Generation And Editing Pipeline', 'sprint_1', 'if_strong')`
+  - The test still expects legacy `sprint_1/2/3` branch maps.
+  - The deterministic builder now emits dimension-schema tracks via `_fallback_dimension_track(...)`.
+- Code references:
+  - `backend/test_interview_map_contract.py:51-71`
+  - `backend/services/interview_map.py:2564-2578`
+- Likely fix direction:
+  - Rewrite the contract test around the current dimension schema (`opener`, `dimensions`, `recovery`) instead of the retired sprint-branch shape.
+
+### 7. Documentation drift is now severe enough to mislead onboarding and ops
+- Severity: `medium`
+- Confidence: `proven`
+- Affected area: `README.md`, `AGENTS.md`
+- Why it matters: current docs still describe an older runtime. That creates false assumptions about startup flow, frontend layout, TTS provider policy, dashboard readiness, and test coverage.
+- Evidence:
+  - `README.md` still tells users to `cd frontend`, but this branch uses root-level `app/`, `lib/`, and `components/`.
+  - `README.md` and `AGENTS.md` still describe ElevenLabs-first / filler-first behavior, while `backend/services/tts_service.py` is Cartesia-first on this branch.
+  - `AGENTS.md` still says `/sessions` does not exist and that tests do not exist, but the branch now includes both.
+- Code references:
+  - `README.md:63-102`
+  - `README.md:128-132`
+  - `README.md:141-150`
+  - `AGENTS.md:135-150`
+  - `AGENTS.md:166`
+  - `backend/services/tts_service.py:35-37`
+- Likely fix direction:
+  - Treat docs as part of the runtime contract and update them alongside architecture changes.
+
+### 8. TTS provider selection ignores explicit ElevenLabs preference when Cartesia is configured
+- Severity: `medium`
+- Confidence: `proven`
+- Affected area: `backend/services/tts_service.py`
+- Why it matters: operator intent is overridden silently. If both keys are present, `TTS_PROVIDER=elevenlabs` does not actually force ElevenLabs, which makes rollout/debug/provider comparison harder than it appears.
+- Evidence:
+  - When `CARTESIA_API_KEY` exists, the service sets `_provider = "cartesia"` and logs that `TTS_PROVIDER=elevenlabs` is being ignored.
+- Code references:
+  - `backend/services/tts_service.py:39-57`
+- Likely fix direction:
+  - Respect explicit provider choice when both providers are configured, or rename the environment variable to make the forced-primary policy explicit.
+
+### 9. Vision runtime depends on unpinned `@latest` CDN assets
+- Severity: `medium`
+- Confidence: `strongly implied`
+- Affected area: `lib/vision.ts`
+- Why it matters: the browser-side MediaPipe runtime can change underneath the deployed app without a code change, which is a fragile production dependency for a real-time floor-management signal.
+- Evidence:
+  - `FilesetResolver.forVisionTasks(...)` pulls `@latest/wasm` from jsDelivr.
+- Code references:
+  - `lib/vision.ts:59-65`
+- Likely fix direction:
+  - Pin the CDN version to the package version already declared in `package.json`, or self-host the exact runtime assets.
+
 ## Critical
 
 ### 1. Same-turn revisions can permanently lose analysis
