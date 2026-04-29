@@ -862,8 +862,8 @@ _RICH_MAP_CORE_BRANCHES = {
 _DIM_RECOVERY_REQUIRED = {
     "short_answer", "honest_gap", "claim_conflict", "metric_risk", "overclaim_risk", "bridge",
 }
-_MAP_TARGET_FOCUS_AREAS = 5   # upper bound — Haiku decides actual count (2–5) from resume quality
-_MAP_MIN_FOCUS_AREAS = 2      # minimum acceptable after Haiku selection
+_MAP_TARGET_FOCUS_AREAS = 5   # upper bound — planner decides actual count (2–5) from resume quality
+_MAP_MIN_FOCUS_AREAS = 2      # minimum acceptable after planner selection
 _MAP_MIN_READY_SCORE = 7.0
 _MAP_GENERATOR_MODEL = "anthropic/claude-sonnet-4-6"
 _MAP_CRITIC_MODEL = "anthropic/claude-sonnet-4-6"
@@ -1201,8 +1201,8 @@ def _normalize_map_candidate(candidate: dict | str, *, resume: str) -> dict:
         if len(normalized) >= _MAP_TARGET_FOCUS_AREAS:
             break
 
-    # Only pad with deterministic seeds if Haiku returned fewer than the minimum.
-    # If Haiku returned ≥ _MAP_MIN_FOCUS_AREAS we trust its judgment about which
+    # Only pad with deterministic seeds if the planner returned fewer than the minimum.
+    # If the planner returned ≥ _MAP_MIN_FOCUS_AREAS we trust its judgment about which
     # experiences are worth probing — do NOT pad with rudimentary fallback entries.
     if len(normalized) < _MAP_MIN_FOCUS_AREAS:
         for seed in _fallback_focus_seeds_from_resume(resume, limit=_MAP_MIN_FOCUS_AREAS):
@@ -1296,38 +1296,15 @@ def _extract_plan_repair_hint(review: dict) -> str:
 async def _generate_focus_area_plan(*, resume: str, session_id: str, dedup_hint: str = "") -> dict:
     user_prompt = _focus_plan_user_prompt(resume=resume, dedup_hint=dedup_hint)
 
-    # Tier 1: Haiku — fast, cheap, good enough for selection/ranking
     raw = await _run_focus_plan_call(
-        LLMRouter(tier="small", timeout_override=30.0),
+        LLMRouter(tier="medium", timeout_override=60.0),
         user_prompt,
         _FOCUS_PLAN_PRIMARY_MAX_TOKENS,
         _FOCUS_PLAN_RETRY_MAX_TOKENS,
     )
 
-    # Validate Haiku output before trusting it
-    haiku_area_count = 0
-    if isinstance(raw, dict):
-        validated, _ = _validate_schema(raw, _FocusPlanSchema)
-        haiku_area_count = len([a for a in validated.get("focus_areas", []) if a.get("label")])
-
-    if haiku_area_count < _MAP_MIN_FOCUS_AREAS:
-        # Tier 2: Sonnet fallback — Haiku underdelivered or failed
-        print(
-            f"[TrajectoryMap] Haiku returned {haiku_area_count} usable focus areas"
-            f" — retrying with medium model"
-            + (f" for {session_id[:8]}" if session_id else "")
-        )
-        fallback_raw = await _run_focus_plan_call(
-            LLMRouter(tier="medium", timeout_override=60.0),
-            user_prompt,
-            _FOCUS_PLAN_PRIMARY_MAX_TOKENS,
-            _FOCUS_PLAN_RETRY_MAX_TOKENS,
-        )
-        if isinstance(fallback_raw, dict):
-            raw = fallback_raw
-
     if not isinstance(raw, dict):
-        raise RuntimeError("Focus-area planning failed: both Haiku and medium model returned no usable output.")
+        raise RuntimeError("Focus-area planning failed: model returned no usable output.")
 
     validated_plan, plan_errors = _validate_schema(raw, _FocusPlanSchema)
     if plan_errors:
