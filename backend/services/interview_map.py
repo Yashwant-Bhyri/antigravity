@@ -1162,9 +1162,9 @@ def _normalize_candidate_focus_area(area: dict, *, resume: str, existing_labels:
     return {
         "label": label,
         "focus_key": focus_key,
-        "anchor_context": anchor_context[:180],
+        "anchor_context": anchor_context[:300],
         "sub_focuses": sub_focuses,
-        "resume_snippets": resume_snippets[:2],
+        "resume_snippets": resume_snippets[:3],
         "why_priority": _clean_track_value(area.get("why_priority", ""))[:120],
         "track": area.get("track") if isinstance(area.get("track"), dict) else None,
     }
