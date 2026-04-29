@@ -531,7 +531,7 @@ SPRINTS = {
 }
 
 SPRINT_OPENERS = {
-    1: "Glad you're here. Let's ease in with something you know well: tell me about a project from your background that you're genuinely proud of. What problem were you trying to solve, and why did it matter?",
+    1: "Welcome to the interview — I'm really glad you're here. To start on a lighter note, let's ease in with something you know really well.",
     2: "Let's talk about the technical concepts behind your work. Pick one idea at the core of what you've built — how would you explain it to someone encountering it for the first time?",
     3: "Staying with the system you just described, what would become the first real scaling or reliability bottleneck if usage jumped sharply?",
 }
@@ -875,6 +875,22 @@ class Orchestrator:
                 print(f"[Seed] start_prepared_session seed failure for {session_id[:8]}: {exc}")
 
         state = await self.session_manager.get_state(session_id)
+
+        # Compose the opening question: warm preamble + map's first focus opener
+        first_map_opener = (focus_areas[0].get("opener") or "").strip() if focus_areas else ""
+        if first_map_opener:
+            composed_opener = SPRINT_OPENERS[1] + "\n\n" + first_map_opener
+            state["last_question"] = composed_opener
+            state["active_question_packet"] = _build_question_packet(
+                question_text=composed_opener,
+                sprint=1,
+                route_kind="sprint_opener",
+                parsed_resume=state.get("parsed_resume"),
+                resume=state.get("resume", ""),
+                followups=[],
+                source_turn_number=0,
+            )
+
         state["interview_started"] = True
         state["interview_start_time"] = time.time()
         await self.session_manager.save_state(session_id, state)
