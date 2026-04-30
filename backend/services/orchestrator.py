@@ -13,7 +13,7 @@ from backend.agents.resume_agent import ResumeAgent
 from backend.agents.reasoning_behavior_agent import ReasoningBehaviorAgent
 from backend.rag import question_bank
 from backend.services.interview_map import (
-    _MAP_PASS_ONE_TRACKS as MAP_PASS_ONE_TRACKS,
+    _MAP_MIN_FOCUS_AREAS as MAP_STARTUP_FOCUS_AREAS,
     build_deterministic_interview_map,
     generate_interview_map,
     get_focus_area_context,
@@ -2776,12 +2776,12 @@ class Orchestrator:
             focus_reports = list(validation.get("focus_reports", []) or [])
             priority_unready = [
                 str(r.get("focus_key", "") or "")
-                for r in focus_reports[:MAP_PASS_ONE_TRACKS]
+                for r in focus_reports[:MAP_STARTUP_FOCUS_AREAS]
                 if not bool(r.get("ready")) and str(r.get("focus_key", "") or "")
             ]
             background_unready = [
                 str(r.get("focus_key", "") or "")
-                for r in focus_reports[MAP_PASS_ONE_TRACKS:]
+                for r in focus_reports[MAP_STARTUP_FOCUS_AREAS:]
                 if not bool(r.get("ready")) and str(r.get("focus_key", "") or "")
             ]
 
@@ -2803,7 +2803,7 @@ class Orchestrator:
                 focus_reports = list(validation.get("focus_reports", []) or [])
                 priority_unready = [
                     str(r.get("focus_key", "") or "")
-                    for r in focus_reports[:MAP_PASS_ONE_TRACKS]
+                    for r in focus_reports[:MAP_STARTUP_FOCUS_AREAS]
                     if not bool(r.get("ready")) and str(r.get("focus_key", "") or "")
                 ]
                 await self._trace(
