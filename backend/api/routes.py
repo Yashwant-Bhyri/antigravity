@@ -89,7 +89,10 @@ async def prepare_interview_map(data: PrepareInterviewMapRequest):
             "label": str(area.get("label", "") or ""),
             "focus_key": str(area.get("focus_key", "") or ""),
             "track_source": str(area.get("track_source", "") or ""),
+            "track_schema": str(area.get("track_schema", "") or ""),
             "llm_branch_count": int(area.get("llm_branch_count", 0) or 0),
+            "opener": str(area.get("opener", "") or ""),
+            "dimension_count": len(area.get("dimensions", []) or []),
             "resume_snippets": [str(snippet) for snippet in (area.get("resume_snippets") or [])[:2]],
         }
         for area in focus_areas[:4]
@@ -138,12 +141,10 @@ async def start_interview(data: StartInterviewRequest):
         {
             "label": str(area.get("label", "") or ""),
             "focus_key": str(area.get("focus_key", "") or ""),
+            "track_schema": str(area.get("track_schema", "") or ""),
+            "opener": str(area.get("opener", "") or ""),
+            "dimension_count": len(area.get("dimensions", []) or []),
             "resume_snippets": [str(snippet) for snippet in (area.get("resume_snippets") or [])[:2]],
-            "sprint_1": {
-                "if_vague": str(((area.get("sprint_1") or {}).get("if_vague", "")) or ""),
-                "if_short_answer": str(((area.get("sprint_1") or {}).get("if_short_answer", "")) or ""),
-                "bridge_to_next_focus": str(((area.get("sprint_1") or {}).get("bridge_to_next_focus", "")) or ""),
-            },
         }
         for area in focus_areas[:3]
     ]

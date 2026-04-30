@@ -32,8 +32,8 @@ class TTSService:
     """
     TTS provider wrapper.
 
-    Project policy is ElevenLabs. Cartesia is retained only as a last-resort
-    fallback when ElevenLabs credentials are unavailable at runtime.
+    Cartesia is the primary provider. ElevenLabs is retained as a runtime
+    fallback when Cartesia is unavailable or explicitly requested.
     """
 
     def __init__(self):
@@ -45,27 +45,19 @@ class TTSService:
         if requested_provider and requested_provider not in valid_providers:
             print(
                 f"[TTS] Unknown provider '{requested_provider}'. "
-                "Defaulting to ElevenLabs."
+                "Defaulting to Cartesia-first selection."
             )
             requested_provider = ""
 
-        if requested_provider == "cartesia":
-            print(
-                "[TTS] Ignoring TTS_PROVIDER=cartesia and enforcing ElevenLabs "
-                "per project policy."
-            )
-
-        self._provider = "elevenlabs"
-
-        if not self._elevenlabs_api_key:
-            if self._cartesia_api_key:
-                print(
-                    "[TTS] ElevenLabs key missing. Falling back to Cartesia as an "
-                    "emergency backup."
-                )
-                self._provider = "cartesia"
-            else:
-                print("[TTS] No TTS provider credentials configured.")
+        if self._cartesia_api_key:
+            self._provider = "cartesia"
+            if requested_provider == "elevenlabs":
+                print("[TTS] Ignoring TTS_PROVIDER=elevenlabs because Cartesia is the forced primary provider.")
+        elif self._elevenlabs_api_key:
+            self._provider = "elevenlabs"
+        else:
+            self._provider = "cartesia"
+            print("[TTS] No TTS provider credentials configured.")
 
         self._elevenlabs_client = (
             AsyncElevenLabs(api_key=self._elevenlabs_api_key)
@@ -181,26 +173,40 @@ class TTSService:
             if unusual_activity_block:
                 return True
             if error.status_code == 401:
-                # Authentication or policy-based blocks from ElevenLabs should not
-                # hard-fail the interview when Cartesia is available.
                 return True
             return error.status_code in {429, 500, 502, 503, 504}
         return False
+
+    def _should_fallback_to_elevenlabs(self, error: Exception) -> bool:
+        if not self._elevenlabs_api_key:
+            return False
+        if isinstance(error, RuntimeError):
+            return True
+        return isinstance(error, httpx.HTTPError)
 
     async def synthesize(self, text: str) -> tuple[bytes, str, str]:
         """
         Returns (audio_bytes, media_type, provider_used).
 
-        ElevenLabs remains the preferred provider. If it is unavailable at runtime
-        (for example quota exhausted / rate-limited) and Cartesia is configured,
-        we fall back per request instead of failing with an opaque 502.
+        Cartesia is the preferred provider. If it is unavailable at runtime and
+        ElevenLabs is configured, we fall back per request instead of failing
+        with an opaque 502.
         """
         self._last_error = ""
 
         if self._provider == "cartesia":
-            audio = await self._cartesia_bytes(text)
-            self._last_provider_used = "cartesia"
-            return audio, "audio/wav", "cartesia"
+            try:
+                audio = await self._cartesia_bytes(text)
+                self._last_provider_used = "cartesia"
+                return audio, "audio/wav", "cartesia"
+            except Exception as e:
+                self._last_error = str(e)[:500]
+                if self._should_fallback_to_elevenlabs(e):
+                    print(f"[TTS] Cartesia unavailable ({type(e).__name__}); falling back to ElevenLabs.")
+                    audio = await self._elevenlabs_bytes(text)
+                    self._last_provider_used = "elevenlabs"
+                    return audio, "audio/mpeg", "elevenlabs"
+                raise
 
         try:
             audio = await self._elevenlabs_bytes(text)

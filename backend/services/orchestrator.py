@@ -13,6 +13,7 @@ from backend.agents.resume_agent import ResumeAgent
 from backend.agents.reasoning_behavior_agent import ReasoningBehaviorAgent
 from backend.rag import question_bank
 from backend.services.interview_map import (
+    _MAP_PASS_ONE_TRACKS as MAP_PASS_ONE_TRACKS,
     build_deterministic_interview_map,
     generate_interview_map,
     get_focus_area_context,
@@ -506,7 +507,7 @@ def _build_sprint_fallback_opener(sprint: int, prior_sprint_history: list[dict],
 # ─────────────────────────────────────────────
 QUESTIONS_PER_SPRINT = 5
 MAP_PREP_TIMEOUT_SECONDS = float(os.getenv("MAP_PREP_TIMEOUT_SECONDS", "300"))
-MAP_PREP_GENERATE_TIMEOUT_SECONDS = float(os.getenv("MAP_PREP_GENERATE_TIMEOUT_SECONDS", "90"))
+MAP_PREP_GENERATE_TIMEOUT_SECONDS = float(os.getenv("MAP_PREP_GENERATE_TIMEOUT_SECONDS", "240"))
 MAP_PREP_MIN_LLM_BRANCH_RATIO = 0.72
 MAP_PREP_MAX_HYDRATION_PASSES = int(os.getenv("MAP_PREP_MAX_HYDRATION_PASSES", "20"))
 MAX_INTERVIEW_MINUTES = 30
@@ -530,7 +531,7 @@ SPRINTS = {
 }
 
 SPRINT_OPENERS = {
-    1: "Tell me about a project from your background that you're genuinely proud of — what problem were you trying to solve, and why did it matter?",
+    1: "Welcome to the interview — I'm really glad you're here. To start on a lighter note, let's ease in with something you know really well.",
     2: "Let's talk about the technical concepts behind your work. Pick one idea at the core of what you've built — how would you explain it to someone encountering it for the first time?",
     3: "Staying with the system you just described, what would become the first real scaling or reliability bottleneck if usage jumped sharply?",
 }
@@ -874,6 +875,22 @@ class Orchestrator:
                 print(f"[Seed] start_prepared_session seed failure for {session_id[:8]}: {exc}")
 
         state = await self.session_manager.get_state(session_id)
+
+        # Compose the opening question: warm preamble + map's first focus opener
+        first_map_opener = (focus_areas[0].get("opener") or "").strip() if focus_areas else ""
+        if first_map_opener:
+            composed_opener = SPRINT_OPENERS[1] + "\n\n" + first_map_opener
+            state["last_question"] = composed_opener
+            state["active_question_packet"] = _build_question_packet(
+                question_text=composed_opener,
+                sprint=1,
+                route_kind="sprint_opener",
+                parsed_resume=state.get("parsed_resume"),
+                resume=state.get("resume", ""),
+                followups=[],
+                source_turn_number=0,
+            )
+
         state["interview_started"] = True
         state["interview_start_time"] = time.time()
         await self.session_manager.save_state(session_id, state)
@@ -2751,43 +2768,60 @@ class Orchestrator:
 
             validation = validate_interview_map(
                 interview_map,
-                require_all_llm=True,
+                require_all_llm=False,
                 min_llm_branch_ratio=MAP_PREP_MIN_LLM_BRANCH_RATIO,
             )
+            # Synchronous fix-up only for the startup-critical priority areas (0-1).
+            # Remaining areas (2-4) are fired as background tasks to not block interview start.
+            focus_reports = list(validation.get("focus_reports", []) or [])
+            priority_unready = [
+                str(r.get("focus_key", "") or "")
+                for r in focus_reports[:MAP_PASS_ONE_TRACKS]
+                if not bool(r.get("ready")) and str(r.get("focus_key", "") or "")
+            ]
+            background_unready = [
+                str(r.get("focus_key", "") or "")
+                for r in focus_reports[MAP_PASS_ONE_TRACKS:]
+                if not bool(r.get("ready")) and str(r.get("focus_key", "") or "")
+            ]
+
             hydration_passes = 0
-            while not validation.get("ready") and time.perf_counter() < deadline and hydration_passes < MAP_PREP_MAX_HYDRATION_PASSES:
-                pending_hydration = list(validation.get("pending_focus_keys", []) or [])
-                if not pending_hydration:
-                    pending_hydration = [
-                        str(report.get("focus_key", "") or "")
-                        for report in validation.get("focus_reports", [])
-                        if str(report.get("track_source", "") or "") != "llm" or not bool(report.get("ready"))
-                    ]
-                pending_hydration = [key for key in pending_hydration if key]
-                if not pending_hydration:
-                    break
+            while priority_unready and time.perf_counter() < deadline and hydration_passes < MAP_PREP_MAX_HYDRATION_PASSES:
                 hydrated = await hydrate_interview_map_tracks(
                     interview_map=interview_map,
                     resume=resume,
                     session_id=session_id,
-                    focus_keys=pending_hydration,
+                    focus_keys=priority_unready,
                 )
                 hydration_passes += 1
                 interview_map = hydrated if isinstance(hydrated, dict) else interview_map
                 validation = validate_interview_map(
                     interview_map,
-                    require_all_llm=True,
+                    require_all_llm=False,
                     min_llm_branch_ratio=MAP_PREP_MIN_LLM_BRANCH_RATIO,
                 )
+                focus_reports = list(validation.get("focus_reports", []) or [])
+                priority_unready = [
+                    str(r.get("focus_key", "") or "")
+                    for r in focus_reports[:MAP_PASS_ONE_TRACKS]
+                    if not bool(r.get("ready")) and str(r.get("focus_key", "") or "")
+                ]
                 await self._trace(
                     session_id,
                     "interview_map_hydration_pass",
                     pass_number=hydration_passes,
-                    pending_focuses=len(validation.get("pending_focus_keys", []) or []),
+                    pending_focuses=len(priority_unready),
                     llm_focuses=int(validation.get("llm_focus_count", 0) or 0),
                     rich_focuses=int(validation.get("rich_focus_count", 0) or 0),
                     ready=bool(validation.get("ready")),
                     elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
+                )
+
+            # Fire remaining areas as background tasks — don't block the startup contract
+            if background_unready:
+                asyncio.create_task(
+                    self._hydrate_interview_map(session_id, background_unready),
+                    name=f"hydrate_bg_{session_id[:8]}",
                 )
 
             state = await self.session_manager.get_state(session_id)
@@ -2801,8 +2835,10 @@ class Orchestrator:
                 {
                     "label": str(area.get("label", "") or ""),
                     "focus_key": str(area.get("focus_key", "") or ""),
-                    "sprint_1_if_vague": str(((area.get("sprint_1") or {}).get("if_vague", "")) or ""),
+                    "opener": str(area.get("opener", "") or ""),
+                    "dimension_count": len(area.get("dimensions", []) or []),
                     "track_source": str(area.get("track_source", "") or ""),
+                    "track_schema": str(area.get("track_schema", "") or ""),
                     "llm_branch_count": int(area.get("llm_branch_count", 0) or 0),
                 }
                 for area in interview_map.get("focus_areas", [])[:3]
@@ -2931,11 +2967,17 @@ class Orchestrator:
                 resume_context = _build_resume_context_for_followup(
                     state.get("parsed_resume"), state.get("resume", "")
                 )
-                focus_key, _ = _infer_focus(
-                    state.get("last_question", ""),
-                    partial_text,
-                    state.get("parsed_resume"),
-                    state.get("resume", ""),
+                # Use the active packet's known focus rather than noisy text inference.
+                # Text inference can drift and re-emit the current opener as a "new" candidate.
+                active_packet = state.get("active_packet") or {}
+                focus_key = (
+                    str(active_packet.get("focus_key_override") or active_packet.get("focus_key") or "").strip()
+                    or _infer_focus(
+                        state.get("last_question", ""),
+                        partial_text,
+                        state.get("parsed_resume"),
+                        state.get("resume", ""),
+                    )[0]
                 )
                 focus_prompt_pack = _build_focus_prompt_pack(
                     state.get("interview_trajectory_map", {}),
@@ -2944,13 +2986,19 @@ class Orchestrator:
                     answer=partial_text,
                     history=state.get("history", []),
                 )
+                # Include last_question as a synthetic already-asked guard so we never
+                # re-emit the active opener (it's not in history yet during partial transcripts).
+                last_q = state.get("last_question", "")
+                history_with_current = list(state.get("history", []))
+                if last_q:
+                    history_with_current = history_with_current + [{"question": last_q}]
                 map_candidate = select_from_trajectory_map_detailed(
                     state.get("interview_trajectory_map", {}),
                     sprint=sprint,
                     focus_key=focus_key,
                     answer=partial_text,
                     entities=list(new_entities),
-                    history=state.get("history", []),
+                    history=history_with_current,
                     admission=admission,
                     has_discrepancy=False,
                     branch_hint="if_honest_gap" if admission else "",

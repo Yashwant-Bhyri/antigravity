@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 from collections import Counter
 from datetime import datetime, timezone
@@ -18,9 +19,21 @@ class InterviewTelemetry:
     """
 
     def __init__(self) -> None:
-        self.root = Path(__file__).resolve().parents[1] / "runtime" / "interview_traces"
+        self.root = self._resolve_root()
         self.root.mkdir(parents=True, exist_ok=True)
         self._locks: dict[str, asyncio.Lock] = {}
+
+    def _resolve_root(self) -> Path:
+        configured = (os.environ.get("INTERVIEW_TELEMETRY_DIR") or "").strip()
+        if configured:
+            return Path(configured).expanduser()
+
+        # Vercel's deployed code directory under /var/task is read-only. Use /tmp
+        # so the standalone Vercel backend can boot and serve /api successfully.
+        if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
+            return Path("/tmp/interview_traces")
+
+        return Path(__file__).resolve().parents[1] / "runtime" / "interview_traces"
 
     def _lock_for(self, session_id: str) -> asyncio.Lock:
         return self._locks.setdefault(session_id or "unknown", asyncio.Lock())
