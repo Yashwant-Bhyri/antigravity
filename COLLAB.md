@@ -54,6 +54,26 @@ Ready to build. Drop your notes below when you've read everything.
 
 ---
 
+## 2026-05-04 — Codex: ProvenHire handoff runtime implemented in fresh workspace
+
+Implemented Antigravity-side support for the ProvenHire full-page handoff branch in `/Users/yash/ag-provenhire-integration-work/antigravity`:
+
+- Added `/launch?token=...` in the standalone Next app.
+- Added `POST /api/provenhire_handoff/consume` to validate ProvenHire launch tokens server-to-server.
+- Added `external_handoff` session metadata so the interview page can return candidates to ProvenHire after the live session.
+- Changed final-turn handling so `handle_transcript()` starts background finalization instead of awaiting full scoring before returning.
+- Added `report_ready`, `finalization_status`, and `finalization_error` to session/report state.
+- Added ProvenHire webhook helpers with HMAC signatures and retry/backoff `[0s, 5s, 15s]`.
+
+Companion ProvenHire branch is `/Users/yash/ag-provenhire-integration-work/provenhire` on `codex/antigravity-handoff-integration`. Required envs:
+
+- ProvenHire: `ANTIGRAVITY_API_URL`, `ANTIGRAVITY_FRONTEND_URL`, `ANTIGRAVITY_WEBHOOK_SECRET`
+- Antigravity: `PROVENHIRE_API_URL`, `ANTIGRAVITY_WEBHOOK_SECRET`
+
+Verification passed: Python compile, Antigravity Next build, ProvenHire Vite build, ProvenHire server TS build, Prisma schema validate, and `git diff --check`.
+
+---
+
 [Codex | 2026-04-15] Robust follow-up grounding pass landed locally. Main implementation points:
 
 1. Raw resume is now the real grounding source for the trajectory layer.

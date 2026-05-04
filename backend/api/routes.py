@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 from fastapi import APIRouter, HTTPException
@@ -5,6 +6,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from backend.services.orchestrator import Orchestrator
 from backend.services.interview_telemetry import interview_telemetry
+from backend.services.provenhire_handoff import consume_launch_token, notify_handoff_started, notify_handoff_failed
 from backend.services.tts_service import TTSService
 
 router = APIRouter()
@@ -59,6 +61,10 @@ class TelemetryEventRequest(BaseModel):
     source: str = "frontend"
     level: str = "info"
     fields: dict = {}
+
+
+class ProvenHireHandoffConsumeRequest(BaseModel):
+    token: str
 
 
 # ─────────────────────────────────────────────
@@ -169,6 +175,82 @@ async def start_interview(data: StartInterviewRequest):
     return response
 
 
+@router.post("/provenhire_handoff/consume")
+async def consume_provenhire_handoff(data: ProvenHireHandoffConsumeRequest):
+    started = time.perf_counter()
+    token = data.token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Launch token is required")
+
+    try:
+        handoff = await consume_launch_token(token)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not validate ProvenHire handoff: {str(e)[:160]}")
+
+    handoff_id = str(handoff.get("handoff_id") or "")
+    existing_session_id = str(handoff.get("antigravity_session_id") or "")
+    if existing_session_id:
+        try:
+            state = await orchestrator.get_session_state(existing_session_id)
+            return {
+                "handoff_id": handoff_id,
+                "session_id": existing_session_id,
+                "opening_question": state.get("last_question", ""),
+                "sprint": state.get("current_sprint", 1),
+                "sprint_name": state.get("sprint_name", ""),
+                "return_url": handoff.get("return_url") or "",
+                "resumed": True,
+            }
+        except KeyError:
+            pass
+
+    try:
+        prepared_session_id = await orchestrator.prepare_session_map(
+            str(handoff.get("resume") or ""),
+            [str(link) for link in (handoff.get("github_links") or [])],
+            target_role=str(handoff.get("target_role") or ""),
+            years_experience=str(handoff.get("years_experience") or ""),
+            prior_assessment_context=handoff.get("prior_assessment_context") or {},
+            prior_assessment_prompt=str(handoff.get("prior_assessment_prompt") or ""),
+        )
+        session_id = await orchestrator.start_prepared_session(prepared_session_id)
+        state = await orchestrator.get_session_state(session_id)
+        state["external_handoff"] = {
+            "provider": "provenhire",
+            "handoff_id": handoff_id,
+            "provenhire_interview_id": handoff.get("provenhire_interview_id") or "",
+            "return_url": handoff.get("return_url") or "",
+        }
+        await orchestrator.session_manager.save_state(session_id, state)
+        asyncio.create_task(notify_handoff_started(handoff_id, session_id))
+    except Exception as e:
+        if handoff_id:
+            try:
+                asyncio.create_task(notify_handoff_failed(handoff_id, "none", str(e)[:500]))
+            except Exception:
+                pass
+        raise HTTPException(status_code=503, detail=f"Could not start Antigravity handoff: {str(e)[:160]}")
+
+    await interview_telemetry.log(
+        session_id,
+        "api.provenhire_handoff_consume",
+        source="backend.api",
+        handoff_id=handoff_id,
+        target_role=str(handoff.get("target_role") or ""),
+        years_experience=str(handoff.get("years_experience") or ""),
+        elapsed_ms=round((time.perf_counter() - started) * 1000, 3),
+    )
+    return {
+        "handoff_id": handoff_id,
+        "session_id": session_id,
+        "opening_question": state.get("last_question", ""),
+        "sprint": state.get("current_sprint", 1),
+        "sprint_name": state.get("sprint_name", ""),
+        "return_url": handoff.get("return_url") or "",
+        "resumed": False,
+    }
+
+
 @router.get("/interview_map_status/{session_id}")
 async def get_interview_map_status(session_id: str):
     try:
@@ -261,12 +343,15 @@ async def process_turn(data: TurnRequest):
 async def end_interview(session_id: str):
     started = time.perf_counter()
     try:
-        final_state = await orchestrator.end_session(session_id)
+        final_state = await orchestrator.start_finalization_background(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
     evaluation = final_state.get("final_evaluation") or {}
     response = {
         "session_id": session_id,
+        "complete": bool(final_state.get("interview_complete")),
+        "report_ready": bool(final_state.get("report_ready")),
+        "finalization_status": final_state.get("finalization_status", "running"),
         "hire_recommendation": evaluation.get("hire_recommendation", "N/A"),
         "overall_score": evaluation.get("overall_score", 0),
         "summary": evaluation.get("summary", ""),
@@ -474,6 +559,7 @@ async def get_report(session_id: str):
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
 
     evaluation = state.get("final_evaluation") or {}
+    report_ready = bool(state.get("report_ready") and evaluation)
     weaknesses = state.get("weaknesses", [])
 
     weakness_by_type: dict[str, int] = {}
@@ -483,7 +569,11 @@ async def get_report(session_id: str):
 
     return {
         "session_id": session_id,
-        "complete": state.get("interview_complete", False),
+        "complete": report_ready,
+        "interview_complete": state.get("interview_complete", False),
+        "report_ready": report_ready,
+        "finalization_status": state.get("finalization_status", "idle"),
+        "finalization_error": state.get("finalization_error", ""),
         "target_role": state.get("target_role", ""),
         "years_experience": state.get("years_experience", ""),
         "total_questions": state.get("question_count", 0),

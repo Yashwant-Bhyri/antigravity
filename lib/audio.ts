@@ -3,6 +3,20 @@ import { CVSensor, VisionPrediction } from "./vision";
 import { getApiBaseUrl } from "./api";
 
 const API = getApiBaseUrl();
+const PROCESS_TURN_TIMEOUT_MS = 50_000;
+const TTS_TIMEOUT_MS = 20_000;
+const FILLER_TTS_TIMEOUT_MS = 10_000;
+
+function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const signal = init.signal;
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeout));
+}
 
 export function trackInterviewEvent(
   sessionId: string,
@@ -532,7 +546,7 @@ export async function processTurn(
   turnId = "",
 ) {
   const startedAt = performance.now();
-  const res = await fetch(`${API}/process_turn`, {
+  const res = await fetchWithTimeout(`${API}/process_turn`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -541,7 +555,7 @@ export async function processTurn(
       entities,
       turn_id: turnId,
     }),
-  });
+  }, PROCESS_TURN_TIMEOUT_MS);
   if (!res.ok) {
     trackInterviewEvent(sessionId, "frontend_process_turn_failed", {
       turn_id: turnId,
@@ -569,11 +583,11 @@ export async function prefetchAudio(text: string, sessionId?: string): Promise<s
   console.log(`[TTS] Prefetching: "${text.slice(0, 30)}..."`);
   const startedAt = performance.now();
   try {
-    const res = await fetch(`${API}/tts`, {
+    const res = await fetchWithTimeout(`${API}/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, session_id: sessionId ?? "" }),
-    });
+    }, TTS_TIMEOUT_MS);
     if (!res.ok) {
       console.warn(`[TTS] ElevenLabs returned ${res.status}. Fallback: browser TTS.`);
       trackInterviewEvent(sessionId ?? "system", "frontend_tts_prefetch_failed", {
@@ -610,7 +624,7 @@ export async function prefetchFillerAudio(): Promise<{ url: string | null; text:
   const fallbackText = "Interesting.";
   const startedAt = performance.now();
   try {
-    const res = await fetch(`${API}/tts_filler`);
+    const res = await fetchWithTimeout(`${API}/tts_filler`, {}, FILLER_TTS_TIMEOUT_MS);
     const fillerText = res.headers.get("X-Filler-Text")?.trim() || fallbackText;
     if (!res.ok) {
       console.warn(`[TTS] Filler fetch returned ${res.status}. Falling back to browser TTS filler.`);

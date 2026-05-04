@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import json
 import asyncpg
 
 _pool: asyncpg.Pool | None = None
