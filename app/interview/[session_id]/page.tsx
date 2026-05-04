@@ -37,6 +37,12 @@ type SessionSnapshot = {
   last_question?: string;
   history?: SessionHistoryEntry[];
   interview_trajectory_map?: { focus_areas?: unknown[] };
+  external_handoff?: {
+    provider?: string;
+    handoff_id?: string;
+    provenhire_interview_id?: string;
+    return_url?: string;
+  };
 };
 
 type AnswerDraft = {
@@ -131,6 +137,13 @@ export default function InterviewPage() {
     if (draft?.commitTimer) clearTimeout(draft.commitTimer);
     answerDraftRef.current = null;
   }, []);
+
+  const getExternalReturnUrl = useCallback(() => {
+    const fromState = sessionSnapshot?.external_handoff?.return_url?.trim();
+    if (fromState) return fromState;
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(`ag:return-url:${session_id}`) || "";
+  }, [sessionSnapshot, session_id]);
 
   const beginUserTurn = useCallback((session: InterviewSession | null) => {
     if (!session) return;
@@ -405,11 +418,16 @@ export default function InterviewPage() {
         turn_id: expectedTurnId,
         sprint: newSprint,
       }, "frontend.ui");
-      // No auto-navigate — user exits manually via the button.
+      const returnUrl = getExternalReturnUrl();
+      if (returnUrl) {
+        window.setTimeout(() => {
+          window.location.assign(returnUrl);
+        }, 3500);
+      }
     } else {
       beginUserTurn(sessionRef.current);
     }
-  }, [beginUserTurn, session_id]);
+  }, [beginUserTurn, getExternalReturnUrl, session_id]);
 
   const commitAnswerDraft = useCallback(async (session: InterviewSession, turnId: string) => {
     const draft = answerDraftRef.current;
@@ -833,7 +851,9 @@ export default function InterviewPage() {
     } catch {
       // non-fatal — navigate anyway, report will show partial state
     }
-    router.push(`/report/${session_id}`);
+    const returnUrl = getExternalReturnUrl();
+    if (returnUrl) window.location.assign(returnUrl);
+    else router.push(`/report/${session_id}`);
   }
 
   useEffect(() => {
@@ -1052,8 +1072,16 @@ export default function InterviewPage() {
                         </AGButton>
                       )}
                       {isCompletedSession && (
-                        <AGButton onClick={() => router.push(`/report/${session_id}`)} disabled={bootingMode !== null} className="w-full">
-                          View Report
+                        <AGButton
+                          onClick={() => {
+                            const returnUrl = getExternalReturnUrl();
+                            if (returnUrl) window.location.assign(returnUrl);
+                            else router.push(`/report/${session_id}`);
+                          }}
+                          disabled={bootingMode !== null}
+                          className="w-full"
+                        >
+                          {getExternalReturnUrl() ? "Return to ProvenHire" : "View Report"}
                         </AGButton>
                       )}
                       <AGButton
@@ -1100,7 +1128,15 @@ export default function InterviewPage() {
                     The live interrogation is over. Exit this screen whenever you are ready and review the full report.
                   </p>
                   <div className="mt-6 flex justify-center">
-                    <AGButton onClick={() => router.push(`/report/${session_id}`)}>View Report →</AGButton>
+                    <AGButton
+                      onClick={() => {
+                        const returnUrl = getExternalReturnUrl();
+                        if (returnUrl) window.location.assign(returnUrl);
+                        else router.push(`/report/${session_id}`);
+                      }}
+                    >
+                      {getExternalReturnUrl() ? "Return to ProvenHire →" : "View Report →"}
+                    </AGButton>
                   </div>
                 </div>
               )}

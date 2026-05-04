@@ -4,6 +4,7 @@ import re
 import time
 import uuid
 from backend.db.postgres import persist_session
+from backend.services.provenhire_handoff import notify_handoff_complete, notify_handoff_failed
 from backend.agents.concept_agent import ConceptAgent
 from backend.agents.weakness_agent import WeaknessAgent
 from backend.agents.followup_agent import FollowUpAgent, _build_resume_context
@@ -695,6 +696,7 @@ class Orchestrator:
         self._partial_entities: dict[str, set] = {}
         self._partial_snapshot_meta: dict[str, dict] = {}
         self._speculative_locks: dict[str, asyncio.Lock] = {}
+        self._finalization_inflight: set[str] = set()
 
     async def _trace(self, session_id: str, event: str, **fields) -> None:
         await interview_telemetry.log(session_id, event, source="backend.orchestrator", **fields)
@@ -760,6 +762,9 @@ class Orchestrator:
             "interview_start_time": None,
             "interview_started": False,
             "interview_complete": False,
+            "finalization_status": "idle",
+            "finalization_error": "",
+            "report_ready": False,
             "resume": resume,
             "parsed_resume": parsed_resume,
             "github_links": github_links,
@@ -912,9 +917,18 @@ class Orchestrator:
         # turn completion); a second call from the UI's /end_interview would re-pop
         # per_answer_scores (now empty) and overwrite the real evaluation with zeros.
         if state.get("final_evaluation") and state.get("interview_complete"):
+            if state.get("finalization_status") != "complete" or not state.get("report_ready"):
+                state["finalization_status"] = "complete"
+                state["finalization_error"] = ""
+                state["report_ready"] = True
+                await self.session_manager.save_state(session_id, state)
             return state
 
         state["interview_complete"] = True
+        state["finalization_status"] = "running"
+        state["finalization_error"] = ""
+        state["report_ready"] = False
+        await self.session_manager.save_state(session_id, state)
 
         # Flush any staged analysis that hasn't been consumed so evaluation sees complete history
         queue = state.pop("prepped_turn_queue", [])
@@ -978,6 +992,9 @@ class Orchestrator:
             state["scores"] = evaluation.get("breakdown", {})
             state["failure_surface"] = evaluation.get("failure_surface", {})
 
+        state["finalization_status"] = "complete"
+        state["finalization_error"] = ""
+        state["report_ready"] = bool(state.get("final_evaluation"))
         await self.session_manager.save_state(session_id, state)
         self._partial_entities.pop(session_id, None)
         self._partial_snapshot_meta.pop(session_id, None)
@@ -1026,10 +1043,60 @@ class Orchestrator:
                 duration_minutes=round(duration, 1),
                 full_report=full_report,
             ))
+            external_handoff = state.get("external_handoff") or {}
+            handoff_id = str(external_handoff.get("handoff_id") or "")
+            if handoff_id:
+                asyncio.create_task(notify_handoff_complete(handoff_id, session_id, full_report))
         except Exception:
             pass
 
         return state
+
+    async def start_finalization_background(self, session_id: str) -> dict:
+        state = await self.session_manager.get_state(session_id)
+        if state.get("final_evaluation") and state.get("interview_complete"):
+            state["finalization_status"] = "complete"
+            state["finalization_error"] = ""
+            state["report_ready"] = True
+            await self.session_manager.save_state(session_id, state)
+            return state
+
+        state["interview_complete"] = True
+        state["finalization_status"] = "running"
+        state["finalization_error"] = ""
+        state["report_ready"] = False
+        await self.session_manager.save_state(session_id, state)
+
+        if session_id not in self._finalization_inflight:
+            self._finalization_inflight.add(session_id)
+            asyncio.create_task(self._finalize_session_worker(session_id))
+        return state
+
+    async def _finalize_session_worker(self, session_id: str) -> None:
+        try:
+            await self.end_session(session_id)
+        except Exception as exc:
+            try:
+                state = await self.session_manager.get_state(session_id)
+                state["interview_complete"] = True
+                state["finalization_status"] = "failed"
+                state["finalization_error"] = f"{type(exc).__name__}: {str(exc)[:300]}"
+                state["report_ready"] = False
+                await self.session_manager.save_state(session_id, state)
+                await self._trace(
+                    session_id,
+                    "session_finalization_failed",
+                    error_type=type(exc).__name__,
+                    error=str(exc)[:300],
+                )
+                external_handoff = state.get("external_handoff") or {}
+                handoff_id = str(external_handoff.get("handoff_id") or "")
+                if handoff_id:
+                    asyncio.create_task(notify_handoff_failed(handoff_id, session_id, str(exc)[:500]))
+            except Exception:
+                pass
+        finally:
+            self._finalization_inflight.discard(session_id)
 
     async def _score_answer_async(
         self,
@@ -1868,7 +1935,7 @@ class Orchestrator:
         await self.session_manager.save_state(session_id, state)
 
         if complete:
-            await self.end_session(session_id)
+            await self.start_finalization_background(session_id)
             await self._trace(
                 session_id,
                 "fasttrack_complete",
@@ -1881,6 +1948,8 @@ class Orchestrator:
                 "sprint": state["current_sprint"],
                 "persona": persona,
                 "complete": True,
+                "report_ready": False,
+                "finalization_status": "running",
                 "pivoting": False,
                 "weakness": None,
                 "discrepancy": None,
