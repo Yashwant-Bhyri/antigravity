@@ -24,3 +24,7 @@ services:
         sync: false
       - key: NEXT_PUBLIC_API_URL
         sync: false
+      - key: PROVENHIRE_API_URL
+        sync: false
+      - key: ANTIGRAVITY_WEBHOOK_SECRET
+        sync: false
