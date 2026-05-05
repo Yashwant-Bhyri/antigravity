@@ -21,10 +21,10 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: FRONTEND_URL
-        sync: false
+        value: https://antigravity-gz2r.vercel.app
       - key: NEXT_PUBLIC_API_URL
-        sync: false
+        value: https://antigravity-backend.onrender.com
       - key: PROVENHIRE_API_URL
-        sync: false
+        value: https://provenhire-updated.onrender.com
       - key: ANTIGRAVITY_WEBHOOK_SECRET
         sync: false
