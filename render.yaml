@@ -23,7 +23,7 @@ services:
       - key: FRONTEND_URL
         value: https://antigravity-gz2r.vercel.app
       - key: NEXT_PUBLIC_API_URL
-        value: https://antigravity-backend.onrender.com
+        value: https://antigravity-backend-2oaj.onrender.com
       - key: PROVENHIRE_API_URL
         value: https://provenhire-updated.onrender.com
       - key: ANTIGRAVITY_WEBHOOK_SECRET
