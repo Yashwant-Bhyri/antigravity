@@ -590,3 +590,41 @@ async def get_report(session_id: str):
         "weakness_summary": weakness_by_type,
         "raw_weaknesses": weaknesses,
     }
+
+
+@router.get("/admin/redis-dump")
+async def redis_dump():
+    """Temporary admin endpoint — scans all Redis keys and returns live session data."""
+    import redis.asyncio as aioredis
+    import json as _json
+
+    redis_url = (
+        os.environ.get("KV_URL")
+        or os.environ.get("REDIS_URL")
+        or os.environ.get("STORAGE_URL")
+        or "redis://localhost:6379"
+    )
+    r = aioredis.from_url(redis_url, decode_responses=True)
+    try:
+        keys = []
+        async for key in r.scan_iter("*", count=200):
+            keys.append(key)
+
+        results = []
+        for key in keys:
+            try:
+                raw = await r.get(key)
+                ttl = await r.ttl(key)
+                if raw is None:
+                    continue
+                try:
+                    data = _json.loads(raw)
+                except Exception:
+                    data = raw
+                results.append({"key": key, "ttl_seconds": ttl, "data": data})
+            except Exception as e:
+                results.append({"key": key, "error": str(e)})
+
+        return {"total_keys": len(results), "sessions": results}
+    finally:
+        await r.aclose()
