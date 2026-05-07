@@ -38,6 +38,7 @@ class _DimensionSchema(BaseModel):
     surface: str = ""
     mechanism: str = ""
     boundary: str = ""
+    signal_weight: float = 1.5
 
 class _RecoverySchema(BaseModel):
     short_answer: str = ""
@@ -51,6 +52,7 @@ class _TrackSchema(BaseModel):
     opener: str = ""
     dimensions: list[_DimensionSchema] = Field(default_factory=list)
     recovery: _RecoverySchema = Field(default_factory=_RecoverySchema)
+    candidate_q4_options: list[str] = Field(default_factory=list)
 
 class _FocusAreaPlanSchema(BaseModel):
     label: str = ""
@@ -178,47 +180,191 @@ _DEPTH_TO_ROUTE = {
 }
 
 _OVERCLAIM_VOCAB: frozenset[str] = frozenset({
-    "latent", "manifold", "diffusion", "embedding", "embeddings",
-    "semantic", "attention", "transformer", "feature", "conditioning",
-    "steering", "activation", "gradient", "inference", "quantization",
-    "distillation", "fine-tuning", "finetuning", "alignment", "rlhf",
+    "manifold", "diffusion", "conditioning", "steering",
+    "quantization", "distillation", "fine-tuning", "finetuning",
+    "alignment", "rlhf",
 })
 
 
-_TRACK_SYSTEM = """You are an expert technical interviewer designing a precision interview track for one specific resume focus area.
+_TRACK_SYSTEM_BASE = """You are an expert technical interviewer designing a precision interview track for one specific resume focus area.
 
-Your goal: write questions that find where a candidate's knowledge actually ends — not what vocabulary they know, but what they can explain mechanistically from genuine hands-on experience.
+Your goal: generate questions that reveal whether the candidate genuinely understands and can apply what they claimed — not whether they can recall facts or recite process.
 
 The track has three layers:
-1. opener — one question anchored on the most specific, provable claim in this focus area
-2. dimensions — 4–6 axes along which knowledge can be probed, grounded in resume evidence
-3. recovery — 6 response-type overlays usable at any point regardless of which dimension is active
+1. opener — warm, narrative-inviting question directed at the anchor claim with company/experience context
+2. dimensions — 3–5 probing axes grounded in resume evidence, each with surface/mechanism/boundary escalation
+3. recovery — 6 response-type overlays usable at any point
+4. candidate_q4_options — 3–4 standalone Q4 alternatives for adaptive selection at runtime
+
+UNIVERSAL QUESTION QUALITY RULES — apply to every question regardless of role:
+
+Every question must:
+- Reference a specific number, system name, outcome, or decision from the anchor claim
+- Have a clearly distinguishable strong answer vs. weak answer
+- Sound like a senior practitioner asking it in a real conversation — not an AI generating interview questions
+- Be answerable in under 90 seconds
+
+Never generate questions that:
+- Test memory of sequence: "What was the first X you defined/built/chose?"
+- Name the solution you are looking for: "Did you consider caching?" "Did you use indexing?"
+- Assume failure without a specific anchor: "What went wrong with X?" (without naming what X is)
+- Ask about general process: "How do you typically approach X?" — want specific instances not general answers
+- Compound two questions into one sentence
+- Exceed 40 words
+- Start with "Can you tell me about..." or "Could you explain..."
+
+The pattern every question must follow:
+[specific element from their resume claim] + [consequence, challenge, or extension appropriate to the role domain]
 
 Opener rules:
-- Reference the single most specific artifact or technology named in the resume snippets
-- Pick one end of the problem as a starting hypothesis — do not ask about everything at once
-- Must be consistent with dimensions[0]: the opener enters that dimension
-- Max 24 words. No "walk me through" or "tell me about" — those invite monologue
-- The answer should be answerable at different depths: shallowness reveals itself quickly
+- 20–30 words, directed at the anchor claim
+- Include company/experience context: "At [company], you [outcome] — walk me through..."
+- Invite narration of the specific work — do NOT ask a mechanism question as the opener
+- "Walk me through" and "tell me about" ARE allowed in openers for non-analyst roles — they are the correct framing for narrative-first entry
+- The opener must invite the candidate to narrate in their own words before any depth probing begins
 
-Dimension rules (generate 4–6, each grounded in actual resume evidence):
-- surface: confirms the concept exists in their experience (basic familiarity is enough to answer)
-- mechanism: tests whether they understand WHY it works — genuine implementation depth required
-- boundary: designed to be unanswerable if they only read documentation or didn't personally own this
-- Each probe must name the specific artifact, technology, or result from resume_anchor
+Dimension rules (generate 3–5, each grounded in actual resume evidence):
+- surface: confirms the concept exists in their experience — basic familiarity is enough to answer
+- mechanism: tests whether they understand WHY it works — genuine depth required
+- boundary: unanswerable without real hands-on ownership — tests edges, failures, constraints
+- Each probe must name the specific artifact, technology, number, or result from resume_anchor
 - Probes must escalate: surface < mechanism < boundary in required depth
 - Do not repeat angles across dimensions
-- If sub_focuses are listed, ensure at least one dedicated dimension per sub_focus — a multi-surface focus area must probe every listed surface, not just the first one
+- signal_weight 1.0–3.0: rate each dimension by how much a weak answer reveals about role fitness
+  3.0 = directly tests the core claim; weak answer invalidates the resume bullet
+  2.0 = tests adjacent understanding; weak answer is meaningful signal
+  1.0 = confirms familiarity; weak answer is a minor flag only
+
+candidate_q4_options rules (generate 3–4 standalone questions):
+- These are alternative Q4 questions for adaptive selection at runtime
+- Each targets a different aspect of the anchor claim
+- Cover the most likely gaps based on what candidates typically under-explain about this type of claim
+- Each must follow the universal quality rules above — specific, consequential, human-sounding
+- These are standalone questions, not surface/mechanism/boundary levels
 
 Recovery rules (one set covers the entire focus area):
 - short_answer: rescue a 1–8 word answer by naming the specific artifact and asking one concrete thing
 - honest_gap: reward admission, pivot to what they do understand in this focus area
 - claim_conflict: confront a specific contradiction between their answer and the resume claim
-- metric_risk: when they cite a number without methodology — ask for baseline, measurement method, what was counted
+- metric_risk: when they cite a number without methodology — ask for baseline, measurement method, denominator
 - overclaim_risk: when they use domain vocabulary without operational grounding — ask what that term does in their specific implementation
 - bridge: natural pivot that explicitly names the next focus area
 
 Output: return ONLY JSON. No commentary, no markdown fences, no placeholders."""
+
+_TRACK_SYSTEM_ANALYST_OVERRIDE = """
+
+ROLE-TYPE OVERRIDE — Product Analyst / PM / Growth role:
+
+For this role, depth means analytical reasoning quality — not implementation fidelity.
+
+QUESTION CHALLENGE TYPES for analyst roles (use these patterns for dimensions and candidate_q4_options):
+- causal_validity (signal_weight 3.0): "[Specific outcome] happened — [named confound or alternative explanation] was also present. How do you know [X] caused it and not [the confound]?"
+- metric_definition (signal_weight 3.0): "That [specific number] — what was the exact definition? What was in the denominator, what was the time window, what counted as [the event]?"
+- scenario_tension (signal_weight 2.5): "Suppose [metric they improved] kept going up but [a related metric that should move with it] dropped — what would you investigate first and why?"
+- decision_reasoning (signal_weight 2.5): "What specific data point convinced you [their exact decision] was the right call — and what was the strongest alternative you ruled out?"
+- business_impact (signal_weight 2.0): "What did [their specific work] actually change in how the team made decisions — give me one decision that was made differently because of it?"
+
+dimensions MUST include at least one causal_validity question and one metric_definition question as the first two dimensions. These fire regardless of candidate fluency.
+
+Opener: ALWAYS a direct causal challenge or hypothesis question. NEVER "walk me through" or "tell me about" — these are hard-banned for analyst roles. They invite narrative; analysts must defend, not tour.
+Format: "At [company], you [specific outcome with the number] — [specific challenge, contradiction, or forced choice that requires an immediate analytical position]."
+Forced-choice pattern (use this): "...before we go deeper, [specific contested claim] — [what do you believe] and [what would make you wrong]?"
+Example: "At Daily Mantra, retention went from 25% to 42% — Video, Today, and AI Guruji all shipped in the same window. Before we go deeper, which of those three do you believe drove the most lift, and what would make you wrong?"
+The opener MUST name a specific number from the resume AND force the candidate to take a position they then have to defend.
+
+HANDLING "ARCHITECTED / BUILT / IMPLEMENTED" CLAIMS ON AN ANALYST RESUME:
+When a PA claims to have built something, the right probe is at the INTERSECTION of their build decisions and their analytical conclusions — not pure implementation and not pure outcome. Their build decisions are upstream of their analytical results. Probe whether they understand that dependency.
+
+WRONG (pure implementation — tests engineering, not analyst fitness):
+"What events did you define in your taxonomy?" / "What properties did you attach to a session-start event?" / "What schema did you design?"
+These test instrumentation craft. A PA who got lucky with a clean schema can answer these. Irrelevant.
+
+RIGHT (build-decision → analytical consequence):
+"You designed the event schema from scratch — when the retention experiment showed lift, was there any instrumentation gap in what you built that made you less confident in the attribution? What would you have tracked differently?"
+"You architected the event tracking — which property you chose NOT to capture early on forced a workaround when you needed to answer a product question later?"
+These are unanswerable without both having built it AND having tried to use it under real analytical pressure. This is the signal.
+
+The rule: implementation probes are valid for analysts ONLY when framed as "your build decision created a constraint or enabled a conclusion — what was it?" Isolated implementation questions with no analytical consequence are signal_weight 1.0 maximum.
+
+Analyst signal_weight 3.0 goes to: causal attribution challenges, metric definition and denominator validity, decision reasoning under uncertainty, consequence of their own design choices on their analytical conclusions."""
+
+
+_TRACK_SYSTEM_ENGINEER_GUIDE = """
+
+ROLE-TYPE GUIDE — Software / Backend / Infrastructure / Full-stack Engineer:
+
+OVERRIDE: Do NOT use "walk me through" in engineering openers. This overrides the base rule. Engineering openers must use a specific framing — a direct question about the system, its core problem, or its design.
+
+QUESTION CHALLENGE TYPES for engineering roles (use these patterns):
+- failure_mode (signal_weight 3.0): "In [their specific system] — what breaks first when [realistic load or failure condition]?"
+- design_tradeoff (signal_weight 3.0): "You chose [their specific approach] — when is that the wrong call? What condition makes you not use it?"
+- implementation_specificity (signal_weight 2.5): "What did you specifically write or configure to make [their claimed behavior] work?"
+- scale_behavior (signal_weight 2.0): "How does [their system] behave differently at [realistic scale increase — 10x, multi-region, concurrent writes]?"
+
+Opener format: "You built [specific thing] at [company] — [what was the core problem you were solving / how did that actually work / what made that hard]?" Use the company and system name from the resume."""
+
+
+_TRACK_SYSTEM_ML_GUIDE = """
+
+ROLE-TYPE GUIDE — ML Engineer / Data Scientist:
+
+QUESTION CHALLENGE TYPES for ML/data science roles:
+- distribution_shift (signal_weight 3.0): "What happens to [their model/system] when [realistic input distribution change]?"
+- eval_integrity (signal_weight 3.0): "How did you know [their claimed result] was actually better — and not overfitting to [their test condition]?"
+- generalization_boundary (signal_weight 2.5): "Where does [their approach] fail — what condition makes it the wrong choice for this problem?"
+- statistical_validity (signal_weight 2.0): "What assumption does [their metric or result] break if [realistic violation of that assumption]?"
+
+Opener: directed at the model or experiment they claimed. Invite them to describe what they were solving and why their approach."""
+
+
+_TRACK_SYSTEM_DATA_ENG_GUIDE = """
+
+ROLE-TYPE GUIDE — Data Engineer / Analytics Engineer:
+
+QUESTION CHALLENGE TYPES for data engineering roles:
+- pipeline_failure (signal_weight 3.0): "What happens to [their pipeline] when [upstream schema change / late-arriving data / source outage]?"
+- schema_decision (signal_weight 3.0): "You structured [their schema/model] that way — what query pattern breaks if you need to add [realistic new requirement]?"
+- freshness_tradeoff (signal_weight 2.5): "In [their system] — how did you decide between [latency vs accuracy / cost vs freshness / batch vs streaming]?"
+- failure_recovery (signal_weight 2.0): "When [their pipeline] fails mid-run — what state is left behind and how do you recover without double-counting?"
+
+Opener: directed at the pipeline or data model they claimed to own."""
+
+
+def _is_analyst_or_pm_role(role_type: str = "") -> bool:
+    role_lower = role_type.lower()
+    phrase_match = any(
+        keyword in role_lower
+        for keyword in (
+            "analyst",
+            "analytics",
+            "product manager",
+            "product analyst",
+            "growth",
+            "business analyst",
+            "data analyst",
+        )
+    )
+    return phrase_match or bool(re.search(r"\b(a?pm)\b", role_lower))
+
+
+def _track_system_prompt(role_type: str = "") -> str:
+    """Return the track system prompt with role-type guide appended."""
+    base = _TRACK_SYSTEM_BASE
+    role_lower = (role_type or "").lower()
+    if _is_analyst_or_pm_role(role_type):
+        return base + _TRACK_SYSTEM_ANALYST_OVERRIDE
+    if any(t in role_lower for t in ("data engineer", "analytics engineer", "data eng", "dbt", "pipeline")):
+        return base + _TRACK_SYSTEM_DATA_ENG_GUIDE
+    if any(t in role_lower for t in ("machine learning", "ml engineer", "data scientist", "research scientist")):
+        return base + _TRACK_SYSTEM_ML_GUIDE
+    if any(t in role_lower for t in ("backend", "software engineer", "full stack", "fullstack", "infrastructure", "platform")):
+        return base + _TRACK_SYSTEM_ENGINEER_GUIDE
+    return base
+
+
+# Keep _TRACK_SYSTEM as an alias for callers that haven't been updated yet
+_TRACK_SYSTEM = _TRACK_SYSTEM_BASE
 
 _TRACK_USER_TEMPLATE = """Candidate background:
 {resume_context}
@@ -234,35 +380,45 @@ Current focus area:
 {prior_track_context}
 Return ONLY this JSON structure (no markdown, no commentary):
 {{
-  "opener": "one question — specific hypothesis anchored on exact artifact/tech, max 24 words",
+  "opener": "warm narrative question 20-30 words — 'At [company], you [outcome] — walk me through...' — invites narration, does NOT ask mechanism",
   "dimensions": [
     {{
       "id": "snake_case_dimension_id",
       "label": "short dimension label",
       "resume_anchor": "exact or near-exact resume claim this dimension probes",
-      "surface": "question confirming basic familiarity — answerable with minimal depth",
-      "mechanism": "question requiring genuine implementation understanding",
-      "boundary": "question unanswerable without real hands-on ownership of this artifact"
+      "surface": "question confirming basic familiarity — specific anchor from their claim + basic probe",
+      "mechanism": "question requiring genuine depth — specific anchor + consequence or challenge",
+      "boundary": "question unanswerable without real hands-on ownership — specific anchor + edge case or failure",
+      "signal_weight": 2.0
     }}
   ],
+  "candidate_q4_options": [
+    "standalone Q4 question option A — targets one specific aspect of the anchor claim",
+    "standalone Q4 question option B — targets a different aspect",
+    "standalone Q4 question option C — targets a third aspect",
+    "standalone Q4 question option D — targets the analytical reasoning or decision behind the claim"
+  ],
   "recovery": {{
-    "short_answer": "rescue for 1-8 word answers — names artifact, asks one concrete thing",
+    "short_answer": "rescue for 1-8 word answers — names specific artifact, asks one concrete thing",
     "honest_gap": "reward honesty, pivot to what they do understand here",
     "claim_conflict": "confront the specific contradiction between answer and resume claim",
-    "metric_risk": "probe measurement methodology — what was counted, what baseline, what method",
+    "metric_risk": "probe measurement methodology — what was counted, what baseline, what denominator",
     "overclaim_risk": "ask what the technical vocabulary does in their specific implementation",
     "bridge": "pivot that explicitly names {next_focus_label}"
   }}
 }}
 
 Hard rules:
-- opener must enter dimensions[0] — they must be consistent
-- 4–6 dimensions, every dimension must have a real resume_anchor from the snippets above
+- opener must be warm and narrative — it enters the focus area by inviting the candidate to narrate
+- opener must include company/experience context from the resume snippets
+- 3–5 dimensions, every dimension must have a real resume_anchor from the snippets above
+- every surface/mechanism/boundary question must follow the pattern: [specific element from their claim] + [consequence, challenge, or probe]
+- NO memory questions: never "what was the first X", never "what did you try first"
+- NO existence checks: never "did you consider X" — never name the solution you are looking for
 - boundary probes must be unanswerable by someone who only read documentation
+- signal_weight: 3.0 for dimensions that directly test the core claim; 1.5 default; 1.0 for peripheral context
+- candidate_q4_options: 3–4 standalone questions covering different aspects of the anchor claim
 - recovery.bridge must explicitly name "{next_focus_label}"
-- keep each question ≤ 24 words
-- do not invent technologies, metrics, ownership, or scale not present in the resume snippets
-- no markdown, no commentary, JSON only
 """
 
 _GENERIC_PHRASES = (
@@ -279,30 +435,17 @@ _SNIPPET_TOKEN_STOPWORDS = {
     "using", "used", "built", "build", "engineered", "worked", "project", "projects",
     "present", "current", "technical", "skills", "experience", "assistant", "intern",
     "research", "school", "university", "admission", "scholarship", "leading", "peer",
-    "advisor", "china", "shenzhen", "hong", "kong", "district", "boulevard",
+    "advisor",
 }
 
 _TECH_PHRASE_PATTERNS = (
-    r"\bGoogle ADK\b",
-    r"\bGoogle Veo ?3\b",
-    r"\bTensorFlow Lite-?Micro INT8\b",
-    r"\bTensorFlow Lite-?Micro\b",
-    r"\bEdge Impulse\b",
-    r"\bMediaPipe Audio\b",
-    r"\bMFCCs?\b",
-    r"\blog-?Mel spectrograms?\b",
+    r"\bSQL\b",
+    r"\bOCR\b",
+    r"\bRAG\b",
+    r"\bLLM\b",
+    r"\bNLP\b",
     r"\bDSP\b",
     r"\bNPU\b",
-    r"\bOCR\b",
-    r"\bSQL\b",
-    r"\bRAG\b",
-    r"\bALLaVA\b",
-    r"\bBIRD-SQL\b",
-    r"\bseed (?:diffusion|regeneration)\b",
-    r"\blatent-space steering\b",
-    r"\bdiffusion conditioning vectors?\b",
-    r"\bfeature-map control system\b",
-    r"\bsemantic UI-to-latent translation interface\b",
 )
 
 
@@ -378,89 +521,7 @@ def _canonicalize_line(line: str) -> str:
 
 
 def _resume_focus_source(resume: str) -> str:
-    """
-    Return a compact, experience-heavy resume view for trajectory extraction.
-
-    The map builder should prioritize projects, internships, and research work.
-    Raw top-of-resume metadata (contact, education, scholarships, skill buckets)
-    is useful elsewhere, but it is usually noise for adversarial interview focus
-    selection and makes the small-model seed pass slower and less reliable.
-    """
-    lines = [_canonicalize_line(line) for line in resume.splitlines() if _canonicalize_line(line)]
-    if not lines:
-        return ""
-
-    selected: list[str] = []
-    capture_mode = False
-    for line in lines:
-        lowered = line.lower().rstrip(":")
-        if lowered in _FOCUS_SECTION_HEADERS:
-            capture_mode = True
-            continue
-        if lowered in _IGNORE_SECTION_HEADERS:
-            capture_mode = False
-            continue
-        if lowered.startswith("top skills") or lowered.startswith("skills:"):
-            capture_mode = False
-            continue
-
-        if capture_mode:
-            if "skills" in lowered and len(line.split()) > 3:
-                continue
-            selected.append(line)
-            continue
-
-        # Resume variants often omit clear sectioning. Keep obviously interviewable
-        # work lines even outside a formal EXPERIENCE header.
-        if any(
-            marker in lowered
-            for marker in (
-                " intern",
-                " internship",
-                "research assistant",
-                "engineer",
-                "architected",
-                "engineered",
-                "built ",
-                "implemented",
-                "designed",
-                "developed",
-                "optimized",
-                "benchmark",
-                "pipeline",
-                "system",
-                "classifier",
-                "rag",
-                "tinyml",
-                "filmora",
-                "optek",
-                "bird",
-            )
-        ):
-            selected.append(line)
-
-    if selected:
-        deduped: list[str] = []
-        seen: set[str] = set()
-        for line in selected:
-            key = line.lower()
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(line)
-        return "\n".join(deduped)
-
-    # Last resort: drop obvious metadata lines from the raw resume rather than
-    # returning the full blob.
-    filtered = []
-    for line in lines:
-        lowered = line.lower()
-        if any(token in lowered for token in ("@", "scholarship", "award", "advisor")):
-            continue
-        if "skills" in lowered and len(line.split()) > 3:
-            continue
-        filtered.append(line)
-    return "\n".join(filtered)
+    return resume
 
 
 def _looks_like_work_header(line: str) -> bool:
@@ -474,7 +535,7 @@ def _looks_like_work_header(line: str) -> bool:
         return False
     if any(token in lowered for token in ("intern", "engineer", "research assistant", "developer")):
         return True
-    if "@" in line and any(token in lowered for token in ("filmora", "optek", "bird", "cuhksz", "group")):
+    if "@" in line and re.search(r"\b(20(?:1[5-9]|2[0-9]))\b", line):
         return True
     if re.search(r"\b(20\d{2})\b", line) and any(token in lowered for token in (" - ", "–", "present", "sept", "jan", "july", "june")):
         return True
@@ -521,7 +582,7 @@ def _derive_entry_label(header: str, details: list[str]) -> str:
     if details:
         detail_blob = " ".join(details[:3])
         match = re.search(
-            r"\b(agent[- ]based .*? pipeline|tinyml audio classification pipeline|audio classification pipeline|bird[- ]sql .*? benchmark framework|benchmark framework|semantic .*? interface|feature-map control system|rag optimization .*? framework|script framework|classifier)\b",
+            r"\b(agent[- ]based .*? pipeline|audio classification pipeline|benchmark framework|rag optimization .*? framework|script framework|classifier)\b",
             detail_blob,
             flags=re.IGNORECASE,
         )
@@ -579,9 +640,6 @@ def _detail_focus_labels(details: list[str], max_labels: int = 2) -> list[str]:
     seen: set[str] = set()
     patterns = (
         r"\b(agent[- ]based .*? pipeline)\b",
-        r"\b(feature-map control system)\b",
-        r"\b(semantic ui-to-latent translation interface)\b",
-        r"\b(tinyml audio classification pipeline)\b",
         r"\b(audio classification pipeline)\b",
         r"\b(multi-modal benchmark framework)\b",
         r"\b(benchmark framework)\b",
@@ -646,9 +704,6 @@ def _is_noise_snippet(unit: str) -> bool:
             "b.eng",
             "university",
             "school of data science",
-            "longxiang boulevard",
-            "district",
-            "shenzhen :",
         )
     ):
         return True
@@ -867,7 +922,7 @@ _MAP_MIN_FOCUS_AREAS = 2      # minimum acceptable after planner selection
 _MAP_MIN_READY_SCORE = 7.0
 _MAP_GENERATOR_MODEL = "anthropic/claude-sonnet-4-6"
 _MAP_CRITIC_MODEL = "anthropic/claude-sonnet-4-6"
-_MAP_PRIMARY_MAX_TOKENS = 2200
+_MAP_PRIMARY_MAX_TOKENS = 2800
 _MAP_RETRY_MAX_TOKENS = 1600
 _MAP_JSON_RESPONSE_FORMAT = {"type": "json_object"}
 _FOCUS_PLAN_PRIMARY_MAX_TOKENS = 1600  # up to 5 areas × ~300 tokens each
@@ -880,7 +935,7 @@ Review the proposed map like a strong senior interviewer. Your job is to improve
 
 Judge all focus areas carefully — the map may have 2 to 5 areas and every one is startup-critical:
 - are the chosen focus areas distinct and non-redundant? Two areas from the same role must probe different technical surfaces.
-- is each opener anchored to a specific, provable resume claim? No "walk me through" or generic invitations to monologue.
+- is each opener anchored to a specific, provable resume claim? Generic "walk me through everything you've done" is not acceptable — but "At [company], you [specific outcome] — walk me through that work" IS acceptable for non-engineering roles. Engineering openers must use specific framing (what was the core problem, what broke, what was the tradeoff), not "walk me through".
 - does each opener enter a clear first dimension rather than asking about everything at once?
 - do the dimensions have genuine resume grounding — not generic dimension types applied without evidence?
 - does each dimension escalate correctly: surface (basic familiarity) → mechanism (genuine depth) → boundary (unanswerable without real ownership)?
@@ -888,8 +943,16 @@ Judge all focus areas carefully — the map may have 2 to 5 areas and every one 
 - does the recovery set cover short answers, honest gaps, claim conflicts, metric claims without methodology, and vocabulary overclaims?
 - does the bridge explicitly name the next focus area?
 
+SCORING RUBRIC — use this to calibrate overall_score and per-area score:
+9–10: Every opener is a direct causal challenge or hypothesis — no "walk me through". Every boundary probe is unanswerable without hands-on ownership. signal_weight 3.0 dimensions fire directly on the core resume claim. No surface probe is answerable from documentation alone.
+7–8: Solid grounding but one or more openers invite narrative rather than force an analytical position. Some surface probes are answerable without real ownership. Recovery is complete.
+5–6: Openers are generic or untethered from specific resume claims. Dimensions use standard templates without resume evidence. Boundary probes could be answered by someone who read the resume carefully but never did the work.
+Below 5: Dimensions repeat angles, recovery is incomplete, or focus areas cover the wrong work entirely.
+
+A score above 8.5 requires: opener forces an immediate analytical position, the first dimension is a causal_validity or metric_definition challenge, and every boundary probe names a specific artifact or number from the resume that only an owner would know.
+
 Mark ready=true when every focus area has a strong opener, ≥3 grounded dimensions, and a complete recovery overlay.
-Prioritize actionable repair instructions over harsh rejection.
+Prioritize actionable repair instructions over harsh rejection. Be precise about which dimension and which probe level is weak — "dimension X surface probe is answerable from documentation" beats "questions could be stronger".
 
 Return JSON only."""
 
@@ -898,7 +961,7 @@ _FOCUS_PLAN_SYSTEM = """You are a senior technical interviewer deciding which re
 Return 2 to 5 focus areas. Exactly as many as genuinely qualify — stop at 2 if only 2 experiences are truly interview-worthy, go to 5 if 5 distinct experiences each clear the bar. Do not pad; do not artificially cap.
 
 RANKING PRIORITY (apply in order):
-1. Most recent internship with specific technical system names (e.g. "Google ADK pipeline", "Veo-3 seed regeneration") — rank this #1
+1. Most recent role or internship with specific technical system names, architecture decisions, or measurable outcomes — rank this #1
 2. Second most recent internship or research with measurable technical claims (latency, accuracy %, cost reduction)
 3–5. Additional entries only if each one introduces genuinely different technical territory (different domain, stack, or problem class) and contains defensible implementation depth
 
@@ -920,7 +983,13 @@ DEDUPLICATION RULES (critical — violations cause map failure):
 - If you are tempted to create two areas from the same company/project, combine their technical surfaces into one richer area and use the freed slot for a genuinely different project.
 
 SUB-FOCUS INSTRUCTION:
-When a single focus area covers multiple distinct technical surfaces (e.g. an ADK orchestration pipeline AND a feature-map control system), list each surface as a short phrase in sub_focuses. The track generator uses this list to guarantee at least one dimension per sub-focus — so be explicit. Sub-focus phrases should be 5–12 words, grounded in the resume. If a focus area has only one coherent technical surface, sub_focuses may be empty or contain just that one phrase.
+When a single focus area covers multiple distinct technical surfaces (e.g. an inference pipeline AND a data modeling layer), list each surface as a short phrase in sub_focuses. The track generator uses this list to guarantee at least one dimension per sub-focus — so be explicit. Sub-focus phrases should be 5–12 words, grounded in the resume. If a focus area has only one coherent technical surface, sub_focuses may be empty or contain just that one phrase.
+
+QUESTION BUDGET AND TIME ALLOCATION:
+- area[0] (primary anchor): receives ~60% of total interview time — this is the single most analytically rich experience. Select it for depth, not recency alone.
+- area[1] (secondary): receives ~25% — worth verifying but not the primary signal
+- area[2] and beyond: ~15% attention-check level — 2–3 questions max, confirms the work was real. A 2-month internship must NEVER receive equal billing as a 12-month current role.
+- Bridge direction: always from most-recent toward oldest — never route backward in time toward older or less relevant experience
 
 JSON only, no markdown, no commentary."""
 
@@ -985,8 +1054,15 @@ def _map_critic_user_prompt(*, resume: str, candidate: dict, stage: str) -> str:
     ])
 
 
-def _focus_plan_user_prompt(*, resume: str, dedup_hint: str = "") -> str:
+def _focus_plan_user_prompt(*, resume: str, dedup_hint: str = "", target_role: str = "") -> str:
+    _is_analyst_role = _is_analyst_or_pm_role(target_role)
+    anchor_rule = (
+        "- anchor_context must prioritize OUTCOME CLAIMS (metrics delivered, decisions made, recommendations adopted) over implementation claims for this role"
+        if _is_analyst_role
+        else "- area[0] must be the single most technically rich and recent experience"
+    )
     lines = [
+        f"Target role: {target_role}" if target_role else "",
         "Resume (full text):",
         resume,
         "",
@@ -1006,7 +1082,7 @@ def _focus_plan_user_prompt(*, resume: str, dedup_hint: str = "") -> str:
         "",
         "Rules:",
         "- 2 to 5 focus_areas, exactly as many as genuinely qualify — never pad, never cut a qualifying area",
-        "- area[0] must be the single most technically rich and recent experience",
+        anchor_rule,
         "- each additional area must represent a DIFFERENT company, project, or research effort from the previous ones",
         "- if one project has multiple technical angles, merge them into one wider area with those surfaces listed in sub_focuses — do not allocate two focus area slots to the same work",
         "- each additional area must introduce genuinely different technical territory (different domain, stack, or problem class)",
@@ -1015,6 +1091,7 @@ def _focus_plan_user_prompt(*, resume: str, dedup_hint: str = "") -> str:
         "- every value must be a single-line JSON string",
         "- no track key, no extra keys, no markdown",
     ]
+    lines = [l for l in lines if l]  # strip empty lines from missing target_role
     if dedup_hint:
         lines.extend([
             "",
@@ -1293,8 +1370,8 @@ def _extract_plan_repair_hint(review: dict) -> str:
     return " | ".join(fragments)[:400]
 
 
-async def _generate_focus_area_plan(*, resume: str, session_id: str, dedup_hint: str = "") -> dict:
-    user_prompt = _focus_plan_user_prompt(resume=resume, dedup_hint=dedup_hint)
+async def _generate_focus_area_plan(*, resume: str, session_id: str, dedup_hint: str = "", target_role: str = "") -> dict:
+    user_prompt = _focus_plan_user_prompt(resume=resume, dedup_hint=dedup_hint, target_role=target_role)
 
     raw = await _run_focus_plan_call(
         LLMRouter(tier="medium", timeout_override=60.0),
@@ -1412,6 +1489,26 @@ def _review_is_ready(review: dict | None) -> bool:
     return _review_score(review) >= _MAP_MIN_READY_SCORE
 
 
+def _has_targeted_repairs(review: dict | None) -> bool:
+    """Return True if the critic identified fixable issues that warrant a repair pass.
+
+    This forces re-generation even when score >= _MAP_MIN_READY_SCORE, closing the
+    case where a 7.2 map has explicit repair instructions that were silently dropped.
+    """
+    if not isinstance(review, dict):
+        return False
+    repair_instructions = review.get("repair_instructions") or []
+    if len(repair_instructions) >= 2:
+        return True
+    if not repair_instructions and not review.get("focus_reviews"):
+        return False
+    focus_reviews = review.get("focus_reviews") or []
+    for fr in focus_reviews:
+        if isinstance(fr, dict) and (fr.get("issues") or fr.get("opener_issue")):
+            return True
+    return False
+
+
 def _coerce_llm_track(raw_track: dict | None, *, seed: dict, next_focus_label: str, source_override: str | None = None) -> dict:
     fallback_dim = _fallback_dimension_track(seed, next_focus_label)
 
@@ -1429,6 +1526,7 @@ def _coerce_llm_track(raw_track: dict | None, *, seed: dict, next_focus_label: s
     # New dimension schema: opener + dimensions + recovery
     if "opener" in raw_track or "dimensions" in raw_track:
         parsed = _parse_dimension_output(raw_track, seed, fallback_dim)
+        parsed.setdefault("candidate_q4_options", [])
         dims = parsed.get("dimensions", [])
         fallback_dim_ids = {d["id"] for d in fallback_dim.get("dimensions", [])}
         llm_branches = [d["id"] for d in dims if d["id"] not in fallback_dim_ids]
@@ -1684,33 +1782,22 @@ def _extract_focus_signals(seed: dict) -> dict[str, str]:
     })
     priority_map = {
         "classifier": [
-            "tensorflow lite-micro int8",
-            "tensorflow lite-micro",
-            "edge impulse",
             "dsp",
             "npu",
-            "mediapipe audio",
-        ],
-        "interface": [
-            "google veo 3",
-            "diffusion conditioning vectors",
-            "latent-space steering",
-            "google adk",
-        ],
-        "pipeline": [
-            "google veo 3",
-            "google adk",
-            "seed regeneration",
-            "seed diffusion",
         ],
         "benchmark": [
-            "bird-sql",
             "ocr",
             "sql",
+            "rag",
         ],
         "data_modeling": [
             "sql",
             "ocr",
+        ],
+        "pipeline": [
+            "rag",
+            "llm",
+            "nlp",
         ],
     }
     artifact_norm = re.sub(r"[^a-z0-9]+", " ", artifact.lower()).strip()
@@ -1926,6 +2013,7 @@ def _parse_dimension_output(raw: dict | str, seed: dict, fallback: dict) -> dict
     opener = _clean_track_value(validated.get("opener", ""))
     dims_raw = validated.get("dimensions") or []
     recovery_raw = validated.get("recovery") or {}
+    q4_options_raw = validated.get("candidate_q4_options") or []
 
     dims: list[dict] = []
     for d in dims_raw:
@@ -1939,14 +2027,27 @@ def _parse_dimension_output(raw: dict | str, seed: dict, fallback: dict) -> dict
         boundary = _clean_track_value(d.get("boundary", ""))
         if not (dim_id and surface and mechanism and boundary):
             continue
-        dims.append({
+        try:
+            signal_weight = float(d.get("signal_weight") or 1.5)
+        except (TypeError, ValueError):
+            signal_weight = 1.5
+        dim = {
             "id": dim_id,
             "label": dim_label or dim_id,
             "resume_anchor": resume_anchor,
             "surface": surface,
             "mechanism": mechanism,
             "boundary": boundary,
-        })
+            "signal_weight": signal_weight,
+        }
+        dim.setdefault("signal_weight", 1.5)
+        dims.append(dim)
+
+    # Preserve candidate_q4_options from LLM output
+    candidate_q4_options = [
+        _clean_track_value(q) for q in q4_options_raw
+        if isinstance(q, str) and _clean_track_value(q)
+    ]
 
     recovery_fields = ("short_answer", "honest_gap", "claim_conflict", "metric_risk", "overclaim_risk", "bridge")
     recovery: dict[str, str] = {}
@@ -1963,11 +2064,14 @@ def _parse_dimension_output(raw: dict | str, seed: dict, fallback: dict) -> dict
             dims = dims + [d for d in fallback_dims if d.get("id") not in {x["id"] for x in dims}]
             dims = dims[:6]
 
-    return {
+    result = {
         "opener": opener,
         "dimensions": dims[:6],
         "recovery": recovery,
+        "candidate_q4_options": candidate_q4_options,
     }
+    result.setdefault("candidate_q4_options", [])
+    return result
 
 
 def _clean_track_value(value: object) -> str:
@@ -2042,6 +2146,7 @@ async def _generate_focus_track(
     fast_mode: bool = True,
     repair_guidance: str = "",
     prior_track_context: str = "",
+    role_type: str = "",
 ) -> dict:
     fallback_dim = _fallback_dimension_track(seed, next_focus_label)
 
@@ -2072,21 +2177,23 @@ async def _generate_focus_track(
         )
 
     # Startup-critical path: small model first for speed, medium fallback for quality.
-    primary_tokens = 1300 if fast_mode else 1500
+    primary_tokens = 1600 if fast_mode else 2000
     primary_timeout = _FOCUS_TRACK_TIMEOUT_SECONDS if fast_mode else _FOCUS_TRACK_BACKGROUND_TIMEOUT_SECONDS
     llm = LLMRouter(
         tier="small" if fast_mode else "medium",
         model_override=None if fast_mode else _MAP_GENERATOR_MODEL,
         timeout_override=None if fast_mode else 90.0,
     )
-    user = _make_user(snippets_limit=3, anchor_limit=260)
+    user = _make_user(snippets_limit=5, anchor_limit=400)
     last_error: Exception | None = None
+
+    _track_sys = _track_system_prompt(role_type)
 
     async def _attempt(llm_: LLMRouter, prompt: str, max_tok: int, timeout: float) -> dict | None:
         try:
             raw = await asyncio.wait_for(
                 llm_.call(
-                    system=_TRACK_SYSTEM,
+                    system=_track_sys,
                     user=prompt,
                     max_tokens=max_tok,
                     response_format=_MAP_JSON_RESPONSE_FORMAT,
@@ -2102,7 +2209,7 @@ async def _generate_focus_track(
                 try:
                     raw2 = await asyncio.wait_for(
                         llm_.call(
-                            system=_TRACK_SYSTEM,
+                            system=_track_sys,
                             user=prompt,
                             max_tokens=affordable,
                             response_format=_MAP_JSON_RESPONSE_FORMAT,
@@ -2121,12 +2228,12 @@ async def _generate_focus_track(
     # Upgrade-tier retry
     if fast_mode:
         retry_llm = LLMRouter(tier="medium", timeout_override=10.0)
-        retry_user = _make_user(snippets_limit=2, anchor_limit=200)
-        result = await _attempt(retry_llm, retry_user, 1280, 10.0)
+        retry_user = _make_user(snippets_limit=4, anchor_limit=300)
+        result = await _attempt(retry_llm, retry_user, 1500, 10.0)
     else:
         retry_llm = LLMRouter(tier="large", model_override=_MAP_GENERATOR_MODEL, timeout_override=90.0)
-        retry_user = _make_user(snippets_limit=3, anchor_limit=220)
-        result = await _attempt(retry_llm, retry_user, 1400, 90.0)
+        retry_user = _make_user(snippets_limit=4, anchor_limit=320)
+        result = await _attempt(retry_llm, retry_user, 1800, 90.0)
 
     if result:
         return result
@@ -2256,6 +2363,7 @@ async def _generate_priority_tracks_for_candidate(
     candidate: dict,
     session_id: str,
     critic_feedback: dict | None = None,
+    target_role: str = "",
 ) -> dict:
     focus_areas = list(candidate.get("focus_areas", []) or [])
     if not focus_areas:
@@ -2301,6 +2409,7 @@ async def _generate_priority_tracks_for_candidate(
             fast_mode=False,
             repair_guidance=_critic_guidance_for_focus(critic_feedback, seed["focus_key"]),
             prior_track_context="",
+            role_type=target_role,
         )
         return _apply_result(area, result)
 
@@ -2328,6 +2437,7 @@ async def generate_interview_map(
     *,
     resume: str,
     session_id: str = "",
+    target_role: str = "",
 ) -> dict:
     """
     Build the startup-critical interview map using the full resume.
@@ -2352,11 +2462,13 @@ async def generate_interview_map(
         focus_plan = await _generate_focus_area_plan(
             resume=resume,
             session_id=session_id,
+            target_role=target_role,
         )
         pass_one_candidate = await _generate_priority_tracks_for_candidate(
             resume=resume,
             candidate=focus_plan,
             session_id=session_id,
+            target_role=target_role,
         )
         pass_one_review = await _critique_map_candidate(
             resume=resume,
@@ -2367,7 +2479,7 @@ async def generate_interview_map(
         final_candidate = pass_one_candidate
         final_review = pass_one_review
 
-        if not _review_is_ready(pass_one_review):
+        if not _review_is_ready(pass_one_review) or _has_targeted_repairs(pass_one_review):
             try:
                 # If the critic is telling us the focus plan itself is wrong (duplicate splits,
                 # redundant areas, same project in multiple slots), regenerate the plan first.
@@ -2385,6 +2497,7 @@ async def generate_interview_map(
                             resume=resume,
                             session_id=session_id,
                             dedup_hint=hint,
+                            target_role=target_role,
                         )
                     except Exception as plan_exc:
                         print(
@@ -2399,6 +2512,7 @@ async def generate_interview_map(
                     candidate=repair_base_plan,
                     session_id=session_id,
                     critic_feedback=pass_one_review,
+                    target_role=target_role,
                 )
                 repaired_review = await _critique_map_candidate(
                     resume=resume,
@@ -2564,6 +2678,40 @@ def build_deterministic_interview_map(
         "source": "deterministic_fallback",
         "pending_hydration_focus_keys": [area["focus_key"] for area in focus_areas],
     }
+
+
+def audit_map_quality(interview_map: dict) -> list[str]:
+    """
+    Lightweight quality check. Returns warning strings — does not block session start.
+    Called after map preparation; warnings are logged but non-fatal.
+    """
+    warnings: list[str] = []
+    focus_areas = interview_map.get("focus_areas", []) if isinstance(interview_map, dict) else []
+    if not focus_areas:
+        warnings.append("No focus areas generated")
+        return warnings
+
+    primary = focus_areas[0]
+    opener = ""
+    if primary.get("tracks") and isinstance(primary["tracks"], list) and primary["tracks"]:
+        opener = primary["tracks"][0].get("opener", "") or ""
+    elif primary.get("opener"):
+        opener = str(primary["opener"])
+    if opener and len(opener.split()) > 30:
+        warnings.append(f"Primary opener is too long ({len(opener.split())} words)")
+
+    for fa in focus_areas:
+        dims = fa.get("dimensions", []) or []
+        for track in fa.get("tracks", []) or []:
+            dims = dims + (track.get("dimensions", []) or [])
+        for dim in dims:
+            if not isinstance(dim, dict):
+                continue
+            if "signal_weight" not in dim:
+                warnings.append(f"Dimension '{dim.get('id', '?')}' in '{fa.get('label', '?')}' missing signal_weight")
+                break
+
+    return warnings
 
 
 def validate_interview_map(
@@ -3049,11 +3197,15 @@ def _select_from_dimension_area(
         if r:
             return r
 
-    # Normal depth-based probing: try active dimension first, then any unused dimension
+    # Normal depth-based probing: try active dimension first, then unused dims by signal_weight desc
     depth_key = {1: "surface", 2: "mechanism", 3: "boundary"}.get(max(1, min(3, depth)), "surface")
     route_kind = _DEPTH_TO_ROUTE.get(max(1, min(3, depth)), ROUTE_SURFACE)
     active_dims = [d for d in dims if isinstance(d, dict) and d.get("id") == dimension_id]
-    other_dims = [d for d in dims if isinstance(d, dict) and d.get("id") != dimension_id]
+    other_dims = sorted(
+        [d for d in dims if isinstance(d, dict) and d.get("id") != dimension_id],
+        key=lambda d: float(d.get("signal_weight") or 1.5),
+        reverse=True,
+    )
     for dim in active_dims + other_dims:
         probe = _clean_track_value(dim.get(depth_key, ""))
         r = _ret(probe, route_kind, f"dim_{dim.get('id', '')}_{depth_key}")

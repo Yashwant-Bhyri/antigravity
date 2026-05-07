@@ -3,11 +3,15 @@ import { getApiBaseUrl } from "@/lib/api";
 
 type Session = {
   session_id: string;
+  candidate_name?: string | null;
   scores: Record<string, number>;
   weakness_summary: Record<string, number>;
   total_questions: number;
   failure_surface: Record<string, number>;
   raw_weaknesses: { severity: string }[];
+  hire_recommendation: string | null;
+  coverage_score?: number | null;
+  verdict_basis?: string | null;
 };
 
 async function getSessions(): Promise<Session[]> {
@@ -20,20 +24,11 @@ async function getSessions(): Promise<Session[]> {
   }
 }
 
-function recommendationFromSurface(surface: Record<string, number>): "HIRE" | "MAYBE" | "NO HIRE" | "N/A" {
-  const values = Object.values(surface ?? {});
-  if (!values.length) return "N/A";
-  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
-  if (avg < 0.3) return "HIRE";
-  if (avg < 0.6) return "MAYBE";
-  return "NO HIRE";
-}
-
 export default async function DashboardPage() {
   const sessions = await getSessions();
-  const hireCount = sessions.filter((session) => recommendationFromSurface(session.failure_surface) === "HIRE").length;
-  const maybeCount = sessions.filter((session) => recommendationFromSurface(session.failure_surface) === "MAYBE").length;
-  const noHireCount = sessions.filter((session) => recommendationFromSurface(session.failure_surface) === "NO HIRE").length;
+  const hireCount = sessions.filter((session) => ["HIRE", "STRONG_HIRE"].includes(session.hire_recommendation ?? "")).length;
+  const maybeCount = sessions.filter((session) => ["MAYBE", "CLAIM_RISK_FLAG"].includes(session.hire_recommendation ?? "")).length;
+  const noHireCount = sessions.filter((session) => session.hire_recommendation === "NO HIRE").length;
   const avgWeaknesses =
     sessions.length > 0
       ? (sessions.reduce((sum, session) => sum + session.raw_weaknesses.length, 0) / sessions.length).toFixed(1)
@@ -94,7 +89,7 @@ export default async function DashboardPage() {
               <table className="min-w-full">
                 <thead className="bg-[var(--ag-surface-0)]">
                   <tr>
-                    {["Session", "Questions", "Weaknesses", "Surface", "Verdict"].map((label) => (
+                    {["Session", "Questions", "Weaknesses", "Surface", "Coverage", "Verdict"].map((label) => (
                       <th
                         key={label}
                         className="px-6 py-4 text-left font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ag-text-3)]"
@@ -106,7 +101,7 @@ export default async function DashboardPage() {
                 </thead>
                 <tbody>
                   {sessions.map((session, index) => {
-                    const verdict = recommendationFromSurface(session.failure_surface);
+                    const verdict = session.hire_recommendation ?? "N/A";
                     const highSeverityCount = session.raw_weaknesses.filter((item) => item.severity === "high").length;
                     const averageSurface = Object.values(session.failure_surface ?? {}).length
                       ? Object.values(session.failure_surface).reduce((sum, value) => sum + value, 0) /
@@ -118,8 +113,11 @@ export default async function DashboardPage() {
                         className={index % 2 === 0 ? "bg-transparent" : "bg-[oklch(0.12_0.014_265_/_0.45)]"}
                       >
                         <td className="px-6 py-5">
-                          <a href={`/report/${session.session_id}`} className="block">
-                            <span className="font-mono text-sm text-[var(--ag-text-1)]">
+                          <a href={`/report/${session.session_id}`} className="block space-y-0.5">
+                            {session.candidate_name && (
+                              <p className="text-sm font-medium text-[var(--ag-text-0)]">{session.candidate_name}</p>
+                            )}
+                            <span className="font-mono text-xs text-[var(--ag-text-3)]">
                               {session.session_id.slice(0, 8)}…
                             </span>
                           </a>
@@ -153,6 +151,31 @@ export default async function DashboardPage() {
                               {Math.round(averageSurface * 100)}%
                             </p>
                           </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          {session.coverage_score != null ? (
+                            <div className="space-y-1">
+                              <p className="font-mono text-sm text-[var(--ag-text-1)]">
+                                {Math.round(session.coverage_score * 100)}%
+                              </p>
+                              <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--ag-surface-2)]">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{
+                                    width: `${Math.round(session.coverage_score * 100)}%`,
+                                    background:
+                                      session.coverage_score >= 0.7
+                                        ? "var(--ag-green)"
+                                        : session.coverage_score >= 0.4
+                                        ? "var(--ag-amber)"
+                                        : "var(--ag-red)",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="font-mono text-xs text-[var(--ag-text-3)]">—</span>
+                          )}
                         </td>
                         <td className="px-6 py-5">
                           <a href={`/report/${session.session_id}`}>

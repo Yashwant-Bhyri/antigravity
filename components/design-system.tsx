@@ -153,9 +153,9 @@ export function AGVerdictBadge({
 }) {
   const key = verdict ?? "N/A";
   const palette =
-    key === "HIRE"
+    key === "HIRE" || key === "STRONG_HIRE"
       ? "border-[oklch(0.76_0.16_155_/_0.28)] bg-[oklch(0.76_0.16_155_/_0.1)] text-[var(--ag-green)]"
-      : key === "MAYBE"
+      : key === "MAYBE" || key === "CLAIM_RISK_FLAG"
       ? "border-[oklch(0.8_0.16_72_/_0.28)] bg-[oklch(0.8_0.16_72_/_0.1)] text-[var(--ag-amber)]"
       : key === "NO HIRE"
       ? "border-[oklch(0.66_0.21_24_/_0.28)] bg-[oklch(0.66_0.21_24_/_0.1)] text-[var(--ag-red)]"

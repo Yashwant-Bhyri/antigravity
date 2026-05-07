@@ -2,9 +2,22 @@ import { notFound } from "next/navigation";
 import { AGButton, AGMetricCard, AGScoreBar, AGScoreGauge, AGSectionLabel, AGSeverityPip, AGSurface, AGVerdictBadge } from "@/components/design-system";
 import { getApiBaseUrl } from "@/lib/api";
 
+type CoveragePortrait = {
+  coverage_score: number;
+  coverage_confidence: number;
+  primary_domain: {
+    voluntary_coverage: string[];
+    recovered_coverage: string[];
+    missed_coverage: string[];
+    incorrect_coverage: string[];
+    domain_score: number;
+  };
+};
+
 type Report = {
   session_id: string;
   complete: boolean;
+  candidate_name?: string;
   target_role: string;
   years_experience: string;
   total_questions: number;
@@ -18,8 +31,11 @@ type Report = {
   scores: Record<string, number | string>;
   failure_surface: Record<string, number>;
   weakness_summary: Record<string, number>;
-  raw_weaknesses: { type: string; severity: string; weakness: string; attack_strategy: string }[];
+  raw_weaknesses: { type: string; severity: string; weakness: string; probe_direction: string }[];
   claim_credibility_risk: { level: string; detail: string } | null;
+  coverage_portrait?: CoveragePortrait | null;
+  verdict_basis?: string;
+  verdict_confidence_basis?: string;
 };
 
 async function getReport(sessionId: string): Promise<Report> {
@@ -48,6 +64,7 @@ export default async function ReportPage({
   const report = await getReport(session_id);
   const scoreEntries = Object.entries(report.scores ?? {});
   const failureEntries = Object.entries(report.failure_surface ?? {});
+  const weaknessSummaryEntries = Object.entries(report.weakness_summary ?? {});
   const highSeverityCount = report.raw_weaknesses.filter((item) => item.severity === "high").length;
 
   return (
@@ -62,10 +79,13 @@ export default async function ReportPage({
               <AGSectionLabel>Interview Report</AGSectionLabel>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--ag-text-0)] md:text-5xl">
-                  Failure boundary analysis
+                  {report.candidate_name ? report.candidate_name : "Interview Assessment Report"}
                 </h1>
                 <AGVerdictBadge verdict={report.hire_recommendation} size="lg" />
               </div>
+              {report.candidate_name && (
+                <p className="text-sm text-[var(--ag-text-2)]">Interview Assessment Report</p>
+              )}
               <p className="font-mono text-xs text-[var(--ag-text-3)]">{report.session_id}</p>
               <div className="flex flex-wrap gap-2">
                 {report.target_role && <span className="rounded-lg border border-[var(--ag-border)] px-3 py-1 text-xs text-[var(--ag-text-2)]">{report.target_role}</span>}
@@ -113,6 +133,58 @@ export default async function ReportPage({
           </AGSurface>
         )}
 
+        {report.coverage_portrait && (
+          <AGSurface className="px-6 py-6">
+            <AGSectionLabel>Knowledge Coverage</AGSectionLabel>
+            <div className="mt-4 flex items-center gap-3">
+              <span className="font-mono text-2xl font-semibold text-[var(--ag-text-0)]">
+                {Math.round(report.coverage_portrait.coverage_score * 100)}%
+              </span>
+              <span className="text-sm text-[var(--ag-text-3)]">of expected dimensions addressed</span>
+              {report.coverage_portrait.coverage_confidence < 0.6 && (
+                <span className="rounded-lg border border-[oklch(0.8_0.16_72_/_0.28)] bg-[oklch(0.8_0.16_72_/_0.08)] px-2 py-0.5 text-xs text-[var(--ag-amber)]">
+                  limited domain data
+                </span>
+              )}
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {report.coverage_portrait.primary_domain.voluntary_coverage.length > 0 && (
+                <div>
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-green)]">Demonstrated voluntarily</p>
+                  <ul className="space-y-1">
+                    {report.coverage_portrait.primary_domain.voluntary_coverage.map((l) => (
+                      <li key={l} className="rounded-lg bg-[oklch(0.7_0.17_145_/_0.07)] px-3 py-2 text-xs text-[var(--ag-text-1)]">{l}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {report.coverage_portrait.primary_domain.recovered_coverage.length > 0 && (
+                <div>
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-amber)]">Recovered when prompted</p>
+                  <ul className="space-y-1">
+                    {report.coverage_portrait.primary_domain.recovered_coverage.map((l) => (
+                      <li key={l} className="rounded-lg bg-[oklch(0.8_0.16_72_/_0.07)] px-3 py-2 text-xs text-[var(--ag-text-1)]">{l}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {report.coverage_portrait.primary_domain.missed_coverage.length > 0 && (
+                <div>
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-red)]">Not addressed</p>
+                  <ul className="space-y-1">
+                    {report.coverage_portrait.primary_domain.missed_coverage.map((l) => (
+                      <li key={l} className="rounded-lg bg-[oklch(0.66_0.21_24_/_0.07)] px-3 py-2 text-xs text-[var(--ag-text-1)]">{l}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {report.verdict_confidence_basis && (
+              <p className="mt-4 text-xs text-[var(--ag-text-3)]">{report.verdict_confidence_basis}</p>
+            )}
+          </AGSurface>
+        )}
+
         {report.claim_credibility_risk && report.claim_credibility_risk.level !== "not_tested" && (
           <AGSurface className="border-[oklch(0.8_0.16_72_/_0.2)] px-6 py-5">
             <AGSectionLabel>Resume Claim Credibility</AGSectionLabel>
@@ -150,7 +222,7 @@ export default async function ReportPage({
 
             {failureEntries.length > 0 && (
               <AGSurface className="px-6 py-6">
-                <AGSectionLabel>Failure Surface</AGSectionLabel>
+                <AGSectionLabel>Knowledge Boundary Map</AGSectionLabel>
                 <p className="mt-3 text-xs text-[var(--ag-text-3)]">Higher means the candidate broke earlier under pressure.</p>
                 <div className="mt-5 space-y-4">
                   {failureEntries.map(([area, score]) => {
@@ -174,7 +246,19 @@ export default async function ReportPage({
 
             {report.raw_weaknesses.length > 0 && (
               <AGSurface className="px-6 py-6">
-                <AGSectionLabel>Detected Weaknesses</AGSectionLabel>
+                <AGSectionLabel>Probing Points</AGSectionLabel>
+                {weaknessSummaryEntries.length > 0 && (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {weaknessSummaryEntries.map(([type, count]) => (
+                      <span
+                        key={type}
+                        className="rounded-lg border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--ag-text-2)]"
+                      >
+                        {type.replace(/_/g, " ")}: {count}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-5 space-y-3">
                   {report.raw_weaknesses.map((weakness, index) => (
                     <div
@@ -189,7 +273,7 @@ export default async function ReportPage({
                       </div>
                       <p className="mt-3 text-sm leading-7 text-[var(--ag-text-0)]">{weakness.weakness}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.12em] text-[var(--ag-text-3)]">
-                        Strategy used: {weakness.attack_strategy.replace(/_/g, " ")}
+                        Probe direction: {(weakness.probe_direction ?? "").replace(/_/g, " ")}
                       </p>
                     </div>
                   ))}

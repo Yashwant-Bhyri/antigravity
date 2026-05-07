@@ -7,6 +7,7 @@ PROMPT = """You are a resume parser.
 Your job is to extract not just technologies, but ownership and level signals that help calibrate interview pressure fairly.
 
 Extract:
+- candidate_name (str): the person's full name from the top of the resume, or empty string if not found
 - skills (list[str])
 - tools (list[str])
 - projects (list[object]) with:
@@ -30,6 +31,7 @@ Extract:
 
 Return JSON:
 {
+  "candidate_name": "...",
   "skills": [...],
   "projects": [
     {
@@ -178,12 +180,22 @@ class ResumeAgent:
             "experience_tier": tier,
         }
 
+    _LIST_OF_DICT_KEYS = {"projects", "claims", "experiences"}
+
     def _merge_with_fallback(self, parsed: dict, fallback: dict) -> dict:
         merged = dict(parsed or {})
         for key, fallback_value in fallback.items():
             current_value = merged.get(key)
             if isinstance(fallback_value, list):
-                merged[key] = current_value if isinstance(current_value, list) and current_value else fallback_value
+                if isinstance(current_value, list) and current_value:
+                    if key in self._LIST_OF_DICT_KEYS:
+                        # Ensure every item is a dict; drop malformed entries from LLM
+                        cleaned = [item for item in current_value if isinstance(item, dict)]
+                        merged[key] = cleaned if cleaned else fallback_value
+                    else:
+                        merged[key] = current_value
+                else:
+                    merged[key] = fallback_value
             elif isinstance(fallback_value, dict):
                 merged[key] = current_value if isinstance(current_value, dict) and current_value else fallback_value
             else:

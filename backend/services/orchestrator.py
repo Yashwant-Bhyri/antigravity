@@ -12,7 +12,6 @@ from backend.agents.discrepancy_agent import DiscrepancyAgent
 from backend.agents.evaluation_agent import EvaluationAgent
 from backend.agents.resume_agent import ResumeAgent
 from backend.agents.reasoning_behavior_agent import ReasoningBehaviorAgent
-from backend.rag import question_bank
 from backend.services.interview_map import (
     _MAP_MIN_FOCUS_AREAS as MAP_STARTUP_FOCUS_AREAS,
     build_deterministic_interview_map,
@@ -24,6 +23,7 @@ from backend.services.interview_map import (
     validate_interview_map,
 )
 from backend.services.interview_telemetry import interview_telemetry
+from backend.state.candidate_state import detect_communication_mode
 from backend.state.session_manager import SessionManager
 
 
@@ -75,7 +75,7 @@ _FALLBACK_FOLLOWUPS: dict[int, list[str]] = {
 }
 
 # Agent fallbacks — individual agent crash → use these so one LLM blip doesn't kill the turn
-_WEAKNESS_FALLBACK    = {"weakness": "", "type": "vague", "severity": "low", "attack_strategy": "clarification"}
+_WEAKNESS_FALLBACK    = {"weakness": "", "type": "vague", "severity": "low", "probe_direction": "clarification", "continue_probing": False}
 _DISCREPANCY_FALLBACK = {"conflict_level": "none", "description": "", "severity": "low"}
 _REASONING_FALLBACK   = {"structure_score": 5, "adaptability": "flexible", "confidence_calibration": "calibrated"}
 
@@ -90,9 +90,36 @@ _ADMISSION_SIGNALS = re.compile(
 )
 
 
+_SKIP_SIGNALS = re.compile(
+    r"\b(skip (this|that|it|the question)|move on|next question|can we move on|"
+    r"let'?s move on|let'?s skip|can you skip|pass on this|i'?d rather (not|skip)|"
+    r"next (please|topic)|different question|different topic|another topic|something else|"
+    r"move to something|change (the )?topic|switch topics|change the subject)\b",
+    re.IGNORECASE,
+)
+
+_SOCIAL_DEFLECTION_SIGNALS = re.compile(
+    r"\b(that'?s a great question|interesting question|good question|"
+    r"wow (that'?s|what a)|i appreciate (you asking|the question)|"
+    r"i'?m good|i'?m okay|i'?m fine|don'?t worry|no no no|thank you i'?m good|"
+    r"good without answering|i'?m good without answering|never mind|that'?s fine)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_skip_request(text: str) -> bool:
+    """Detect explicit skip/move-on signals — forces immediate focus rotation."""
+    return bool(_SKIP_SIGNALS.search(text))
+
+
 def _looks_like_admission(text: str) -> bool:
     """Detect honesty/gap signals in partial transcript — triggers speculative pivot."""
     return bool(_ADMISSION_SIGNALS.search(text))
+
+
+def _detect_communication_mode(turn0_text: str, turn1_text: str) -> str:
+    """Run on first two answers. Returns communication_mode: 'normal' | 'simplified' | 'narrative_only'."""
+    return detect_communication_mode(turn0_text, turn1_text)
 
 
 def _normalize_transcript(text: str) -> str:
@@ -124,6 +151,23 @@ def _looks_like_question_echo(answer: str, question: str) -> bool:
     overlap_ratio = len(overlapping) / max(len(answer_words), 1)
     novel_words = [w for w in answer_words if w not in question_word_set]
     return overlap_ratio >= 0.85 and len(novel_words) <= 2
+
+
+def _classify_anchor_confidence(anchor: str, phase2_text: str) -> str:
+    """
+    Classify implementation anchor quality from first-person markers.
+    high: first-person + specific artifact
+    medium: correct vocabulary but no specific artifact
+    low: system-language or generic
+    """
+    anchor_lower = anchor.lower()
+    first_person = ("i wrote", "i built", "i had to", "i figured", "i implemented", "i designed")
+    if any(m in anchor_lower for m in first_person):
+        return "high"
+    generic = ("we handled", "it was", "the system", "we made sure", "was handled")
+    if any(m in anchor_lower for m in generic):
+        return "low"
+    return "medium"
 
 
 def _focus_key(label: str) -> str:
@@ -364,7 +408,7 @@ def _should_prioritize_bank_followup(
         return False
 
     route_kind = prepped_context.get("route_kind")
-    if route_kind in ("discrepancy_challenge", "clarification_fast", "attack_probe", "complete"):
+    if route_kind in ("discrepancy_challenge", "clarification_fast", "depth_probe", "complete"):
         return False
     if prepped_context.get("pivoting"):
         return False
@@ -807,6 +851,22 @@ class Orchestrator:
             "interview_map_error": "",
             "interview_map_validation": {},
             "interview_map_prepared_at": None,
+            "candidate_state": {
+                "disengagement_level": 0.0,
+                "consecutive_no_content": 0,
+                "explicit_skip_count": 0,
+                "social_deflection_count": 0,
+                "incoherence_count": 0,
+                "communication_mode": "normal",
+                "topic_fatigue": {},
+                "topic_question_counts": {},
+                "forced_exit_triggered": False,
+                "phase": "orientation",
+                "anchor_confidence": None,
+                "implementation_anchor": None,
+                "second_domain_surfaced": None,
+                "_save_face_pivot_used": False,
+            },
         }
 
     async def prepare_session_map(
@@ -977,6 +1037,15 @@ class Orchestrator:
             unique_types = len({w.get("type") for w in weaknesses if w.get("type")})
             coverage_ratio = unique_types / max(len(weaknesses), 1) if weaknesses else 1.0
 
+            # Aggregate discrepancy_level from history — "confirmed" if any turn had a confirmed conflict
+            _has_confirmed_discrepancy = any(
+                isinstance(h.get("discrepancy"), dict)
+                and h["discrepancy"].get("conflict_level") == "confirmed"
+                for h in history
+            )
+            _discrepancy_level = "confirmed" if _has_confirmed_discrepancy else "none"
+
+            _candidate_state = state.get("candidate_state") or {}
             evaluation = await self.evaluation_agent.score_full_interview(
                 history=history,
                 resume=state.get("resume", ""),
@@ -987,6 +1056,10 @@ class Orchestrator:
                 target_role=state.get("target_role", ""),
                 years_experience=state.get("years_experience", ""),
                 parsed_resume=state.get("parsed_resume", {}),
+                coverage_map=state.get("coverage_map"),
+                discrepancy_level=_discrepancy_level,
+                disengagement_level=float(_candidate_state.get("disengagement_level", 0.0)),
+                disengagement_triggered=bool(_candidate_state.get("forced_exit_triggered", False)),
             )
             state["final_evaluation"] = evaluation
             state["scores"] = evaluation.get("breakdown", {})
@@ -1033,6 +1106,10 @@ class Orchestrator:
                 "failure_surface": evaluation.get("failure_surface", state.get("failure_surface", {})),
                 "weakness_summary": weakness_by_type,
                 "raw_weaknesses": weaknesses,
+                "coverage_portrait": evaluation.get("coverage_portrait"),
+                "coverage_verdict_advisory": evaluation.get("coverage_verdict_advisory"),
+                "verdict_basis": evaluation.get("verdict_basis"),
+                "verdict_confidence_basis": evaluation.get("verdict_confidence_basis"),
             }
             asyncio.create_task(persist_session(
                 session_id=session_id,
@@ -1124,6 +1201,243 @@ class Orchestrator:
                 })
         except Exception:
             pass
+
+    async def _extract_implementation_anchor(
+        self,
+        session_id: str,
+        phase2_text: str,
+        state: dict,
+    ) -> str | None:
+        """Extract the single most specific implementation detail from Phase 2 narration."""
+        if not phase2_text or len(phase2_text.split()) < 10:
+            return None
+        from backend.models.llm_router import LLMRouter
+        llm = LLMRouter(tier="small")
+        prompt = (
+            "From the following interview response, extract the single most specific "
+            "implementation detail the candidate described — what they personally built, "
+            "wrote, or figured out, at implementation level (not what the system does, "
+            "but what they made). Return one sentence. If no specific detail exists, "
+            f"return empty string.\n\nCandidate said:\n{phase2_text[:1200]}"
+        )
+        try:
+            result = await llm.call(system="You extract specific implementation details from interview responses.", user=prompt, max_tokens=150)
+            text = result if isinstance(result, str) else str(result)
+            text = text.strip()
+            return text if len(text) > 20 else None
+        except Exception as e:
+            print(f"[Orchestrator] _extract_implementation_anchor failed: {e}")
+            return None
+
+    async def _generate_application_transfer(self, session_id: str, state: dict) -> None:
+        """Background task: generate application transfer question + coverage map."""
+        try:
+            cs = state.get("candidate_state") or {}
+            anchor = cs.get("implementation_anchor")
+            if not anchor:
+                return
+
+            from backend.agents.application_agent import ApplicationAgent
+            agent = ApplicationAgent()
+            parsed_resume = state.get("parsed_resume") or {}
+            resume_snippets = []
+            for claim in (parsed_resume.get("claims") or [])[:5]:
+                if isinstance(claim, dict):
+                    t = claim.get("text", "").strip()
+                    if t:
+                        resume_snippets.append(t)
+                elif isinstance(claim, str) and claim.strip():
+                    resume_snippets.append(claim.strip())
+
+            # Derive candidate domain from most recent history turn's focus_key
+            _history = state.get("history", [])
+            _candidate_domain = ""
+            for _h in reversed(_history):
+                if _h.get("focus_key"):
+                    _candidate_domain = _h["focus_key"]
+                    break
+
+            coverage_map = await agent.generate(
+                implementation_anchor=anchor,
+                candidate_domain=_candidate_domain,
+                target_role=state.get("target_role", ""),
+                years_experience=state.get("years_experience", "mid"),
+                resume_snippets=resume_snippets,
+            )
+            if coverage_map:
+                fresh_state = await self.session_manager.get_state(session_id)
+                if not fresh_state.get("interview_complete"):
+                    fresh_state["coverage_map"] = coverage_map.to_dict()
+                    fresh_state["prepped_application_question"] = coverage_map.application_question
+                    await self.session_manager.save_state(session_id, fresh_state)
+                    print(f"[AppTransfer] Coverage map staged for {session_id} — {len(coverage_map.dimensions)} dims")
+                    await self._trace(session_id, "application_transfer_staged",
+                                      dims=len(coverage_map.dimensions),
+                                      anchor_chars=len(anchor))
+        except Exception as e:
+            print(f"[Orchestrator] Application transfer generation failed: {e}")
+
+    async def _generate_live_q4_candidates(
+        self, session_id: str, q3_answer: str, state: dict
+    ) -> None:
+        """Generate 1-2 live Q4 candidates anchored to what the candidate said in Q3."""
+        try:
+            focus_areas = (state.get("interview_map") or {}).get("focus_areas") or []
+            primary_anchor = ""
+            if focus_areas:
+                primary_anchor = (focus_areas[0].get("anchor_context") or "").strip()
+
+            target_role = state.get("target_role", "")
+            from backend.models.llm_router import LLMRouter
+            prompt = (
+                f"You are generating adaptive follow-up questions for a technical interview.\n\n"
+                f"Role: {target_role}\n"
+                f"Resume anchor claim: {primary_anchor}\n\n"
+                f"The candidate just answered the opening question. They said:\n{q3_answer}\n\n"
+                f"Generate 2 targeted follow-up questions for the Q4 slot. Rules:\n"
+                f"- Each question must reference something SPECIFIC the candidate just said (a number, system name, approach, or claim they made)\n"
+                f"- Each question must follow this pattern: [specific thing they said] + [consequence, challenge, or probe]\n"
+                f"- Questions must sound like a senior practitioner asking them — not an AI\n"
+                f"- Do NOT ask memory questions ('what was the first...'), do NOT name solutions ('did you use caching?')\n"
+                f"- One question should probe depth of what they described; one should probe a gap or assumption in what they said\n"
+                f"- Max 35 words each\n\n"
+                f"Return JSON: {{\"live_q4_candidates\": [\"question 1\", \"question 2\"]}}"
+            )
+            raw = await LLMRouter(tier="small").call(
+                system="You generate precise, human-sounding follow-up interview questions.",
+                user=prompt,
+                max_tokens=300,
+            )
+            data = raw if isinstance(raw, dict) else None
+            if isinstance(data, dict):
+                candidates = data.get("live_q4_candidates") or []
+                if candidates:
+                    current_state = await self.session_manager.get_state(session_id)
+                    current_state["live_q4_candidates"] = [str(c) for c in candidates[:2]]
+                    await self.session_manager.save_state(session_id, current_state)
+        except Exception as e:
+            print(f"[Orchestrator] Live Q4 generation failed: {e}")
+
+    async def _evaluate_coverage_dimension(
+        self,
+        dimension_id: str,
+        coverage_map_dict: dict,
+        candidate_response: str,
+    ) -> tuple[str, str | None]:
+        """
+        Returns (coverage_state, recovery_depth).
+        coverage_state: "voluntary" | "recovered_deep" | "recovered_surface" | "missed" | "incorrect"
+        recovery_depth: "deep" | "surface" | None
+        """
+        from backend.models.coverage_map import AnswerCoverageMap
+        from backend.models.llm_router import LLMRouter
+        cmap = AnswerCoverageMap.from_dict(coverage_map_dict)
+        dim = next((d for d in cmap.dimensions if d.id == dimension_id), None)
+        if not dim:
+            return "missed", None
+
+        llm = LLMRouter(tier="small")
+        approaches = ", ".join(dim.expected_approaches[:3]) if dim.expected_approaches else "any valid approach"
+        prompt = (
+            f"Interview dimension: {dim.label}\n"
+            f"Description: {dim.description}\n"
+            f"Expected approaches (any of these count): {approaches}\n\n"
+            f"Candidate response: {candidate_response[:600]}\n\n"
+            "Did the candidate address this dimension?\n"
+            "- full: addressed with specific mechanism or implementation detail\n"
+            "- partial: named the concept but couldn't explain how to implement\n"
+            "- not_covered: didn't address it at all when prompted\n"
+            "- incorrect: addressed it but with a conceptual error\n"
+            "Use semantic matching — different terminology is fine if the concept is correct.\n"
+            'Return JSON: {"coverage": "full|partial|not_covered|incorrect", "reason": "one line"}'
+        )
+        try:
+            result = await llm.call(
+                system="You evaluate whether a candidate's answer addresses a specific technical dimension.",
+                user=prompt,
+                max_tokens=100,
+            )
+            data = result if isinstance(result, dict) else {}
+            coverage = data.get("coverage", "not_covered")
+        except Exception:
+            coverage = "not_covered"
+
+        state_map: dict[str, tuple[str, str | None]] = {
+            "full":        ("recovered_deep",    "deep"),
+            "partial":     ("recovered_surface", "surface"),
+            "not_covered": ("missed",            None),
+            "incorrect":   ("incorrect",         None),
+        }
+        return state_map.get(coverage, ("missed", None))
+
+    async def _evaluate_application_coverage(
+        self,
+        coverage_map_dict: dict,
+        candidate_response: str,
+    ) -> dict[str, str]:
+        """
+        Classify the application-transfer answer against all dimensions in one call.
+        Returns dimension_id -> coverage_state, with full answers marked voluntary.
+        """
+        from backend.models.coverage_map import AnswerCoverageMap
+        from backend.models.llm_router import LLMRouter
+
+        cmap = AnswerCoverageMap.from_dict(coverage_map_dict)
+        if not cmap.dimensions:
+            return {}
+
+        dimensions_payload = [
+            {
+                "id": d.id,
+                "label": d.label,
+                "description": d.description,
+                "expected_approaches": d.expected_approaches[:3],
+            }
+            for d in cmap.dimensions
+        ]
+        prompt = (
+            "The candidate just answered an application-transfer question.\n"
+            "Classify which expected dimensions they addressed without being prompted dimension-by-dimension.\n\n"
+            f"Application question: {cmap.application_question}\n"
+            f"Implementation anchor: {cmap.implementation_anchor}\n"
+            f"Dimensions: {dimensions_payload}\n\n"
+            f"Candidate response:\n{candidate_response[:1400]}\n\n"
+            "For each dimension, classify coverage as:\n"
+            "- full: addressed with specific reasoning, mechanism, or implementation detail\n"
+            "- partial: gestured at the concept but did not explain it concretely\n"
+            "- not_covered: did not address it\n"
+            "- incorrect: addressed it with a conceptual error\n"
+            'Return JSON only: {"dimensions":[{"id":"...","coverage":"full|partial|not_covered|incorrect"}]}'
+        )
+        try:
+            result = await LLMRouter(tier="small").call(
+                system="You evaluate coverage of an interview answer against expected dimensions.",
+                user=prompt,
+                max_tokens=700,
+            )
+            data = result if isinstance(result, dict) else {}
+            rows = data.get("dimensions") or []
+        except Exception:
+            rows = []
+
+        mapped: dict[str, str] = {}
+        state_map = {
+            "full": "voluntary",
+            # Application-transfer answers are the baseline pass. If the answer
+            # only gestures at a dimension or misses it, leave it available for
+            # a later explicit surfacing question instead of marking it missed.
+            "partial": "not_evaluated",
+            "not_covered": "not_evaluated",
+            "incorrect": "incorrect",
+        }
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            dim_id = str(row.get("id", "")).strip()
+            coverage = str(row.get("coverage", "not_covered")).strip()
+            if dim_id:
+                mapped[dim_id] = state_map.get(coverage, "missed")
+        return mapped
 
     # ─────────────────────────────────────────────
     # REAL-TIME TRANSCRIPT HANDLING
@@ -1299,6 +1613,30 @@ class Orchestrator:
                 "turn_id": turn_id,
             }
 
+        # Skip / social-deflection detection — runs before consuming staged analysis
+        _candidate_state_snap = dict(state.get("candidate_state") or {})
+        if _looks_like_skip_request(text):
+            _candidate_state_snap["explicit_skip_count"] = _candidate_state_snap.get("explicit_skip_count", 0) + 1
+            _candidate_state_snap["disengagement_level"] = min(
+                5.0, _candidate_state_snap.get("disengagement_level", 0.0) + 2.0
+            )
+            state["candidate_state"] = _candidate_state_snap
+            state["_force_focus_rotation"] = True
+            await self.session_manager.save_state(session_id, state)
+            await self._trace(
+                session_id,
+                "fasttrack_skip_detected",
+                turn_id=turn_id,
+                skip_count=_candidate_state_snap["explicit_skip_count"],
+            )
+        elif bool(_SOCIAL_DEFLECTION_SIGNALS.search(text)):
+            _candidate_state_snap["social_deflection_count"] = _candidate_state_snap.get("social_deflection_count", 0) + 1
+            _candidate_state_snap["disengagement_level"] = min(
+                5.0, _candidate_state_snap.get("disengagement_level", 0.0) + 1.0
+            )
+            state["candidate_state"] = _candidate_state_snap
+            await self.session_manager.save_state(session_id, state)
+
         # ── Step 1: Consume staged analysis from previous turn ────────────────
         # Background pipeline writes turn N's full analysis here.
         # Applied at the START of turn N+1 — never inside the background pipeline.
@@ -1409,6 +1747,13 @@ class Orchestrator:
             prepped_context = state.get("prepped_next_context", {})
             prepped_packet = _clone_question_packet(state.get("prepped_next_packet"))
             seed_turn_number = state.get("prepped_next_question_turn_number")
+            application_q = ""
+            if (
+                state.get("prepped_application_question")
+                and not state.get("application_question_served")
+                and state.get("question_count", 0) >= 3
+            ):
+                application_q = str(state.get("prepped_application_question") or "").strip()
 
             if prepped_q and seed_turn_number == 0:
                 if not _seed_relevant_to_answer(prepped_q, text, entities or [], parsed_resume, resume):
@@ -1486,6 +1831,7 @@ class Orchestrator:
             and bool(current_packet_followups)
             and not active_packet.get("pivoting")
             and not trajectory_admission
+            and not bool(locals().get("application_q"))
             and _should_prioritize_bank_followup(prepped_context, current_packet_followups, active_packet)
         )
 
@@ -1510,6 +1856,38 @@ class Orchestrator:
             print(f"[FastTrack] Active-packet follow-up served for {session_id}")
 
         else:
+            if locals().get("application_q"):
+                prepped_q = application_q
+                prepped_context = {
+                    "pivoting": False,
+                    "route_kind": "application_transfer",
+                    "weakness": None,
+                    "discrepancy": None,
+                }
+                _coverage_focus = _focus_key(
+                    ((state.get("coverage_map") or {}).get("implementation_anchor") or current_focus_label or "application_transfer")
+                )
+                prepped_packet = _build_question_packet(
+                    question_text=prepped_q,
+                    sprint=sprint,
+                    route_kind="application_transfer",
+                    parsed_resume=parsed_resume,
+                    resume=resume,
+                    followups=[],
+                    source_turn_number=state.get("question_count", 0),
+                    focus_key_override=_coverage_focus,
+                    focus_label_override="Application Transfer",
+                )
+                served_route_kind = "application_transfer"
+                pivoting = False
+                state["application_question_served"] = True
+                state.pop("prepped_application_question", None)
+                state.pop("prepped_next_question", None)
+                state.pop("prepped_next_question_turn_number", None)
+                state.pop("prepped_next_context", None)
+                state.pop("prepped_next_packet", None)
+                print(f"[FastTrack] Application-transfer question promoted for {session_id}")
+
             generic_prepped_fasttrack = bool(prepped_q) and _is_generic_fasttrack_route(
                 prepped_context.get("route_kind")
             )
@@ -1931,6 +2309,19 @@ class Orchestrator:
         state["current_answer_version"] = current_answer_version
         state["latest_turn_versions"] = latest_turn_versions
 
+        # Communication mode detection — runs once after the first two committed answers.
+        if current_turn_number == 2 and not is_turn_revision:
+            _hist = state.get("history", [])
+            _cs = state.setdefault("candidate_state", {})
+            if len(_hist) >= 2 and not _cs.get("_communication_mode_checked"):
+                _t0 = _hist[-2].get("answer", "") if _hist else ""
+                _t1 = _hist[-1].get("answer", "") or text
+                _mode = _detect_communication_mode(_t0, _t1)
+                _cs["_communication_mode_checked"] = True
+                if _mode != "normal":
+                    _cs["communication_mode"] = _mode
+                    await self._trace(session_id, "communication_mode_detected", mode=_mode, turn=current_turn_number)
+
         complete = self._is_complete(state)
         await self.session_manager.save_state(session_id, state)
 
@@ -2205,6 +2596,18 @@ class Orchestrator:
                 for item in state.get("history", [])
                 if item.get("turn_id") != turn_id
             ]
+            current_turn_skeleton = next(
+                (
+                    item for item in state.get("history", [])
+                    if item.get("turn_id") == turn_id
+                ),
+                {},
+            )
+            answered_route_kind = (
+                current_turn_skeleton.get("route_kind")
+                or (state.get("current_answer_context") or {}).get("route_kind")
+                or ""
+            )
 
             # Memory context for agents — what's been established and probed so far
             established_facts = candidate_model.get("established_facts", [])
@@ -2302,11 +2705,55 @@ class Orchestrator:
                 )
             )
 
+            # ── STAR-lite extraction at turn 3 (end of Phase 2) ──────────────
+            # Extract implementation_anchor from the candidate's narration turns
+            # and kick off application transfer question generation in background.
+            if turn_number == 3 and not (state.get("candidate_state") or {}).get("implementation_anchor"):
+                _phase2_answers = [
+                    h.get("answer", "")
+                    for h in history[-2:]
+                    if h.get("answer")
+                ]
+                _phase2_answers.append(text)
+                phase2_text = " ".join(_phase2_answers)
+                anchor = await self._extract_implementation_anchor(session_id, phase2_text, state)
+                if anchor:
+                    cs = state.setdefault("candidate_state", {})
+                    cs["implementation_anchor"] = anchor
+                    cs["anchor_confidence"] = _classify_anchor_confidence(anchor, phase2_text)
+                    # Persist anchor immediately — pipeline re-reads state later and would lose it
+                    _anchor_save_state = await self.session_manager.get_state(session_id)
+                    _anchor_save_state.setdefault("candidate_state", {})["implementation_anchor"] = anchor
+                    _anchor_save_state.setdefault("candidate_state", {})["anchor_confidence"] = cs["anchor_confidence"]
+                    await self.session_manager.save_state(session_id, _anchor_save_state)
+                    asyncio.create_task(
+                        self._generate_application_transfer(session_id, state)
+                    )
+                    await self._trace(session_id, "star_lite_anchor_extracted",
+                                      turn_number=turn_number,
+                                      anchor_confidence=cs["anchor_confidence"],
+                                      anchor_chars=len(anchor))
+
+            # ── Live Q4 refinement — generate additional Q4 candidates anchored to what the candidate actually said
+            if turn_number == 2 and not state.get("live_q4_candidates"):
+                # turn_number is 0-indexed; turn_number==2 means this is the 3rd turn (Q3 answer)
+                history = state.get("conversation_history", [])
+                if history:
+                    q3_answer = history[-1].get("candidate_text", "") if history else ""
+                    if q3_answer and len(q3_answer.split()) > 10:
+                        asyncio.create_task(
+                            self._generate_live_q4_candidates(session_id, q3_answer, state)
+                        )
+
             # ── Honest admission soft-cap ─────────────────────────────────────
             reasoning_adaptability = reasoning.get("adaptability", "") if isinstance(reasoning, dict) else ""
             honest_admission = reasoning_adaptability == "admitted_gap"
             if honest_admission and weakness.get("severity") == "high":
                 weakness = {**weakness, "severity": "medium"}
+
+            # D3: Persist ReasoningBehaviorAgent tone signal for followup_agent next turn
+            if isinstance(reasoning, dict) and reasoning.get("adaptability"):
+                state["_reasoning_tone_signal"] = reasoning.get("adaptability", "")
 
             current_focus_key, current_focus_label = _infer_focus(
                 last_question,
@@ -2371,9 +2818,44 @@ class Orchestrator:
             force_sprint_question = new_consecutive >= 3
             pivoting = force_sprint_question
 
+            # ── Skip signal / forced rotation ────────────────────────────────
+            if state.get("_force_focus_rotation"):
+                force_sprint_question = True
+                pivoting = True
+                state.pop("_force_focus_rotation", None)
+
+            # ── Topic fatigue ratio (55% cap) ────────────────────────────────
+            total_questions = state.get("question_count", 0)
+            if total_questions >= 4 and current_focus_key:
+                same_focus_total = sum(
+                    1 for turn in history if turn.get("focus_key") == current_focus_key
+                )
+                if same_focus_total / total_questions > 0.55:
+                    force_sprint_question = True
+                    pivoting = True
+
+            # ── Disengagement thresholds ─────────────────────────────────────
+            candidate_state = state.get("candidate_state") or {}
+            disengagement_level = float(candidate_state.get("disengagement_level", 0.0))
+
+            if disengagement_level >= 2.0 and not candidate_state.get("_save_face_pivot_used"):
+                state.setdefault("candidate_state", {})["_save_face_pivot_used"] = True
+                state["_next_route_hint"] = "confession_pivot"
+
+            if disengagement_level >= 3.0:
+                force_sprint_question = True
+                pivoting = True
+
+            if disengagement_level >= 4.0:
+                state.setdefault("candidate_state", {})["communication_mode"] = "simplified"
+
+            if disengagement_level >= 5.0 and not candidate_state.get("forced_exit_triggered"):
+                state.setdefault("candidate_state", {})["forced_exit_triggered"] = True
+                state["_next_route_hint"] = "graceful_exit"
+
             # ── Sprint 3 strategy remap ───────────────────────────────────────
-            if sprint == 3 and weakness and weakness.get("attack_strategy") in ("implementation_probe", "step_by_step"):
-                weakness = {**weakness, "attack_strategy": "scaling"}
+            if sprint == 3 and weakness and weakness.get("probe_direction") in ("implementation_probe", "step_by_step"):
+                weakness = {**weakness, "probe_direction": "scaling"}
 
             # ── Full priority chain → generates the next adversarial question ─
             discrepancy_conflict = (
@@ -2397,20 +2879,21 @@ class Orchestrator:
                 force_sprint_question = True
                 pivoting = True
             # ambiguous_but_promising always demands clarification first — the type's semantics
-            # require it regardless of what attack_strategy the LLM emitted.
+            # require it regardless of what probe_direction the LLM emitted.
             if isinstance(weakness, dict) and weakness.get("type") == "ambiguous_but_promising":
-                weakness = {**weakness, "attack_strategy": "clarification",
+                weakness = {**weakness, "probe_direction": "clarification",
                             "severity": weakness.get("severity") or "medium"}
 
             clarification_probe = (
                 isinstance(weakness, dict)
-                and weakness.get("attack_strategy") in ("clarification", "ownership_probe")
+                and weakness.get("probe_direction") in ("clarification", "ownership_probe")
                 and weakness.get("severity") in ("medium", "high")
             )
-            aggressive_probe = (
+            deep_probe = (
                 isinstance(weakness, dict)
                 and weakness.get("severity") == "high"
-                and weakness.get("attack_strategy") not in ("clarification", "ownership_probe")
+                and weakness.get("probe_direction") not in ("clarification", "ownership_probe")
+                and turn_number >= 2
             )
             resume_context = _build_resume_context_for_followup(parsed_resume, resume)
             seed_followups: list[str] = []
@@ -2426,7 +2909,147 @@ class Orchestrator:
                 has_discrepancy=discrepancy_conflict,
             )
 
-            if discrepancy_conflict and not force_sprint_question:
+            # If this answer was to the application-transfer question, score the
+            # whole answer against the coverage lattice before selecting the next
+            # coverage-guided follow-up.
+            if answered_route_kind == "application_transfer" and isinstance(state.get("coverage_map"), dict):
+                try:
+                    _app_coverage = await self._evaluate_application_coverage(
+                        state["coverage_map"],
+                        text,
+                    )
+                    if _app_coverage:
+                        from backend.models.coverage_map import AnswerCoverageMap as _ACMap
+                        _app_cmap = _ACMap.from_dict(state["coverage_map"])
+                        for _d in _app_cmap.dimensions:
+                            if _d.id in _app_coverage:
+                                _d.coverage_state = _app_coverage[_d.id]
+                                _d.candidate_response = text[:500]
+                        _app_cmap.compute_coverage_score()
+                        state["coverage_map"] = _app_cmap.to_dict()
+                        state["_last_coverage_dim_id"] = None
+                        state["_last_coverage_recovery_depth"] = None
+                        await self._trace(
+                            session_id,
+                            "application_coverage_evaluated",
+                            turn_id=turn_id,
+                            covered=sum(1 for v in _app_coverage.values() if v == "voluntary"),
+                            dimensions=len(_app_cmap.dimensions),
+                            coverage_score=round(_app_cmap.coverage_score, 3),
+                        )
+                except Exception as e:
+                    await self._trace(
+                        session_id,
+                        "application_coverage_eval_failed",
+                        turn_id=turn_id,
+                        error_type=type(e).__name__,
+                        error=str(e)[:300],
+                        level="warn",
+                    )
+
+            # ── Coverage routing (Phase 4, turns 5+) ────────────────────────────
+            # When an AnswerCoverageMap exists and no forced rotation is active,
+            # surface unsurfaced dimensions in weight order before normal routing.
+            _coverage_question: str | None = None
+            _coverage_route_kind: str | None = None
+            if (
+                turn_number >= 5
+                and state.get("coverage_map")
+                and not force_sprint_question
+                and not state.get("_next_route_hint")
+            ):
+                from backend.models.coverage_map import AnswerCoverageMap as _ACMap
+                _cmap = _ACMap.from_dict(state["coverage_map"])
+                _last_dim_id = state.get("_last_coverage_dim_id")
+                _last_recovery = state.get("_last_coverage_recovery_depth")
+
+                if _last_dim_id and _last_recovery == "surface":
+                    # Candidate named the concept on surface — one depth probe to confirm mechanism.
+                    # text here is their response to the depth probe question asked last turn.
+                    _cov_state, _ = await self._evaluate_coverage_dimension(
+                        _last_dim_id, state["coverage_map"], text
+                    )
+                    for _d in _cmap.dimensions:
+                        if _d.id == _last_dim_id:
+                            _d.coverage_state = _cov_state
+                            break
+                    state["coverage_map"] = _cmap.to_dict()
+                    state["_last_coverage_dim_id"] = None
+                    state["_last_coverage_recovery_depth"] = None
+                    # Fall through — no _coverage_question set; normal routing handles this turn.
+
+                elif _last_dim_id:
+                    # Classify the candidate's response to the previous surfacing question.
+                    _cov_state, _rec_depth = await self._evaluate_coverage_dimension(
+                        _last_dim_id, state["coverage_map"], text
+                    )
+                    for _d in _cmap.dimensions:
+                        if _d.id == _last_dim_id:
+                            _d.coverage_state = _cov_state
+                            break
+                    state["coverage_map"] = _cmap.to_dict()
+
+                    if _rec_depth == "surface":
+                        # Named the concept without mechanism — generate depth probe next turn.
+                        state["_last_coverage_recovery_depth"] = "surface"
+                        # Generate the depth probe now so it's ready.
+                        _coverage_question = await self.followup_agent.generate_coverage_depth_probe(
+                            dimension_id=_last_dim_id,
+                            coverage_map=_cmap,
+                            candidate_surface_response=text,
+                            state=state,
+                        )
+                        _coverage_route_kind = "coverage_depth_probe"
+                    else:
+                        # Dim fully resolved — clear state and surface next unsurfaced dim.
+                        state["_last_coverage_dim_id"] = None
+                        state["_last_coverage_recovery_depth"] = None
+                        _unsurfaced = _cmap.unsurfaced_dimensions()
+                        if _unsurfaced:
+                            _unsurfaced.sort(key=lambda _d: _d.weight, reverse=True)
+                            _next_dim = _unsurfaced[0]
+                            _next_dim.surfacing_attempted = True
+                            state["_last_coverage_dim_id"] = _next_dim.id
+                            state["coverage_map"] = _cmap.to_dict()
+                            _coverage_question = await self.followup_agent.generate_coverage_surface(
+                                dimension_id=_next_dim.id,
+                                coverage_map=_cmap,
+                                state=state,
+                            )
+                            _coverage_route_kind = "coverage_surface"
+
+                else:
+                    # No previous dim in flight — surface the highest-weight unsurfaced dim.
+                    _unsurfaced = _cmap.unsurfaced_dimensions()
+                    if _unsurfaced:
+                        _unsurfaced.sort(key=lambda _d: _d.weight, reverse=True)
+                        _next_dim = _unsurfaced[0]
+                        _next_dim.surfacing_attempted = True
+                        state["_last_coverage_dim_id"] = _next_dim.id
+                        state["_last_coverage_recovery_depth"] = None
+                        state["coverage_map"] = _cmap.to_dict()
+                        _coverage_question = await self.followup_agent.generate_coverage_surface(
+                            dimension_id=_next_dim.id,
+                            coverage_map=_cmap,
+                            state=state,
+                        )
+                        _coverage_route_kind = "coverage_surface"
+
+            # ── Route hint overrides (confession pivot / graceful exit) ─────────
+            route_hint = state.pop("_next_route_hint", None)
+            if _coverage_question and _coverage_route_kind and not route_hint:
+                next_question = _coverage_question
+                route_kind = _coverage_route_kind
+            elif route_hint == "confession_pivot":
+                next_question = await self.followup_agent.generate_confession_pivot(
+                    target_role=target_role,
+                    resume_context=resume_context,
+                )
+                route_kind = "confession_pivot"
+            elif route_hint == "graceful_exit":
+                next_question = "We're wrapping up — before we finish, is there anything about your work that you wanted to mention that we didn't get to?"
+                route_kind = "graceful_exit"
+            elif discrepancy_conflict and not force_sprint_question:
                 next_question = await self.followup_agent.generate_discrepancy_challenge(
                     question=last_question, answer=text, discrepancy=discrepancy,
                     persona=persona, resume=resume, parsed_resume=parsed_resume,
@@ -2448,14 +3071,17 @@ class Orchestrator:
                 )
                 route_kind = "clarification_fast"
 
-            elif aggressive_probe and not force_sprint_question:
+            elif deep_probe and not force_sprint_question:
+                _tone_signal = str(state.pop("_reasoning_tone_signal", "") or "")
                 next_question = await self.followup_agent.generate(
                     question=last_question, answer=text, weakness=weakness,
                     persona=persona, resume=resume, parsed_resume=parsed_resume,
                     focus_context=focus_prompt_pack.get("prompt_context", ""),
                     resume_snippets=focus_prompt_pack.get("resume_snippets", []),
+                    communication_mode=str((state.get("candidate_state") or {}).get("communication_mode", "normal")),
+                    tone_signal=_tone_signal,
                 )
-                route_kind = "attack_probe"
+                route_kind = "depth_probe"
 
             elif state.get("current_question_followups") and not _is_generic_fasttrack_route(
                 (state.get("active_question_packet") or {}).get("route_kind")
@@ -2536,10 +3162,31 @@ class Orchestrator:
             # Re-read state to pick up any handle_transcript changes since we started
             # (sprint advancement, question_count increment). This ensures our save
             # doesn't overwrite canonical counters with stale values.
+            background_state_patch = {
+                key: state.get(key)
+                for key in ("coverage_map", "_last_coverage_dim_id", "_last_coverage_recovery_depth")
+                if key in state
+            }
+            background_candidate_patch = {
+                key: value
+                for key, value in dict(state.get("candidate_state") or {}).items()
+                if key in {
+                    "implementation_anchor",
+                    "anchor_confidence",
+                    "_save_face_pivot_used",
+                    "communication_mode",
+                    "forced_exit_triggered",
+                }
+            }
             state = await self.session_manager.get_state(session_id)
 
             if state.get("interview_complete"):
                 return  # Interview ended while we were processing — discard
+
+            if background_state_patch:
+                state.update(background_state_patch)
+            if background_candidate_patch:
+                state.setdefault("candidate_state", {}).update(background_candidate_patch)
 
             latest_turn_versions = dict(state.get("latest_turn_versions", {}))
             latest_known_version = _coerce_positive_int(
@@ -2717,10 +3364,7 @@ class Orchestrator:
             resume_context = _build_resume_context_for_followup(
                 state.get("parsed_resume"), state.get("resume", "")
             )
-            rag_candidates = question_bank.retrieve(resume_context[:400], sprint=1, top_k=1)
-            seed_followups = []
-            if rag_candidates:
-                seed_followups = rag_candidates[0].get("followups", [])
+            seed_followups: list[str] = []
             try:
                 question = await asyncio.wait_for(
                     self.followup_agent.generate_seed_question(
@@ -2812,6 +3456,7 @@ class Orchestrator:
                     generate_interview_map(
                         resume=resume,
                         session_id=session_id,
+                        target_role=state.get("target_role", ""),
                     ),
                     timeout=min(MAP_PREP_GENERATE_TIMEOUT_SECONDS, max_wait_seconds),
                 )

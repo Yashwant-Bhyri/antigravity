@@ -108,7 +108,7 @@ SCENARIOS: list[Scenario] = [
         expected_positive_routes=[
             "trajectory_map_followup",
             "bank_followup_fast",
-            "attack_probe",
+            "depth_probe",
         ],
         expected_negative_routes=["sprint_fallback"],
         expect_partial_activity=True,
@@ -207,7 +207,7 @@ SCENARIOS: list[Scenario] = [
         expected_positive_routes=[
             "trajectory_map_challenge",
             "discrepancy_challenge",
-            "attack_probe",
+            "depth_probe",
             "trajectory_map_followup",
         ],
         expected_negative_routes=[],
@@ -502,7 +502,7 @@ def _evaluate_scenario(
             passes.append("honesty case avoided early discrepancy challenge")
 
     if scenario.expect_challenge_by_end:
-        if any(route in {"discrepancy_challenge", "attack_probe", "trajectory_map_challenge"} for route in served_routes):
+        if any(route in {"discrepancy_challenge", "depth_probe", "trajectory_map_challenge"} for route in served_routes):
             passes.append("conflict case eventually triggered pressure or challenge")
         else:
             warnings.append("conflict case never escalated into a strong challenge route")

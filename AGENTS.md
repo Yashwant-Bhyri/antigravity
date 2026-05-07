@@ -30,7 +30,7 @@
 4. `backend/main.py` — FastAPI app entry, lifespan hooks, CORS
 5. `backend/api/routes.py` — ALL endpoints: `/start_interview`, `/process_turn`, `/partial_transcript`, `/tts`, `/tts_filler`, `/end_interview`, `/state`, `/report`, `/deepgram_token`
 6. `backend/services/orchestrator.py` — THE BRAIN. Parallel agent dispatch, attack strategy selection, sprint progression, prefetch logic. Most critical file in the backend.
-7. `backend/services/tts_service.py` — ElevenLabs streaming TTS, filler cache warm-up
+7. `backend/services/tts_service.py` — Cartesia-first TTS, ElevenLabs fallback, filler cache warm-up
 8. `backend/services/asr_service.py` — DEAD CODE. Do not use or modify. Frontend uses Deepgram SDK directly.
 9. `backend/models/llm_router.py` — OpenRouter tiered model routing (Haiku/Sonnet/Opus)
 10. `backend/state/session_manager.py` — Redis async session state, 1hr TTL
@@ -116,7 +116,7 @@ backend/
     orchestrator.py                ✅ Full: parallel 4-agent dispatch, discrepancy priority,
                                       attack strategy selection, per-answer scoring (async),
                                       reasoning behavior wired, sprint progression
-    tts_service.py                 ✅ ElevenLabs streaming + filler pre-cache at startup
+    tts_service.py                 ✅ Cartesia-first synthesis + filler pre-cache at startup
     asr_service.py                 🔲 Dead code — browser SDK used instead
   agents/
     concept_agent.py               ✅ Wired — partial + final transcript
@@ -163,7 +163,7 @@ frontend/
 | Session state | Redis (async) | running in Docker |
 | Event bus | Kafka (planned) | Redis Streams as fallback |
 | ASR | Deepgram WebSocket | streaming partial transcripts |
-| TTS | ElevenLabs | streaming, interruptible — **DECIDED** |
+| TTS | Cartesia | **FINAL DECISION:** Cartesia-first forever. ElevenLabs fallback only. |
 | Vector DB | FAISS (local dev) → Pinecone (prod) | RAG for question bank |
 | Database | PostgreSQL | interview logs, scores |
 | Deployment | Docker + Kubernetes | docker-compose for local |
@@ -181,7 +181,7 @@ frontend/
    - `large` (Opus) → evaluation scoring, deep reasoning
 4. **State lives in Redis only.** Never pass full state as function arguments between services.
 5. **Weakness severity drives branching.** `high` → dynamic LLM follow-up. `low/medium` → precomputed question from RAG bank.
-6. **Filler-first TTS.** Always emit a filler token before the real response to mask latency.
+6. **TTS policy.** Cartesia is always first. Keep fillers context-free in this release; context-aware fillers are explicitly future-version scope.
 7. **Python imports:** absolute imports only (`from backend.agents.x import X`), never relative.
 8. **JSON outputs from all agents.** If LLM returns plain text, LLMRouter attempts to parse it. Agents must handle both `dict` and `str` returns gracefully.
 9. **No sync Redis calls.** Use `redis.asyncio` everywhere.
@@ -206,6 +206,7 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Final product-decision hardening: Cartesia-first, default fillers, LLM-final verdicts | Codex | 2026-05-07 | Hard-wired Cartesia as the permanent primary TTS provider, removed live context-aware filler selection for this release, fixed early communication-mode detection, preserved app-transfer/coverage as the elite redesign direction, changed coverage verdict logic from override to advisory evidence for the LLM evaluator, and updated regression/UI handling around dimension maps/verdict enums. |
 | Deployed API-origin fallback fix + ProvenHire service compatibility check | Codex | 2026-04-23 | `lib/api.ts` now uses same-origin `/api` on deployed hosts when `NEXT_PUBLIC_API_URL` is unset instead of incorrectly calling `localhost:8000`; verified with `npm run build`. Also re-checked the service contract: ProvenHire still calls `ANTIGRAVITY_API_URL/api/start_interview` directly via `server/src/routes/aiInterviewAdapter.ts`, and `backend/services/orchestrator.py` remains backward-compatible because `start_session()` now runs strict `prepare_session_map()` before `start_prepared_session()`. |
 | Frontend visual system overhaul + design-team UI port | Codex | 2026-04-22 | Ported the design-team Antigravity UI language into the real Next.js app: new shared design system in `components/design-system.tsx`, new visual tokens/animations in `app/globals.css`, upgraded `components/Waveform.tsx`, and redesigned `app/page.tsx`, `app/interview/[session_id]/page.tsx`, `app/report/[session_id]/page.tsx`, and `app/dashboard/page.tsx` while preserving live interview logic; `npm run build` passed |
 | Repo audit docs extended through memory-highway + `lib/audio.ts` pass | Codex | 2026-04-17 | Documentation-only pass. Added/updated `repo_optimization_journal.md`, `bug audit.md`, and `PROJECT_STATE.md` with new systems-level findings around mixed memory layers, data-transfer hot paths, API/LLM call budgets, and `lib/audio.ts` control-plane behavior. No runtime code changed in this pass. |
@@ -216,12 +217,12 @@ frontend/
 | STT timing retune to `endpointing=1500` / `utterance_end_ms=2800` | Codex | 2026-04-15 | After analyzing live run `061852df-d640-4a05-a962-4c1ce7fbc739`, adjusted Deepgram timing in `lib/audio.ts` to trim perceived dead air without undoing the calmer turn-commit architecture: slightly faster utterance-end handoff, slightly calmer `is_final` chunking; intended follow-up work remains short-answer rescue + refine-or-keep speculative generation |
 | Calmer STT boundaries + throttled interim partial snapshots | Codex | 2026-04-15 | Rolled `lib/audio.ts` back toward Deepgram-led turn boundaries (`utterance_end_ms=3000`, long safety timeout only), started sending throttled interim `/partial_transcript` snapshots with `is_final` + `snapshot_seq`, updated `backend/api/routes.py` + `backend/services/orchestrator.py` for stale-snapshot-safe speculative handling, and adjusted `app/interview/[session_id]/page.tsx` so normal UtteranceEnd commits bypass the old defensive hold; verified with `python3 -m py_compile`, `npm run build`, and a live local smoke test that recorded `api.partial_transcript` events in telemetry JSONL |
 | Full interview telemetry + per-session trace capture | Codex | 2026-04-15 | Added `backend/services/interview_telemetry.py` plus `/api/telemetry` and `/api/telemetry/{session_id}`; instrumented backend routes, orchestrator fast/slow paths, TTS pre-generation/cache, and frontend audio/interview events so live runs now capture API calls, latencies, route decisions, flush reasons, playback timing, stale/revision behavior, and bottleneck/error events into `backend/runtime/interview_traces/{session_id}.jsonl`; smoke-tested endpoint readback and verified with `python3 -m py_compile` and `npm run build` |
-| ElevenLabs live backend path restored | Codex | 2026-04-15 | Fixed `backend/main.py` dotenv resolution so the backend always loads repo-root env files with `.env` as the source of truth and `.env.local` only filling missing values; restarted the backend and verified `/api/tts_health` reports `last_provider_used=elevenlabs` with empty error state and live `/api/tts` returns `x-tts-provider: elevenlabs` plus valid MP3 audio |
+| Historical ElevenLabs live backend path restored | Codex | 2026-04-15 | Historical provider-debug note only. Superseded by 2026-05-07 final decision: Cartesia is primary forever; ElevenLabs is fallback only. |
 | Packetized follow-up scheduling + immediate turn memory | Codex | 2026-04-15 | `backend/services/orchestrator.py` now uses `active_question_packet` / `prepped_next_packet` so current-thread follow-ups are deterministic and no longer starved by the next staged topic; committed answers now create immediate `history` skeletons and `_apply_staged_analysis()` enriches them in place by `turn_id`; seed staging now includes packet follow-ups; added `/api/tts_health` plus TTS runtime provider/config visibility; verified with `python3 -m py_compile` and a live sanity check where Turn 1 and Turn 2 both served `bank_followup_fast` |
-| Follow-up continuity + anti-tunneling + STT calming pass | Codex | 2026-04-14 | `backend/services/orchestrator.py` now lets queued bank follow-ups beat generic staged pivots, preserves up to two follow-ups, and pivots sooner on repeated same-focus high-severity probing; `backend/agents/followup_agent.py` now seeds sprint questions from transition memory/topic anchors and discourages generic Sprint 3 prompts; `frontend/lib/audio.ts` and `app/interview/[session_id]/page.tsx` now gate early commit more conservatively and merge clustered finals with a 700ms settle window; `backend/services/tts_service.py` now enforces ElevenLabs as project policy; verified with `python3 -m py_compile` and `npm run build` |
+| Follow-up continuity + anti-tunneling + STT calming pass | Codex | 2026-04-14 | `backend/services/orchestrator.py` now lets queued bank follow-ups beat generic staged pivots, preserves up to two follow-ups, and pivots sooner on repeated same-focus high-severity probing; `backend/agents/followup_agent.py` now seeds sprint questions from transition memory/topic anchors and discourages generic Sprint 3 prompts; `frontend/lib/audio.ts` and `app/interview/[session_id]/page.tsx` now gate early commit more conservatively and merge clustered finals with a 700ms settle window; old TTS note superseded by Cartesia-first policy; verified with `python3 -m py_compile` and `npm run build` |
 | API base normalization + follow-up output hardening | Codex | 2026-04-14 | Added shared `lib/api.ts` so landing/interview/report/dashboard/audio all normalize `NEXT_PUBLIC_API_URL` consistently, restored landing-page `target_role` / `years_experience` validation, and hardened `followup_agent.py` so malformed LLM output is validated and replaced with route-specific fallback questions instead of leaking labels/JSON into the interview; verified with `python3 -m py_compile` and `npm run build` |
-| Same-turn revision versioning + explicit ElevenLabs-default TTS | Codex | 2026-04-14 | `backend/services/orchestrator.py` now assigns backend-managed `answer_version`s to same-turn revisions, drops superseded staged analyses, and prevents older background runs from overwriting newer revisions; `backend/services/tts_service.py` now keeps ElevenLabs as the default provider unless `TTS_PROVIDER=cartesia` is explicitly set, while still allowing Cartesia fallback if ElevenLabs is unconfigured; verified with `python3 -m py_compile` and `npm run build` |
-| Config precedence hardening + trajectory-map prompt hardening | Codex | 2026-04-15 | Added `backend/config/env_runtime.py` so TTS/model aliases resolve uniformly, changed `backend/main.py` so repo-root `.env` loads as base and `.env.local` overrides it, updated local override config to pin `TTS_PROVIDER=elevenlabs` plus the current OpenRouter tier models, and tightened `backend/services/interview_map.py` so generic/off-focus generated questions are rejected and replaced by deterministic fallbacks; verified with `python3 -m py_compile`, live `/api/tts_health`, and live `/api/tts` returning `x-tts-provider: elevenlabs` |
+| Same-turn revision versioning + historical TTS default pass | Codex | 2026-04-14 | `backend/services/orchestrator.py` now assigns backend-managed `answer_version`s to same-turn revisions, drops superseded staged analyses, and prevents older background runs from overwriting newer revisions; old TTS default note superseded by Cartesia-first policy; verified with `python3 -m py_compile` and `npm run build` |
+| Config precedence hardening + trajectory-map prompt hardening | Codex | 2026-04-15 | Added `backend/config/env_runtime.py` so TTS/model aliases resolve uniformly, changed `backend/main.py` so repo-root `.env` loads as base and `.env.local` overrides it; historical ElevenLabs override note superseded by 2026-05-07 Cartesia-first policy; tightened `backend/services/interview_map.py`; verified with `python3 -m py_compile` and map checks |
 | Sprint continuity + anti-tunnel follow-up routing | Codex | 2026-04-14 | Added deterministic resume fallback parsing in `resume_agent.py`, focus-family tracking + finite contradiction/deflection budgets in `orchestrator.py`, and richer sprint handoff briefs / avoid-topic guidance in `followup_agent.py`; also fixed sprint handoff using the answered question instead of the next follow-up; verified with `python3 -m py_compile` and `npm run build` |
 | Split-answer merge + backend staging hardening | Codex | 2026-04-14 | `app/interview/[session_id]/page.tsx` now merges late STT chunks into one candidate turn and supports same-turn revision with the same `turn_id`; `backend/services/orchestrator.py` now uses an ordered `prepped_turn_queue` instead of a single fragile staging slot; `lib/audio.ts` waits for audio readiness before playback; `EvaluationAgent` JSON example now includes `INSUFFICIENT_DATA`; verified with `python3 -m py_compile` and `npm run build` |
 | Role/YOE-calibrated interview flow + report contract | Codex | 2026-04-14 | Added `target_role` + `years_experience` input on landing page, threaded calibration through `ResumeAgent` / `WeaknessAgent` / `EvaluationAgent`, added discrepancy levels (`none/suspected/confirmed`), report `untested_dimensions`, and a light breadth guard in `orchestrator.py`; verified with `python3 -m py_compile` and `npm run build` |
@@ -237,7 +238,7 @@ frontend/
 | Deepgram ASR fully wired (nova-3, streaming, partial+final callbacks) | Claude Code | 2026-03-30 | `backend/services/asr_service.py` |
 | Orchestrator predictive prefetch on partial transcripts | Claude Code | 2026-03-30 | `on_partial_transcript()` in orchestrator |
 | WebSocket endpoint `/stream/{session_id}` for audio streaming | Claude Code | 2026-03-30 | `backend/api/routes.py` |
-| ElevenLabs TTS (eleven_turbo_v2_5, filler-first streaming) | Claude Code | 2026-03-30 | `backend/services/tts_service.py` |
+| Historical ElevenLabs TTS implementation | Claude Code | 2026-03-30 | Historical initial implementation. Current provider policy is Cartesia-first, ElevenLabs fallback only. |
 | Sprint progression (5Q per sprint, auto-advance 1→2→3) | Claude Code | 2026-03-30 | `orchestrator.py` |
 | Persona switching (curious_lead → socratic_mentor → senior_peer) | Claude Code | 2026-03-30 | `orchestrator.py` + `followup_agent.py` |
 | Interview termination (30 min or sprint 3 exhausted) | Claude Code | 2026-03-30 | `orchestrator._is_complete()` |
@@ -269,13 +270,19 @@ frontend/
 
 | Decision | Rationale | Date |
 |---|---|---|
+| Cartesia is the permanent primary TTS provider | Final Yash decision. Do not revert to ElevenLabs-first. ElevenLabs remains fallback only. | 2026-05-07 |
+| Context-aware TTS fillers are future-version scope | Keep release fillers context-free/default-only until Yash explicitly reopens this. | 2026-05-07 |
+| Application-transfer + coverage map is the core redesign direction | This must stay and be implemented at elite robustness, not treated as optional experiment. | 2026-05-07 |
+| Coverage map informs final evaluation but does not override the LLM verdict | Yash is not comfortable making deterministic coverage the final hiring authority; LLM keeps final-context authority while coverage remains strong evidence/advisory. | 2026-05-07 |
+| RAG/question-bank removal is approved | The redesign should continue with trajectory map/application transfer rather than the old RAG bank. | 2026-05-07 |
+| Disengagement/save-face routing is approved | Keep skip/deflection handling and candidate-protective pivots. | 2026-05-07 |
 | Use Anthropic SDK for LLM calls (not LangChain) | Lower latency, direct control, fewer abstraction layers | 2026-03-30 |
 | Tiered model routing (Haiku/Sonnet/Opus) | Cost + latency optimization — don't use Opus for simple tasks | 2026-03-30 |
 | Redis for session state (not in-memory) | Stateless services, horizontal scaling, session survives restarts | 2026-03-30 |
 | Strict prompt chain isolation (JSON-only between agents) | Prevents hallucination propagation and context bleed | 2026-03-30 |
 | Multi-pass scoring (3 evaluations averaged) | LLMs are inconsistent; averaging reduces variance | 2026-03-30 |
 | Start with FAISS for RAG, migrate to Pinecone for prod | Avoid cloud dependency in dev; easy swap via interface | 2026-03-30 |
-| TTS provider: ElevenLabs (not Cartesia) | API key confirmed by Yash | 2026-03-30 |
+| TTS provider: Cartesia first, always | Yash final-boss decision: Cartesia is the holy-grail primary provider everywhere; ElevenLabs is fallback only. | 2026-05-07 |
 | LLM via OpenRouter (not direct Anthropic SDK) | One key for all models: Claude, DeepSeek, Gemini. Antigravity switched this. | 2026-03-31 |
 | Single OpenRouter key is sufficient | Parallel calls to multiple models work with one key — stateless routing. Two keys only needed for separate billing. | 2026-03-31 |
 | Frontend: Next.js 14 App Router + TypeScript + Tailwind | Better for recruiter dashboard (SSR) + interview page (real-time) in one framework | 2026-03-30 |
@@ -359,7 +366,7 @@ frontend/
 - I took the remaining backend robustness fixes directly.
 - `backend/services/orchestrator.py` now carries a backend-managed `answer_version` for each committed same-turn revision, stores `latest_turn_versions` in Redis session state, and discards superseded staged analyses before they can mutate canonical history. This removes the old timing assumption where an older background pipeline could still win by finishing later.
 - `_pipeline_inflight` is now keyed by `(session_id, turn_id, answer_version)`, so only exact duplicate work is suppressed; same-turn revisions are still allowed to run.
-- `backend/services/tts_service.py` now realigns provider selection to the existing project decision: ElevenLabs remains the default when `TTS_PROVIDER` is unset, Cartesia is explicit opt-in via `TTS_PROVIDER=cartesia`, and Cartesia is only used implicitly when ElevenLabs is entirely unconfigured.
+- Superseded by 2026-05-07 final decision: Cartesia is now the permanent primary TTS provider; ElevenLabs is fallback only.
 - Verified with `python3 -m py_compile` and `npm run build`.
 
 **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-14**
@@ -374,7 +381,7 @@ frontend/
 - `backend/services/orchestrator.py` now prioritizes queued bank follow-ups ahead of generic staged sprint pivots, preserves up to two follow-up templates, and keeps remaining follow-ups alive after a `bank_followup_fast` turn instead of overwriting them immediately. I also tightened repeated same-focus pivoting for high-severity non-recovering turns.
 - `backend/agents/followup_agent.py` now queries sprint seeds using transition memory + latest topic anchor + weakness hints, and the sprint prompts explicitly ban generic stock design questions unless they match candidate context.
 - `frontend/lib/audio.ts` no longer treats speculative early-commit like a forced flush: early-commit now requires a substantive utterance, Deepgram end-of-utterance timing is looser, and the hard cap is longer. `app/interview/[session_id]/page.tsx` now uses `ANSWER_SETTLE_MS = 700` so clustered final chunks merge before `processTurn`.
-- `backend/services/tts_service.py` now enforces ElevenLabs as project policy even if `TTS_PROVIDER=cartesia` is set; Cartesia is emergency fallback only when ElevenLabs credentials are absent.
+- Superseded by 2026-05-07 final decision: Cartesia is now enforced as project policy; ElevenLabs is emergency fallback only.
 - Verified with `python3 -m py_compile` and `npm run build`.
 
 **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-15**
@@ -385,10 +392,10 @@ frontend/
 - Verified with `python3 -m py_compile`, `curl /api/tts_health`, and a live sanity check where Turn 1 and Turn 2 both served `bank_followup_fast` rather than generic sprint fallback.
 
 **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-15**
-- I fixed the remaining live ElevenLabs mismatch in `backend/main.py`.
-- Root cause was config-loading drift: the running backend was not guaranteed to use the same repo-root env precedence as the successful direct ElevenLabs SDK probe.
+- Historical note: this fixed a former ElevenLabs mismatch before Yash's 2026-05-07 provider reversal.
+- Current source of truth: Cartesia is primary regardless of former ElevenLabs-debug context.
 - `backend/main.py` now resolves `.env` and `.env.local` from the project root, loads `.env` first with override, then loads `.env.local` only to fill missing values.
-- After restart, startup no longer falls back during filler warm-up, `/api/tts_health` reports `last_provider_used=elevenlabs` with an empty error state, and live `/api/tts` now returns `x-tts-provider: elevenlabs` plus valid MP3 audio.
+- As of 2026-05-07, expected healthy runtime is Cartesia-first; `/api/tts_health` should report `provider=cartesia` when Cartesia credentials are present.
 
 **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-04-15**
 - I added full interview telemetry capture for the next live tests.
@@ -539,7 +546,7 @@ _Acknowledge by clearing this note after reading._
 > Unresolved decisions that need Yash's input or further discussion.
 
 1. ~~**ASR provider:** Deepgram confirmed — nova-3 model, API key set in `.env`~~ ✅ RESOLVED
-2. ~~**TTS provider:**~~ ✅ **RESOLVED** — ElevenLabs. API key in `.env`.
+2. ~~**TTS provider:**~~ ✅ **RESOLVED** — Cartesia first forever; ElevenLabs fallback only.
 3. **Frontend framework:** React (WebRTC) vs Next.js vs something else?
 4. **Auth:** Is recruiter-facing dashboard in scope for V1, or candidate-only first?
 5. **LangGraph vs raw asyncio:** Notes reference LangGraph StateGraph. Do we want the full LangGraph wiring or keep it as pure async Python for now?

@@ -1,7 +1,6 @@
 import json
 import re
 from backend.models.llm_router import LLMRouter
-from backend.rag import question_bank
 
 
 def _extract_question_from_serialized_payload(text: str) -> str | None:
@@ -202,7 +201,7 @@ def _join_focus_context(
     return "\n".join(lines).strip()
 
 
-def _fallback_for_strategy(attack_strategy: str) -> str:
+def _fallback_for_strategy(probe_direction: str) -> str:
     return {
         "clarification": "What exactly was the mechanism you used there?",
         "ownership_probe": "Which part of that did you personally implement or decide yourself?",
@@ -211,7 +210,7 @@ def _fallback_for_strategy(attack_strategy: str) -> str:
         "contradiction": "Earlier you described that differently. How do those two accounts fit together?",
         "edge_case": "What happens in the first edge case where that approach starts to break?",
         "scaling": "If that needed to handle 10x the load, what would break first?",
-    }.get(attack_strategy, "Can you walk me through that in more concrete detail?")
+    }.get(probe_direction, "Can you walk me through that in more concrete detail?")
 
 
 def _fallback_sprint_question(sprint: int) -> str:
@@ -290,12 +289,12 @@ Rules:
 }
 
 # ─────────────────────────────────────────────
-# ATTACK STRATEGY INSTRUCTIONS
-# These turn the abstract strategy name into a concrete question-generation directive.
-# WeaknessAgent selects the strategy; this map tells the LLM how to execute it.
+# PROBE DIRECTION INSTRUCTIONS
+# These turn the abstract probe direction name into a concrete question-generation directive.
+# WeaknessAgent selects the direction; this map tells the LLM how to execute it.
 # ─────────────────────────────────────────────
 
-ATTACK_STRATEGY_INSTRUCTIONS = {
+PROBE_DIRECTION_INSTRUCTIONS = {
     "clarification": (
         "Their answer may contain something real, but it is still ambiguous. "
         "Ask one exploratory clarification question that establishes mechanism, scope, or ownership before escalating."
@@ -421,6 +420,8 @@ class FollowUpAgent:
         parsed_resume: dict | None = None,
         focus_context: str = "",
         resume_snippets: list[str] | None = None,
+        communication_mode: str = "normal",
+        tone_signal: str = "",
     ) -> str:
         """
         High-severity weakness detected → generate a targeted probe.
@@ -430,10 +431,10 @@ class FollowUpAgent:
         resume_context = _build_resume_context(parsed_resume, resume)
         focus_context_block = _join_focus_context(focus_context, resume_snippets)
 
-        attack_strategy = weakness.get("attack_strategy", "step_by_step")
-        strategy_instruction = ATTACK_STRATEGY_INSTRUCTIONS.get(
-            attack_strategy,
-            ATTACK_STRATEGY_INSTRUCTIONS["step_by_step"]
+        probe_direction = weakness.get("probe_direction", "step_by_step")
+        strategy_instruction = PROBE_DIRECTION_INSTRUCTIONS.get(
+            probe_direction,
+            PROBE_DIRECTION_INSTRUCTIONS["step_by_step"]
         )
 
         user = f"""Candidate background:
@@ -449,17 +450,45 @@ Candidate's answer: {answer}
 Weakness detected:
 - Type: {weakness.get('type', 'unknown')}
 - Gap: {weakness.get('weakness', '')}
-- Attack strategy: {attack_strategy}
+- Probe direction: {probe_direction}
 - How to execute it: {strategy_instruction}
 
-Generate ONE follow-up question that executes this attack strategy.
+Generate ONE follow-up question that executes this probe direction.
 Ground it in something specific from their resume or answer.
 If you are staying on the same project, explicitly signal continuity in the wording.
 Output only the question."""
 
+        if communication_mode == "simplified":
+            user += (
+                "\n\nCOMMUNICATION STYLE: Use maximum ONE sentence. "
+                "Prefer 'Tell me about X' framing. Avoid compound questions. Use simple vocabulary."
+            )
+        elif communication_mode == "narrative_only":
+            user += (
+                "\n\nCOMMUNICATION STYLE: Ask open narrative questions only — "
+                "'Tell me more about what you were working on.' No mechanism probes. No closed questions."
+            )
+
+        if tone_signal == "defensive" or tone_signal == "confrontational":
+            user += (
+                "\n\nTONE ADJUSTMENT: The candidate has shown defensive behavior. "
+                "Use collaborative framing ('Help me understand...' not 'Why did you...'). "
+                "Do not challenge directly — create space for them to reconsider voluntarily."
+            )
+        elif tone_signal == "admitted_gap":
+            user += (
+                "\n\nTONE ADJUSTMENT: The candidate has acknowledged a gap. "
+                "Do not probe this gap further. Move to a different angle or area."
+            )
+
         result = await self.llm.call(system=system, user=user)
-        raw = result if isinstance(result, str) else result.get("followup", str(result))
-        return _finalize_question_output(raw, _fallback_for_strategy(attack_strategy))
+        if isinstance(result, str):
+            raw = result
+        elif isinstance(result, dict):
+            raw = result.get("followup") or result.get("question") or result.get("text") or ""
+        else:
+            raw = ""
+        return _finalize_question_output(raw, _fallback_for_strategy(probe_direction))
 
     async def generate_clarification(
         self,
@@ -481,7 +510,7 @@ Output only the question."""
         resume_context = _build_resume_context(parsed_resume, resume)
         focus_context_block = _join_focus_context(focus_context, resume_snippets)
 
-        attack_strategy = weakness.get("attack_strategy", "clarification")
+        probe_direction = weakness.get("probe_direction", "clarification")
         focus_instruction = {
             "clarification": (
                 "Ask one precise clarifying question that pins down the mechanism, scope, or concrete decision."
@@ -490,7 +519,7 @@ Output only the question."""
                 "Ask one precise ownership question that pins down what the candidate personally built, changed, or decided."
             ),
         }.get(
-            attack_strategy,
+            probe_direction,
             "Ask one precise question that establishes the most important missing detail before escalating."
         )
 
@@ -507,7 +536,7 @@ Candidate's answer: {answer}
 Why we are clarifying:
 - Weakness type: {weakness.get('type', 'unknown')}
 - Gap: {weakness.get('weakness', '')}
-- Route: {attack_strategy}
+- Route: {probe_direction}
 
 Instruction:
 {focus_instruction}
@@ -524,7 +553,7 @@ Rules:
 Output only the question."""
 
         result = await self.llm_fast.call(system=system, user=user)
-        fallback = _fallback_for_strategy(attack_strategy)
+        fallback = _fallback_for_strategy(probe_direction)
         if isinstance(result, str):
             return _finalize_question_output(result, fallback)
         if isinstance(result, dict):
@@ -611,25 +640,7 @@ Output only the question."""
         if isinstance(weakness, dict):
             weakness_hint = weakness.get("weakness", "") or weakness.get("type", "")
 
-        # Retrieve 2 relevant questions from the bank as structural seeds.
-        # The LLM adapts the best fit to this specific candidate — never used verbatim.
-        rag_query = "\n".join(
-            section for section in [
-                transition_brief[:240] if transition_brief else "",
-                topic_anchor[:180] if topic_anchor else "",
-                weakness_hint[:160] if weakness_hint else "",
-                resume_context[:300],
-            ]
-            if section
-        )
-        rag_candidates = question_bank.retrieve(rag_query[:600], sprint=sprint, top_k=2)
-        rag_context = ""
-        # Capture followups from the best-matching seed for use as the next turn's deepening questions
         seed_followups: list[str] = []
-        if rag_candidates:
-            rag_context = "\n\nStructural question seeds (adapt to the candidate — do NOT copy verbatim):\n"
-            rag_context += "\n".join(f"- {q['text']}" for q in rag_candidates)
-            seed_followups = rag_candidates[0].get("followups", [])
         trajectory_hint_section = ""
         if trajectory_hint_question.strip():
             trajectory_hint_section = (
@@ -656,7 +667,7 @@ Current focus context:
 {focus_context_block or "Use the most relevant exact project or claim from the resume."}
 
 Questions already asked (do NOT repeat these):
-{covered_str}{rag_context}{trajectory_hint_section}{avoid_section}{transition_section}
+{covered_str}{trajectory_hint_section}{avoid_section}{transition_section}
 
 Generate ONE new interview question that:
 - Directly references something specific from their resume (a project by name, a technology they listed, a claim they made)
@@ -673,7 +684,7 @@ Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
         question = result if isinstance(result, str) else result.get("question", str(result))
-        fallback = rag_candidates[0]["text"] if rag_candidates else _fallback_sprint_question(sprint)
+        fallback = _fallback_sprint_question(sprint)
         return _finalize_question_output(question, fallback), seed_followups
 
     async def adapt_followup(
@@ -950,6 +961,111 @@ Rules:
             fallback=fallback,
             current_best_question=current_best_question,
             current_map_candidate=current_map_candidate,
+        )
+
+    async def generate_confession_pivot(
+        self,
+        target_role: str = "",
+        resume_context: str = "",
+    ) -> str:
+        """Save-face pivot when disengagement_level >= 2.0. Resets the frame."""
+        role_phrase = f"for a {target_role} position" if target_role else ""
+        prompt = (
+            f"You are conducting a technical interview {role_phrase}. "
+            "The candidate appears to be struggling or disengaging. "
+            "Generate ONE warm, reframing question that:\n"
+            "- Acknowledges the difficulty without dwelling on it\n"
+            "- Redirects to what the candidate knows best from their background\n"
+            "- Opens a new avenue rather than repeating the old one\n"
+            "- Pattern: 'Let me try a different angle — [what are you most confident explaining that this role needs?]'\n"
+        )
+        if resume_context:
+            prompt += f"\nCandidate background:\n{resume_context[:500]}\n"
+        prompt += "\nReturn only the question text. One sentence."
+        result = await self.llm_fast.call(
+            system=PERSONA_PROMPTS.get("curious_lead", ""),
+            user=prompt,
+        )
+        fallback = "Let me switch gears — what's the piece of your work you'd most want a hiring manager to understand about you?"
+        raw = result if isinstance(result, str) else (result.get("question", "") if isinstance(result, dict) else "")
+        return _finalize_question_output(raw, fallback)
+
+    async def generate_coverage_surface(
+        self,
+        dimension_id: str,
+        coverage_map: "AnswerCoverageMap",
+        state: dict,
+    ) -> str:
+        """Deliver a coverage-map surfacing question in persona voice."""
+        from backend.models.coverage_map import AnswerCoverageMap as _ACM
+        dim = next((d for d in coverage_map.dimensions if d.id == dimension_id), None)
+        if not dim:
+            q, _ = await self.generate_sprint_question(
+                sprint=state.get("current_sprint", 1),
+                persona=state.get("current_persona", "curious_lead"),
+                resume=state.get("resume", ""),
+                parsed_resume=state.get("parsed_resume"),
+                history=state.get("history", []),
+                weakness=None,
+            )
+            return q
+        persona = state.get("current_persona", "curious_lead")
+        system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+        user = (
+            f"Deliver this coverage surfacing question in your interviewer persona — "
+            f"warm and exploratory, not interrogative:\n\n{dim.surfacing_question}\n\n"
+            "Return only the question text, in your persona's voice. One sentence."
+        )
+        result = await self.llm_fast.call(system=system, user=user)
+        raw = result if isinstance(result, str) else (result.get("question", "") if isinstance(result, dict) else "")
+        return _finalize_question_output(raw, dim.surfacing_question)
+
+    async def generate_coverage_depth_probe(
+        self,
+        dimension_id: str,
+        coverage_map: "AnswerCoverageMap",
+        candidate_surface_response: str,
+        state: dict,
+    ) -> str:
+        """One mechanism probe after candidate named a concept without explaining it."""
+        from backend.models.coverage_map import AnswerCoverageMap as _ACM
+        dim = next((d for d in coverage_map.dimensions if d.id == dimension_id), None)
+        if not dim:
+            q, _ = await self.generate_sprint_question(
+                sprint=state.get("current_sprint", 1),
+                persona=state.get("current_persona", "curious_lead"),
+                resume=state.get("resume", ""),
+                parsed_resume=state.get("parsed_resume"),
+                history=state.get("history", []),
+                weakness=None,
+            )
+            return q
+        persona = state.get("current_persona", "curious_lead")
+        system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
+        anchor = coverage_map.implementation_anchor
+        user = (
+            f"The candidate mentioned '{dim.label}' when prompted but couldn't explain the mechanism.\n"
+            f"Their specific system: {anchor}\n"
+            f"Their surface response: {candidate_surface_response[:300]}\n\n"
+            "Generate ONE follow-up asking for the mechanism specifically — "
+            "'In [their specific implementation], what did that look like concretely?'\n"
+            "Return only the question. One sentence."
+        )
+        result = await self.llm_fast.call(system=system, user=user)
+        fallback = f"In your specific implementation, what did {dim.label} look like concretely?"
+        raw = result if isinstance(result, str) else (result.get("question", "") if isinstance(result, dict) else "")
+        return _finalize_question_output(raw, fallback)
+
+    async def generate_graceful_close(self, state: dict, turn_in_close: int) -> str:
+        """Phase 6 close questions (turns 14-15). Returns a fixed warm close — no LLM needed."""
+        if turn_in_close == 0:
+            return (
+                "Alright, we're almost done — before we finish, is there anything about your work "
+                "or what you've been building that you wanted to talk about that we didn't get to?"
+            )
+        return (
+            "Last one — what kind of work are you most excited to be doing in the next role? "
+            "Like what's the thing you really want to get into?"
         )
 
     async def prefetch(self, concepts: list[str], state: dict) -> list[str]:

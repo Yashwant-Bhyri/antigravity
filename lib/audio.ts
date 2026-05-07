@@ -589,7 +589,7 @@ export async function prefetchAudio(text: string, sessionId?: string): Promise<s
       body: JSON.stringify({ text, session_id: sessionId ?? "" }),
     }, TTS_TIMEOUT_MS);
     if (!res.ok) {
-      console.warn(`[TTS] ElevenLabs returned ${res.status}. Fallback: browser TTS.`);
+      console.warn(`[TTS] Provider returned ${res.status}. Fallback: browser TTS.`);
       trackInterviewEvent(sessionId ?? "system", "frontend_tts_prefetch_failed", {
         status: res.status,
         text_chars: text.length,
@@ -610,7 +610,7 @@ export async function prefetchAudio(text: string, sessionId?: string): Promise<s
     });
     return url;
   } catch (e) {
-    console.warn("[TTS] ElevenLabs fetch failed. Fallback: browser TTS.", e);
+    console.warn("[TTS] Provider fetch failed. Fallback: browser TTS.", e);
     trackInterviewEvent(sessionId ?? "system", "frontend_tts_prefetch_failed", {
       text_chars: text.length,
       error: String(e),
@@ -700,7 +700,7 @@ export async function playAudioUrl(
       audio.onerror = onEnded;
 
       audio.play().catch((err) => {
-        console.warn("[Audio] ElevenLabs playback failed, falling back to browser TTS:", err);
+        console.warn("[Audio] Provider playback failed, falling back to browser TTS:", err);
         if (url) URL.revokeObjectURL(url);
         signal?.removeEventListener("abort", onAbort);
         trackInterviewEvent("system", "frontend_audio_playback_fallback", {
@@ -737,7 +737,7 @@ export async function speakText(text: string, signal?: AbortSignal): Promise<voi
 // the beginning. Fix: chunk into sentences and speak sequentially.
 function speakWithBrowser(text: string, signal?: AbortSignal): Promise<void> {
   if (!window.speechSynthesis) return Promise.resolve();
-  console.warn(`[TTS] ElevenLabs unavailable. Using browser fallback for: "${text.slice(0, 30)}..."`);
+  console.warn(`[TTS] Provider unavailable. Using browser fallback for: "${text.slice(0, 30)}..."`);
 
   if (window.speechSynthesis.speaking) {
     console.log("[TTS] Browser is currently speaking. Cancelling previous to start new.");

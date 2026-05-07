@@ -1,7 +1,9 @@
 import asyncio
+import hmac
+import json
 import os
 import time
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from backend.services.orchestrator import Orchestrator
@@ -376,7 +378,7 @@ async def end_interview(session_id: str):
 @router.get("/tts_filler")
 async def get_filler():
     """
-    Returns a random pre-cached filler phrase.
+    Returns a random pre-cached filler phrase from the release-safe default pool.
     Pre-generated at startup — responds in <10ms after warm-up.
     """
     from fastapi import HTTPException
@@ -531,11 +533,42 @@ async def get_sessions():
     """All completed interviews for recruiter dashboard."""
     from backend.db.postgres import list_sessions
     rows = await list_sessions()
-    # Convert datetime to ISO string for JSON serialisation
+    result = []
     for r in rows:
-        if hasattr(r.get("created_at"), "isoformat"):
-            r["created_at"] = r["created_at"].isoformat()
-    return rows
+        # Unpack full_report JSONB so dashboard fields are top-level
+        full_report = r.get("full_report") or {}
+        if isinstance(full_report, str):
+            try:
+                full_report = json.loads(full_report)
+            except json.JSONDecodeError:
+                full_report = {}
+        if not isinstance(full_report, dict):
+            full_report = {}
+        row = {**r, **full_report}
+        # Top-level columns win over full_report on name collision for stable fields
+        row["session_id"] = r.get("session_id")
+        row["hire_recommendation"] = r.get("hire_recommendation") or full_report.get("hire_recommendation")
+        row["overall_score"] = r.get("overall_score") or full_report.get("overall_score")
+        row["sprint_reached"] = r.get("sprint_reached") or full_report.get("sprint_reached")
+        row["duration_minutes"] = r.get("duration_minutes") or full_report.get("duration_minutes")
+        row["resume_snippet"] = r.get("resume_snippet") or full_report.get("resume_snippet")
+        row["total_questions"] = row.get("total_questions") or 0
+        row["scores"] = row.get("scores") if isinstance(row.get("scores"), dict) else {}
+        row["weakness_summary"] = row.get("weakness_summary") if isinstance(row.get("weakness_summary"), dict) else {}
+        row["raw_weaknesses"] = row.get("raw_weaknesses") if isinstance(row.get("raw_weaknesses"), list) else []
+        row["failure_surface"] = row.get("failure_surface") if isinstance(row.get("failure_surface"), dict) else {}
+        row["coverage_portrait"] = row.get("coverage_portrait")
+        row["coverage_score"] = (
+            row.get("coverage_portrait", {}) or {}
+        ).get("coverage_score")
+        row["coverage_verdict_advisory"] = row.get("coverage_verdict_advisory")
+        row["candidate_name"] = row.get("candidate_name") or full_report.get("candidate_name") or ""
+        row["verdict_basis"] = row.get("verdict_basis")
+        row["verdict_confidence_basis"] = row.get("verdict_confidence_basis")
+        if hasattr(row.get("created_at"), "isoformat"):
+            row["created_at"] = row["created_at"].isoformat()
+        result.append(row)
+    return result
 
 
 @router.get("/state/{session_id}")
@@ -555,6 +588,22 @@ async def get_report(session_id: str):
         from backend.db.postgres import get_session_report
         pg_report = await get_session_report(session_id)
         if pg_report:
+            pg_report.setdefault("session_id", session_id)
+            pg_report.setdefault("complete", True)
+            pg_report.setdefault("candidate_name", "")
+            pg_report.setdefault("total_questions", 0)
+            pg_report.setdefault("strengths", [])
+            pg_report.setdefault("risk_flags", [])
+            pg_report.setdefault("untested_dimensions", [])
+            pg_report.setdefault("scores", {})
+            pg_report.setdefault("failure_surface", {})
+            pg_report.setdefault("weakness_summary", {})
+            pg_report.setdefault("raw_weaknesses", [])
+            pg_report.setdefault("claim_credibility_risk", {"level": "not_tested", "detail": ""})
+            pg_report.setdefault("coverage_portrait", None)
+            pg_report.setdefault("coverage_verdict_advisory", None)
+            pg_report.setdefault("verdict_basis", None)
+            pg_report.setdefault("verdict_confidence_basis", None)
             return pg_report
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
 
@@ -567,6 +616,9 @@ async def get_report(session_id: str):
         t = w.get("type", "unknown")
         weakness_by_type[t] = weakness_by_type.get(t, 0) + 1
 
+    _parsed_resume = state.get("parsed_resume") or {}
+    candidate_name = str(_parsed_resume.get("candidate_name") or "").strip()
+
     return {
         "session_id": session_id,
         "complete": report_ready,
@@ -574,6 +626,7 @@ async def get_report(session_id: str):
         "report_ready": report_ready,
         "finalization_status": state.get("finalization_status", "idle"),
         "finalization_error": state.get("finalization_error", ""),
+        "candidate_name": candidate_name,
         "target_role": state.get("target_role", ""),
         "years_experience": state.get("years_experience", ""),
         "total_questions": state.get("question_count", 0),
@@ -589,12 +642,22 @@ async def get_report(session_id: str):
         "failure_surface": evaluation.get("failure_surface", state.get("failure_surface", {})),
         "weakness_summary": weakness_by_type,
         "raw_weaknesses": weaknesses,
+        "coverage_portrait": evaluation.get("coverage_portrait"),
+        "coverage_verdict_advisory": evaluation.get("coverage_verdict_advisory"),
+        "verdict_basis": evaluation.get("verdict_basis"),
+        "verdict_confidence_basis": evaluation.get("verdict_confidence_basis"),
     }
 
 
 @router.get("/admin/redis-dump")
-async def redis_dump():
-    """Temporary admin endpoint — scans all Redis keys and returns live session data."""
+async def redis_dump(request: Request):
+    """Admin endpoint — scans all Redis keys and returns live session data."""
+    _admin_secret = os.environ.get("ANTIGRAVITY_ADMIN_SECRET", "")
+    _provided = request.headers.get("X-Admin-Secret", "")
+    if not _admin_secret:
+        raise HTTPException(status_code=503, detail="Admin endpoint not configured")
+    if not hmac.compare_digest(_admin_secret, _provided):
+        raise HTTPException(status_code=401, detail="Unauthorized")
     import redis.asyncio as aioredis
     import json as _json
 

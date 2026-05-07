@@ -18,22 +18,17 @@ CARTESIA_VOICE_ID = os.environ.get("CARTESIA_VOICE_ID") or "9626c31c-bec5-4cca-b
 CARTESIA_VERSION = os.environ.get("CARTESIA_VERSION") or "2025-04-16"
 CARTESIA_ENDPOINT = "https://api.cartesia.ai/tts/bytes"
 
-FILLER_PHRASES = [
-    "Interesting.",
-    "Got it.",
-    "Alright.",
-    "I see.",
-    "Right.",
-    "Sure.",
-]
+# Keep fillers intentionally simple for this release. Context-aware filler
+# selection is a future-version product idea, not live interview behavior.
+FILLER_PHRASES = ["Interesting.", "Got it.", "Alright.", "I see.", "Right.", "Sure."]
 
 
 class TTSService:
     """
     TTS provider wrapper.
 
-    Cartesia is the primary provider. ElevenLabs is retained as a runtime
-    fallback when Cartesia is unavailable or explicitly requested.
+    Cartesia is the permanent primary provider for Antigravity.
+    ElevenLabs is retained only as a runtime fallback when Cartesia is unavailable.
     """
 
     def __init__(self):

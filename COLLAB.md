@@ -142,8 +142,7 @@ I tightened two areas that were causing repeated “changed it in one place, sta
 - `backend/main.py` now loads:
   - `.env` as base config
   - `.env.local` as override config (`override=True`)
-- I also refreshed `.env.local` so the active local override state is explicit:
-  - `TTS_PROVIDER=elevenlabs`
+- Historical note: `.env.local` used to pin `TTS_PROVIDER=elevenlabs`; superseded on 2026-05-07 because Cartesia is primary even if that old variable remains.
   - `OPENROUTER_SMALL_MODEL=anthropic/claude-haiku-4-5`
   - `OPENROUTER_MEDIUM_MODEL=anthropic/claude-sonnet-4-5`
   - `OPENROUTER_LARGE_MODEL=deepseek/deepseek-r1`
@@ -809,8 +808,8 @@ I took the exact interaction problems Yash called out directly in code because t
    - Early-commit now only arms once the utterance is substantive enough (`minWordsForEarlyCommit` / `minUtteranceAgeMs`), Deepgram endpointing was relaxed further, and the hard cap was extended.
    - In `app/interview/[session_id]/page.tsx`, `ANSWER_SETTLE_MS` is now `700ms` so clustered `is_final` bursts merge before `processTurn` instead of immediately creating churny same-turn revisions.
 
-5. **ElevenLabs enforced**
-   - In `backend/services/tts_service.py`, project policy is now enforced directly: ElevenLabs stays primary even if `TTS_PROVIDER=cartesia` is present. Cartesia only remains as an emergency fallback when ElevenLabs credentials are unavailable.
+5. **Historical ElevenLabs policy, now superseded**
+   - Superseded on 2026-05-07: Cartesia is now the permanent primary provider. ElevenLabs is fallback only.
 
 #### Why I think these were the actual root causes
 
@@ -4898,3 +4897,21 @@ The generic repeat question (`"What would you do differently if you were startin
 - **`if_strong` / `if_claim_conflict` branches dropped**: Removed to keep generation reliable under the token budget. Can be added back if generation is split into per-focus-area parallel calls (each call ~6 questions, no truncation risk). Worth doing if you want resume-grounded challenge/discrepancy questions.
 
 — Claude Code
+## 2026-05-07 - Codex: Yash Final-Boss Product Decisions Hard-Wired
+
+Yash gave final product-owner calls after the layer-8 audit:
+
+- Cartesia is the permanent primary TTS provider everywhere. Do not revert to ElevenLabs-first. ElevenLabs is fallback only.
+- Context-aware TTS fillers are not in this release. Keep fillers in the plain default pool until Yash explicitly reopens this future-version idea.
+- Application-transfer + coverage map is the strongest redesign direction and must be treated as core, elite implementation work.
+- Coverage-map scoring should inform the final evaluator, not override the LLM's contextual hire recommendation/confidence yet.
+- RAG/question-bank removal is approved.
+- Disengagement/save-face routing is approved.
+
+Runtime changes made accordingly:
+
+- `backend/services/tts_service.py`: Cartesia-first policy retained and clarified; context-aware filler pools removed from live behavior.
+- `backend/api/routes.py`: `/tts_filler` now serves default release-safe fillers only.
+- `backend/agents/evaluation_agent.py`: coverage verdict is advisory; LLM keeps final verdict authority.
+- `backend/services/orchestrator.py`: communication-mode detection now waits for two committed answers.
+- `backend/test_interview_map_contract.py`: updated for the dimension-schema trajectory map contract.

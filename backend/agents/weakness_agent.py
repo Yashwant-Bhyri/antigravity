@@ -16,7 +16,7 @@ Weakness types:
 - deflection: they avoided the actual question, redirected, or talked around it
 - ambiguous_but_promising: there may be real substance here, but it needs one clarification turn before attack
 
-Attack strategies (pick the one that will most expose the weakness):
+Probe directions (pick the one that will most illuminate the candidate's knowledge boundary):
 - clarification: ask one exploratory clarifying question before escalating
 - implementation_probe: ask them to implement or describe the mechanism step-by-step
 - ownership_probe: pin down what they personally built versus what the team/system did
@@ -44,7 +44,8 @@ Output JSON only:
   "weakness": "<one sentence describing the specific gap>",
   "type": "missing_step | vague | incorrect | shallow | overconfidence | deflection | ambiguous_but_promising",
   "severity": "low | medium | high",
-  "attack_strategy": "clarification | implementation_probe | ownership_probe | edge_case | scaling | contradiction | step_by_step"
+  "probe_direction": "clarification | implementation_probe | ownership_probe | edge_case | scaling | contradiction | step_by_step",
+  "continue_probing": true
 }"""
 
 
@@ -123,4 +124,4 @@ Candidate Answer: {answer}"""
         result = await self.llm.call(system=PROMPT, user=user)
         if isinstance(result, dict):
             return result
-        return {"weakness": str(result), "type": "vague", "severity": "low", "attack_strategy": "clarification"}
+        return {"weakness": str(result), "type": "vague", "severity": "low", "probe_direction": "clarification", "continue_probing": True}
