@@ -833,7 +833,7 @@ Output only the question."""
         Replaces the generic fallback on Turn 1's fast path.
         """
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
-        user = f"""Sprint {sprint} — {SPRINT_GOALS.get(sprint, ‘’)}
+        user = f"""Sprint {sprint} — {SPRINT_GOALS.get(sprint, "")}
 
 Candidate background:
 {resume_context}
@@ -1081,7 +1081,7 @@ Rules:
         sprint = state.get("current_sprint", 1)
 
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
-        user = f"""Sprint {sprint} — {SPRINT_GOALS.get(sprint, '')}
+        user = f"""Sprint {sprint} — {SPRINT_GOALS.get(sprint, "")}
 
 Candidate background:
 {resume_context[:600]}
