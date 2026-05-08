@@ -1088,9 +1088,11 @@ class Orchestrator:
             for w in weaknesses:
                 t = w.get("type", "unknown")
                 weakness_by_type[t] = weakness_by_type.get(t, 0) + 1
+            _parsed = state.get("parsed_resume") or {}
             full_report = {
                 "session_id": session_id,
                 "complete": True,
+                "candidate_name": _parsed.get("candidate_name", ""),
                 "target_role": state.get("target_role", ""),
                 "years_experience": state.get("years_experience", ""),
                 "total_questions": state.get("question_count", 0),
@@ -2734,16 +2736,8 @@ class Orchestrator:
                                       anchor_confidence=cs["anchor_confidence"],
                                       anchor_chars=len(anchor))
 
-            # ── Live Q4 refinement — generate additional Q4 candidates anchored to what the candidate actually said
-            if turn_number == 2 and not state.get("live_q4_candidates"):
-                # turn_number is 0-indexed; turn_number==2 means this is the 3rd turn (Q3 answer)
-                history = state.get("conversation_history", [])
-                if history:
-                    q3_answer = history[-1].get("candidate_text", "") if history else ""
-                    if q3_answer and len(q3_answer.split()) > 10:
-                        asyncio.create_task(
-                            self._generate_live_q4_candidates(session_id, q3_answer, state)
-                        )
+            # live_q4_candidates generation disabled — generated but never consumed by route selection.
+            # Re-enable once the route selector reads state["live_q4_candidates"] for Q4 serving.
 
             # ── Honest admission soft-cap ─────────────────────────────────────
             reasoning_adaptability = reasoning.get("adaptability", "") if isinstance(reasoning, dict) else ""

@@ -273,7 +273,7 @@ export default async function ReportPage({
                       </div>
                       <p className="mt-3 text-sm leading-7 text-[var(--ag-text-0)]">{weakness.weakness}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.12em] text-[var(--ag-text-3)]">
-                        Probe direction: {(weakness.probe_direction ?? "").replace(/_/g, " ")}
+                        Probe direction: {((weakness.probe_direction ?? (weakness as any).attack_strategy ?? "")).replace(/_/g, " ")}
                       </p>
                     </div>
                   ))}

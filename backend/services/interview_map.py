@@ -268,9 +268,19 @@ QUESTION CHALLENGE TYPES for analyst roles (use these patterns for dimensions an
 dimensions MUST include at least one causal_validity question and one metric_definition question as the first two dimensions. These fire regardless of candidate fluency.
 
 Opener: ALWAYS a direct causal challenge or hypothesis question. NEVER "walk me through" or "tell me about" — these are hard-banned for analyst roles. They invite narrative; analysts must defend, not tour.
-Format: "At [company], you [specific outcome with the number] — [specific challenge, contradiction, or forced choice that requires an immediate analytical position]."
-Forced-choice pattern (use this): "...before we go deeper, [specific contested claim] — [what do you believe] and [what would make you wrong]?"
-Example: "At Daily Mantra, retention went from 25% to 42% — Video, Today, and AI Guruji all shipped in the same window. Before we go deeper, which of those three do you believe drove the most lift, and what would make you wrong?"
+
+TWO PATTERNS — pick based on the evidence available:
+
+Pattern A — Contradiction available (two claims in the anchor are in tension):
+Format: "At [company], you [specific outcome] — [named contradiction]. Before we go deeper, [what explains the gap] and [what would make you wrong]?"
+Example: "At GrowFast, your churn model had 44% recall — meaning most churners were never flagged — yet the resume claims a 35% churn reduction. Before we go deeper, what explains that gap, and what would make you wrong?"
+
+Pattern B — No contradiction (resume claims are internally consistent):
+Take the most specific number in the anchor. Identify the ONE assumption or decision that number rests on that the candidate made a choice about. Challenge that decision directly.
+Format: "At [company], you [specific outcome with the number] — before we go anywhere else, [specific assumption the number rests on] — [ask them to defend or name the source of that assumption]."
+Example: "At MindFul, you ran the streak notification test at 0.85 power — before we go anywhere else, what effect size did you input when you ran that power calculation, and where did that assumption come from?"
+The opener must force them to defend a specific analytical decision, not tell a story. Every clean number has a latent assumption underneath it — find it.
+
 The opener MUST name a specific number from the resume AND force the candidate to take a position they then have to defend.
 
 HANDLING "ARCHITECTED / BUILT / IMPLEMENTED" CLAIMS ON AN ANALYST RESUME:
@@ -380,7 +390,7 @@ Current focus area:
 {prior_track_context}
 Return ONLY this JSON structure (no markdown, no commentary):
 {{
-  "opener": "warm narrative question 20-30 words — 'At [company], you [outcome] — walk me through...' — invites narration, does NOT ask mechanism",
+  "opener": "targeted question 20-30 words — anchored to a specific number or decision from the resume — see system prompt for role-specific opener rules",
   "dimensions": [
     {{
       "id": "snake_case_dimension_id",
@@ -409,7 +419,7 @@ Return ONLY this JSON structure (no markdown, no commentary):
 }}
 
 Hard rules:
-- opener must be warm and narrative — it enters the focus area by inviting the candidate to narrate
+- opener must be anchored to a specific claim, number, or decision from the resume snippets — follow the role-specific opener rules in the system prompt exactly
 - opener must include company/experience context from the resume snippets
 - 3–5 dimensions, every dimension must have a real resume_anchor from the snippets above
 - every surface/mechanism/boundary question must follow the pattern: [specific element from their claim] + [consequence, challenge, or probe]
@@ -984,6 +994,7 @@ DEDUPLICATION RULES (critical — violations cause map failure):
 
 SUB-FOCUS INSTRUCTION:
 When a single focus area covers multiple distinct technical surfaces (e.g. an inference pipeline AND a data modeling layer), list each surface as a short phrase in sub_focuses. The track generator uses this list to guarantee at least one dimension per sub-focus — so be explicit. Sub-focus phrases should be 5–12 words, grounded in the resume. If a focus area has only one coherent technical surface, sub_focuses may be empty or contain just that one phrase.
+IMPORTANT — assign sub_focuses by analytical theme, not positional proximity in the resume text. If a credibility challenge or causal attribution claim appears near an infrastructure bullet but logically belongs with a measurement or outcome claim, assign it to the focus area whose theme is most analytically adjacent. A concurrent-experiment attribution challenge belongs with the outcome it challenges, not with the pipeline that served it.
 
 QUESTION BUDGET AND TIME ALLOCATION:
 - area[0] (primary anchor): receives ~60% of total interview time — this is the single most analytically rich experience. Select it for depth, not recency alone.
@@ -1758,7 +1769,8 @@ def _extract_focus_signals(seed: dict) -> dict[str, str]:
     domain = ""
     lowered = source_text.lower()
     for needle, phrase in (
-        ("video", "the video-generation workflow"),
+        ("video-generation", "the video-generation workflow"),
+        ("aigc", "the video-generation workflow"),
         ("audio", "the audio pipeline"),
         ("benchmark", "the benchmark design"),
         ("sql", "the SQL and schema design"),
@@ -2254,6 +2266,45 @@ async def _generate_focus_track(
     }
 
 
+def _focus_review_score(critic_feedback: dict | None, focus_key: str) -> float | None:
+    """Return the per-area score from the critic for focus_key, or None if not found."""
+    if not isinstance(critic_feedback, dict):
+        return None
+    for fr in (critic_feedback.get("focus_reviews") or []):
+        if isinstance(fr, dict) and _clean_track_value(fr.get("focus_key", "")) == focus_key:
+            try:
+                return float(fr.get("score", 0))
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _focus_review_has_significant_issues(critic_feedback: dict | None, focus_key: str) -> bool:
+    """True if the critic flagged issues or an opener_issue for this area."""
+    if not isinstance(critic_feedback, dict):
+        return False
+    for fr in (critic_feedback.get("focus_reviews") or []):
+        if not isinstance(fr, dict):
+            continue
+        if _clean_track_value(fr.get("focus_key", "")) != focus_key:
+            continue
+        if fr.get("issues") or str(fr.get("opener_issue") or "").strip():
+            return True
+    return False
+
+
+def _track_from_candidate(original_candidate: dict | None, focus_key: str) -> dict | None:
+    """Extract the generated track dict for focus_key from a prior candidate result."""
+    if not isinstance(original_candidate, dict):
+        return None
+    for area in (original_candidate.get("focus_areas") or []):
+        if not isinstance(area, dict):
+            continue
+        if _clean_track_value(area.get("focus_key", "")) == focus_key:
+            return area.get("track") if isinstance(area.get("track"), dict) else None
+    return None
+
+
 def _critic_guidance_for_focus(review: dict | None, focus_key: str) -> str:
     if not isinstance(review, dict):
         return ""
@@ -2363,6 +2414,7 @@ async def _generate_priority_tracks_for_candidate(
     candidate: dict,
     session_id: str,
     critic_feedback: dict | None = None,
+    original_candidate: dict | None = None,
     target_role: str = "",
 ) -> dict:
     focus_areas = list(candidate.get("focus_areas", []) or [])
@@ -2394,20 +2446,45 @@ async def _generate_priority_tracks_for_candidate(
         updated["_gen_source"] = result.get("source", "deterministic_fallback")
         return updated
 
-    # Phase 2: generate ALL fixated areas in parallel — areas were fixated in phase 1 (focus plan)
-    # so we know exactly which experiences to probe; no sequential dependency.
+    # Surgical repair: when critic_feedback and original_candidate are both present, preserve any
+    # area that already scored well (≥8.0) with no significant issues — regenerating it introduces
+    # variance and can degrade what was already high-quality. Only regenerate areas the critic
+    # actually flagged.
+    _preserve_threshold = 8.0
+
+    def _should_preserve(focus_key: str) -> bool:
+        if not critic_feedback or not original_candidate:
+            return False
+        score = _focus_review_score(critic_feedback, focus_key)
+        if score is None or score < _preserve_threshold:
+            return False
+        if _focus_review_has_significant_issues(critic_feedback, focus_key):
+            return False
+        return _track_from_candidate(original_candidate, focus_key) is not None
+
     all_indices = list(range(len(focus_areas)))
 
     async def _gen_track(index: int) -> dict:
         area = focus_areas[index]
         seed = _make_seed(index, area)
+        fk = seed["focus_key"]
+
+        if _should_preserve(fk):
+            preserved_track = _track_from_candidate(original_candidate, fk)
+            print(
+                f"[TrajectoryMap] Preserving high-score area '{area.get('label', fk)}'"
+                + (f" for {session_id[:8]}" if session_id else "")
+                + f" (score {_focus_review_score(critic_feedback, fk):.1f} ≥ {_preserve_threshold})"
+            )
+            return _apply_result(area, {"track": preserved_track, "source": "llm"})
+
         result = await _generate_focus_track(
             resume_context=resume,
             seed=seed,
             next_focus_label=_next_label(index),
             session_id=session_id,
             fast_mode=False,
-            repair_guidance=_critic_guidance_for_focus(critic_feedback, seed["focus_key"]),
+            repair_guidance=_critic_guidance_for_focus(critic_feedback, fk),
             prior_track_context="",
             role_type=target_role,
         )
@@ -2512,6 +2589,7 @@ async def generate_interview_map(
                     candidate=repair_base_plan,
                     session_id=session_id,
                     critic_feedback=pass_one_review,
+                    original_candidate=pass_one_candidate,
                     target_role=target_role,
                 )
                 repaired_review = await _critique_map_candidate(
