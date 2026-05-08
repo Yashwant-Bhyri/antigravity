@@ -229,7 +229,7 @@ def _fallback_sprint_opener(sprint: int) -> str:
 
 
 def _fallback_seed_question() -> str:
-    return "I’d love to start with the project you just chose — what part of it felt most shaped by your own decisions?"
+    return "Great, that’s really helpful context. So tell me more about what you’ve been building — like, what were you actually doing there? What did you build, what tech were you working with, feel free to just walk me through it."
 
 
 def _fallback_discrepancy_question() -> str:
@@ -833,21 +833,20 @@ Output only the question."""
         Replaces the generic fallback on Turn 1's fast path.
         """
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
-        user = f"""Sprint {sprint} — {SPRINT_GOALS.get(sprint, '')}
+        user = f"""Sprint {sprint} — {SPRINT_GOALS.get(sprint, ‘’)}
 
 Candidate background:
 {resume_context}
 
-The candidate has just been asked: "Tell me about a project you're genuinely proud of."
-Before they've answered, generate ONE follow-up question you'll ask after they respond.
+The candidate has just been asked to give a quick intro about themselves. Generate the ONE follow-up question you’ll ask after they respond — directing them to elaborate on the most recent or most prominent experience from their resume.
+
 The question should:
-- Feel warm and welcoming, not sharp or prosecutorial
-- Mention the specific experience / project context first, then ask the question
-- Reference a specific project, technology, or claim from their resume above
-- Gently invite them into ownership, contribution, or a key implementation decision
-- Prefer a pattern like: "I’d love to start with your <project> — what part of that work felt most yours?"
-- Be ONE sentence, conversational, and ideally ≤26 words
-- Do NOT sound like a challenge, interrogation, or contradiction probe
+- Open with a warm acknowledgment like "Great, that’s really helpful context." or "Nice, love that."
+- Reference the specific experience, project, or role by name
+- Ask them to walk through what they were actually doing — what they built, what tech they used, what their role was
+- Feel conversational and directional, not interrogative
+- Follow the pattern: "Great, that’s really helpful context. So tell me more about [X] — like, what were you actually doing there? What did you build, what tech were you working with, feel free to just walk me through it."
+- Be warm, inviting, ONE to TWO sentences max
 
 Output only the question."""
 

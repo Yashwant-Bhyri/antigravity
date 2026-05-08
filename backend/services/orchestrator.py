@@ -275,9 +275,40 @@ def _resume_focus_candidates(parsed_resume: dict | None, resume: str) -> list[tu
     return candidates
 
 
-def _infer_focus(question: str, answer: str, parsed_resume: dict | None, resume: str) -> tuple[str, str]:
+def _infer_focus(
+    question: str,
+    answer: str,
+    parsed_resume: dict | None,
+    resume: str,
+    trajectory_focus_areas: list[dict] | None = None,
+) -> tuple[str, str]:
     combined = _normalize_transcript(f"{question} {answer}")
     combined_tokens = set(token for token in combined.split(" ") if len(token) > 2)
+
+    # Prefer trajectory map focus areas when available — they are already semantically
+    # named and avoid location-name false positives from raw resume parsing.
+    if trajectory_focus_areas:
+        best_label = ""
+        best_key = ""
+        best_score = 0
+        for area in trajectory_focus_areas:
+            fa_label = str(area.get("label") or "")
+            fa_key = str(area.get("focus_key") or "")
+            if not fa_key:
+                continue
+            area_tokens = set(
+                t for t in _normalize_transcript(
+                    fa_label + " " + str(area.get("anchor_context") or "")
+                ).split(" ")
+                if len(t) > 2
+            )
+            score = len(area_tokens & combined_tokens)
+            if score > best_score:
+                best_score = score
+                best_label = fa_label
+                best_key = fa_key
+        if best_score > 0:
+            return best_key, best_label
 
     best_label = ""
     best_key = ""
@@ -586,7 +617,7 @@ SPRINTS = {
 }
 
 SPRINT_OPENERS = {
-    1: "Welcome to the interview — I'm really glad you're here. To start on a lighter note, let's ease in with something you know really well.",
+    1: "Hey, thanks so much for coming in — really glad to have you here. Let's start easy. Just give me a quick intro about yourself — who you are, what you've been up to lately, whatever feels natural.",
     2: "Let's talk about the technical concepts behind your work. Pick one idea at the core of what you've built — how would you explain it to someone encountering it for the first time?",
     3: "Staying with the system you just described, what would become the first real scaling or reliability bottleneck if usage jumped sharply?",
 }
@@ -951,10 +982,11 @@ class Orchestrator:
 
         state = await self.session_manager.get_state(session_id)
 
-        # Compose the opening question: warm preamble + map's first focus opener
+        # Q0 = broad story opener (Phase 1, Q1). The map's directional opener fires at Q2
+        # once the candidate has told their story and _seed_first_question has seeded Q1.
         first_map_opener = (focus_areas[0].get("opener") or "").strip() if focus_areas else ""
         if first_map_opener:
-            composed_opener = SPRINT_OPENERS[1] + "\n\n" + first_map_opener
+            composed_opener = SPRINT_OPENERS[1]
             state["last_question"] = composed_opener
             state["active_question_packet"] = _build_question_packet(
                 question_text=composed_opener,
@@ -1720,7 +1752,8 @@ class Orchestrator:
                 source_turn_number=max(state.get("question_count", 0), 0),
             )
 
-        current_focus_key, current_focus_label = _infer_focus(last_question, text, parsed_resume, resume)
+        _traj_focus_areas = ((state.get("interview_trajectory_map") or {}).get("focus_areas") or []) or None
+        current_focus_key, current_focus_label = _infer_focus(last_question, text, parsed_resume, resume, trajectory_focus_areas=_traj_focus_areas)
         focus_prompt_pack = _build_focus_prompt_pack(
             state.get("interview_trajectory_map", {}),
             focus_key=current_focus_key,
@@ -2296,7 +2329,8 @@ class Orchestrator:
             state.get("sprint_question_count", 0),
         )
         if closing_phase and not is_turn_revision:
-            fast_response = _decorate_closing_question(fast_response, closing_phase)
+            turn_in_close = 0 if closing_phase == "last_two" else 1
+            fast_response = await self.followup_agent.generate_graceful_close(state, turn_in_close)
             state["last_question"] = fast_response
             if active_packet:
                 active_packet["question_text"] = fast_response
@@ -2780,6 +2814,7 @@ class Orchestrator:
                     text,
                     parsed_resume,
                     resume,
+                    trajectory_focus_areas=_weakness_focus_areas,
                 )
             focus_prompt_pack = _build_focus_prompt_pack(
                 state.get("interview_trajectory_map", {}),
@@ -3395,7 +3430,7 @@ class Orchestrator:
                     timeout=8.0,
                 )
             except asyncio.TimeoutError:
-                question = "What part of that project was most dependent on your own implementation choices?"
+                question = "Great, that's really helpful context. So tell me more about what you've been building — like, what were you actually doing there? What did you build, what tech were you working with, feel free to just walk me through it."
                 await self._trace(
                     session_id,
                     "seed_first_question_timeout_fallback",
