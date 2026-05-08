@@ -39,13 +39,17 @@ Calibration rules:
 - Use `clarification` with `ambiguous_but_promising` when the answer hints at substance and deserves one clarifying question before confrontation.
 - Use `deflection` when they do not seriously attempt the question.
 
+Focus routing:
+- If a list of active focus area keys is provided, set `inferred_focus_key` to the key whose label best matches what the candidate was answering about. Pick the closest match. If no focus areas are provided or none match, leave it as an empty string.
+
 Output JSON only:
 {
   "weakness": "<one sentence describing the specific gap>",
   "type": "missing_step | vague | incorrect | shallow | overconfidence | deflection | ambiguous_but_promising",
   "severity": "low | medium | high",
   "probe_direction": "clarification | implementation_probe | ownership_probe | edge_case | scaling | contradiction | step_by_step",
-  "continue_probing": true
+  "continue_probing": true,
+  "inferred_focus_key": "<focus_key from the active area list, or empty string>"
 }"""
 
 
@@ -69,6 +73,7 @@ class WeaknessAgent:
         parsed_resume: dict | None = None,
         target_role: str = "",
         years_experience: str = "",
+        focus_areas: list[dict] | None = None,
     ) -> dict:
         """
         Detects weakness in the candidate's answer.
@@ -114,8 +119,18 @@ class WeaknessAgent:
         if prior_assessment_prompt:
             calibration_context += f"\nPrior assessment context:\n{prior_assessment_prompt[:1200]}"
 
+        focus_context = ""
+        if focus_areas:
+            focus_list = "\n".join(
+                f"  - key={fa.get('focus_key', '')}  label={fa.get('label', '')}"
+                for fa in focus_areas
+                if fa.get("focus_key")
+            )
+            if focus_list:
+                focus_context = f"\nActive focus areas (for inferred_focus_key):\n{focus_list}"
+
         user = f"""Sprint {sprint} — {sprint_focus}{prior_context}{memory_section}
-{calibration_context}
+{calibration_context}{focus_context}
 
 Question: {question}
 

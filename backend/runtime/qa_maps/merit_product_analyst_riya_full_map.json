@@ -1,0 +1,329 @@
+{
+  "test_case": "merit_product_analyst_riya",
+  "target_role": "Product Analyst",
+  "years_experience": "3",
+  "resume": "\nRIYA MEHTA\nProduct Analyst | Bengaluru, India | riya.mehta@example.com | LinkedIn | GitHub\n\nTarget Profile\nProduct Analyst with 3 years of experience in consumer subscription funnels, event instrumentation, A/B testing, and executive analytics. Strongest work sits at the intersection of event taxonomy, causal measurement, and product decision-making.\n\nExperience\nProduct Analyst II — BrightCart Consumer Commerce                                                   Jul 2024 - Present\nSQL, BigQuery, Amplitude, Python, Experimentation, Funnel Analytics\n- Rebuilt checkout and onboarding event taxonomy for a 1.8M MAU grocery commerce product, defining 42 canonical events and 76 required properties across acquisition, cart, payment, refund, and subscription flows; this reduced duplicate event definitions by 38% and made weekly funnel readouts consistent across product, growth, and finance.\n- Increased new-user checkout completion from 31.2% to 44.8% by diagnosing a wallet-verification drop-off, separating first-attempt failures from retry-success cases, and shipping a two-step verification experiment with guardrails on payment failure rate and support contacts.\n- Ran a 6-week free-delivery threshold experiment that lifted subscription trial starts from 9.6% to 13.1% while keeping contribution margin within -1.8%; analysis used city-level stratification, pre-period basket-size cohorts, and cancellation-rate guardrails.\n- Designed an experiment-readout template used by 5 PMs that required hypothesis, exposure definition, metric denominator, pre-period balance checks, and decision recommendation before launch review.\n\nProduct Analyst — LearnLoop Subscription Learning                                                     Jun 2022 - Jun 2024\nSQL, Python, Mixpanel, dbt, Retention, Cohorts\n- Improved D30 lesson-retention from 22% to 34% by identifying that completion nudges helped new learners but hurt returning learners; recommended segment-specific nudges after cohorting by first-week lesson depth and notification fatigue.\n- Built a churn-risk dashboard for subscription learners that combined missed weekly goals, lesson streak breaks, and payment retry outcomes; customer-success team used it to prioritize save campaigns, raising winback conversion from 6.4% to 10.2%.\n- Partnered with engineering to backfill historical lesson events after a schema migration; documented which pre-migration events were safe for trend analysis and which were only valid for post-migration cohort cuts.\n\nData Analyst — Northstar Commerce                                                                      Jan 2021 - May 2022\nSQL, Excel, Looker, Campaign Analytics\n- Automated weekly growth dashboard across CAC, first-order conversion, reorder rate, and payback period for 3 acquisition channels, cutting manual reporting time from 4 hours to 25 minutes.\n- Found that a reported 18% reorder-rate lift was mostly mix shift from returning users; revised the readout using first-order month cohorts and changed the team recommendation from scale-up to holdout retest.\n\nEducation\nB.Tech, Computer Science and Engineering — PES University\n\nTechnical Skills\nSQL, BigQuery, Python, Pandas, Amplitude, Mixpanel, Looker, dbt, Google Sheets, A/B Testing, Cohort Analysis, Funnel Analysis, Event Taxonomy, Causal Inference Basics\n",
+  "generation_error": null,
+  "elapsed_seconds": 0.005,
+  "validation": {
+    "ready": false,
+    "errors": [
+      "Only 0/4 focus areas are LLM-ready (need ≥2 to launch)."
+    ],
+    "warnings": [
+      "Only 0/4 focus areas are fully LLM-sourced; remaining will be hydrated."
+    ],
+    "focus_count": 4,
+    "llm_focus_count": 0,
+    "rich_focus_count": 0,
+    "priority_llm_ready_count": 0,
+    "pending_focus_keys": [
+      "brightcart_consumer_commerce",
+      "learnloop_subscription_learning",
+      "partnered_backfill_historical_lesson_events_after",
+      "northstar_commerce"
+    ],
+    "focus_reports": [
+      {
+        "label": "Brightcart Consumer Commerce",
+        "focus_key": "brightcart_consumer_commerce",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      },
+      {
+        "label": "Learnloop Subscription Learning",
+        "focus_key": "learnloop_subscription_learning",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      },
+      {
+        "label": "Partnered With Engineering To Backfill Historical Lesson Events After A Schema Migration; Documented Which Pre-Migration Events Were Safe For Trend Analysis And Which Were Only Valid For Post-Migration Cohort Cuts",
+        "focus_key": "partnered_backfill_historical_lesson_events_after",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      },
+      {
+        "label": "Northstar Commerce",
+        "focus_key": "northstar_commerce",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "quality_warnings": [
+    "Dimension 'implementation_ownership' in 'Brightcart Consumer Commerce' missing signal_weight",
+    "Dimension 'implementation_ownership' in 'Learnloop Subscription Learning' missing signal_weight",
+    "Dimension 'implementation_ownership' in 'Partnered With Engineering To Backfill Historical Lesson Events After A Schema Migration; Documented Which Pre-Migration Events Were Safe For Trend Analysis And Which Were Only Valid For Post-Migration Cohort Cuts' missing signal_weight",
+    "Dimension 'implementation_ownership' in 'Northstar Commerce' missing signal_weight"
+  ],
+  "interview_map": {
+    "focus_areas": [
+      {
+        "label": "Brightcart Consumer Commerce",
+        "focus_key": "brightcart_consumer_commerce",
+        "anchor_context": "SQL, BigQuery, Amplitude, Python, Experimentation, Funnel Analytics",
+        "resume_snippets": [
+          "SQL, BigQuery, Amplitude, Python, Experimentation, Funnel Analytics",
+          "- Rebuilt checkout and onboarding event taxonomy for a 1.8M MAU grocery commerce product, defining 42 canonical events and 76 required properties across acquisition, cart, payment, refund, and subscription flows; this reduced duplicate event definitions by 38% and made weekly funnel readouts consistent across product, growth, and finance.",
+          "Product Analyst II — BrightCart Consumer Commerce Jul 2024 - Present"
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "In Brightcart Consumer Commerce — how did you approach the schema design to support the query workload?",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "SQL, BigQuery, Amplitude, Python, Experimentation, Funnel Analytics",
+            "surface": "Which part of the Brightcart Consumer Commerce schema did you personally design versus inherit?",
+            "mechanism": "What was the hardest query in Brightcart Consumer Commerce to make both correct and performant?",
+            "boundary": "If the Brightcart Consumer Commerce query volume tripled, where would the schema break first?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "SQL",
+            "surface": "Why did you choose SQL for Brightcart Consumer Commerce over simpler alternatives?",
+            "mechanism": "What did SQL specifically contribute that justified the complexity?",
+            "boundary": "If SQL were unavailable, what specifically would change in Brightcart Consumer Commerce?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "SQL, BigQuery, Amplitude, Python, Experimentation, Funnel Analytics",
+            "surface": "What was the hardest bug you encountered in Brightcart Consumer Commerce?",
+            "mechanism": "What did that failure reveal about how SQL behaves under stress?",
+            "boundary": "If Brightcart Consumer Commerce ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On Brightcart Consumer Commerce specifically — what part of SQL are you referring to?",
+          "honest_gap": "Fair. Which part of Brightcart Consumer Commerce can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes Brightcart Consumer Commerce as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your Brightcart Consumer Commerce implementation?",
+          "bridge": "Switching to Learnloop Subscription Learning — how does the design thinking there contrast with what you just described?"
+        }
+      },
+      {
+        "label": "Learnloop Subscription Learning",
+        "focus_key": "learnloop_subscription_learning",
+        "anchor_context": "SQL, Python, Mixpanel, dbt, Retention, Cohorts",
+        "resume_snippets": [
+          "SQL, Python, Mixpanel, dbt, Retention, Cohorts",
+          "- Improved D30 lesson-retention from 22% to 34% by identifying that completion nudges helped new learners but hurt returning learners; recommended segment-specific nudges after cohorting by first-week lesson depth and notification fatigue.",
+          "- Built a churn-risk dashboard for subscription learners that combined missed weekly goals, lesson streak breaks, and payment retry outcomes; customer-success team used it to prioritize save campaigns, raising winback conversion from 6.4% to 10.2%."
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "In Learnloop Subscription Learning — how did you approach the schema design to support the query workload?",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "SQL, Python, Mixpanel, dbt, Retention, Cohorts",
+            "surface": "Which part of the Learnloop Subscription Learning schema did you personally design versus inherit?",
+            "mechanism": "What was the hardest query in Learnloop Subscription Learning to make both correct and performant?",
+            "boundary": "If the Learnloop Subscription Learning query volume tripled, where would the schema break first?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "SQL",
+            "surface": "Why did you choose SQL for Learnloop Subscription Learning over simpler alternatives?",
+            "mechanism": "What did SQL specifically contribute that justified the complexity?",
+            "boundary": "If SQL were unavailable, what specifically would change in Learnloop Subscription Learning?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "SQL, Python, Mixpanel, dbt, Retention, Cohorts",
+            "surface": "What was the hardest bug you encountered in Learnloop Subscription Learning?",
+            "mechanism": "What did that failure reveal about how SQL behaves under stress?",
+            "boundary": "If Learnloop Subscription Learning ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On Learnloop Subscription Learning specifically — what part of SQL are you referring to?",
+          "honest_gap": "Fair. Which part of Learnloop Subscription Learning can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes Learnloop Subscription Learning as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your Learnloop Subscription Learning implementation?",
+          "bridge": "Switching to Partnered With Engineering To Backfill Historical Lesson Events After A Schema Migration; Documented Which Pre-Migration Events Were Safe For Trend Analysis And Which Were Only Valid For Post-Migration Cohort Cuts — how does the design thinking there contrast with what you just described?"
+        }
+      },
+      {
+        "label": "Partnered With Engineering To Backfill Historical Lesson Events After A Schema Migration; Documented Which Pre-Migration Events Were Safe For Trend Analysis And Which Were Only Valid For Post-Migration Cohort Cuts",
+        "focus_key": "partnered_backfill_historical_lesson_events_after",
+        "anchor_context": "- Partnered with engineering to backfill historical lesson events after a schema migration; documented which pre-migration events were safe for trend analysis and which were only valid for post-migration cohort cuts.",
+        "resume_snippets": [
+          "- Partnered with engineering to backfill historical lesson events after a schema migration; documented which pre-migration events were safe for trend analysis and which were only valid for post-migration cohort cuts.",
+          "- Rebuilt checkout and onboarding event taxonomy for a 1.8M MAU grocery commerce product, defining 42 canonical events and 76 required properties across acquisition, cart, payment, refund, and subscription flows; this reduced duplicate event definitions by 38% and made weekly funnel readouts consistent across product, growth, and finance.",
+          "- Ran a 6-week free-delivery threshold experiment that lifted subscription trial starts from 9.6% to 13.1% while keeping contribution margin within -1.8%; analysis used city-level stratification, pre-period basket-size cohorts, and cancellation-rate guardrails."
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "On Partnered With Engineering To Backfill Historical Lesson Events — start with how you approached Partnered With Engineering To Backfill Historical Lesson Events specifically.",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "- Partnered with engineering to backfill historical lesson events after a schema migration; documented which pre-migration events were safe for trend analysis and which were only valid for post-migration cohort cuts.",
+            "surface": "Which exact component of Partnered With Engineering To Backfill Historical Lesson Events did you personally build rather than integrate?",
+            "mechanism": "What was the mechanism inside Partnered With Engineering To Backfill Historical Lesson Events that made Partnered With Engineering To Backfill Historical Lesson Events work correctly?",
+            "boundary": "If Partnered With Engineering To Backfill Historical Lesson Events had to handle production pressure, what would break first in your current design?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "Partnered With Engineering To Backfill Historical Lesson Events",
+            "surface": "Why did you choose Partnered With Engineering To Backfill Historical Lesson Events for Partnered With Engineering To Backfill Historical Lesson Events over simpler alternatives?",
+            "mechanism": "What did Partnered With Engineering To Backfill Historical Lesson Events specifically contribute that justified the complexity?",
+            "boundary": "If Partnered With Engineering To Backfill Historical Lesson Events were unavailable, what specifically would change in Partnered With Engineering To Backfill Historical Lesson Events?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "- Partnered with engineering to backfill historical lesson events after a schema migration; documented which pre-migration events were safe for trend analysis and which were only valid for post-migration cohort cuts.",
+            "surface": "What was the hardest bug you encountered in Partnered With Engineering To Backfill Historical Lesson Events?",
+            "mechanism": "What did that failure reveal about how Partnered With Engineering To Backfill Historical Lesson Events behaves under stress?",
+            "boundary": "If Partnered With Engineering To Backfill Historical Lesson Events ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On Partnered With Engineering To Backfill Historical Lesson Events specifically — what part of Partnered With Engineering To Backfill Historical Lesson Events are you referring to?",
+          "honest_gap": "Fair. Which part of Partnered With Engineering To Backfill Historical Lesson Events can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes Partnered With Engineering To Backfill Historical Lesson Events as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your Partnered With Engineering To Backfill Historical Lesson Events implementation?",
+          "bridge": "Switching to Northstar Commerce — how does the design thinking there contrast with what you just described?"
+        }
+      },
+      {
+        "label": "Northstar Commerce",
+        "focus_key": "northstar_commerce",
+        "anchor_context": "SQL, Excel, Looker, Campaign Analytics",
+        "resume_snippets": [
+          "SQL, Excel, Looker, Campaign Analytics",
+          "SQL, BigQuery, Python, Pandas, Amplitude, Mixpanel, Looker, dbt, Google Sheets, A/B Testing, Cohort Analysis, Funnel Analysis, Event Taxonomy, Causal Inference Basics",
+          "Data Analyst — Northstar Commerce Jan 2021 - May 2022"
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "In Northstar Commerce — how did you approach the schema design to support the query workload?",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "SQL, Excel, Looker, Campaign Analytics",
+            "surface": "Which part of the Northstar Commerce schema did you personally design versus inherit?",
+            "mechanism": "What was the hardest query in Northstar Commerce to make both correct and performant?",
+            "boundary": "If the Northstar Commerce query volume tripled, where would the schema break first?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "SQL",
+            "surface": "Why did you choose SQL for Northstar Commerce over simpler alternatives?",
+            "mechanism": "What did SQL specifically contribute that justified the complexity?",
+            "boundary": "If SQL were unavailable, what specifically would change in Northstar Commerce?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "SQL, Excel, Looker, Campaign Analytics",
+            "surface": "What was the hardest bug you encountered in Northstar Commerce?",
+            "mechanism": "What did that failure reveal about how SQL behaves under stress?",
+            "boundary": "If Northstar Commerce ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On Northstar Commerce specifically — what part of SQL are you referring to?",
+          "honest_gap": "Fair. Which part of Northstar Commerce can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes Northstar Commerce as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your Northstar Commerce implementation?",
+          "bridge": "Switching to Brightcart Consumer Commerce — how does the design thinking there contrast with what you just described?"
+        }
+      }
+    ],
+    "generated_at": 1778194917.208547,
+    "source": "deterministic_fallback",
+    "pending_hydration_focus_keys": [
+      "brightcart_consumer_commerce",
+      "learnloop_subscription_learning",
+      "partnered_backfill_historical_lesson_events_after",
+      "northstar_commerce"
+    ],
+    "last_hydrated_at": null,
+    "quality_review": {
+      "stage": "fallback",
+      "critic_model": "none",
+      "ready": true,
+      "overall_score": 7.0,
+      "issues": [
+        "Startup planner failed; used deterministic focus plan plus targeted track recovery: KeyError: 'OPENROUTER_API_KEY'"
+      ],
+      "repair_instructions": [],
+      "focus_reviews": []
+    }
+  }
+}

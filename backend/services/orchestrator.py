@@ -85,7 +85,17 @@ _ADMISSION_SIGNALS = re.compile(
     r"to be honest|actually i|i should (mention|clarify|be honest)|"
     r"i'?m not (certain|familiar|sure)|i haven'?t|i can'?t (explain|tell)|"
     r"i was just|i only|it'?s basically|it'?s just|i mean it'?s not really|"
-    r"i don'?t (really|actually) know)\b",
+    r"i don'?t (really|actually) know|"
+    # ownership-gap patterns
+    r"my (teammate|team member|colleague|manager|lead) (did|handled|wrote|built|implemented|owned)|"
+    r"(someone else|another (engineer|person|team)) (did|handled|wrote|built)|"
+    r"i (joined|came in|came on) (after|later|once)|"
+    r"i (wasn'?t|was not) (involved|part of|around)|"
+    r"i (didn'?t really|don'?t really) (understand|know|get)|"
+    r"(we had|there was) a (library|framework|tool|service) (that|which) (handled|did|took care)|"
+    r"i (mostly|mainly|primarily|just) (used|called|integrated)|"
+    r"it was (already|pre-?built|set up) (before|when) i"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -2629,6 +2639,13 @@ class Orchestrator:
                     memory_context += "Candidate claims from prior turns:\n" + "\n".join(prior_claims)
 
             # ── Parallel agent execution ──────────────────────────────────────
+            _trajectory_map = state.get("interview_trajectory_map") or {}
+            _weakness_focus_areas = [
+                {"focus_key": fa.get("focus_key", ""), "label": fa.get("label", "")}
+                for fa in (_trajectory_map.get("focus_areas") or [])
+                if fa.get("focus_key")
+            ] or None
+
             async def _safe_weakness():
                 weak_started = time.perf_counter()
                 try:
@@ -2639,6 +2656,7 @@ class Orchestrator:
                         parsed_resume=parsed_resume,
                         target_role=target_role,
                         years_experience=years_experience,
+                        focus_areas=_weakness_focus_areas,
                     )
                     return result, round((time.perf_counter() - weak_started) * 1000, 3)
                 except Exception as e:
@@ -2749,12 +2767,20 @@ class Orchestrator:
             if isinstance(reasoning, dict) and reasoning.get("adaptability"):
                 state["_reasoning_tone_signal"] = reasoning.get("adaptability", "")
 
-            current_focus_key, current_focus_label = _infer_focus(
-                last_question,
-                text,
-                parsed_resume,
-                resume,
-            )
+            _llm_focus_key = (weakness.get("inferred_focus_key") or "").strip() if isinstance(weakness, dict) else ""
+            if _llm_focus_key:
+                current_focus_key = _llm_focus_key
+                current_focus_label = next(
+                    (fa.get("label", _llm_focus_key) for fa in (_weakness_focus_areas or []) if fa.get("focus_key") == _llm_focus_key),
+                    _llm_focus_key,
+                )
+            else:
+                current_focus_key, current_focus_label = _infer_focus(
+                    last_question,
+                    text,
+                    parsed_resume,
+                    resume,
+                )
             focus_prompt_pack = _build_focus_prompt_pack(
                 state.get("interview_trajectory_map", {}),
                 focus_key=current_focus_key,
@@ -3459,6 +3485,7 @@ class Orchestrator:
                 interview_map = build_deterministic_interview_map(
                     resume=resume,
                     session_id=session_id,
+                    role_type=state.get("target_role", ""),
                 )
                 await self._trace(
                     session_id,

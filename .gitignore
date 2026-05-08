@@ -21,6 +21,8 @@ env/
 # IDE
 .vscode/
 .idea/
+.claude/
+.obsidian/
 *.swp
 *.swo
 
@@ -49,3 +51,10 @@ out/
 .vercel/
 .vercel
 .env*.local
+tsconfig.tsbuildinfo
+
+# Local knowledge/runtime artifacts
+vault/
+backend/runtime/interview_traces/
+backend/runtime/simulation_reports/
+backend/runtime/*.json

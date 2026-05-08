@@ -350,9 +350,20 @@ def _is_analyst_or_pm_role(role_type: str = "") -> bool:
             "analytics",
             "product manager",
             "product analyst",
+            "product lead",
+            "product strategy",
+            "product ops",
             "growth",
             "business analyst",
             "data analyst",
+            "analytics manager",
+            "research analyst",
+            "marketing analyst",
+            "operations analyst",
+            "go-to-market",
+            "gtm",
+            "revenue ops",
+            "strategy",
         )
     )
     return phrase_match or bool(re.search(r"\b(a?pm)\b", role_lower))
@@ -649,13 +660,14 @@ def _detail_focus_labels(details: list[str], max_labels: int = 2) -> list[str]:
     labels: list[str] = []
     seen: set[str] = set()
     patterns = (
-        r"\b(agent[- ]based .*? pipeline)\b",
-        r"\b(audio classification pipeline)\b",
-        r"\b(multi-modal benchmark framework)\b",
+        r"\b(agent[- ]based [\w\s-]+ pipeline)\b",
+        r"\b(\w+[- ]based [\w\s-]+ pipeline)\b",
+        r"\b(\w+ classification pipeline)\b",
+        r"\b(multi-modal [\w\s-]+ framework)\b",
+        r"\b([\w\s-]+ benchmark framework)\b",
         r"\b(benchmark framework)\b",
-        r"\b(complex hybrid sql queries)\b",
-        r"\b(relational db schemas)\b",
-        r"\b(custom classifier)\b",
+        r"\b([\w\s-]+ inference pipeline)\b",
+        r"\b([\w\s-]+ generation pipeline)\b",
     )
     for detail in details:
         for pattern in patterns:
@@ -1792,28 +1804,8 @@ def _extract_focus_signals(seed: dict) -> dict[str, str]:
         "metric": metric,
         "domain": domain or artifact or label or "the system",
     })
-    priority_map = {
-        "classifier": [
-            "dsp",
-            "npu",
-        ],
-        "benchmark": [
-            "ocr",
-            "sql",
-            "rag",
-        ],
-        "data_modeling": [
-            "sql",
-            "ocr",
-        ],
-        "pipeline": [
-            "rag",
-            "llm",
-            "nlp",
-        ],
-    }
     artifact_norm = re.sub(r"[^a-z0-9]+", " ", artifact.lower()).strip()
-    priorities = priority_map.get(family_probe, [])
+    priorities: list[str] = []
 
     ordered_matches: list[tuple[tuple[int, int, int, int], str]] = []
     for position, _, phrase in ranked_matches:
@@ -1919,7 +1911,7 @@ def _fallback_track(seed: dict, next_focus_label: str) -> dict:
     }
 
 
-def _fallback_dimension_track(seed: dict, next_focus_label: str) -> dict:
+def _fallback_dimension_track(seed: dict, next_focus_label: str, role_type: str = "") -> dict:
     """Deterministic opener + dimensions + recovery when LLM generation fails."""
     signals = _extract_focus_signals(seed)
     artifact = signals["artifact"]
@@ -1957,9 +1949,37 @@ def _fallback_dimension_track(seed: dict, next_focus_label: str) -> dict:
         dim_mech = f"What was the mechanism inside {primary_tech} that made {domain} work correctly?"
         dim_boundary = f"If {artifact} had to handle production pressure{metric_clause}, what would break first in your current design?"
 
-    return {
-        "opener": opener,
-        "dimensions": [
+    is_analyst = _is_analyst_or_pm_role(role_type)
+
+    if is_analyst:
+        dimensions = [
+            {
+                "id": "metric_definition",
+                "label": "What the metric actually measures",
+                "resume_anchor": _anchor_context_for_focus(seed) or artifact,
+                "surface": f"In {artifact} — what exactly does {metric or 'the primary metric'} capture, and what can it NOT tell you?",
+                "mechanism": f"How would you distinguish a real signal in {metric or 'that metric'} from noise or a confound?",
+                "boundary": f"If {metric or 'the metric'} moved in an unexpected direction in {artifact}, what would you check first?",
+            },
+            {
+                "id": "causal_validity",
+                "label": "Causal vs. correlational reasoning",
+                "resume_anchor": _anchor_context_for_focus(seed) or artifact,
+                "surface": f"What alternative explanation could account for the result you described in {artifact} besides the one you attributed it to?",
+                "mechanism": f"How did you rule out selection bias or confounding in the {artifact} analysis?",
+                "boundary": f"If you couldn't run a controlled experiment on {artifact}, how would you strengthen the causal argument?",
+            },
+            {
+                "id": "assumption_surface",
+                "label": "Unstated assumptions",
+                "resume_anchor": primary_tech or artifact,
+                "surface": f"What does the {artifact} analysis assume that you haven't explicitly tested?",
+                "mechanism": f"Which assumption, if wrong, would most change the conclusion you drew from {artifact}?",
+                "boundary": f"How would the recommendation from {artifact} change if the audience or business context shifted significantly?",
+            },
+        ]
+    else:
+        dimensions = [
             {
                 "id": "implementation_ownership",
                 "label": "What they personally built",
@@ -1984,7 +2004,11 @@ def _fallback_dimension_track(seed: dict, next_focus_label: str) -> dict:
                 "mechanism": f"What did that failure reveal about how {primary_tech} behaves under stress?",
                 "boundary": f"If {artifact} ran in a more demanding environment, where would it degrade first and why?",
             },
-        ],
+        ]
+
+    return {
+        "opener": opener,
+        "dimensions": dimensions,
         "recovery": {
             "short_answer": f"On {artifact} specifically — what part of {primary_tech} are you referring to?",
             "honest_gap": f"Fair. Which part of {artifact} can you explain most confidently end-to-end?",
@@ -2160,7 +2184,7 @@ async def _generate_focus_track(
     prior_track_context: str = "",
     role_type: str = "",
 ) -> dict:
-    fallback_dim = _fallback_dimension_track(seed, next_focus_label)
+    fallback_dim = _fallback_dimension_track(seed, next_focus_label, role_type=role_type)
 
     def _make_user(snippets_limit: int, anchor_limit: int) -> str:
         prior_block = (
@@ -2280,7 +2304,8 @@ def _focus_review_score(critic_feedback: dict | None, focus_key: str) -> float |
 
 
 def _focus_review_has_significant_issues(critic_feedback: dict | None, focus_key: str) -> bool:
-    """True if the critic flagged issues or an opener_issue for this area."""
+    """True only if the critic flagged an opener_issue for this area.
+    Minor issues list entries don't block preservation — every area has some notes."""
     if not isinstance(critic_feedback, dict):
         return False
     for fr in (critic_feedback.get("focus_reviews") or []):
@@ -2288,7 +2313,7 @@ def _focus_review_has_significant_issues(critic_feedback: dict | None, focus_key
             continue
         if _clean_track_value(fr.get("focus_key", "")) != focus_key:
             continue
-        if fr.get("issues") or str(fr.get("opener_issue") or "").strip():
+        if str(fr.get("opener_issue") or "").strip():
             return True
     return False
 
@@ -2660,7 +2685,7 @@ async def generate_interview_map(
             + (f" for {session_id[:8]}" if session_id else "")
             + f": {type(exc).__name__}: {exc}"
         )
-        fallback = build_deterministic_interview_map(resume=resume, session_id=session_id)
+        fallback = build_deterministic_interview_map(resume=resume, session_id=session_id, role_type=target_role)
         priority_keys = [
             str(area.get("focus_key", "") or "")
             for area in (fallback.get("focus_areas") or [])
@@ -2689,6 +2714,7 @@ def build_deterministic_interview_map(
     *,
     resume: str,
     session_id: str = "",
+    role_type: str = "",
 ) -> dict:
     """
     Build a fully deterministic interview map with no provider calls.
@@ -2729,7 +2755,7 @@ def build_deterministic_interview_map(
             if len(seeds) > 1
             else "another area from the candidate's background"
         )
-        fallback_dim = _fallback_dimension_track(normalized_seed, next_focus_label)
+        fallback_dim = _fallback_dimension_track(normalized_seed, next_focus_label, role_type=role_type)
         fallback_dims = fallback_dim.get("dimensions", [])
         focus_areas.append({
             "label": str(normalized_seed.get("label", "") or f"Focus Area {index + 1}").strip(),

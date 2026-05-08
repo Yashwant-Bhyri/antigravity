@@ -1,0 +1,67 @@
+{
+  "merit_product_analyst_riya": {
+    "path": "backend/runtime/qa_maps/merit_product_analyst_riya_full_map.json",
+    "elapsed_seconds": 0.005,
+    "generation_error": null,
+    "ready": false,
+    "errors": [
+      "Only 0/4 focus areas are LLM-ready (need ≥2 to launch)."
+    ],
+    "warnings": [
+      "Only 0/4 focus areas are fully LLM-sourced; remaining will be hydrated."
+    ],
+    "quality_warnings": [
+      "Dimension 'implementation_ownership' in 'Brightcart Consumer Commerce' missing signal_weight",
+      "Dimension 'implementation_ownership' in 'Learnloop Subscription Learning' missing signal_weight",
+      "Dimension 'implementation_ownership' in 'Partnered With Engineering To Backfill Historical Lesson Events After A Schema Migration; Documented Which Pre-Migration Events Were Safe For Trend Analysis And Which Were Only Valid For Post-Migration Cohort Cuts' missing signal_weight",
+      "Dimension 'implementation_ownership' in 'Northstar Commerce' missing signal_weight"
+    ],
+    "focus_labels": [
+      "Brightcart Consumer Commerce",
+      "Learnloop Subscription Learning",
+      "Partnered With Engineering To Backfill Historical Lesson Events After A Schema Migration; Documented Which Pre-Migration Events Were Safe For Trend Analysis And Which Were Only Valid For Post-Migration Cohort Cuts",
+      "Northstar Commerce"
+    ],
+    "track_sources": [
+      "deterministic_fallback",
+      "deterministic_fallback",
+      "deterministic_fallback",
+      "deterministic_fallback"
+    ],
+    "llm_ready_count": 0
+  },
+  "trap_product_analyst_aarav": {
+    "path": "backend/runtime/qa_maps/trap_product_analyst_aarav_full_map.json",
+    "elapsed_seconds": 0.004,
+    "generation_error": null,
+    "ready": false,
+    "errors": [
+      "Only 0/5 focus areas are LLM-ready (need ≥2 to launch)."
+    ],
+    "warnings": [
+      "Only 0/5 focus areas are fully LLM-sourced; remaining will be hydrated."
+    ],
+    "quality_warnings": [
+      "Dimension 'implementation_ownership' in 'Northstar Commerce' missing signal_weight",
+      "Dimension 'implementation_ownership' in 'Videohealth Learning App' missing signal_weight",
+      "Dimension 'implementation_ownership' in 'Cityvision Lab' missing signal_weight",
+      "Dimension 'implementation_ownership' in 'Processed 500 Frames Of Traffic Video With Opencv And Yolo To Compare Optical Flow' missing signal_weight",
+      "Dimension 'implementation_ownership' in 'City Institute Of Technology' missing signal_weight"
+    ],
+    "focus_labels": [
+      "Northstar Commerce",
+      "Videohealth Learning App",
+      "Cityvision Lab",
+      "Processed 500 Frames Of Traffic Video With Opencv And Yolo To Compare Optical Flow",
+      "City Institute Of Technology"
+    ],
+    "track_sources": [
+      "deterministic_fallback",
+      "deterministic_fallback",
+      "deterministic_fallback",
+      "deterministic_fallback",
+      "deterministic_fallback"
+    ],
+    "llm_ready_count": 0
+  }
+}

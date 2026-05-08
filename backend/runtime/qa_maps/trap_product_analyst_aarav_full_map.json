@@ -1,0 +1,399 @@
+{
+  "test_case": "trap_product_analyst_aarav",
+  "target_role": "Product Analyst",
+  "years_experience": "4",
+  "resume": "\nAARAV SHAH\nProduct Analyst | +91 99999 12345 | aarav.shah@example.com | 2001 Bay Street, Tower 20 | LinkedIn | Portfolio\n\nSummary\nProduct analyst with 4 years of experience across growth, video learning, AI insights, dashboards, SQL, OCR, RAG, LLM analytics, and executive decision systems. I like turning ambiguous product bets into measurable decisions.\n\nExperience\nProduct Analyst — Northstar Commerce                                                                  Aug 2024 - Present\nSQL, BigQuery, Amplitude, Python, Experimentation\n- Best evidence: fixed checkout instrumentation for a two-sided commerce funnel by separating payment-start, payment-fail, retry-success, and order-confirmed events; this changed the team's read on checkout conversion from 41% to 36% and prevented a false-positive experiment rollout.\n- Increased post-cart conversion from 36% to 43% in a 5-week experiment by moving wallet verification after address confirmation; used device, city, and new-vs-returning strata, with payment-failure rate and cancellation rate as guardrails.\n- Wrote the decision memo that stopped a discount experiment despite a +12% conversion lift because gross margin fell 4.6 points and refund rate increased in the same exposed cohort.\n\nProduct Analyst — VideoHealth Learning App                                                           Jan 2023 - Jul 2024\nSQL, Mixpanel, AppsFlyer, Video, Today tab, AI Coach, dashboards\n- Increased video lesson completion by 300% and retention by 75% through Video, Today, and AI Coach launches. Exact denominator changed during the rollout because the team migrated from lesson_started to video_started events.\n- Architected the AI recommendation engine for learning paths using LLM, RAG, OCR, embeddings, transformer attention, and Python dashboards; in practice I mainly owned the event tracking, adoption dashboard, and weekly PM readouts.\n- Built three dashboards named Video Growth, AI Coach Quality, and Today Engagement from the same event table, but each dashboard used slightly different active-user definitions until I normalized them later.\n- Reduced churn from 40% to 10% after improving onboarding, pricing, recommendations, notification timing, and video content quality all in the same quarter.\n\nAssociate Product Analyst — VideoHealth Learning App                                                  Jan 2023 - Dec 2023\nSQL, AppsFlyer, Google Sheets, Campaign Analytics\n- Automated campaign dashboards for video acquisition, AI Coach reactivation, and Today-tab experiments; saved 25 minutes per day, but some campaign names were manually cleaned after export.\n- Reported a 22% lift in trial starts from a reactivation campaign; later found the holdout group had more expired cards and older cohorts.\n\nResearch Intern — CityVision Lab                                                                       May 2022 - Aug 2022\nPython, OpenCV, YOLO, OCR, traffic video, visual analytics\n- Processed 500 frames of traffic video with OpenCV and YOLO to compare optical flow, blob tracking, and a manual labeling baseline; wrote a short internal note but did not deploy the model.\n\nAwards and Other\n- Best Presenter, University Product Analytics Case Competition, 2021.\n- Advisor: Prof. K. Rao. Scholarship recipient. Student council analytics volunteer.\n- Skills list: SQL, RAG, LLM, OCR, Video Analytics, AI, Product Sense, Python, BigQuery, Mixpanel, AppsFlyer, Excel.\n\nEducation\nB.Tech in Computer Science — City Institute of Technology, 2018 - 2022\n",
+  "generation_error": null,
+  "elapsed_seconds": 0.004,
+  "validation": {
+    "ready": false,
+    "errors": [
+      "Only 0/5 focus areas are LLM-ready (need ≥2 to launch)."
+    ],
+    "warnings": [
+      "Only 0/5 focus areas are fully LLM-sourced; remaining will be hydrated."
+    ],
+    "focus_count": 5,
+    "llm_focus_count": 0,
+    "rich_focus_count": 0,
+    "priority_llm_ready_count": 0,
+    "pending_focus_keys": [
+      "northstar_commerce",
+      "videohealth_learning_app",
+      "cityvision_lab",
+      "processed_500_frames_traffic_video_opencv",
+      "city_institute_of_technology"
+    ],
+    "focus_reports": [
+      {
+        "label": "Northstar Commerce",
+        "focus_key": "northstar_commerce",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      },
+      {
+        "label": "Videohealth Learning App",
+        "focus_key": "videohealth_learning_app",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      },
+      {
+        "label": "Cityvision Lab",
+        "focus_key": "cityvision_lab",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      },
+      {
+        "label": "Processed 500 Frames Of Traffic Video With Opencv And Yolo To Compare Optical Flow",
+        "focus_key": "processed_500_frames_traffic_video_opencv",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      },
+      {
+        "label": "City Institute Of Technology",
+        "focus_key": "city_institute_of_technology",
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branch_ratio": 0.0,
+        "pending": true,
+        "ready": true,
+        "is_rich": false
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "quality_warnings": [
+    "Dimension 'implementation_ownership' in 'Northstar Commerce' missing signal_weight",
+    "Dimension 'implementation_ownership' in 'Videohealth Learning App' missing signal_weight",
+    "Dimension 'implementation_ownership' in 'Cityvision Lab' missing signal_weight",
+    "Dimension 'implementation_ownership' in 'Processed 500 Frames Of Traffic Video With Opencv And Yolo To Compare Optical Flow' missing signal_weight",
+    "Dimension 'implementation_ownership' in 'City Institute Of Technology' missing signal_weight"
+  ],
+  "interview_map": {
+    "focus_areas": [
+      {
+        "label": "Northstar Commerce",
+        "focus_key": "northstar_commerce",
+        "anchor_context": "SQL, BigQuery, Amplitude, Python, Experimentation",
+        "resume_snippets": [
+          "SQL, BigQuery, Amplitude, Python, Experimentation",
+          "- Best evidence: fixed checkout instrumentation for a two-sided commerce funnel by separating payment-start, payment-fail, retry-success, and order-confirmed events; this changed the team's read on checkout conversion from 41% to 36% and prevented a false-positive experiment rollout.",
+          "Product Analyst — Northstar Commerce Aug 2024 - Present"
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "In Northstar Commerce — how did you approach the schema design to support the query workload?",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "SQL, BigQuery, Amplitude, Python, Experimentation",
+            "surface": "Which part of the Northstar Commerce schema did you personally design versus inherit?",
+            "mechanism": "What was the hardest query in Northstar Commerce to make both correct and performant?",
+            "boundary": "If the Northstar Commerce query volume tripled, where would the schema break first?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "SQL",
+            "surface": "Why did you choose SQL for Northstar Commerce over simpler alternatives?",
+            "mechanism": "What did SQL specifically contribute that justified the complexity?",
+            "boundary": "If SQL were unavailable, what specifically would change in Northstar Commerce?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "SQL, BigQuery, Amplitude, Python, Experimentation",
+            "surface": "What was the hardest bug you encountered in Northstar Commerce?",
+            "mechanism": "What did that failure reveal about how SQL behaves under stress?",
+            "boundary": "If Northstar Commerce ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On Northstar Commerce specifically — what part of SQL are you referring to?",
+          "honest_gap": "Fair. Which part of Northstar Commerce can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes Northstar Commerce as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your Northstar Commerce implementation?",
+          "bridge": "Switching to Videohealth Learning App — how does the design thinking there contrast with what you just described?"
+        }
+      },
+      {
+        "label": "Videohealth Learning App",
+        "focus_key": "videohealth_learning_app",
+        "anchor_context": "SQL, Mixpanel, AppsFlyer, Video, Today tab, AI Coach, dashboards",
+        "resume_snippets": [
+          "SQL, Mixpanel, AppsFlyer, Video, Today tab, AI Coach, dashboards",
+          "- Built three dashboards named Video Growth, AI Coach Quality, and Today Engagement from the same event table, but each dashboard used slightly different active-user definitions until I normalized them later.",
+          "- Increased video lesson completion by 300% and retention by 75% through Video, Today, and AI Coach launches. Exact denominator changed during the rollout because the team migrated from lesson_started to video_started events."
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "In Videohealth Learning App — how did you approach the schema design to support the query workload?",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "SQL, Mixpanel, AppsFlyer, Video, Today tab, AI Coach, dashboards",
+            "surface": "Which part of the Videohealth Learning App schema did you personally design versus inherit?",
+            "mechanism": "What was the hardest query in Videohealth Learning App to make both correct and performant?",
+            "boundary": "If the Videohealth Learning App query volume tripled, where would the schema break first?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "SQL",
+            "surface": "Why did you choose SQL for Videohealth Learning App over simpler alternatives?",
+            "mechanism": "What did SQL specifically contribute that justified the complexity?",
+            "boundary": "If SQL were unavailable, what specifically would change in Videohealth Learning App?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "SQL, Mixpanel, AppsFlyer, Video, Today tab, AI Coach, dashboards",
+            "surface": "What was the hardest bug you encountered in Videohealth Learning App?",
+            "mechanism": "What did that failure reveal about how SQL behaves under stress?",
+            "boundary": "If Videohealth Learning App ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On Videohealth Learning App specifically — what part of SQL are you referring to?",
+          "honest_gap": "Fair. Which part of Videohealth Learning App can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes Videohealth Learning App as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your Videohealth Learning App implementation?",
+          "bridge": "Switching to Cityvision Lab — how does the design thinking there contrast with what you just described?"
+        }
+      },
+      {
+        "label": "Cityvision Lab",
+        "focus_key": "cityvision_lab",
+        "anchor_context": "Python, OpenCV, YOLO, OCR, traffic video, visual analytics",
+        "resume_snippets": [
+          "Python, OpenCV, YOLO, OCR, traffic video, visual analytics",
+          "Research Intern — CityVision Lab May 2022 - Aug 2022",
+          "- Processed 500 frames of traffic video with OpenCV and YOLO to compare optical flow, blob tracking, and a manual labeling baseline; wrote a short internal note but did not deploy the model."
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "On Cityvision Lab — start with how you approached the video-generation workflow specifically.",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "Python, OpenCV, YOLO, OCR, traffic video, visual analytics",
+            "surface": "Which exact component of Cityvision Lab did you personally build rather than integrate?",
+            "mechanism": "What was the mechanism inside OCR that made the video-generation workflow work correctly?",
+            "boundary": "If Cityvision Lab had to handle production pressure, what would break first in your current design?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "OCR",
+            "surface": "Why did you choose OCR for Cityvision Lab over simpler alternatives?",
+            "mechanism": "What did OCR specifically contribute that justified the complexity?",
+            "boundary": "If OCR were unavailable, what specifically would change in Cityvision Lab?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "Python, OpenCV, YOLO, OCR, traffic video, visual analytics",
+            "surface": "What was the hardest bug you encountered in Cityvision Lab?",
+            "mechanism": "What did that failure reveal about how OCR behaves under stress?",
+            "boundary": "If Cityvision Lab ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On Cityvision Lab specifically — what part of OCR are you referring to?",
+          "honest_gap": "Fair. Which part of Cityvision Lab can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes Cityvision Lab as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your Cityvision Lab implementation?",
+          "bridge": "Switching to Processed 500 Frames Of Traffic Video With Opencv And Yolo To Compare Optical Flow — how does the design thinking there contrast with what you just described?"
+        }
+      },
+      {
+        "label": "Processed 500 Frames Of Traffic Video With Opencv And Yolo To Compare Optical Flow",
+        "focus_key": "processed_500_frames_traffic_video_opencv",
+        "anchor_context": "Awards and Other",
+        "resume_snippets": [
+          "- Processed 500 frames of traffic video with OpenCV and YOLO to compare optical flow, blob tracking, and a manual labeling baseline; wrote a short internal note but did not deploy the model.",
+          "Python, OpenCV, YOLO, OCR, traffic video, visual analytics",
+          "- Built three dashboards named Video Growth, AI Coach Quality, and Today Engagement from the same event table, but each dashboard used slightly different active-user definitions until I normalized them later."
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "On Processed 500 Frames Of Traffic Video With Opencv — start with how you approached the video-generation workflow specifically.",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "Awards and Other",
+            "surface": "Which exact component of Processed 500 Frames Of Traffic Video With Opencv did you personally build rather than integrate?",
+            "mechanism": "What was the mechanism inside OCR that made the video-generation workflow work correctly?",
+            "boundary": "If Processed 500 Frames Of Traffic Video With Opencv had to handle production pressure, what would break first in your current design?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "OCR",
+            "surface": "Why did you choose OCR for Processed 500 Frames Of Traffic Video With Opencv over simpler alternatives?",
+            "mechanism": "What did OCR specifically contribute that justified the complexity?",
+            "boundary": "If OCR were unavailable, what specifically would change in Processed 500 Frames Of Traffic Video With Opencv?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "Awards and Other",
+            "surface": "What was the hardest bug you encountered in Processed 500 Frames Of Traffic Video With Opencv?",
+            "mechanism": "What did that failure reveal about how OCR behaves under stress?",
+            "boundary": "If Processed 500 Frames Of Traffic Video With Opencv ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On Processed 500 Frames Of Traffic Video With Opencv specifically — what part of OCR are you referring to?",
+          "honest_gap": "Fair. Which part of Processed 500 Frames Of Traffic Video With Opencv can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes Processed 500 Frames Of Traffic Video With Opencv as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your Processed 500 Frames Of Traffic Video With Opencv implementation?",
+          "bridge": "Switching to City Institute Of Technology — how does the design thinking there contrast with what you just described?"
+        }
+      },
+      {
+        "label": "City Institute Of Technology",
+        "focus_key": "city_institute_of_technology",
+        "anchor_context": "B.Tech in Computer Science — City Institute of Technology, 2018 - 2022",
+        "resume_snippets": [
+          "B.Tech in Computer Science — City Institute of Technology, 2018 - 2022",
+          "- Increased post-cart conversion from 36% to 43% in a 5-week experiment by moving wallet verification after address confirmation; used device, city, and new-vs-returning strata, with payment-failure rate and cancellation rate as guardrails.",
+          "Research Intern — CityVision Lab May 2022 - Aug 2022"
+        ],
+        "track_source": "deterministic_fallback",
+        "track_schema": "dimension",
+        "llm_branch_count": 0,
+        "fallback_branch_count": 3,
+        "llm_branches": [],
+        "fallback_branches": [
+          "implementation_ownership",
+          "technology_choice",
+          "failure_modes"
+        ],
+        "opener": "On City Institute Of Technology — start with how you approached City Institute Of Technology specifically.",
+        "dimensions": [
+          {
+            "id": "implementation_ownership",
+            "label": "What they personally built",
+            "resume_anchor": "B.Tech in Computer Science — City Institute of Technology, 2018 - 2022",
+            "surface": "Which exact component of City Institute Of Technology did you personally build rather than integrate?",
+            "mechanism": "What was the mechanism inside City Institute Of Technology that made City Institute Of Technology work correctly?",
+            "boundary": "If City Institute Of Technology had to handle production pressure, what would break first in your current design?"
+          },
+          {
+            "id": "technology_choice",
+            "label": "Technology decisions",
+            "resume_anchor": "City Institute Of Technology",
+            "surface": "Why did you choose City Institute Of Technology for City Institute Of Technology over simpler alternatives?",
+            "mechanism": "What did City Institute Of Technology specifically contribute that justified the complexity?",
+            "boundary": "If City Institute Of Technology were unavailable, what specifically would change in City Institute Of Technology?"
+          },
+          {
+            "id": "failure_modes",
+            "label": "Failures and debugging",
+            "resume_anchor": "B.Tech in Computer Science — City Institute of Technology, 2018 - 2022",
+            "surface": "What was the hardest bug you encountered in City Institute Of Technology?",
+            "mechanism": "What did that failure reveal about how City Institute Of Technology behaves under stress?",
+            "boundary": "If City Institute Of Technology ran in a more demanding environment, where would it degrade first and why?"
+          }
+        ],
+        "recovery": {
+          "short_answer": "On City Institute Of Technology specifically — what part of City Institute Of Technology are you referring to?",
+          "honest_gap": "Fair. Which part of City Institute Of Technology can you explain most confidently end-to-end?",
+          "claim_conflict": "Your resume describes City Institute Of Technology as hands-on work. Which module did you actually own versus review?",
+          "metric_risk": "You mentioned a metric — what was the baseline you compared against and how did you measure it?",
+          "overclaim_risk": "You used that term — what does it do specifically in your City Institute Of Technology implementation?",
+          "bridge": "Switching to Northstar Commerce — how does the design thinking there contrast with what you just described?"
+        }
+      }
+    ],
+    "generated_at": 1778194917.2127721,
+    "source": "deterministic_fallback",
+    "pending_hydration_focus_keys": [
+      "northstar_commerce",
+      "videohealth_learning_app",
+      "cityvision_lab",
+      "processed_500_frames_traffic_video_opencv",
+      "city_institute_of_technology"
+    ],
+    "last_hydrated_at": null,
+    "quality_review": {
+      "stage": "fallback",
+      "critic_model": "none",
+      "ready": true,
+      "overall_score": 7.0,
+      "issues": [
+        "Startup planner failed; used deterministic focus plan plus targeted track recovery: KeyError: 'OPENROUTER_API_KEY'"
+      ],
+      "repair_instructions": [],
+      "focus_reviews": []
+    }
+  }
+}

@@ -887,9 +887,9 @@ export default function InterviewPage() {
       : "bg-[var(--ag-text-3)]";
 
   return (
-    <div className="ag-shell min-h-screen select-none px-4 py-4 text-[var(--ag-text-0)] md:px-6">
-      <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4">
-        <header className="flex flex-col gap-4 rounded-2xl border border-[var(--ag-border)] bg-[oklch(0.1_0.014_265_/_0.82)] px-5 py-4 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
+    <div className="ag-shell min-h-screen select-none px-4 py-4 text-[var(--ag-text-0)] md:px-6 xl:h-screen xl:overflow-hidden">
+      <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4 xl:h-[calc(100vh-2rem)] xl:min-h-0">
+        <header className="flex flex-col gap-4 rounded-2xl border border-[var(--ag-border)] bg-[oklch(0.1_0.014_265_/_0.82)] px-5 py-4 backdrop-blur-xl md:flex-row md:items-center md:justify-between xl:shrink-0">
           <div className="flex flex-wrap items-center gap-3">
             <AGLogo compact />
             {started && <AGChip active>S{sprint} · {SPRINT_LABELS[sprint]}</AGChip>}
@@ -931,9 +931,9 @@ export default function InterviewPage() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <AGSurface className="flex flex-col items-center justify-between gap-6 px-6 py-6">
-            <div className="w-full space-y-6">
+        <div className="grid flex-1 gap-4 xl:min-h-0 xl:grid-cols-[340px_minmax(0,1fr)]">
+          <AGSurface className="flex flex-col items-center justify-between gap-4 px-5 py-5 xl:sticky xl:top-4 xl:h-full xl:min-h-0 xl:overflow-hidden">
+            <div className="w-full space-y-4">
               <div className="space-y-2">
                 <AGSectionLabel>Live Interrogator</AGSectionLabel>
                 <p className="text-sm leading-7 text-[var(--ag-text-2)]">
@@ -941,9 +941,17 @@ export default function InterviewPage() {
                 </p>
               </div>
 
-              <div className="relative flex min-h-[240px] items-center justify-center rounded-[28px] border border-[var(--ag-border)] bg-[linear-gradient(180deg,oklch(0.11_0.016_265_/_0.88),oklch(0.08_0.012_265_/_0.96))]">
-                {showCamera && (
-                  <div className="absolute inset-6 overflow-hidden rounded-full border border-[var(--ag-border)] bg-black/30 opacity-40 mix-blend-screen grayscale">
+              <div className="relative flex min-h-[220px] items-center justify-center rounded-[28px] border border-[var(--ag-border)] bg-[linear-gradient(180deg,oklch(0.11_0.016_265_/_0.88),oklch(0.08_0.012_265_/_0.96))]">
+                <AIOrb state={phase} />
+              </div>
+
+              {showCamera && (
+                <div className="overflow-hidden rounded-2xl border border-[var(--ag-border)] bg-black/40">
+                  <div className="flex items-center justify-between border-b border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-2">
+                    <AGSectionLabel>Camera Stream</AGSectionLabel>
+                    <span className="h-2 w-2 rounded-full bg-[var(--ag-green)] shadow-[0_0_12px_var(--ag-green)]" />
+                  </div>
+                  <div className="aspect-video max-h-[150px] bg-black">
                     <video
                       ref={videoRef}
                       autoPlay
@@ -952,9 +960,8 @@ export default function InterviewPage() {
                       className="h-full w-full scale-x-[-1] object-cover"
                     />
                   </div>
-                )}
-                <AIOrb state={phase} />
-              </div>
+                </div>
+              )}
 
               <div className="space-y-3 text-center">
                 <div className="flex items-center justify-center gap-2">
@@ -1016,7 +1023,7 @@ export default function InterviewPage() {
             </div>
           </AGSurface>
 
-          <AGSurface className="flex min-h-[720px] flex-col overflow-hidden">
+          <AGSurface className="flex min-h-[680px] flex-col overflow-hidden xl:min-h-0">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--ag-border)] px-6 py-5">
               <div>
                 <AGSectionLabel>Live Transcript</AGSectionLabel>
@@ -1030,7 +1037,7 @@ export default function InterviewPage() {
               </div>
             </div>
 
-            <div ref={transcriptRef} className="ag-scrollbar flex-1 space-y-5 overflow-y-auto px-6 py-6">
+            <div ref={transcriptRef} className="ag-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6">
               {!started && !showResumeGate && (
                 <div className="flex h-full min-h-[420px] items-center justify-center">
                   <div className="max-w-lg text-center">

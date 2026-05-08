@@ -17,6 +17,11 @@
 
 ## 📜 STEP-BY-STEP ACTIVITY LOG
 
+### [2026-05-08] - Static Interview Left Rail + Separate Camera Panel
+- **WHAT**: Updated `app/interview/[session_id]/page.tsx` so the live interview workspace is viewport-height on desktop, the left interrogator rail stays fixed/stable while the transcript scrolls inside its own panel, and the camera feed now renders in a dedicated rectangular "Camera Stream" panel instead of being overlaid behind the AI orb.
+- **WHY**: During longer interviews, accumulated STT/transcript content made the whole page scroll, which caused the mode/orb/camera rail to drift away from its intended alignment. The camera was also visually blended under the listening/speaking/reasoning orb, making the two status signals compete.
+- **IMPACT**: The main interview screen now keeps the left status UI anchored for the duration of the session, while the right transcript pane handles growth internally. The AI mode graphic and camera stream are visually separated, making the live interview state easier to read and less jumpy as the conversation gets long.
+
 ### [2026-04-23] — Deployed API-Origin Fix for Antigravity Frontend + ProvenHire Service Clarification
 - **WHAT**: Fixed `lib/api.ts` so the Antigravity frontend now uses same-origin `/api` on deployed hosts instead of falling back to `http://localhost:8000/api` whenever `NEXT_PUBLIC_API_URL` is unset. Re-verified that the strict interview-map architecture remains backward-compatible for the ProvenHire integration path because `backend/api/routes.py:/start_interview` still accepts the legacy direct-start contract and internally routes through `prepare_session_map()` before starting the session.
 - **WHY**: The previous frontend fallback was correct for local development but wrong for Vercel/runtime deployment. On a deployed domain, it caused the browser to call its own localhost and fail, making the Antigravity app appear broken even though the GitHub push had landed. At the same time, Yash clarified that ProvenHire’s `@ Antigravity LAB` path is the production-critical integration, so we needed to confirm whether the new strict map-first work had accidentally broken that service contract.
