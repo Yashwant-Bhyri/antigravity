@@ -652,7 +652,7 @@ async def get_report(session_id: str):
 @router.get("/admin/redis-dump")
 async def redis_dump(request: Request):
     """Admin endpoint — scans all Redis keys and returns live session data."""
-    _admin_secret = os.environ.get("ANTIGRAVITY_ADMIN_SECRET", "")
+    _admin_secret = os.environ.get("ANTIGRAVITY_ADMIN_SECRET", "") or os.environ.get("ANTIGRAVITY_WEBHOOK_SECRET", "")
     _provided = request.headers.get("X-Admin-Secret", "")
     if not _admin_secret:
         raise HTTPException(status_code=503, detail="Admin endpoint not configured")
