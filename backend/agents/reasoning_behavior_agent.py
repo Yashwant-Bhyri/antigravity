@@ -1,4 +1,4 @@
-from backend.models.llm_router import LLMRouter
+from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
 
 
 PROMPT = """You are a meta-cognition evaluator.
@@ -40,4 +40,7 @@ class ReasoningBehaviorAgent:
 
     async def evaluate(self, answer: str, was_challenged: bool = False) -> dict:
         context = f"Candidate was challenged: {was_challenged}\n\nAnswer:\n{answer}"
-        return await self.llm.call(system=PROMPT, user=context)
+        result = await self.llm.call(system=PROMPT, user=context, response_format=JSON_OBJECT_FORMAT)
+        if not isinstance(result, dict):
+            raise RuntimeError("ReasoningBehaviorAgent returned non-JSON output.")
+        return result

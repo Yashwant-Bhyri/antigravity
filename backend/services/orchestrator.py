@@ -12,9 +12,14 @@ from backend.agents.discrepancy_agent import DiscrepancyAgent
 from backend.agents.evaluation_agent import EvaluationAgent
 from backend.agents.resume_agent import ResumeAgent
 from backend.agents.reasoning_behavior_agent import ReasoningBehaviorAgent
+from backend.agents.policy_checker_agent import PolicyCheckerAgent
 from backend.services.interview_map import (
     _MAP_MIN_FOCUS_AREAS as MAP_STARTUP_FOCUS_AREAS,
-    build_deterministic_interview_map,
+    _track_candidate_q4_options,
+    _track_dimensions,
+    _track_opener,
+    _track_recovery,
+    MapPreparationError,
     generate_interview_map,
     get_focus_area_context,
     hydrate_interview_map_tracks,
@@ -23,6 +28,29 @@ from backend.services.interview_map import (
     validate_interview_map,
 )
 from backend.services.interview_telemetry import interview_telemetry
+from backend.services.question_quality import check_question_readiness
+from backend.state.interview_agenda import (
+    FOCUS_RATIO_CAP,
+    FOCUS_RATIO_MIN_EVIDENCE_TURNS,
+    FOCUS_STREAK_CAP,
+    MAX_COVERAGE_OPENINGS,
+    MIN_COVERAGE_OPENINGS_BEFORE_STREAK_PIVOT,
+    MIN_COMPLETION_TURNS,
+    PRIMARY_FOCUS_MIN_EVIDENCE_TURNS,
+    anchor_surface_candidates,
+    distinct_substantive_focus_count,
+    distinct_substantive_surface_count,
+    dominant_focus_ratio,
+    ensure_interview_agenda,
+    focus_label as agenda_focus_label,
+    initial_interview_agenda,
+    least_used_focus,
+    max_same_focus_streak,
+    max_same_surface_streak,
+    next_secondary_surface,
+    surfaces_by_focus,
+    weighted_surface_coverage,
+)
 from backend.state.candidate_state import detect_communication_mode
 from backend.state.session_manager import SessionManager
 
@@ -55,29 +83,6 @@ def _build_focus_prompt_pack(
             "prompt_context": "",
         }
     return area
-
-
-# Fallback follow-ups: sprint-keyed templates used when no prepped question exists and the
-# bank has nothing queued. No LLM call — served instantly as a last resort.
-_FALLBACK_FOLLOWUPS: dict[int, list[str]] = {
-    1: [
-        "What would you do differently if you were starting this project from scratch today?",
-        "What was the hardest part to get right, and how did you know when you'd actually solved it?",
-    ],
-    2: [
-        "Where does your mental model of this concept start to break down?",
-        "How would you explain the trade-off you just described to an engineer who hasn't worked in this space?",
-    ],
-    3: [
-        "What's the first thing that breaks under load in the design you just described?",
-        "What would you instrument to catch that failure before it hits production?",
-    ],
-}
-
-# Agent fallbacks — individual agent crash → use these so one LLM blip doesn't kill the turn
-_WEAKNESS_FALLBACK    = {"weakness": "", "type": "vague", "severity": "low", "probe_direction": "clarification", "continue_probing": False}
-_DISCREPANCY_FALLBACK = {"conflict_level": "none", "description": "", "severity": "low"}
-_REASONING_FALLBACK   = {"structure_score": 5, "adaptability": "flexible", "confidence_calibration": "calibrated"}
 
 
 _ADMISSION_SIGNALS = re.compile(
@@ -285,6 +290,61 @@ def _infer_focus(
     combined = _normalize_transcript(f"{question} {answer}")
     combined_tokens = set(token for token in combined.split(" ") if len(token) > 2)
 
+    def _area_focus_text(area: dict) -> str:
+        sub_focus_parts: list[str] = []
+        for item in area.get("sub_focuses") or []:
+            if isinstance(item, dict):
+                sub_focus_parts.extend(
+                    str(item.get(key) or "")
+                    for key in (
+                        "label",
+                        "sub_focus_key",
+                        "why_priority",
+                        "role_relevance_weight",
+                        "profile_importance_weight",
+                        "evidence_strength",
+                        "claim_risk",
+                        "coverage_value",
+                    )
+                )
+                sub_focus_parts.extend(str(s or "") for s in (item.get("source_snippets") or []))
+            else:
+                sub_focus_parts.append(str(item or ""))
+        parts: list[str] = [
+            str(area.get("label") or ""),
+            str(area.get("focus_key") or "").replace("_", " "),
+            str(area.get("anchor_context") or ""),
+            str(area.get("why_priority") or ""),
+            _track_opener(area),
+            " ".join(sub_focus_parts),
+            " ".join(str(item) for item in (area.get("resume_snippets") or []) if item),
+            " ".join(_track_candidate_q4_options(area)),
+        ]
+        for item in area.get("question_ladder") or []:
+            if isinstance(item, dict):
+                parts.extend(
+                    str(item.get(key) or "")
+                    for key in ("posture", "main_question", "signal_goal", "expected_space")
+                )
+        for dim in _track_dimensions(area):
+            if not isinstance(dim, dict):
+                continue
+            parts.extend(
+                str(dim.get(key) or "")
+                for key in (
+                    "id",
+                    "label",
+                    "description",
+                    "resume_anchor",
+                    "surface",
+                    "mechanism",
+                    "boundary",
+                )
+            )
+        recovery = _track_recovery(area)
+        parts.extend(str(value or "") for value in recovery.values())
+        return " ".join(parts)
+
     # Prefer trajectory map focus areas when available — they are already semantically
     # named and avoid location-name false positives from raw resume parsing.
     if trajectory_focus_areas:
@@ -297,9 +357,7 @@ def _infer_focus(
             if not fa_key:
                 continue
             area_tokens = set(
-                t for t in _normalize_transcript(
-                    fa_label + " " + str(area.get("anchor_context") or "")
-                ).split(" ")
+                t for t in _normalize_transcript(_area_focus_text(area)).split(" ")
                 if len(t) > 2
             )
             score = len(area_tokens & combined_tokens)
@@ -310,28 +368,118 @@ def _infer_focus(
         if best_score > 0:
             return best_key, best_label
 
-    best_label = ""
-    best_key = ""
-    best_score = 0
-    for label, key, tokens in _resume_focus_candidates(parsed_resume, resume):
-        score = len(tokens & combined_tokens)
-        if score > best_score:
-            best_score = score
-            best_label = label
-            best_key = key
-
-    if best_score > 0:
-        return best_key, best_label
-
-    if "internship" in combined or "resume" in combined:
-        return "resume_background", "resume/background"
-    if "python" in combined or "c++" in combined:
-        return "python_cpp", "Python/C++"
-    if "system" in combined or "scale" in combined or "load" in combined:
-        return "system_design", "system design"
-    if "concept" in combined or "explain" in combined:
-        return "foundations", "foundations"
     return "general", "general background"
+
+
+def _sub_focus_key(label: str) -> str:
+    tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]+", (label or "").lower())
+        if len(token) > 2
+    ]
+    return "_".join(tokens[:8])
+
+
+def _infer_sub_focus(
+    interview_map: dict | None,
+    focus_key: str,
+    question: str,
+    answer: str = "",
+) -> tuple[str, str]:
+    focus_key = str(focus_key or "").strip()
+    if not focus_key or focus_key in {"general", "general_background", "general background"}:
+        return "", ""
+
+    combined = _normalize_transcript(f"{question} {answer}")
+    combined_tokens = set(token for token in combined.split(" ") if len(token) > 2)
+    if not combined_tokens:
+        return "", ""
+
+    focus_areas = ((interview_map or {}).get("focus_areas") or []) if isinstance(interview_map, dict) else []
+    area = next(
+        (
+            candidate for candidate in focus_areas
+            if isinstance(candidate, dict)
+            and str(candidate.get("focus_key") or "").strip() == focus_key
+        ),
+        None,
+    )
+    if not isinstance(area, dict):
+        return "", ""
+
+    candidates: list[dict[str, str]] = []
+    for sub_focus in area.get("sub_focuses") or []:
+        if isinstance(sub_focus, dict):
+            label = str(
+                sub_focus.get("label")
+                or sub_focus.get("name")
+                or sub_focus.get("surface")
+                or sub_focus.get("sub_focus")
+                or sub_focus.get("sub_focus_label")
+                or sub_focus.get("sub_focus_key")
+                or ""
+            ).strip()
+            key = str(sub_focus.get("sub_focus_key") or sub_focus.get("key") or sub_focus.get("id") or "").strip()
+            text = " ".join(
+                [
+                    label,
+                    key.replace("_", " "),
+                    str(sub_focus.get("why_priority") or ""),
+                    str(sub_focus.get("role_relevance_weight") or ""),
+                    str(sub_focus.get("profile_importance_weight") or ""),
+                    str(sub_focus.get("evidence_strength") or ""),
+                    str(sub_focus.get("claim_risk") or ""),
+                    str(sub_focus.get("coverage_value") or ""),
+                    " ".join(str(s or "") for s in (sub_focus.get("source_snippets") or [])),
+                ]
+            )
+        else:
+            label = str(sub_focus or "").strip()
+            key = ""
+            text = label
+        key = key or _sub_focus_key(label)
+        if label and key:
+            candidates.append({"key": key, "label": label, "text": text})
+
+    if not candidates:
+        for dim in _track_dimensions(area):
+            if not isinstance(dim, dict):
+                continue
+            label = str(dim.get("label") or dim.get("id") or "").strip()
+            key = _sub_focus_key(label or str(dim.get("id") or ""))
+            text = " ".join(
+                str(dim.get(field) or "")
+                for field in ("id", "label", "description", "resume_anchor", "surface", "mechanism", "boundary")
+            )
+            if label and key:
+                candidates.append({"key": key, "label": label, "text": text})
+
+    if not candidates:
+        return "", ""
+
+    best: dict[str, str] | None = None
+    best_score = 0.0
+    for candidate in candidates:
+        candidate_tokens = set(
+            token for token in _normalize_transcript(candidate.get("text", "")).split(" ")
+            if len(token) > 2
+        )
+        if not candidate_tokens:
+            continue
+        overlap = len(candidate_tokens & combined_tokens)
+        density = overlap / max(len(candidate_tokens), 1)
+        exact_bonus = 1.5 if candidate["label"].lower() in f"{question} {answer}".lower() else 0.0
+        score = overlap + density + exact_bonus
+        if score > best_score:
+            best = candidate
+            best_score = score
+
+    if best and best_score > 0:
+        return best["key"], best["label"]
+    if len(candidates) == 1:
+        only = candidates[0]
+        return only["key"], only["label"]
+    return "", ""
 
 
 def _seed_relevant_to_answer(
@@ -445,7 +593,7 @@ def _should_prioritize_bank_followup(
     active_route_kind = ""
     if isinstance(active_packet, dict):
         active_route_kind = str(active_packet.get("route_kind", "") or "")
-    if active_route_kind in ("sprint_fallback", "unknown"):
+    if active_route_kind == "unknown":
         return False
 
     route_kind = prepped_context.get("route_kind")
@@ -467,7 +615,11 @@ def _short_answer_rescue_eligible(text: str) -> bool:
 
 
 def _is_generic_fasttrack_route(route_kind: object) -> bool:
-    return str(route_kind or "") in {"sprint_fallback", "sprint_seed", "unknown"}
+    return str(route_kind or "") in {"sprint_seed", "legacy_agenda_backup", "unknown"}
+
+
+def _is_close_route(route_kind: object) -> bool:
+    return str(route_kind or "") in {"synthesis_close", "graceful_exit", "complete"}
 
 
 def _question_already_asked(candidate: str, history: list[dict], window: int = 15) -> bool:
@@ -488,9 +640,20 @@ def _question_already_asked(candidate: str, history: list[dict], window: int = 1
     return False
 
 
+def _safe_list(value: object) -> list:
+    return value if isinstance(value, list) else []
+
+
+def _safe_float(value: object, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _normalize_followups(followups: list[str] | None, limit: int = 2) -> list[str]:
     cleaned: list[str] = []
-    for followup in followups or []:
+    for followup in _safe_list(followups):
         text = str(followup).strip()
         if text and text not in cleaned:
             cleaned.append(text)
@@ -511,6 +674,17 @@ def _build_question_packet(
     source_turn_number: int = 0,
     focus_key_override: str = "",
     focus_label_override: str = "",
+    sub_focus_key_override: str = "",
+    sub_focus_label_override: str = "",
+    question_posture: str = "",
+    signal_goal: str = "",
+    expected_space: list[str] | None = None,
+    information_gain: str = "",
+    voice_complexity: str = "",
+    ladder_field: str = "",
+    surface_kind: str = "",
+    coverage_dimension_id: str = "",
+    coverage_dimension_label: str = "",
 ) -> dict:
     followup_templates = _normalize_followups(followups)
     if focus_key_override or focus_label_override:
@@ -518,12 +692,53 @@ def _build_question_packet(
         focus_label = focus_label_override or focus_key_override
     else:
         focus_key, focus_label = _infer_focus(question_text, "", parsed_resume, resume)
+    focus_required = str(route_kind or "").startswith("trajectory_map_") or str(route_kind or "") in {
+        "application_anchor_recovery",
+        "application_grounding",
+        "application_transfer",
+        "coverage_surface",
+        "coverage_depth_probe",
+        "reserve_map_question",
+        "second_anchor",
+        "third_surface_probe",
+        "focus_pivot",
+    }
+    if focus_required and focus_key in {"", "general", "general_background", "general background"}:
+        raise RuntimeError(f"{route_kind} question packet missing map focus attribution.")
+    sub_focus_key = str(sub_focus_key_override or "").strip()
+    sub_focus_label = str(sub_focus_label_override or "").strip()
+    expected_space_limited = list(expected_space or [])[:4]
+    try:
+        checker_turn_number = int(source_turn_number or 0)
+    except (TypeError, ValueError):
+        checker_turn_number = 0
+    question_quality = check_question_readiness(
+        question_text,
+        route_kind=str(route_kind or ""),
+        posture=str(question_posture or "").strip(),
+        turn_number=checker_turn_number,
+        surface_kind=str(surface_kind or "").strip(),
+        expected_space=expected_space_limited,
+    )
     return {
         "question_text": question_text,
         "route_kind": route_kind,
         "sprint": sprint,
         "focus_key": focus_key,
         "focus_label": focus_label,
+        "sub_focus_key": sub_focus_key,
+        "sub_focus_label": sub_focus_label,
+        "question_posture": str(question_posture or "").strip(),
+        "signal_goal": str(signal_goal or "").strip(),
+        "expected_space": expected_space_limited,
+        "covered_expected_space": [],
+        "missing_expected_space": expected_space_limited,
+        "information_gain": str(information_gain or "").strip(),
+        "voice_complexity": str(voice_complexity or "").strip(),
+        "ladder_field": str(ladder_field or "").strip(),
+        "surface_kind": str(surface_kind or "").strip(),
+        "coverage_dimension_id": str(coverage_dimension_id or "").strip(),
+        "coverage_dimension_label": str(coverage_dimension_label or "").strip(),
         "followups": followup_templates,
         "asked_followup_count": 0,
         "max_followups": len(followup_templates),
@@ -531,6 +746,8 @@ def _build_question_packet(
         "weakness": weakness,
         "discrepancy": discrepancy,
         "source_turn_number": source_turn_number,
+        "question_quality": question_quality,
+        "question_quality_flags": question_quality.get("flag_codes", []),
     }
 
 
@@ -538,14 +755,581 @@ def _clone_question_packet(packet: dict | None) -> dict:
     if not isinstance(packet, dict):
         return {}
     cloned = dict(packet)
-    cloned["followups"] = list(packet.get("followups") or [])
+    cloned["followups"] = _normalize_followups(packet.get("followups"), limit=10)
     return cloned
+
+
+def _question_packet_ladder_kwargs(result: dict | None) -> dict:
+    if not isinstance(result, dict):
+        return {}
+    return {
+        "question_posture": str(result.get("question_posture") or ""),
+        "signal_goal": str(result.get("signal_goal") or ""),
+        "expected_space": list(result.get("expected_space") or [])[:4],
+        "information_gain": str(result.get("information_gain") or ""),
+        "voice_complexity": str(result.get("voice_complexity") or ""),
+        "ladder_field": str(result.get("ladder_field") or ""),
+        "surface_kind": str(result.get("surface_kind") or ""),
+    }
+
+
+def _coverage_dimension_packet_kwargs(coverage_map: dict | None, dimension_id: str) -> dict:
+    dimension_id = str(dimension_id or "").strip()
+    if not dimension_id or not isinstance(coverage_map, dict):
+        return {}
+    for dim in coverage_map.get("dimensions") or []:
+        if not isinstance(dim, dict):
+            continue
+        if str(dim.get("id") or dim.get("dimension_id") or "").strip() == dimension_id:
+            return {
+                "coverage_dimension_id": dimension_id,
+                "coverage_dimension_label": str(dim.get("label") or dimension_id).strip(),
+                "signal_goal": str(dim.get("description") or "").strip(),
+                "expected_space": list(dim.get("expected_approaches") or [])[:4],
+                "information_gain": "high" if float(dim.get("weight") or 0) >= 2.0 else "medium",
+                "voice_complexity": "medium",
+            }
+    return {"coverage_dimension_id": dimension_id, "coverage_dimension_label": dimension_id}
+
+
+def _route_surface_key(focus_key: str, sub_focus_key: str = "", coverage_dimension_id: str = "") -> str:
+    focus = str(focus_key or "").strip()
+    if not focus:
+        return ""
+    coverage = str(coverage_dimension_id or "").strip()
+    if coverage:
+        return f"{focus}::coverage::{coverage}"
+    sub = str(sub_focus_key or "").strip()
+    return f"{focus}::{sub}" if sub else focus
+
+
+def _history_surface_keys(history: list[dict]) -> set[str]:
+    keys: set[str] = set()
+    for turn in history or []:
+        focus = str(turn.get("focus_key") or "").strip()
+        if not focus or focus in {"general", "general_background", "general background"}:
+            continue
+        key = _route_surface_key(
+            focus,
+            str(turn.get("sub_focus_key") or "").strip(),
+            str(turn.get("coverage_dimension_id") or "").strip(),
+        )
+        if key:
+            keys.add(key)
+    return keys
+
+
+def _reserve_from_coverage(state: dict, history: list[dict]) -> dict | None:
+    coverage_map = state.get("coverage_map")
+    if not isinstance(coverage_map, dict):
+        return None
+    focus_key = str(
+        state.get("application_transfer_fallback_focus_key")
+        or (state.get("interview_agenda") or {}).get("current_focus_key")
+        or ""
+    ).strip()
+    focus_label = str(
+        state.get("application_transfer_fallback_focus_label")
+        or agenda_focus_label(state.get("interview_trajectory_map") or {}, focus_key)
+        or focus_key
+    ).strip()
+    if not focus_key:
+        return None
+    asked = _history_surface_keys(history)
+    dims = [
+        dim for dim in coverage_map.get("dimensions") or []
+        if isinstance(dim, dict)
+        and str(dim.get("id") or dim.get("dimension_id") or "").strip()
+    ]
+    dims.sort(key=lambda dim: float(dim.get("weight") or 0), reverse=True)
+    for dim in dims:
+        dim_id = str(dim.get("id") or dim.get("dimension_id") or "").strip()
+        if _route_surface_key(focus_key, coverage_dimension_id=dim_id) in asked:
+            continue
+        question = str(dim.get("surfacing_question") or "").strip()
+        if not question or _question_already_asked(question, history):
+            continue
+        return {
+            "question": question,
+            "route_kind": "coverage_surface",
+            "focus_key": focus_key,
+            "focus_label": focus_label,
+            "coverage_dimension_id": dim_id,
+            "coverage_dimension_label": str(dim.get("label") or dim_id).strip(),
+            "question_posture": "explore",
+            "signal_goal": str(dim.get("description") or f"Reserve coverage: {dim_id}").strip(),
+            "expected_space": list(dim.get("expected_approaches") or [])[:4],
+            "information_gain": "high" if float(dim.get("weight") or 0) >= 2.0 else "medium",
+            "voice_complexity": "medium",
+            "reason": "reserve_unasked_coverage_dimension",
+        }
+    return None
+
+
+def _select_reserve_question(state: dict, history: list[dict], *, avoid_focus: str = "") -> dict | None:
+    """Select a map-grounded reserve question before early close.
+
+    This is deliberately not a generic fallback bank. It only uses already
+    generated map/coverage material and refuses repeated surfaces/questions.
+    """
+    coverage_reserve = _reserve_from_coverage(state, history)
+    if coverage_reserve:
+        return coverage_reserve
+
+    interview_map = state.get("interview_trajectory_map") or {}
+    focus_areas = interview_map.get("focus_areas") if isinstance(interview_map, dict) else []
+    if not isinstance(focus_areas, list):
+        return None
+    asked_questions = [str(turn.get("question") or "") for turn in history or []]
+    asked_surfaces = _history_surface_keys(history)
+    avoid_focus = str(avoid_focus or "").strip()
+
+    ordered_areas = [
+        area for area in focus_areas
+        if isinstance(area, dict)
+        and str(area.get("focus_key") or "").strip()
+        and str(area.get("focus_key") or "").strip() != avoid_focus
+    ] + [
+        area for area in focus_areas
+        if isinstance(area, dict)
+        and str(area.get("focus_key") or "").strip() == avoid_focus
+    ]
+
+    for area in ordered_areas:
+        focus_key = str(area.get("focus_key") or "").strip()
+        if not focus_key:
+            continue
+        focus_label = str(area.get("label") or focus_key).strip()
+        sub_focuses = area.get("sub_focuses") if isinstance(area.get("sub_focuses"), list) else []
+        primary_sub_focus = ""
+        primary_sub_label = ""
+        if sub_focuses:
+            sf = next((item for item in sub_focuses if isinstance(item, dict)), None)
+            if isinstance(sf, dict):
+                primary_sub_focus = str(sf.get("sub_focus_key") or sf.get("key") or sf.get("id") or "").strip()
+                primary_sub_label = str(sf.get("label") or sf.get("name") or primary_sub_focus).strip()
+        ladder = area.get("question_ladder") if isinstance(area.get("question_ladder"), list) else []
+        for item in ladder:
+            if not isinstance(item, dict):
+                continue
+            posture = str(item.get("posture") or "").strip()
+            if posture in {"recover"}:
+                continue
+            question = str(item.get("main_question") or "").strip()
+            if not question or not question.endswith("?"):
+                continue
+            if _question_already_asked(question, history) or question in asked_questions:
+                continue
+            sub_key = str(item.get("sub_focus_key") or primary_sub_focus).strip()
+            sub_label = str(item.get("sub_focus_label") or primary_sub_label).strip()
+            surface = _route_surface_key(focus_key, sub_key)
+            if surface and surface in asked_surfaces and posture not in {"synthesize"}:
+                continue
+            return {
+                "question": question,
+                "route_kind": "reserve_map_question",
+                "focus_key": focus_key,
+                "focus_label": focus_label,
+                "sub_focus_key": sub_key,
+                "sub_focus_label": sub_label,
+                "question_posture": posture or "explore",
+                "signal_goal": str(item.get("signal_goal") or "Reserve map-grounded question").strip(),
+                "expected_space": list(item.get("expected_space") or [])[:4],
+                "information_gain": str(item.get("information_gain") or "medium").strip(),
+                "voice_complexity": str(item.get("voice_complexity") or "medium").strip(),
+                "reason": "reserve_unasked_ladder_question",
+            }
+        for question in _track_candidate_q4_options(area):
+            question = str(question or "").strip()
+            if not question or not question.endswith("?") or _question_already_asked(question, history):
+                continue
+            return {
+                "question": question,
+                "route_kind": "reserve_map_question",
+                "focus_key": focus_key,
+                "focus_label": focus_label,
+                "sub_focus_key": primary_sub_focus,
+                "sub_focus_label": primary_sub_label,
+                "question_posture": "synthesize",
+                "signal_goal": "Reserve high-signal map question before close",
+                "expected_space": [],
+                "information_gain": "high",
+                "voice_complexity": "medium",
+                "reason": "reserve_candidate_q4_option",
+            }
+    return None
+
+
+THIRD_SURFACE_ROUTE_KIND = "third_surface_probe"
+THIRD_SURFACE_MAX_DEFAULT = 1
+THIRD_SURFACE_MAX_WITH_TRIGGER = 2
+
+
+def _map_quarantine_focus_keys(interview_map: dict | None) -> set[str]:
+    if not isinstance(interview_map, dict):
+        return set()
+    return {
+        str(item.get("focus_key") or "").strip()
+        for item in (interview_map.get("map_quarantine") or [])
+        if isinstance(item, dict) and str(item.get("focus_key") or "").strip()
+    }
+
+
+def _focus_area_by_key(interview_map: dict | None, focus_key: str) -> dict:
+    focus_key = str(focus_key or "").strip()
+    if not focus_key or not isinstance(interview_map, dict):
+        return {}
+    for area in interview_map.get("focus_areas") or []:
+        if isinstance(area, dict) and str(area.get("focus_key") or "").strip() == focus_key:
+            return area
+    return {}
+
+
+def _third_surface_probe_turns(history: list[dict]) -> list[dict]:
+    return [
+        turn for turn in history or []
+        if str(turn.get("route_kind") or "").strip() == THIRD_SURFACE_ROUTE_KIND
+    ]
+
+
+_THIRD_SURFACE_DEPTH_TRIGGER = re.compile(
+    r"\b("
+    r"segment(?:ed|ing|s)?|selection bias|comparable|confound(?:er|ing)?|"
+    r"multiple changes|overlap(?:ped|ping)?|shipped together|support calls?|"
+    r"denominator|guardrail|refunds?|sla|lag|late[- ]arriving|grain|dedup|"
+    r"engineering handled|owned by|not fully prove|cannot prove|can't prove|"
+    r"disagreement|looked healthy|business deteriorat"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _third_surface_depth_triggered(answer: str, history: list[dict]) -> bool:
+    if not history:
+        return False
+    last_route = str(history[-1].get("route_kind") or "").strip()
+    if last_route != THIRD_SURFACE_ROUTE_KIND:
+        return False
+    return bool(_THIRD_SURFACE_DEPTH_TRIGGER.search(str(answer or "")))
+
+
+def _third_surface_budget_available(history: list[dict], answer: str) -> bool:
+    count = len(_third_surface_probe_turns(history))
+    if count < THIRD_SURFACE_MAX_DEFAULT:
+        return True
+    if count < THIRD_SURFACE_MAX_WITH_TRIGGER and _third_surface_depth_triggered(answer, history):
+        return True
+    return False
+
+
+def _third_surface_question_is_usable(result: dict, history: list[dict], *, turn_number: int) -> tuple[bool, dict]:
+    question = str(result.get("question") or "").strip()
+    quality = check_question_readiness(
+        question,
+        route_kind=THIRD_SURFACE_ROUTE_KIND,
+        posture=str(result.get("question_posture") or "").strip(),
+        turn_number=turn_number,
+        surface_kind=str(result.get("surface_kind") or "").strip(),
+        expected_space=list(result.get("expected_space") or [])[:4],
+    )
+    bad_codes = set(quality.get("flag_codes") or [])
+    hard_block_codes = {
+        "self_rating_certainty",
+        "bad_synthesis_self_rating",
+        "low_signal_implementation_recall",
+        "low_signal_event_property_recall",
+        "generic_framework_abstraction",
+        "generic_low_context_prompt",
+        "compound_chain",
+        "multiple_question_marks",
+        "missing_question_mark",
+        "truncated_question",
+        "severely_overlong_question",
+    }
+    lowered = question.lower()
+    abstract_claiming = bool(
+        re.search(
+            r"\b(careful not to claim|avoid claiming|what should we not|what would you not|not claim from this result)\b",
+            lowered,
+        )
+    )
+    usable = (
+        bool(question)
+        and not _question_already_asked(question, history)
+        and not bool(quality.get("should_block"))
+        and not bool(bad_codes & hard_block_codes)
+        and not abstract_claiming
+    )
+    return usable, quality
+
+
+def _third_surface_candidate_score(candidate: dict, *, launch_keys: set[str], avoid_focus: str) -> tuple:
+    focus_key = str(candidate.get("focus_key") or "").strip()
+    value = _safe_float(candidate.get("coverage_value"), 1.5)
+    role = _safe_float(candidate.get("role_relevance_weight"), 1.5)
+    profile = _safe_float(candidate.get("profile_importance_weight"), 1.5)
+    evidence = _safe_float(candidate.get("evidence_strength"), 1.5)
+    weighted = (value * 0.45) + (role * 0.25) + (profile * 0.15) + (evidence * 0.15)
+    is_deferred_focus = focus_key not in launch_keys
+    same_focus = focus_key == str(avoid_focus or "").strip()
+    return (
+        0 if is_deferred_focus else 1,
+        1 if same_focus else 0,
+        -weighted,
+        int(candidate.get("map_order") or 0),
+    )
+
+
+def _select_third_surface_probe(
+    state: dict,
+    history: list[dict],
+    *,
+    sprint: int,
+    avoid_focus: str = "",
+    answer: str = "",
+    entities: list[str] | None = None,
+    admission: bool = False,
+    has_discrepancy: bool = False,
+    turn_number: int = 0,
+) -> dict | None:
+    """Select one bounded, high-signal probe for a deferred/third surface.
+
+    This is not a generic filler bank. It only uses accepted LLM-authored map
+    material, refuses quarantined/pending tracks, and gives the surface one turn
+    by default. A second turn is allowed only if the first answer exposes a
+    concrete unresolved signal such as confounding, denominator risk, or
+    ownership boundary.
+    """
+    if not _third_surface_budget_available(history, answer):
+        return None
+    interview_map = state.get("interview_trajectory_map") or {}
+    if not isinstance(interview_map, dict):
+        return None
+    launch_keys = {
+        str(key or "").strip()
+        for key in (interview_map.get("launch_focus_keys") or [])
+        if str(key or "").strip()
+    }
+    quarantine_keys = _map_quarantine_focus_keys(interview_map)
+    asked_surfaces = _history_surface_keys(history)
+    used_third_surfaces = {
+        _route_surface_key(
+            str(turn.get("focus_key") or "").strip(),
+            str(turn.get("sub_focus_key") or "").strip(),
+            str(turn.get("coverage_dimension_id") or "").strip(),
+        )
+        for turn in _third_surface_probe_turns(history)
+    }
+    candidates = []
+    for candidate in anchor_surface_candidates(interview_map):
+        focus_key = str(candidate.get("focus_key") or "").strip()
+        surface_key = str(candidate.get("surface_key") or "").strip()
+        if not focus_key or not surface_key:
+            continue
+        if focus_key in quarantine_keys:
+            continue
+        if surface_key in asked_surfaces or surface_key in used_third_surfaces:
+            continue
+        if _safe_float(candidate.get("coverage_value"), 1.5) < 2.0:
+            continue
+        area = _focus_area_by_key(interview_map, focus_key)
+        track_source = str(area.get("track_source") or "").strip()
+        if track_source == "quarantined" or bool(area.get("pending_hydration")):
+            continue
+        if track_source and track_source not in {"llm", "launch_lite", "launch_track_lite"}:
+            continue
+        if not area.get("question_ladder"):
+            continue
+        candidates.append(candidate)
+    candidates.sort(key=lambda item: _third_surface_candidate_score(item, launch_keys=launch_keys, avoid_focus=avoid_focus))
+
+    for candidate in candidates:
+        result = select_from_trajectory_map_detailed(
+            interview_map,
+            sprint=sprint,
+            focus_key=str(candidate.get("focus_key") or "").strip(),
+            answer=answer,
+            entities=entities or [],
+            history=history,
+            admission=admission,
+            has_discrepancy=has_discrepancy,
+            depth=2,
+            preferred_sub_focus_key=str(candidate.get("sub_focus_key") or "").strip(),
+            preferred_surface_kind=str(candidate.get("surface_kind") or "").strip(),
+        )
+        if not result:
+            continue
+        usable, quality = _third_surface_question_is_usable(result, history, turn_number=turn_number)
+        if not usable:
+            continue
+        result["route_kind"] = THIRD_SURFACE_ROUTE_KIND
+        result.setdefault("focus_key", str(candidate.get("focus_key") or "").strip())
+        result.setdefault("focus_label", str(candidate.get("focus_label") or result.get("focus_key") or "").strip())
+        result.setdefault("sub_focus_key", str(candidate.get("sub_focus_key") or "").strip())
+        result.setdefault("sub_focus_label", str(candidate.get("sub_focus_label") or "").strip())
+        result.setdefault("surface_kind", str(candidate.get("surface_kind") or "").strip())
+        result["surface_key"] = str(candidate.get("surface_key") or "").strip()
+        result["third_surface_probe"] = True
+        result["third_surface_budget_used"] = len(_third_surface_probe_turns(history)) + 1
+        result["question_quality"] = quality
+        result["reason"] = (
+            "third_surface_depth_trigger"
+            if _third_surface_depth_triggered(answer, history)
+            else "third_surface_high_signal_exposure"
+        )
+        return result
+    return None
+
+
+def _reselect_second_anchor_for_surface(
+    state: dict,
+    history: list[dict],
+    *,
+    sprint: int,
+    target: dict | None = None,
+    avoid_focus: str = "",
+    answer: str = "",
+    entities: list[str] | None = None,
+    admission: bool = False,
+    has_discrepancy: bool = False,
+) -> dict | None:
+    """Recover a second-anchor question without losing the semantic target.
+
+    When a prepped second-anchor packet is deduped away, falling back to a
+    generic map question can silently return to the old surface. This helper
+    reselects from the intended focus/sub-focus/surface first, then picks the
+    next best secondary surface if that exact target is spent.
+    """
+    target = dict(target or {})
+    if not target:
+        target = next_secondary_surface(state, avoid_focus=avoid_focus)
+    if not target:
+        return None
+    target_surface = str(target.get("surface_key") or "").strip()
+    used_surfaces = _second_anchor_surface_keys(history)
+    if target_surface and target_surface in used_surfaces:
+        fallback = next_secondary_surface(
+            state,
+            avoid_focus=avoid_focus,
+            avoid_surface=target_surface,
+        )
+        if fallback and fallback.get("surface_key") != target_surface:
+            return _reselect_second_anchor_for_surface(
+                state,
+                history,
+                sprint=sprint,
+                target=fallback,
+                avoid_focus=avoid_focus,
+                answer=answer,
+                entities=entities or [],
+                admission=admission,
+                has_discrepancy=has_discrepancy,
+            )
+        return None
+    focus_key = str(target.get("focus_key") or "").strip()
+    if not focus_key:
+        return None
+    result = select_from_trajectory_map_detailed(
+        state.get("interview_trajectory_map", {}),
+        sprint=sprint,
+        focus_key=focus_key,
+        answer=answer,
+        entities=entities or [],
+        history=history,
+        admission=admission,
+        has_discrepancy=has_discrepancy,
+        preferred_sub_focus_key=str(target.get("sub_focus_key") or "").strip(),
+        preferred_surface_kind=str(target.get("surface_kind") or "").strip(),
+    )
+    if result:
+        result["route_kind"] = "second_anchor"
+        result.setdefault("focus_key", focus_key)
+        result.setdefault("focus_label", str(target.get("focus_label") or focus_key).strip())
+        result.setdefault("sub_focus_key", str(target.get("sub_focus_key") or "").strip())
+        result.setdefault("sub_focus_label", str(target.get("sub_focus_label") or "").strip())
+        result.setdefault("surface_kind", str(target.get("surface_kind") or "").strip())
+        result["second_anchor_target"] = target
+        return result
+
+    fallback = next_secondary_surface(
+        state,
+        avoid_focus=avoid_focus,
+        avoid_surface=str(target.get("surface_key") or "").strip(),
+    )
+    if fallback and fallback.get("surface_key") != target.get("surface_key"):
+        return _reselect_second_anchor_for_surface(
+            state,
+            history,
+            sprint=sprint,
+            target=fallback,
+            avoid_focus=avoid_focus,
+            answer=answer,
+            entities=entities or [],
+            admission=admission,
+            has_discrepancy=has_discrepancy,
+        )
+    return None
+
+
+def _second_anchor_surface_keys(history: list[dict]) -> set[str]:
+    keys: set[str] = set()
+    for turn in _second_anchor_turns(history):
+        focus = str(turn.get("focus_key") or "").strip()
+        if not focus:
+            continue
+        surface = str(turn.get("surface_key") or "").strip()
+        if not surface:
+            surface = _route_surface_key(
+                focus,
+                str(turn.get("sub_focus_key") or "").strip(),
+                str(turn.get("coverage_dimension_id") or "").strip(),
+            )
+        if surface:
+            keys.add(surface)
+    return keys
+
+
+def _second_anchor_target_from_packet(packet: dict | None) -> dict:
+    if not isinstance(packet, dict):
+        return {}
+    focus_key = str(packet.get("focus_key") or "").strip()
+    sub_focus_key = str(packet.get("sub_focus_key") or "").strip()
+    surface_key = str(packet.get("surface_key") or "").strip() or _route_surface_key(focus_key, sub_focus_key)
+    return {
+        "focus_key": focus_key,
+        "focus_label": str(packet.get("focus_label") or focus_key).strip(),
+        "sub_focus_key": sub_focus_key,
+        "sub_focus_label": str(packet.get("sub_focus_label") or "").strip(),
+        "surface_kind": str(packet.get("surface_kind") or "").strip(),
+        "surface_key": surface_key,
+    }
+
+
+def _second_anchor_packet_block_reason(packet: dict | None, history: list[dict], ecount: int = 0) -> str:
+    if not isinstance(packet, dict):
+        return ""
+    route_kind = str(packet.get("route_kind") or "").strip()
+    if route_kind != "second_anchor":
+        return ""
+    turns = _second_anchor_turns(history)
+    if len(turns) >= SECOND_ANCHOR_MAX_TURNS:
+        return "second_anchor_total_budget_exhausted"
+    if ecount >= SECOND_ANCHOR_CLOSE_FLOOR:
+        return "evidence_budget_exhausted"
+    target = _second_anchor_target_from_packet(packet)
+    focus_key = str(target.get("focus_key") or "").strip()
+    if focus_key and _second_anchor_focus_count(history, focus_key) >= SECOND_ANCHOR_MAX_PER_FOCUS:
+        return "second_anchor_focus_budget_exhausted"
+    surface_key = str(target.get("surface_key") or "").strip()
+    if surface_key and surface_key in _second_anchor_surface_keys(history):
+        return "second_anchor_surface_already_used"
+    return ""
 
 
 def _packet_followups_remaining(packet: dict | None) -> list[str]:
     if not isinstance(packet, dict):
         return []
-    followups = list(packet.get("followups") or [])
+    followups = _normalize_followups(packet.get("followups"), limit=10)
     asked = _coerce_positive_int(packet.get("asked_followup_count", 0), default=0)
     if asked <= 0:
         asked = 0
@@ -560,40 +1344,12 @@ def _packet_has_followups(packet: dict | None) -> bool:
     return bool(_packet_followups_remaining(packet))
 
 
-def _build_sprint_fallback_opener(sprint: int, prior_sprint_history: list[dict], parsed_resume: dict | None) -> str:
-    """
-    Context-aware sprint opener fallback — used when the LLM call for generate_sprint_opener fails.
-    Builds a question anchored to the last substantive topic from the prior sprint instead of
-    returning a completely generic template.
-    """
-    # Find the last substantive answer from the prior sprint to use as a pivot point
-    last_focus_label = ""
-    for turn in reversed(prior_sprint_history):
-        label = turn.get("focus_label") or turn.get("focus_key") or ""
-        answer = turn.get("answer", "")
-        if label and label not in ("general", "general background") and _is_substantive_answer(answer):
-            last_focus_label = label
-            break
-
-    if sprint == 2:
-        if last_focus_label:
-            return f"You mentioned work on {last_focus_label} — let's go deeper on the technical concepts there. What's the core idea that made it work?"
-        return "Let's go deeper on the technical concepts behind your work. Pick one idea that was central — how did it actually work under the hood?"
-
-    if sprint == 3:
-        if last_focus_label:
-            return f"Based on what you've described with {last_focus_label} — let's think about how that design would hold up at scale. Where do you think it would start to break under real load?"
-        return "Let's stay with the system or project you just described. If it suddenly had to be far more reliable or handle much more load, what would you redesign first?"
-
-    return f"Let's move into the next part of the interview. What aspect of your work do you think best shows your technical depth?"
-
-
 # ─────────────────────────────────────────────
 # SPRINT CONFIG
 # ─────────────────────────────────────────────
 QUESTIONS_PER_SPRINT = 5
 MAP_PREP_TIMEOUT_SECONDS = float(os.getenv("MAP_PREP_TIMEOUT_SECONDS", "300"))
-MAP_PREP_GENERATE_TIMEOUT_SECONDS = float(os.getenv("MAP_PREP_GENERATE_TIMEOUT_SECONDS", "240"))
+MAP_PREP_GENERATE_TIMEOUT_SECONDS = float(os.getenv("MAP_PREP_GENERATE_TIMEOUT_SECONDS", "300"))
 MAP_PREP_MIN_LLM_BRANCH_RATIO = 0.72
 MAP_PREP_MAX_HYDRATION_PASSES = int(os.getenv("MAP_PREP_MAX_HYDRATION_PASSES", "20"))
 MAX_INTERVIEW_MINUTES = 30
@@ -621,6 +1377,841 @@ SPRINT_OPENERS = {
     2: "Let's talk about the technical concepts behind your work. Pick one idea at the core of what you've built — how would you explain it to someone encountering it for the first time?",
     3: "Staying with the system you just described, what would become the first real scaling or reliability bottleneck if usage jumped sharply?",
 }
+
+NON_EVIDENCE_ROUTE_KINDS = {
+    "",
+    "application_grounding",
+    "complete",
+    "echo_guard",
+    "graceful_exit",
+    "sprint_opener",
+    "warm_open",
+    "unknown",
+}
+
+MIN_APPLICATION_TRANSFER_EVALUATED_DIMENSIONS = 2
+MIN_APPLICATION_TRANSFER_DEPTH_PROBES = 1
+
+
+def _application_anchor_recovery_question(focus_label: str = "") -> str:
+    focus = str(focus_label or "").strip()
+    if focus:
+        return (
+            f"Before I move this to a new scenario, what is one concrete decision, "
+            f"metric, or tradeoff from your {focus} work that you personally handled?"
+        )
+    return (
+        "Before I move this to a new scenario, what is one concrete decision, "
+        "metric, or tradeoff from this work that you personally handled?"
+    )
+
+
+def _ensure_application_transfer_arc(state: dict) -> dict:
+    arc = state.get("application_transfer_arc")
+    if not isinstance(arc, dict):
+        arc = {}
+    defaults = {
+        "grounding_needed": False,
+        "grounding_served": False,
+        "grounding_done": False,
+        "grounding_question": "",
+        "grounding_answer": "",
+        "main_transfer_served": False,
+        "surface_count": 0,
+        "depth_count": 0,
+        "confirmed_depth_level": 2,
+        "max_depth_level": 3,
+        "depth_allowed_terms": [],
+        "arc_complete": False,
+    }
+    merged = {**defaults, **arc}
+    merged["depth_allowed_terms"] = [
+        str(item).strip()
+        for item in list(merged.get("depth_allowed_terms") or [])[:12]
+        if str(item).strip()
+    ]
+    try:
+        merged["confirmed_depth_level"] = max(1, min(4, int(merged.get("confirmed_depth_level") or 2)))
+    except (TypeError, ValueError):
+        merged["confirmed_depth_level"] = 2
+    try:
+        merged["max_depth_level"] = max(1, min(4, int(merged.get("max_depth_level") or 3)))
+    except (TypeError, ValueError):
+        merged["max_depth_level"] = 3
+    state["application_transfer_arc"] = merged
+    return merged
+
+
+def _coverage_grounding_question(state: dict) -> str:
+    coverage_map = state.get("coverage_map")
+    if not isinstance(coverage_map, dict):
+        return ""
+    return str(coverage_map.get("grounding_question") or "").strip()
+
+
+def _application_grounding_needed(state: dict) -> bool:
+    arc = _ensure_application_transfer_arc(state)
+    coverage_map = state.get("coverage_map")
+    coverage_needs_grounding = bool(
+        isinstance(coverage_map, dict)
+        and coverage_map.get("grounding_needed")
+        and _coverage_grounding_question(state)
+    )
+    if coverage_needs_grounding:
+        arc["grounding_needed"] = True
+        arc["grounding_question"] = _coverage_grounding_question(state)
+        try:
+            arc["max_depth_level"] = max(1, min(4, int(coverage_map.get("max_depth_level") or arc.get("max_depth_level") or 3)))
+        except (TypeError, ValueError):
+            arc["max_depth_level"] = 3
+        arc["depth_allowed_terms"] = [
+            str(item).strip()
+            for item in list(coverage_map.get("depth_allowed_terms") or arc.get("depth_allowed_terms") or [])[:12]
+            if str(item).strip()
+        ]
+    return bool(arc.get("grounding_needed") and not arc.get("grounding_done"))
+
+
+def _application_grounding_ready(state: dict) -> bool:
+    return (
+        not state.get("application_question_served")
+        and bool(state.get("prepped_application_question"))
+        and bool((state.get("candidate_state") or {}).get("implementation_anchor"))
+        and _evidence_question_count(state) >= 3
+        and _application_grounding_needed(state)
+    )
+
+
+def _application_anchor_recovery_ready(state: dict) -> bool:
+    return (
+        not state.get("application_question_served")
+        and not bool((state.get("candidate_state") or {}).get("implementation_anchor"))
+        and _evidence_question_count(state) >= 5
+        and not bool(state.get("application_anchor_recovery_served"))
+    )
+
+
+def _infer_grounding_depth(answer: str, max_depth_level: int = 3) -> tuple[int, list[str]]:
+    text = str(answer or "").lower()
+    level = 2
+    terms: list[str] = []
+    if re.search(r"\b(human review|manual review|review labels|regression|orchestration|workflow|middleware|prompt bundle|state store|schema|dashboard|metric|event|guardrail)\b", text):
+        level = max(level, 2)
+    if re.search(r"\b(edge case|failure|retry|fallback|lock|transaction|reconciliation|consistency|queue|partition|attribution|causal|denominator)\b", text):
+        level = max(level, 3)
+    specialized_terms = (
+        "embedding", "embeddings", "clip", "latent", "diffusion", "sampler",
+        "model weight", "model weights", "optimizer", "training loop", "engine parameter",
+        "isolation level", "lock internals", "memory layout",
+    )
+    for term in specialized_terms:
+        if term in text:
+            terms.append(term)
+    if terms or re.search(r"\b(model internals|internal parameters|low-level internals|specialized internals)\b", text):
+        level = 4
+    if re.search(r"\b(not|didn'?t|did not|wasn'?t|was not|no)\b.{0,50}\b(embedding|latent|model internals|engine parameter|weights|clip)\b", text):
+        level = min(level, 2)
+    level = max(1, min(max_depth_level, level))
+    return level, list(dict.fromkeys(terms))[:10]
+
+
+def _evidence_question_count(state: dict) -> int:
+    return _coerce_positive_int(
+        state.get("evidence_question_count", state.get("question_count", 0)),
+        default=0,
+    )
+
+
+def _counts_toward_evidence_budget(route_kind: object) -> bool:
+    return str(route_kind or "").strip() not in NON_EVIDENCE_ROUTE_KINDS
+
+
+def _application_transfer_ready(state: dict) -> bool:
+    if state.get("application_question_served") or not state.get("prepped_application_question"):
+        return False
+    candidate_state = state.get("candidate_state") or {}
+    if not candidate_state.get("implementation_anchor"):
+        return False
+    if _application_grounding_needed(state):
+        return False
+    return _evidence_question_count(state) >= 3
+
+
+def _should_prepare_application_transfer(state: dict) -> bool:
+    if state.get("application_question_served") or state.get("prepped_application_question"):
+        return False
+    candidate_state = state.get("candidate_state") or {}
+    if candidate_state.get("implementation_anchor"):
+        return False
+    return _evidence_question_count(state) >= 3
+
+
+def _coverage_map_progress(coverage_map: dict | None) -> dict:
+    dims = (coverage_map or {}).get("dimensions", []) if isinstance(coverage_map, dict) else []
+    if not isinstance(dims, list):
+        dims = []
+    evaluated_states = {"voluntary", "recovered_deep", "recovered_surface", "missed", "incorrect"}
+    evaluated = [
+        d for d in dims
+        if isinstance(d, dict) and str(d.get("coverage_state") or "") in evaluated_states
+    ]
+    surfaced = [
+        d for d in dims
+        if isinstance(d, dict) and bool(d.get("surfacing_attempted"))
+    ]
+    unresolved = [
+        d for d in dims
+        if isinstance(d, dict)
+        and str(d.get("coverage_state") or "not_evaluated") == "not_evaluated"
+        and not bool(d.get("surfacing_attempted"))
+    ]
+    try:
+        score = float((coverage_map or {}).get("coverage_score") or 0.0)
+    except (TypeError, ValueError):
+        score = 0.0
+    return {
+        "dimensions": len(dims),
+        "evaluated": len(evaluated),
+        "surfaced": len(surfaced),
+        "unresolved": len(unresolved),
+        "score": score,
+    }
+
+
+def _minimum_application_coverage_dimensions(coverage_map: dict | None) -> int:
+    progress = _coverage_map_progress(coverage_map)
+    if progress["dimensions"] <= 0:
+        return 0
+    return min(MIN_APPLICATION_TRANSFER_EVALUATED_DIMENSIONS, progress["dimensions"])
+
+
+def _select_earned_coverage_depth_dimension(coverage_map: dict | None, state: dict) -> dict | None:
+    if not isinstance(coverage_map, dict):
+        return None
+    arc = _ensure_application_transfer_arc(state)
+    if int(arc.get("depth_count") or 0) >= MIN_APPLICATION_TRANSFER_DEPTH_PROBES:
+        return None
+    if int(arc.get("confirmed_depth_level") or 2) < 2:
+        return None
+    agenda = ensure_interview_agenda(state)
+    used = agenda.get("coverage_depth_used") if isinstance(agenda.get("coverage_depth_used"), dict) else {}
+    candidates: list[tuple[float, dict]] = []
+    for dim in coverage_map.get("dimensions") or []:
+        if not isinstance(dim, dict):
+            continue
+        dim_id = str(dim.get("id") or dim.get("dimension_id") or "").strip()
+        if not dim_id or used.get(dim_id):
+            continue
+        if not bool(dim.get("depth_eligible")):
+            continue
+        coverage_state = str(dim.get("coverage_state") or "not_evaluated").strip()
+        if coverage_state not in {"voluntary", "recovered_surface"}:
+            continue
+        try:
+            weight = float(dim.get("weight") or dim.get("signal_weight") or 0.0)
+        except (TypeError, ValueError):
+            weight = 0.0
+        candidates.append((weight, dim))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda row: row[0], reverse=True)
+    return candidates[0][1]
+
+
+def _coverage_depth_route_allowed(coverage_map: dict | None, state: dict) -> bool:
+    progress = _coverage_map_progress(coverage_map)
+    min_evaluated = _minimum_application_coverage_dimensions(coverage_map)
+    if min_evaluated <= 0 or progress["evaluated"] < min_evaluated:
+        return False
+    return _select_earned_coverage_depth_dimension(coverage_map, state) is not None
+
+
+def _mark_coverage_depth_probe(state: dict, coverage_map_obj: object, dimension: object) -> None:
+    dim_id = str(getattr(dimension, "id", "") or "").strip()
+    if not dim_id:
+        return
+    agenda_state = ensure_interview_agenda(state)
+    used = agenda_state.get("coverage_depth_used") if isinstance(agenda_state.get("coverage_depth_used"), dict) else {}
+    used[dim_id] = True
+    agenda_state["coverage_depth_used"] = used
+    agenda_state["phase"] = "coverage_depth"
+    state["interview_agenda"] = agenda_state
+
+    arc = _ensure_application_transfer_arc(state)
+    arc["depth_count"] = int(arc.get("depth_count") or 0) + 1
+    state["application_transfer_arc"] = arc
+    state["_last_coverage_dim_id"] = dim_id
+    state["_last_coverage_recovery_depth"] = "surface"
+    if hasattr(coverage_map_obj, "to_dict"):
+        state["coverage_map"] = coverage_map_obj.to_dict()
+
+
+def _assessment_coverage(state: dict) -> dict:
+    history = state.get("history", []) or []
+    coverage = _coverage_map_progress(state.get("coverage_map"))
+    distinct_focuses = distinct_substantive_focus_count(history)
+    distinct_surfaces = distinct_substantive_surface_count(history)
+    surface_groups = surfaces_by_focus(history)
+    weighted_surfaces = weighted_surface_coverage(state.get("interview_trajectory_map") or {}, history)
+    max_streak = max_same_focus_streak(history)
+    max_surface_streak = max_same_surface_streak(history)
+    focus_ratio = dominant_focus_ratio(history)
+    application_served = bool(state.get("application_question_served"))
+    application_arc = _ensure_application_transfer_arc(state)
+    min_application_coverage = _minimum_application_coverage_dimensions(state.get("coverage_map"))
+    depth_candidate_available = _select_earned_coverage_depth_dimension(state.get("coverage_map"), state) is not None
+    breadth_viable = distinct_focuses >= 2 or distinct_surfaces >= 2
+    full_breadth_viable = (
+        distinct_focuses >= 3
+        or distinct_surfaces >= 3
+        or weighted_surfaces["high_value_tested_count"] >= 2
+        or bool((state.get("candidate_state") or {}).get("forced_exit_triggered"))
+    )
+    minimum_viable = (
+        application_served
+        and coverage["evaluated"] >= max(1, min_application_coverage)
+        and breadth_viable
+    )
+    full_eligible = (
+        len(history) >= MIN_COMPLETION_TURNS
+        and application_served
+        and coverage["evaluated"] >= max(1, min_application_coverage)
+        and not depth_candidate_available
+        and full_breadth_viable
+        and max_surface_streak <= FOCUS_STREAK_CAP
+    )
+    return {
+        "application_transfer_served": application_served,
+        "application_transfer_arc": application_arc,
+        "application_grounding_needed": bool(application_arc.get("grounding_needed")),
+        "application_grounding_done": bool(application_arc.get("grounding_done")),
+        "application_arc_surface_count": int(application_arc.get("surface_count") or 0),
+        "application_arc_depth_count": int(application_arc.get("depth_count") or 0),
+        "application_arc_confirmed_depth_level": int(application_arc.get("confirmed_depth_level") or 2),
+        "coverage_dimensions": coverage["dimensions"],
+        "coverage_evaluated_dimensions": coverage["evaluated"],
+        "coverage_min_evaluated_dimensions": min_application_coverage,
+        "coverage_depth_probe_available": depth_candidate_available,
+        "coverage_surfaced_dimensions": coverage["surfaced"],
+        "coverage_score": coverage["score"],
+        "distinct_focuses": distinct_focuses,
+        "distinct_surfaces": distinct_surfaces,
+        "surfaces_by_focus": surface_groups,
+        "weighted_surface_coverage": weighted_surfaces,
+        "weighted_surface_coverage_ratio": weighted_surfaces["ratio"],
+        "weighted_surface_tested_value": weighted_surfaces["tested_weight"],
+        "weighted_surface_total_value": weighted_surfaces["total_weight"],
+        "high_value_surfaces_tested": weighted_surfaces["high_value_tested"],
+        "high_value_surfaces_tested_count": weighted_surfaces["high_value_tested_count"],
+        "high_value_surfaces_available_count": weighted_surfaces["high_value_available_count"],
+        "breadth_viable": breadth_viable,
+        "full_breadth_viable": full_breadth_viable,
+        "max_same_focus_streak": max_streak,
+        "max_same_surface_streak": max_surface_streak,
+        "dominant_focus_ratio": focus_ratio,
+        "minimum_viable_completion": minimum_viable,
+        "full_completion_eligible": full_eligible,
+        "history_len": len(history),
+    }
+
+
+def _apply_hard_coverage_gate(evaluation: dict, coverage: dict, *, discrepancy_level: str = "none") -> dict:
+    gated = dict(evaluation or {})
+    risk_flags = list(gated.get("risk_flags") or [])
+    existing_gate = dict(gated.get("coverage_gate") or {})
+    gate_reasons: list[str] = list(existing_gate.get("reasons") or [])
+
+    if not coverage.get("application_transfer_served"):
+        gate_reasons.append("application_transfer_not_served")
+    min_coverage = max(1, int(coverage.get("coverage_min_evaluated_dimensions") or 1))
+    if coverage.get("coverage_evaluated_dimensions", 0) < min_coverage:
+        gate_reasons.append("coverage_dimensions_not_evaluated")
+    if coverage.get("coverage_depth_probe_available"):
+        gate_reasons.append("application_transfer_depth_probe_not_served")
+    if coverage.get("distinct_focuses", 0) < 2 and coverage.get("distinct_surfaces", 0) < 2:
+        gate_reasons.append("fewer_than_two_substantive_surfaces_tested")
+    if (
+        coverage.get("high_value_surfaces_available_count", 0) > 0
+        and coverage.get("high_value_surfaces_tested_count", 0) < 1
+    ):
+        gate_reasons.append("no_high_value_role_relevant_surface_tested")
+    if (
+        coverage.get("dominant_focus_ratio", 0.0) > 0.70
+        and coverage.get("distinct_focuses", 0) < 3
+        and coverage.get("distinct_surfaces", 0) < 3
+        and coverage.get("high_value_surfaces_tested_count", 0) < 2
+    ):
+        gate_reasons.append("interview_tunneled_on_one_focus")
+    if coverage.get("max_same_surface_streak", 0) > FOCUS_STREAK_CAP:
+        gate_reasons.append("same_surface_streak_exceeded")
+
+    if gate_reasons:
+        gate_reasons = list(dict.fromkeys(str(reason) for reason in gate_reasons if str(reason).strip()))
+        prior = str(gated.get("hire_recommendation") or "INSUFFICIENT_DATA")
+        gated["hire_recommendation"] = "INSUFFICIENT_DATA"
+        gated["overall_score"] = min(_safe_float(gated.get("overall_score"), 0.0), 5.0)
+        gated["confidence_score"] = min(_safe_float(gated.get("confidence_score"), 0.5), 0.45)
+        gated["verdict_basis"] = "hard_coverage_gate"
+        gated["coverage_gate"] = {
+            **existing_gate,
+            "passed": False,
+            "reasons": gate_reasons,
+            "prior_hire_recommendation": prior,
+            "assessment_coverage": coverage,
+        }
+        risk_flags.append(
+            "Assessment coverage was too narrow for a definitive hire/no-hire verdict."
+        )
+        if discrepancy_level == "confirmed":
+            risk_flags.append(
+                "Confirmed claim risk observed, but final verdict remains insufficient-data because coverage was narrow."
+            )
+        summary = str(gated.get("summary") or "").strip()
+        gate_summary = (
+            "The interview did not gather enough broad evidence for a definitive verdict; "
+            "treat this as an incomplete assessment rather than a candidate-wide rejection."
+        )
+        gated["summary"] = summary if summary.startswith(gate_summary) else f"{gate_summary} {summary}".strip()
+        gated["candidate_safe_summary"] = gated["summary"]
+        gated["recruiter_summary"] = gated.get("recruiter_summary") or gated["summary"]
+    else:
+        gated["coverage_gate"] = {
+            **existing_gate,
+            "passed": True,
+            "reasons": [],
+            "assessment_coverage": coverage,
+        }
+        gated["verdict_basis"] = gated.get("verdict_basis") or "llm_contextual_with_hard_coverage_gate"
+
+    gated["risk_flags"] = list(dict.fromkeys(str(flag) for flag in risk_flags if str(flag).strip()))
+    return gated
+
+
+def _agenda_projected_history(state: dict, current_focus_key: str, current_focus_label: str) -> list[dict]:
+    projected = list(state.get("history", []) or [])
+    if current_focus_key:
+        projected.append({"focus_key": current_focus_key, "focus_label": current_focus_label})
+    return projected
+
+
+def _focus_turn_count(history: list[dict], focus_key: str) -> int:
+    focus_key = str(focus_key or "").strip()
+    if not focus_key:
+        return 0
+    return sum(1 for turn in history if str(turn.get("focus_key") or "").strip() == focus_key)
+
+
+def _focus_evidence_turn_count(history: list[dict]) -> int:
+    return sum(1 for turn in history if str(turn.get("focus_key") or "").strip())
+
+
+def _should_force_focus_ratio_rotation(state: dict, history: list[dict], current_focus_key: str) -> bool:
+    """
+    Ratio-based anti-tunneling is only valid once we have enough focus evidence.
+    With one or two answered focus turns, every active focus looks dominant by
+    definition; firing here caused premature pivots into lower-relevance work.
+    """
+    current_focus_key = str(current_focus_key or "").strip()
+    if not current_focus_key:
+        return False
+    focus_evidence_turns = _focus_evidence_turn_count(history)
+    if focus_evidence_turns < FOCUS_RATIO_MIN_EVIDENCE_TURNS:
+        return False
+
+    agenda = ensure_interview_agenda(state)
+    primary_focus_key = str(agenda.get("primary_focus_key") or "").strip()
+    if (
+        current_focus_key == primary_focus_key
+        and _focus_turn_count(history, current_focus_key) < PRIMARY_FOCUS_MIN_EVIDENCE_TURNS
+    ):
+        return False
+
+    same_focus_total = _focus_turn_count(history, current_focus_key)
+    return (same_focus_total / max(focus_evidence_turns, 1)) > FOCUS_RATIO_CAP
+
+
+def _coverage_route_allowed(state: dict, *, current_focus_key: str = "", current_focus_label: str = "") -> bool:
+    if not state.get("application_question_served") or not isinstance(state.get("coverage_map"), dict):
+        return False
+    progress = _coverage_map_progress(state.get("coverage_map"))
+    if progress["dimensions"] <= 0:
+        return False
+    if (
+        progress["evaluated"] >= progress["dimensions"]
+        and progress["dimensions"] > 0
+        and not _coverage_depth_route_allowed(state.get("coverage_map"), state)
+    ):
+        return False
+    agenda = ensure_interview_agenda(state)
+    opening_count = int(agenda.get("coverage_opening_count") or 0)
+    if opening_count >= MAX_COVERAGE_OPENINGS and not bool(state.get("_last_coverage_dim_id")):
+        return False
+    projected_history = _agenda_projected_history(state, current_focus_key, current_focus_label)
+    if (
+        opening_count >= MIN_COVERAGE_OPENINGS_BEFORE_STREAK_PIVOT
+        and max_same_focus_streak(projected_history) > FOCUS_STREAK_CAP
+        and not bool(state.get("_last_coverage_dim_id"))
+    ):
+        return False
+    return True
+
+
+def _route_phase_from_kind(route_kind: str) -> str:
+    route_kind = str(route_kind or "")
+    if route_kind == "application_anchor_recovery":
+        return "application_transfer"
+    if route_kind == "application_grounding":
+        return "application_transfer"
+    if route_kind == "application_transfer":
+        return "application_transfer"
+    if route_kind == "coverage_depth_probe":
+        return "coverage_depth"
+    if route_kind == "coverage_surface":
+        return "coverage_surface"
+    if route_kind in {"reserve_map_question", THIRD_SURFACE_ROUTE_KIND}:
+        return "primary_depth"
+    if route_kind in {"second_anchor", "trajectory_map_bridge"}:
+        return "second_anchor"
+    if route_kind in {"graceful_exit", "synthesis_close"}:
+        return "synthesis_close"
+    if route_kind in {"sprint_opener", "warm_open", "seed_first_followup"}:
+        return "warm_open"
+    return "primary_depth"
+
+
+SECOND_ANCHOR_MAX_TURNS = 3
+SECOND_ANCHOR_MAX_PER_FOCUS = 2
+SECOND_ANCHOR_CLOSE_FLOOR = 12
+SYNTHESIS_START_FLOOR = 13
+SECOND_ANCHOR_START_FLOOR = 10
+
+
+def _next_visible_turn_number(state: dict, history: list[dict]) -> int:
+    """Return the 1-based visible question number for the next interviewer turn."""
+    # Background staging can observe ``question_count`` ahead of the answered
+    # history because the fast path increments it before the candidate answers
+    # the next question. Agenda timing floors are about visible answered turns,
+    # so history length is the stable source of truth here.
+    return len(history or []) + 1
+
+
+def _second_anchor_turns(history: list[dict]) -> list[dict]:
+    turns: list[dict] = []
+    for turn in history:
+        route = str(turn.get("route_kind") or "").strip()
+        phase = str(turn.get("agenda_phase") or "").strip()
+        if route:
+            if route == "second_anchor":
+                turns.append(turn)
+        elif phase == "second_anchor":
+            turns.append(turn)
+    return turns
+
+
+def _second_anchor_budget_exhausted(history: list[dict], ecount: int) -> bool:
+    return len(_second_anchor_turns(history)) >= SECOND_ANCHOR_MAX_TURNS or ecount >= SECOND_ANCHOR_CLOSE_FLOOR
+
+
+def _second_anchor_focus_count(history: list[dict], focus_key: str) -> int:
+    focus_key = str(focus_key or "").strip()
+    if not focus_key:
+        return 0
+    return sum(
+        1 for turn in _second_anchor_turns(history)
+        if str(turn.get("focus_key") or "").strip() == focus_key
+    )
+
+
+def _synthesis_close_count(history: list[dict]) -> int:
+    return sum(
+        1 for turn in history
+        if str(turn.get("route_kind") or turn.get("agenda_phase") or "") in {"synthesis_close", "graceful_exit"}
+        or str(turn.get("agenda_phase") or "") == "synthesis_close"
+    )
+
+
+def _select_agenda_decision(
+    state: dict,
+    *,
+    history: list[dict],
+    current_focus_key: str,
+    current_focus_label: str,
+    answered_route_kind: str,
+    weakness: dict | None,
+    discrepancy_conflict: bool,
+    honest_admission: bool,
+    force_focus_rotation: bool,
+) -> dict:
+    agenda = ensure_interview_agenda(state)
+    projected_history = _agenda_projected_history(state, current_focus_key, current_focus_label)
+    ecount = _evidence_question_count(state)
+    next_visible_turn = _next_visible_turn_number(state, history)
+    weakness_continue = True
+    if isinstance(weakness, dict) and "continue_probing" in weakness:
+        weakness_continue = bool(weakness.get("continue_probing"))
+
+    if answered_route_kind == "application_grounding":
+        return {
+            "phase": "application_transfer",
+            "route": "application_transfer",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "application_grounding_answered_transfer_ready",
+            "allow_same_focus_probe": False,
+        }
+
+    if answered_route_kind == "application_anchor_recovery" and _application_transfer_ready(state):
+        return {
+            "phase": "application_transfer",
+            "route": "application_transfer",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "application_anchor_recovery_answered_transfer_ready",
+            "allow_same_focus_probe": False,
+        }
+
+    if answered_route_kind == "application_transfer":
+        return {
+            "phase": "coverage_surface",
+            "route": "coverage",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "application_answer_requires_coverage",
+            "allow_same_focus_probe": False,
+        }
+
+    if state.get("_next_route_hint") in {"graceful_exit", "confession_pivot"}:
+        return {
+            "phase": "synthesis_close" if state.get("_next_route_hint") == "graceful_exit" else agenda.get("phase", "primary_depth"),
+            "route": str(state.get("_next_route_hint")),
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": f"route_hint_{state.get('_next_route_hint')}",
+            "allow_same_focus_probe": False,
+        }
+
+    if answered_route_kind in {"synthesis_close", "graceful_exit"} or _synthesis_close_count(history) > 0:
+        return {
+            "phase": "synthesis_close",
+            "route": "graceful_exit",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "final_synthesis_already_served",
+            "allow_same_focus_probe": False,
+        }
+
+    if _coverage_route_allowed(
+        state,
+        current_focus_key=current_focus_key,
+        current_focus_label=current_focus_label,
+    ):
+        return {
+            "phase": "coverage_surface",
+            "route": "coverage",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "coverage_required_after_application_transfer",
+            "allow_same_focus_probe": False,
+        }
+
+    if state.get("application_question_served"):
+        if _second_anchor_budget_exhausted(history, ecount):
+            if next_visible_turn >= SYNTHESIS_START_FLOOR:
+                return {
+                    "phase": "synthesis_close",
+                    "route": "synthesis_close",
+                    "focus_key": current_focus_key,
+                    "focus_label": current_focus_label,
+                    "reason": "second_anchor_budget_exhausted",
+                    "allow_same_focus_probe": False,
+                }
+            return {
+                "phase": "primary_depth",
+                "route": "phase_depth",
+                "focus_key": current_focus_key,
+                "focus_label": current_focus_label,
+                "reason": "second_anchor_budget_wait_until_synthesis_floor",
+                "allow_same_focus_probe": False,
+            }
+        second_anchor_counts: dict[str, int] = {}
+        for turn in _second_anchor_turns(history):
+            focus = str(turn.get("focus_key") or "").strip()
+            if focus:
+                second_anchor_counts[focus] = second_anchor_counts.get(focus, 0) + 1
+        if second_anchor_counts:
+            exhausted = list(agenda.get("exhausted_focus_keys") or [])
+            for focus, count in second_anchor_counts.items():
+                if count >= SECOND_ANCHOR_MAX_PER_FOCUS and focus not in exhausted:
+                    exhausted.append(focus)
+            agenda["exhausted_focus_keys"] = exhausted
+            state["interview_agenda"] = agenda
+        if not second_anchor_counts and next_visible_turn < SECOND_ANCHOR_START_FLOOR:
+            return {
+                "phase": "primary_depth",
+                "route": "phase_depth",
+                "focus_key": current_focus_key,
+                "focus_label": current_focus_label,
+                "reason": "second_anchor_wait_until_floor",
+                "allow_same_focus_probe": False,
+            }
+        next_surface = next_secondary_surface(state, avoid_focus=current_focus_key)
+        next_focus = str(next_surface.get("focus_key") or "").strip()
+        next_label = str(next_surface.get("focus_label") or next_focus).strip()
+        if next_focus:
+            if not second_anchor_counts and next_visible_turn < SECOND_ANCHOR_START_FLOOR:
+                return {
+                    "phase": "primary_depth",
+                    "route": "phase_depth",
+                    "focus_key": current_focus_key,
+                    "focus_label": current_focus_label,
+                    "reason": "second_anchor_wait_until_visible_turn_floor",
+                    "allow_same_focus_probe": False,
+                }
+            return {
+                "phase": "second_anchor",
+                "route": "second_anchor",
+                "focus_key": next_focus,
+                "focus_label": next_label,
+                "sub_focus_key": str(next_surface.get("sub_focus_key") or "").strip(),
+                "sub_focus_label": str(next_surface.get("sub_focus_label") or "").strip(),
+                "surface_kind": str(next_surface.get("surface_kind") or "").strip(),
+                "surface_key": str(next_surface.get("surface_key") or "").strip(),
+                "reason": "coverage_complete_or_capped_pivot_second_anchor",
+                "allow_same_focus_probe": False,
+            }
+        if next_visible_turn < SYNTHESIS_START_FLOOR:
+            next_focus, next_label = least_used_focus(state, avoid_focus=current_focus_key)
+            if (
+                next_visible_turn >= SECOND_ANCHOR_START_FLOOR
+                and next_focus
+                and _second_anchor_focus_count(history, next_focus) < SECOND_ANCHOR_MAX_PER_FOCUS
+            ):
+                return {
+                    "phase": "second_anchor",
+                    "route": "second_anchor",
+                    "focus_key": next_focus,
+                    "focus_label": next_label,
+                    "reason": "least_used_focus_rotation_before_close",
+                    "allow_same_focus_probe": False,
+                }
+            return {
+                "phase": "primary_depth",
+                "route": "phase_depth",
+                "focus_key": current_focus_key,
+                "focus_label": current_focus_label,
+                "reason": "no_secondary_focus_before_synthesis_floor_continue_grounded_depth",
+                "allow_same_focus_probe": False,
+            }
+        return {
+            "phase": "synthesis_close",
+            "route": "synthesis_close",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "no_secondary_focus_available",
+            "allow_same_focus_probe": False,
+        }
+
+    if _application_grounding_ready(state):
+        return {
+            "phase": "application_transfer",
+            "route": "application_grounding",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "application_grounding_needed",
+            "allow_same_focus_probe": False,
+        }
+
+    if _application_anchor_recovery_ready(state):
+        return {
+            "phase": "application_transfer",
+            "route": "application_anchor_recovery",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "application_anchor_recovery_needed",
+            "allow_same_focus_probe": False,
+        }
+
+    if _application_transfer_ready(state):
+        return {
+            "phase": "application_transfer",
+            "route": "application_transfer",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "application_transfer_ready",
+            "allow_same_focus_probe": False,
+        }
+
+    if ecount >= 5 and (state.get("application_transfer_error") or not (state.get("candidate_state") or {}).get("implementation_anchor")):
+        return {
+            "phase": "application_transfer",
+            "route": "application_transfer_blocked",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "application_transfer_required_but_not_ready",
+            "allow_same_focus_probe": False,
+        }
+
+    focus_evidence_turns = _focus_evidence_turn_count(projected_history)
+    current_focus_turns = _focus_turn_count(history, current_focus_key)
+    primary_focus_key = str(agenda.get("primary_focus_key") or "").strip()
+    before_primary_floor = (
+        bool(primary_focus_key)
+        and current_focus_key == primary_focus_key
+        and current_focus_turns < PRIMARY_FOCUS_MIN_EVIDENCE_TURNS
+    )
+    same_focus_streak_trigger = max_same_focus_streak(projected_history) > FOCUS_STREAK_CAP
+    dominant_ratio_trigger = (
+        focus_evidence_turns >= FOCUS_RATIO_MIN_EVIDENCE_TURNS
+        and dominant_focus_ratio(projected_history) > FOCUS_RATIO_CAP
+    )
+    anti_tunnel_trigger = force_focus_rotation or same_focus_streak_trigger or dominant_ratio_trigger
+    candidate_gap_trigger = honest_admission or not weakness_continue
+
+    if (
+        (anti_tunnel_trigger and not before_primary_floor)
+        or candidate_gap_trigger
+    ):
+        next_surface = next_secondary_surface(state, avoid_focus=current_focus_key)
+        next_focus = str(next_surface.get("focus_key") or "").strip()
+        next_label = str(next_surface.get("focus_label") or next_focus).strip()
+        if next_focus:
+            exhausted = list(agenda.get("exhausted_focus_keys") or [])
+            if current_focus_key and current_focus_key not in exhausted:
+                exhausted.append(current_focus_key)
+            agenda["exhausted_focus_keys"] = exhausted
+            state["interview_agenda"] = agenda
+            reason = "candidate_gap_pivot" if candidate_gap_trigger and not anti_tunnel_trigger else "anti_tunnel_or_candidate_gap_pivot"
+            return {
+                "phase": "second_anchor" if ecount >= 6 else "primary_depth",
+                "route": "focus_pivot",
+                "focus_key": next_focus,
+                "focus_label": next_label,
+                "sub_focus_key": str(next_surface.get("sub_focus_key") or "").strip(),
+                "sub_focus_label": str(next_surface.get("sub_focus_label") or "").strip(),
+                "surface_kind": str(next_surface.get("surface_kind") or "").strip(),
+                "surface_key": str(next_surface.get("surface_key") or "").strip(),
+                "reason": reason,
+                "allow_same_focus_probe": False,
+            }
+
+    if discrepancy_conflict:
+        return {
+            "phase": agenda.get("phase") or "primary_depth",
+            "route": "discrepancy_challenge",
+            "focus_key": current_focus_key,
+            "focus_label": current_focus_label,
+            "reason": "confirmed_discrepancy_budget_available",
+            "allow_same_focus_probe": True,
+        }
+
+    return {
+        "phase": "primary_depth" if ecount < 13 else "synthesis_close",
+        "route": "phase_depth",
+        "focus_key": current_focus_key or agenda.get("primary_focus_key", ""),
+        "focus_label": current_focus_label or agenda_focus_label(state.get("interview_trajectory_map") or {}, agenda.get("primary_focus_key", "")),
+        "reason": "phase_depth_allowed",
+        "allow_same_focus_probe": True,
+    }
 
 
 def _closing_phase(current_sprint: int, sprint_question_count: int) -> str:
@@ -693,6 +2284,16 @@ def _upsert_turn_skeleton(
     focus_label: str,
     route_kind: str,
     answer_version: int,
+    sub_focus_key: str = "",
+    sub_focus_label: str = "",
+    surface_kind: str = "",
+    question_posture: str = "",
+    signal_goal: str = "",
+    expected_space: list[str] | None = None,
+    covered_expected_space: list[str] | None = None,
+    missing_expected_space: list[str] | None = None,
+    coverage_dimension_id: str = "",
+    coverage_dimension_label: str = "",
 ) -> None:
     """
     Write immediate conversational memory for the just-committed candidate answer.
@@ -718,6 +2319,16 @@ def _upsert_turn_skeleton(
         "persona": persona,
         "focus_key": focus_key,
         "focus_label": focus_label,
+        "sub_focus_key": sub_focus_key,
+        "sub_focus_label": sub_focus_label,
+        "surface_kind": str(surface_kind or "").strip(),
+        "question_posture": question_posture,
+        "signal_goal": signal_goal,
+        "expected_space": list(expected_space or [])[:4],
+        "covered_expected_space": list(covered_expected_space or [])[:4],
+        "missing_expected_space": list(missing_expected_space or expected_space or [])[:4],
+        "coverage_dimension_id": str(coverage_dimension_id or "").strip(),
+        "coverage_dimension_label": str(coverage_dimension_label or "").strip(),
         "answer_version": answer_version,
         "route_kind": route_kind,
         "analysis_status": "pending",
@@ -739,7 +2350,7 @@ class Orchestrator:
     │  2. Serve fast response — priority:                                        │
     │     a) prepped_next_question (adversarial probe, instant, no LLM)         │
     │     b) bank follow-up via adapt_followup() (Haiku, ~300ms)                │
-    │     c) sprint fallback template (instant, no LLM)                         │
+    │     c) fail closed when neither map nor staged LLM question is available  │
     │  3. Update canonical counters (question_count, sprint_question_count)      │
     │  4. Kick off background pipeline as asyncio.create_task                   │
     │  5. Return — candidate hears a response in ≤500ms                         │
@@ -766,6 +2377,7 @@ class Orchestrator:
         self.evaluation_agent = EvaluationAgent()
         self.resume_agent = ResumeAgent()
         self.reasoning_agent = ReasoningBehaviorAgent()
+        self.policy_checker_agent = PolicyCheckerAgent()
         self.tts_service = tts_service  # Optional — enables audio pre-generation
 
         # In-memory inflight guard for _run_background_pipeline.
@@ -782,6 +2394,7 @@ class Orchestrator:
         self._partial_snapshot_meta: dict[str, dict] = {}
         self._speculative_locks: dict[str, asyncio.Lock] = {}
         self._finalization_inflight: set[str] = set()
+        self._hydration_inflight: set[str] = set()
 
     async def _trace(self, session_id: str, event: str, **fields) -> None:
         await interview_telemetry.log(session_id, event, source="backend.orchestrator", **fields)
@@ -830,7 +2443,7 @@ class Orchestrator:
         opening_packet = _build_question_packet(
             question_text=SPRINT_OPENERS[1],
             sprint=1,
-            route_kind="sprint_opener",
+            route_kind="warm_open",
             parsed_resume=parsed_resume,
             resume=resume,
             followups=opening_followups,
@@ -843,6 +2456,7 @@ class Orchestrator:
             "current_persona": "curious_lead",
             "sprint_name": SPRINTS[1]["name"],
             "question_count": 0,
+            "evidence_question_count": 0,
             "sprint_question_count": 0,
             "interview_start_time": None,
             "interview_started": False,
@@ -892,6 +2506,7 @@ class Orchestrator:
             "interview_map_error": "",
             "interview_map_validation": {},
             "interview_map_prepared_at": None,
+            "interview_agenda": initial_interview_agenda({}),
             "candidate_state": {
                 "disengagement_level": 0.0,
                 "consecutive_no_content": 0,
@@ -908,6 +2523,7 @@ class Orchestrator:
                 "second_domain_surfaced": None,
                 "_save_face_pivot_used": False,
             },
+            "application_transfer_arc": _ensure_application_transfer_arc({}),
         }
 
     async def prepare_session_map(
@@ -928,7 +2544,7 @@ class Orchestrator:
             years_experience=years_experience,
         )
         if not isinstance(parsed_resume, dict):
-            parsed_resume = {}
+            raise RuntimeError("Resume parsing returned non-JSON output; refusing empty parsed_resume fallback.")
         if isinstance(prior_assessment_context, dict) and prior_assessment_context:
             parsed_resume["prior_assessment_context"] = prior_assessment_context
         if prior_assessment_prompt.strip():
@@ -973,25 +2589,23 @@ class Orchestrator:
         focus_areas = ((state.get("interview_trajectory_map") or {}).get("focus_areas", []) or [])
         if not focus_areas:
             raise RuntimeError("Interview map missing after preparation")
+        ensure_interview_agenda(state)
 
         if not state.get("prepped_next_question"):
-            try:
-                await self._seed_first_question(session_id)
-            except Exception as exc:
-                print(f"[Seed] start_prepared_session seed failure for {session_id[:8]}: {exc}")
+            await self._seed_first_question(session_id)
 
         state = await self.session_manager.get_state(session_id)
 
         # Q0 = broad story opener (Phase 1, Q1). The map's directional opener fires at Q2
         # once the candidate has told their story and _seed_first_question has seeded Q1.
-        first_map_opener = (focus_areas[0].get("opener") or "").strip() if focus_areas else ""
+        first_map_opener = _track_opener(focus_areas[0]) if focus_areas and isinstance(focus_areas[0], dict) else ""
         if first_map_opener:
             composed_opener = SPRINT_OPENERS[1]
             state["last_question"] = composed_opener
             state["active_question_packet"] = _build_question_packet(
                 question_text=composed_opener,
                 sprint=1,
-                route_kind="sprint_opener",
+                route_kind="warm_open",
                 parsed_resume=state.get("parsed_resume"),
                 resume=state.get("resume", ""),
                 followups=[],
@@ -1026,8 +2640,28 @@ class Orchestrator:
                 await self.session_manager.save_state(session_id, state)
             return state
 
+        if state.get("finalization_status") == "running" or session_id in self._finalization_inflight:
+            started_running_at = _safe_float(state.get("finalization_started_at"), 0.0)
+            stale_after_seconds = float(os.getenv("FINALIZATION_STALE_AFTER_SECONDS", "240"))
+            if started_running_at and time.time() - started_running_at < stale_after_seconds:
+                for _ in range(240):
+                    await asyncio.sleep(0.5)
+                    latest = await self.session_manager.get_state(session_id)
+                    if latest.get("final_evaluation") and latest.get("interview_complete"):
+                        if latest.get("finalization_status") != "complete" or not latest.get("report_ready"):
+                            latest["finalization_status"] = "complete"
+                            latest["finalization_error"] = ""
+                            latest["report_ready"] = True
+                            await self.session_manager.save_state(session_id, latest)
+                        return latest
+                    if latest.get("finalization_status") in {"complete", "failed"}:
+                        return latest
+                return await self.session_manager.get_state(session_id)
+
+        self._finalization_inflight.add(session_id)
         state["interview_complete"] = True
         state["finalization_status"] = "running"
+        state["finalization_started_at"] = time.time()
         state["finalization_error"] = ""
         state["report_ready"] = False
         await self.session_manager.save_state(session_id, state)
@@ -1068,6 +2702,17 @@ class Orchestrator:
         state.pop("latest_turn_versions", None)
 
         history = state.get("history", [])
+        if len(history) > int(state.get("question_count") or 0):
+            state["question_count"] = len(history)
+        if len(history) > int(state.get("evidence_question_count") or 0):
+            state["evidence_question_count"] = max(
+                int(state.get("evidence_question_count") or 0),
+                sum(
+                    1
+                    for turn in history
+                    if _counts_toward_evidence_budget(turn.get("route_kind"))
+                ),
+            )
         if history:
             reasoning_signals = [
                 h.get("reasoning_behavior", {})
@@ -1076,8 +2721,10 @@ class Orchestrator:
             ]
             per_answer_scores = self._per_answer_scores.pop(session_id, [])
             weaknesses = state.get("weaknesses", [])
-            unique_types = len({w.get("type") for w in weaknesses if w.get("type")})
-            coverage_ratio = unique_types / max(len(weaknesses), 1) if weaknesses else 1.0
+            state["assessment_coverage"] = _assessment_coverage(state)
+            coverage_ratio = float(state["assessment_coverage"].get("coverage_score") or 0.0)
+            if coverage_ratio <= 0:
+                coverage_ratio = 0.25 if state.get("application_question_served") else 0.0
 
             # Aggregate discrepancy_level from history — "confirmed" if any turn had a confirmed conflict
             _has_confirmed_discrepancy = any(
@@ -1099,28 +2746,114 @@ class Orchestrator:
                 years_experience=state.get("years_experience", ""),
                 parsed_resume=state.get("parsed_resume", {}),
                 coverage_map=state.get("coverage_map"),
+                assessment_coverage=state["assessment_coverage"],
                 discrepancy_level=_discrepancy_level,
-                disengagement_level=float(_candidate_state.get("disengagement_level", 0.0)),
+                disengagement_level=_safe_float(_candidate_state.get("disengagement_level"), 0.0),
                 disengagement_triggered=bool(_candidate_state.get("forced_exit_triggered", False)),
+            )
+            evaluation = _apply_hard_coverage_gate(
+                evaluation,
+                state["assessment_coverage"],
+                discrepancy_level=_discrepancy_level,
             )
             state["final_evaluation"] = evaluation
             state["scores"] = evaluation.get("breakdown", {})
             state["failure_surface"] = evaluation.get("failure_surface", {})
+        else:
+            state["assessment_coverage"] = _assessment_coverage(state)
+            state["final_evaluation"] = {
+                "schema_version": "final_report_v2",
+                "overall_score": 0,
+                "breakdown": {
+                    "reasoning": "inconclusive",
+                    "technical_depth": "inconclusive",
+                    "communication": "inconclusive",
+                    "adaptability": "inconclusive",
+                },
+                "failure_surface": {},
+                "hire_recommendation": "INSUFFICIENT_DATA",
+                "confidence_score": 0.1,
+                "summary": "No candidate answers were captured, so the interview cannot produce a substantive assessment.",
+                "risk_flags": ["Interview completed without captured candidate turns."],
+                "strengths": [],
+                "claim_credibility_risk": {
+                    "level": "not_tested",
+                    "detail": "No resume claims were tested.",
+                },
+                "untested_dimensions": ["all"],
+                "coverage_gate": {
+                    "passed": False,
+                    "reasons": ["empty_history"],
+                    "assessment_coverage": state["assessment_coverage"],
+                },
+                "interview_quality": {
+                    "score": 0.0,
+                    "band": "poor",
+                    "fairness_warnings": ["empty_history"],
+                    "tunneling_detected": False,
+                },
+                "confidence_band": {"low": 0.0, "point": 0.0, "high": 1.0},
+                "role_fit_profile": {
+                    "target_role_fit": "inconclusive",
+                    "best_fit_archetype": "unclear",
+                    "strongest_signal": "",
+                    "largest_unresolved_risk": "No candidate answers were captured.",
+                    "alternate_fit_notes": "",
+                },
+                "ability_profile": {
+                    "strongest_verified_signal": "",
+                    "weakest_verified_signal": "",
+                    "alternate_fit_archetypes": [],
+                    "target_role_fit": "inconclusive",
+                    "role_fit_explanation": "No evidence was captured.",
+                },
+                "resume_claim_calibration": {
+                    "claims_tested": [],
+                    "claims_substantiated": [],
+                    "claims_partially_substantiated": [],
+                    "claims_not_substantiated": [],
+                    "claims_untested": [],
+                    "impact_on_verdict": "inconclusive",
+                },
+                "lens_findings": {},
+                "tested_strengths": [],
+                "tested_risks": ["Interview completed without captured candidate turns."],
+                "claim_findings": [],
+                "recommended_followups": ["Repeat the interview with captured candidate answers."],
+                "candidate_safe_summary": "No candidate answers were captured, so the interview cannot produce a substantive assessment.",
+                "recruiter_summary": "No candidate answers were captured, so the interview cannot produce a substantive assessment.",
+                "review_reconciliation": {
+                    "reviewer_concerns": [],
+                    "accepted_changes": ["Empty interview guard applied."],
+                    "rejected_changes": [],
+                    "review_model": "not_run",
+                },
+                "verdict_basis": "empty_interview_guard",
+            }
+            state["scores"] = state["final_evaluation"]["breakdown"]
+            state["failure_surface"] = {}
 
         state["finalization_status"] = "complete"
         state["finalization_error"] = ""
         state["report_ready"] = bool(state.get("final_evaluation"))
+        if state["interview_complete"] and state["finalization_status"] == "complete" and not state["report_ready"]:
+            state["finalization_status"] = "failed"
+            state["finalization_error"] = "Finalization completed without a report."
+        should_trace_session_end = not bool(state.get("session_end_trace_emitted"))
+        state["session_end_trace_emitted"] = True
         await self.session_manager.save_state(session_id, state)
+        self._finalization_inflight.discard(session_id)
         self._partial_entities.pop(session_id, None)
         self._partial_snapshot_meta.pop(session_id, None)
-        await self._trace(
-            session_id,
-            "session_ended",
-            question_count=state.get("question_count", 0),
-            history_len=len(state.get("history", [])),
-            sprint=state.get("current_sprint", 1),
-            elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
-        )
+        if should_trace_session_end:
+            await self._trace(
+                session_id,
+                "session_ended",
+                question_count=state.get("question_count", 0),
+                history_len=len(state.get("history", [])),
+                sprint=state.get("current_sprint", 1),
+                elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
+            )
 
         try:
             evaluation = state.get("final_evaluation") or {}
@@ -1141,11 +2874,26 @@ class Orchestrator:
                 "overall_score": evaluation.get("overall_score"),
                 "hire_recommendation": evaluation.get("hire_recommendation"),
                 "confidence_score": evaluation.get("confidence_score"),
+                "schema_version": evaluation.get("schema_version", "legacy_report"),
+                "confidence_band": evaluation.get("confidence_band"),
                 "summary": evaluation.get("summary"),
                 "strengths": evaluation.get("strengths", []),
                 "risk_flags": evaluation.get("risk_flags", []),
                 "untested_dimensions": evaluation.get("untested_dimensions", []),
                 "claim_credibility_risk": evaluation.get("claim_credibility_risk", {"level": "not_tested", "detail": ""}),
+                "coverage_gate": evaluation.get("coverage_gate"),
+                "interview_quality": evaluation.get("interview_quality"),
+                "role_fit_profile": evaluation.get("role_fit_profile"),
+                "ability_profile": evaluation.get("ability_profile"),
+                "resume_claim_calibration": evaluation.get("resume_claim_calibration"),
+                "lens_findings": evaluation.get("lens_findings"),
+                "tested_strengths": evaluation.get("tested_strengths", []),
+                "tested_risks": evaluation.get("tested_risks", []),
+                "claim_findings": evaluation.get("claim_findings", []),
+                "recommended_followups": evaluation.get("recommended_followups", []),
+                "candidate_safe_summary": evaluation.get("candidate_safe_summary", evaluation.get("summary")),
+                "recruiter_summary": evaluation.get("recruiter_summary", evaluation.get("summary")),
+                "review_reconciliation": evaluation.get("review_reconciliation"),
                 "scores": evaluation.get("breakdown", state.get("scores", {})),
                 "failure_surface": evaluation.get("failure_surface", state.get("failure_surface", {})),
                 "weakness_summary": weakness_by_type,
@@ -1159,8 +2907,8 @@ class Orchestrator:
                 session_id=session_id,
                 resume_snippet=state.get("resume", "")[:200],
                 hire_recommendation=evaluation.get("hire_recommendation", ""),
-                overall_score=float(evaluation.get("overall_score") or 0),
-                sprint_reached=int(state.get("current_sprint", 1)),
+                overall_score=_safe_float(evaluation.get("overall_score"), 0.0),
+                sprint_reached=_coerce_positive_int(state.get("current_sprint", 1), default=1),
                 duration_minutes=round(duration, 1),
                 full_report=full_report,
             ))
@@ -1224,6 +2972,16 @@ class Orchestrator:
         session_id: str,
         question: str,
         answer: str,
+        *,
+        turn_id: str = "",
+        turn_number: int = 0,
+        route_kind: str = "",
+        focus_key: str = "",
+        focus_label: str = "",
+        sub_focus_key: str = "",
+        sub_focus_label: str = "",
+        weakness: dict | None = None,
+        reasoning: dict | None = None,
         target_role: str = "",
         years_experience: str = "",
     ):
@@ -1239,9 +2997,22 @@ class Orchestrator:
                 if session_id not in self._per_answer_scores:
                     self._per_answer_scores[session_id] = []
                 self._per_answer_scores[session_id].append({
+                    "turn_id": turn_id,
+                    "turn_number": turn_number,
                     "question": question[:100],
+                    "answer_excerpt": answer[:240],
+                    "route_kind": route_kind,
+                    "focus_key": focus_key,
+                    "focus_label": focus_label,
+                    "sub_focus_key": sub_focus_key,
+                    "sub_focus_label": sub_focus_label,
                     "score": score.get("score", 0),
                     "breakdown": score.get("breakdown", {}),
+                    "confidence": score.get("confidence", 0.0),
+                    "weakness_type": weakness.get("type") if isinstance(weakness, dict) else "",
+                    "weakness_severity": weakness.get("severity") if isinstance(weakness, dict) else "",
+                    "reasoning_structure_score": reasoning.get("structure_score") if isinstance(reasoning, dict) else None,
+                    "reasoning_adaptability": reasoning.get("adaptability") if isinstance(reasoning, dict) else "",
                 })
         except Exception:
             pass
@@ -1252,34 +3023,167 @@ class Orchestrator:
         phase2_text: str,
         state: dict,
     ) -> str | None:
-        """Extract the single most specific implementation detail from Phase 2 narration."""
+        """Extract the strongest grounded transfer anchor from Phase 2 narration."""
         if not phase2_text or len(phase2_text.split()) < 10:
             return None
         from backend.models.llm_router import LLMRouter
         llm = LLMRouter(tier="small")
         prompt = (
-            "From the following interview response, extract the single most specific "
-            "implementation detail the candidate described — what they personally built, "
-            "wrote, or figured out, at implementation level (not what the system does, "
-            "but what they made). Return one sentence. If no specific detail exists, "
+            "From the following interview response, extract the strongest grounded transfer anchor "
+            "for an application-transfer question. Prefer live evidence: a decision, metric, "
+            "product/technical tradeoff, system behavior, role-relevant scope, or explicit ownership "
+            "only when the candidate actually stated it. Do not make ownership the main criterion. "
+            "Do not invent hidden implementation details. If ownership is unclear, phrase it as "
+            "the work or claim they discussed rather than what they personally built. Return one sentence. "
+            "If no concrete grounded transfer anchor exists, "
             f"return empty string.\n\nCandidate said:\n{phase2_text[:1200]}"
         )
         try:
-            result = await llm.call(system="You extract specific implementation details from interview responses.", user=prompt, max_tokens=150)
+            result = await llm.call(system="You extract grounded transfer anchors from interview responses without adding unsupported implementation assumptions.", user=prompt, max_tokens=150)
             text = result if isinstance(result, str) else str(result)
-            text = text.strip()
+            text = text.strip().strip('"').strip()
+            if re.search(
+                r"\b(no specific implementation|contains no specific|provided no specific|no concrete technical|no implementation detail|lack of concrete)\b",
+                text,
+                flags=re.IGNORECASE,
+            ):
+                return None
             return text if len(text) > 20 else None
         except Exception as e:
             print(f"[Orchestrator] _extract_implementation_anchor failed: {e}")
-            return None
+            raise
 
-    async def _generate_application_transfer(self, session_id: str, state: dict) -> None:
+    def _select_resume_application_anchor(self, state: dict, current_focus_key: str = "") -> dict:
+        """
+        Select a role-relevant map/resume anchor only after the primary live-answer
+        application-transfer path has failed. This is not a deterministic question
+        fallback; it only chooses the claim that the LLM must transfer from.
+        """
+        interview_map = state.get("interview_trajectory_map") or {}
+        focus_areas = interview_map.get("focus_areas") or []
+        if not isinstance(focus_areas, list):
+            focus_areas = []
+
+        target_role = str(state.get("target_role") or "").lower()
+        role_terms = {
+            token for token in re.findall(r"[a-z0-9]+", target_role)
+            if len(token) > 2 and token not in {"the", "and", "for", "with", "role"}
+        }
+        current_focus_key = str(current_focus_key or "").strip()
+
+        scored: list[tuple[float, int, dict]] = []
+        for index, area in enumerate(focus_areas):
+            if not isinstance(area, dict):
+                continue
+            focus_key = str(area.get("focus_key") or "").strip()
+            if not focus_key or focus_key in {"general", "general_background", "general background"}:
+                continue
+            label = str(area.get("label") or focus_key).strip()
+            anchor_context = str(area.get("anchor_context") or "").strip()
+            opener = _track_opener(area)
+            snippets = [str(s).strip() for s in (area.get("resume_snippets") or []) if str(s).strip()]
+            haystack = " ".join([label, anchor_context, opener, *snippets]).lower()
+            score = 0.0
+            # Current focus is useful context, but it must not overpower the
+            # map-authored role relevance and coverage value.
+            if focus_key == current_focus_key:
+                score += 1.0
+            score += max(0, 4 - index) * 0.75
+            if str(area.get("track_source") or area.get("source") or "").lower() == "llm":
+                score += 2.0
+            score += min(len(_track_dimensions(area)), 5) * 0.4
+            score += sum(1.0 for term in role_terms if term in haystack)
+            sub_focuses = area.get("sub_focuses") or []
+            if isinstance(sub_focuses, list) and sub_focuses:
+                role_weights: list[float] = []
+                coverage_values: list[float] = []
+                for surface in sub_focuses:
+                    if not isinstance(surface, dict):
+                        continue
+                    try:
+                        role_weights.append(float(surface.get("role_relevance_weight") or surface.get("role_relevance") or 1.5))
+                    except (TypeError, ValueError):
+                        role_weights.append(1.5)
+                    try:
+                        coverage_values.append(float(surface.get("coverage_value") or surface.get("priority_weight") or 1.5))
+                    except (TypeError, ValueError):
+                        coverage_values.append(1.5)
+                if role_weights:
+                    score += max(0.0, min(3.0, max(role_weights))) * 1.4
+                    if max(role_weights) < 1.5:
+                        score -= 1.5
+                if coverage_values:
+                    score += max(0.0, min(3.0, max(coverage_values))) * 1.2
+                    if max(coverage_values) < 1.5:
+                        score -= 1.0
+            if any(char.isdigit() for char in haystack):
+                score += 1.0
+            scored.append((score, -index, area))
+
+        if not scored:
+            parsed_resume = state.get("parsed_resume") or {}
+            claims = []
+            for claim in parsed_resume.get("claims") or []:
+                if isinstance(claim, dict):
+                    text = str(claim.get("text") or "").strip()
+                    if text:
+                        claims.append(text)
+                elif isinstance(claim, str) and claim.strip():
+                    claims.append(claim.strip())
+            if claims:
+                return {
+                    "anchor": claims[0],
+                    "candidate_domain": state.get("target_role", ""),
+                    "resume_snippets": claims[:5],
+                    "focus_key": "",
+                    "focus_label": "Resume claim fallback",
+                    "anchor_source": "resume_focus_fallback",
+                }
+            return {}
+
+        scored.sort(key=lambda row: (row[0], row[1]), reverse=True)
+        area = scored[0][2]
+        label = str(area.get("label") or area.get("focus_key") or "resume focus").strip()
+        snippets = [str(s).strip() for s in (area.get("resume_snippets") or []) if str(s).strip()]
+        anchor_parts = [
+            label,
+            str(area.get("anchor_context") or "").strip(),
+            _track_opener(area),
+        ]
+        anchor = " — ".join(part for part in anchor_parts if part)
+        if snippets:
+            anchor = f"{anchor}\nEvidence snippets:\n" + "\n".join(f"- {s}" for s in snippets[:3])
+        return {
+            "anchor": anchor[:1600],
+            "candidate_domain": label,
+            "resume_snippets": snippets[:5],
+            "focus_key": str(area.get("focus_key") or ""),
+            "focus_label": label,
+            "anchor_source": "resume_focus_fallback",
+        }
+
+    async def _generate_application_transfer(
+        self,
+        session_id: str,
+        state: dict,
+        *,
+        allow_resume_anchor_fallback: bool = False,
+        current_focus_key: str = "",
+    ) -> None:
         """Background task: generate application transfer question + coverage map."""
         try:
             cs = state.get("candidate_state") or {}
             anchor = cs.get("implementation_anchor")
+            anchor_source = "live_answer"
+            fallback_anchor = {}
             if not anchor:
-                return
+                if not allow_resume_anchor_fallback:
+                    return
+                fallback_anchor = self._select_resume_application_anchor(state, current_focus_key=current_focus_key)
+                anchor = fallback_anchor.get("anchor")
+                if not anchor:
+                    return
+                anchor_source = fallback_anchor.get("anchor_source", "resume_focus_fallback")
 
             from backend.agents.application_agent import ApplicationAgent
             agent = ApplicationAgent()
@@ -1292,14 +3196,23 @@ class Orchestrator:
                         resume_snippets.append(t)
                 elif isinstance(claim, str) and claim.strip():
                     resume_snippets.append(claim.strip())
+            if fallback_anchor.get("resume_snippets"):
+                resume_snippets = list(fallback_anchor.get("resume_snippets") or []) + resume_snippets
 
-            # Derive candidate domain from most recent history turn's focus_key
-            _history = state.get("history", [])
-            _candidate_domain = ""
-            for _h in reversed(_history):
-                if _h.get("focus_key"):
-                    _candidate_domain = _h["focus_key"]
-                    break
+            target_role = str(state.get("target_role") or "").strip()
+            _candidate_domain = " / ".join(
+                part for part in [
+                    target_role,
+                    str(fallback_anchor.get("candidate_domain") or "").strip(),
+                ]
+                if part
+            )
+            if not _candidate_domain:
+                _history = state.get("history", [])
+                for _h in reversed(_history):
+                    if _h.get("focus_label") or _h.get("focus_key"):
+                        _candidate_domain = str(_h.get("focus_label") or _h.get("focus_key") or "")
+                        break
 
             coverage_map = await agent.generate(
                 implementation_anchor=anchor,
@@ -1307,19 +3220,46 @@ class Orchestrator:
                 target_role=state.get("target_role", ""),
                 years_experience=state.get("years_experience", "mid"),
                 resume_snippets=resume_snippets,
+                anchor_source=anchor_source,
             )
-            if coverage_map:
-                fresh_state = await self.session_manager.get_state(session_id)
-                if not fresh_state.get("interview_complete"):
-                    fresh_state["coverage_map"] = coverage_map.to_dict()
-                    fresh_state["prepped_application_question"] = coverage_map.application_question
-                    await self.session_manager.save_state(session_id, fresh_state)
-                    print(f"[AppTransfer] Coverage map staged for {session_id} — {len(coverage_map.dimensions)} dims")
-                    await self._trace(session_id, "application_transfer_staged",
-                                      dims=len(coverage_map.dimensions),
-                                      anchor_chars=len(anchor))
+            fresh_state = await self.session_manager.get_state(session_id)
+            if not fresh_state.get("interview_complete"):
+                if anchor_source == "resume_focus_fallback":
+                    fresh_state.setdefault("candidate_state", {})["implementation_anchor"] = anchor
+                    fresh_state.setdefault("candidate_state", {})["anchor_confidence"] = "fallback_resume_claim"
+                    fresh_state["application_transfer_anchor_source"] = anchor_source
+                    fresh_state["application_transfer_fallback_focus_key"] = fallback_anchor.get("focus_key", "")
+                    fresh_state["application_transfer_fallback_focus_label"] = fallback_anchor.get("focus_label", "")
+                fresh_state["coverage_map"] = coverage_map.to_dict()
+                fresh_state["prepped_application_question"] = coverage_map.application_question
+                arc = _ensure_application_transfer_arc(fresh_state)
+                arc["grounding_needed"] = bool(coverage_map.grounding_needed and coverage_map.grounding_question)
+                arc["grounding_question"] = coverage_map.grounding_question if arc["grounding_needed"] else ""
+                arc["max_depth_level"] = coverage_map.max_depth_level
+                arc["depth_allowed_terms"] = list(coverage_map.depth_allowed_terms or [])[:12]
+                fresh_state["application_transfer_arc"] = arc
+                repair_verification = getattr(agent, "last_repair_verification", {}) or {}
+                if isinstance(repair_verification, dict):
+                    fresh_state["application_transfer_repair_verification"] = repair_verification
+                fresh_state.pop("application_transfer_error", None)
+                await self.session_manager.save_state(session_id, fresh_state)
+                print(f"[AppTransfer] Coverage map staged for {session_id} — {len(coverage_map.dimensions)} dims")
+                await self._trace(session_id, "application_transfer_staged",
+                                  dims=len(coverage_map.dimensions),
+                                  anchor_chars=len(anchor),
+                                  anchor_source=anchor_source,
+                                  repair_attempted=bool(repair_verification.get("repair_attempted")) if isinstance(repair_verification, dict) else False,
+                                  repair_accepted=repair_verification.get("repair_accepted") if isinstance(repair_verification, dict) else None,
+                                  repair_attempts=len(repair_verification.get("attempts") or []) if isinstance(repair_verification, dict) else 0)
         except Exception as e:
             print(f"[Orchestrator] Application transfer generation failed: {e}")
+            try:
+                fresh_state = await self.session_manager.get_state(session_id)
+                fresh_state["application_transfer_error"] = f"{type(e).__name__}: {str(e)[:300]}"
+                await self.session_manager.save_state(session_id, fresh_state)
+            except Exception:
+                pass
+            raise
 
     async def _generate_live_q4_candidates(
         self, session_id: str, q3_answer: str, state: dict
@@ -1332,7 +3272,7 @@ class Orchestrator:
                 primary_anchor = (focus_areas[0].get("anchor_context") or "").strip()
 
             target_role = state.get("target_role", "")
-            from backend.models.llm_router import LLMRouter
+            from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
             prompt = (
                 f"You are generating adaptive follow-up questions for a technical interview.\n\n"
                 f"Role: {target_role}\n"
@@ -1351,16 +3291,19 @@ class Orchestrator:
                 system="You generate precise, human-sounding follow-up interview questions.",
                 user=prompt,
                 max_tokens=300,
+                response_format=JSON_OBJECT_FORMAT,
             )
-            data = raw if isinstance(raw, dict) else None
-            if isinstance(data, dict):
-                candidates = data.get("live_q4_candidates") or []
-                if candidates:
-                    current_state = await self.session_manager.get_state(session_id)
-                    current_state["live_q4_candidates"] = [str(c) for c in candidates[:2]]
-                    await self.session_manager.save_state(session_id, current_state)
+            if not isinstance(raw, dict):
+                raise RuntimeError("Live Q4 generation returned non-JSON output.")
+            candidates = raw.get("live_q4_candidates") or []
+            if not candidates:
+                raise RuntimeError("Live Q4 generation returned no candidates.")
+            current_state = await self.session_manager.get_state(session_id)
+            current_state["live_q4_candidates"] = [str(c) for c in candidates[:2]]
+            await self.session_manager.save_state(session_id, current_state)
         except Exception as e:
             print(f"[Orchestrator] Live Q4 generation failed: {e}")
+            raise
 
     async def _evaluate_coverage_dimension(
         self,
@@ -1374,7 +3317,7 @@ class Orchestrator:
         recovery_depth: "deep" | "surface" | None
         """
         from backend.models.coverage_map import AnswerCoverageMap
-        from backend.models.llm_router import LLMRouter
+        from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
         cmap = AnswerCoverageMap.from_dict(coverage_map_dict)
         dim = next((d for d in cmap.dimensions if d.id == dimension_id), None)
         if not dim:
@@ -1388,8 +3331,8 @@ class Orchestrator:
             f"Expected approaches (any of these count): {approaches}\n\n"
             f"Candidate response: {candidate_response[:600]}\n\n"
             "Did the candidate address this dimension?\n"
-            "- full: addressed with specific mechanism or implementation detail\n"
-            "- partial: named the concept but couldn't explain how to implement\n"
+            "- full: addressed with specific reasoning, mechanism, or concrete operating detail\n"
+            "- partial: named the concept but did not explain it concretely\n"
             "- not_covered: didn't address it at all when prompted\n"
             "- incorrect: addressed it but with a conceptual error\n"
             "Use semantic matching — different terminology is fine if the concept is correct.\n"
@@ -1400,11 +3343,13 @@ class Orchestrator:
                 system="You evaluate whether a candidate's answer addresses a specific technical dimension.",
                 user=prompt,
                 max_tokens=100,
+                response_format=JSON_OBJECT_FORMAT,
             )
-            data = result if isinstance(result, dict) else {}
-            coverage = data.get("coverage", "not_covered")
+            if not isinstance(result, dict):
+                raise RuntimeError("Coverage dimension evaluator returned non-JSON output.")
+            coverage = result.get("coverage", "not_covered")
         except Exception:
-            coverage = "not_covered"
+            raise
 
         state_map: dict[str, tuple[str, str | None]] = {
             "full":        ("recovered_deep",    "deep"),
@@ -1424,7 +3369,7 @@ class Orchestrator:
         Returns dimension_id -> coverage_state, with full answers marked voluntary.
         """
         from backend.models.coverage_map import AnswerCoverageMap
-        from backend.models.llm_router import LLMRouter
+        from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
 
         cmap = AnswerCoverageMap.from_dict(coverage_map_dict)
         if not cmap.dimensions:
@@ -1443,11 +3388,11 @@ class Orchestrator:
             "The candidate just answered an application-transfer question.\n"
             "Classify which expected dimensions they addressed without being prompted dimension-by-dimension.\n\n"
             f"Application question: {cmap.application_question}\n"
-            f"Implementation anchor: {cmap.implementation_anchor}\n"
+            f"Grounded transfer anchor: {cmap.implementation_anchor}\n"
             f"Dimensions: {dimensions_payload}\n\n"
             f"Candidate response:\n{candidate_response[:1400]}\n\n"
             "For each dimension, classify coverage as:\n"
-            "- full: addressed with specific reasoning, mechanism, or implementation detail\n"
+            "- full: addressed with specific reasoning, mechanism, or concrete operating detail\n"
             "- partial: gestured at the concept but did not explain it concretely\n"
             "- not_covered: did not address it\n"
             "- incorrect: addressed it with a conceptual error\n"
@@ -1458,11 +3403,15 @@ class Orchestrator:
                 system="You evaluate coverage of an interview answer against expected dimensions.",
                 user=prompt,
                 max_tokens=700,
+                response_format=JSON_OBJECT_FORMAT,
             )
-            data = result if isinstance(result, dict) else {}
-            rows = data.get("dimensions") or []
+            if not isinstance(result, dict):
+                raise RuntimeError("Application coverage evaluator returned non-JSON output.")
+            rows = result.get("dimensions") or []
+            if not isinstance(rows, list):
+                raise RuntimeError("Application coverage evaluator returned invalid dimensions list.")
         except Exception:
-            rows = []
+            raise
 
         mapped: dict[str, str] = {}
         state_map = {
@@ -1581,7 +3530,7 @@ class Orchestrator:
 
         On every committed utterance:
           1. Consume staged analysis from previous background run → apply to canonical state
-          2. Serve fast response (prepped probe → bank follow-up → sprint fallback)
+          2. Serve fast response (prepped probe → bank follow-up → map-backed question)
           3. Update canonical counters
           4. Kick off background pipeline (runs during candidate's next answer)
           5. Return immediately
@@ -1602,6 +3551,31 @@ class Orchestrator:
         if state.get("interview_complete"):
             return {"response": "The interview has concluded. Thank you.", "complete": True, "turn_id": turn_id}
 
+        if (
+            state.get("application_transfer_error")
+            and not state.get("application_question_served")
+            and _evidence_question_count(state) >= 5
+        ):
+            if _application_anchor_recovery_ready(state):
+                pass
+            elif not state.get("application_transfer_fallback_attempted"):
+                state["application_transfer_fallback_attempted"] = True
+                await self.session_manager.save_state(session_id, state)
+                agenda = ensure_interview_agenda(state)
+                await self._generate_application_transfer(
+                    session_id,
+                    state,
+                    allow_resume_anchor_fallback=True,
+                    current_focus_key=str(agenda.get("current_focus_key") or ""),
+                )
+                state = await self.session_manager.get_state(session_id)
+            if _application_anchor_recovery_ready(state):
+                pass
+            elif not _application_transfer_ready(state) and not _application_grounding_ready(state):
+                raise RuntimeError(
+                    "Application transfer failed before the agenda deadline: "
+                    f"{str(state.get('application_transfer_error'))[:300]}"
+                )
         is_turn_revision = bool(turn_id and turn_id == state.get("current_answer_turn_id"))
         current_answer_version = (
             state.get("current_answer_version", 0) + 1
@@ -1751,9 +3725,54 @@ class Orchestrator:
                 followups=list(state.get("current_question_followups") or []),
                 source_turn_number=max(state.get("question_count", 0), 0),
             )
+        answered_route_kind_for_count = str((active_packet or {}).get("route_kind", "") or "")
+        if answered_route_kind_for_count == "application_grounding" and not is_turn_revision:
+            arc = _ensure_application_transfer_arc(state)
+            depth_level, allowed_terms = _infer_grounding_depth(
+                text,
+                max_depth_level=int(arc.get("max_depth_level") or 3),
+            )
+            existing_terms = list(arc.get("depth_allowed_terms") or [])
+            arc.update({
+                "grounding_answer": text[:800],
+                "grounding_done": True,
+                "confirmed_depth_level": depth_level,
+                "depth_allowed_terms": list(dict.fromkeys(existing_terms + allowed_terms))[:12],
+            })
+            state["application_transfer_arc"] = arc
+            state.setdefault("candidate_state", {})["application_transfer_depth_level"] = depth_level
+            state.setdefault("candidate_state", {})["application_transfer_depth_terms"] = arc["depth_allowed_terms"]
+            await self._trace(
+                session_id,
+                "application_grounding_answered",
+                turn_id=turn_id,
+                depth_level=depth_level,
+                allowed_terms=arc["depth_allowed_terms"],
+            )
 
         _traj_focus_areas = ((state.get("interview_trajectory_map") or {}).get("focus_areas") or []) or None
-        current_focus_key, current_focus_label = _infer_focus(last_question, text, parsed_resume, resume, trajectory_focus_areas=_traj_focus_areas)
+        # C-2 fix: propagate focus_key from the active_question_packet when it's already known.
+        # The packet was built when the question was staged — it has the authoritative focus_key.
+        # Only fall back to _infer_focus() if the packet has no useful focus_key.
+        _pkt_focus_key = str(active_packet.get("focus_key") or "") if active_packet else ""
+        _pkt_focus_label = str(active_packet.get("focus_label") or "") if active_packet else ""
+        _pkt_sub_focus_key = str(active_packet.get("sub_focus_key") or "") if active_packet else ""
+        _pkt_sub_focus_label = str(active_packet.get("sub_focus_label") or "") if active_packet else ""
+        if _pkt_focus_key and _pkt_focus_key not in ("general", "general_background", "general background"):
+            current_focus_key = _pkt_focus_key
+            current_focus_label = _pkt_focus_label or _pkt_focus_key
+        else:
+            current_focus_key, current_focus_label = _infer_focus(last_question, text, parsed_resume, resume, trajectory_focus_areas=_traj_focus_areas)
+        if _pkt_sub_focus_key:
+            current_sub_focus_key = _pkt_sub_focus_key
+            current_sub_focus_label = _pkt_sub_focus_label or _pkt_sub_focus_key
+        else:
+            current_sub_focus_key, current_sub_focus_label = _infer_sub_focus(
+                state.get("interview_trajectory_map", {}),
+                current_focus_key,
+                last_question,
+                text,
+            )
         focus_prompt_pack = _build_focus_prompt_pack(
             state.get("interview_trajectory_map", {}),
             focus_key=current_focus_key,
@@ -1771,8 +3790,18 @@ class Orchestrator:
                 persona=persona,
                 focus_key=current_focus_key,
                 focus_label=current_focus_label,
+                sub_focus_key=current_sub_focus_key,
+                sub_focus_label=current_sub_focus_label,
+                surface_kind=str(active_packet.get("surface_kind") or ""),
                 route_kind=active_packet.get("route_kind", "unknown"),
                 answer_version=current_answer_version,
+                question_posture=str(active_packet.get("question_posture") or ""),
+                signal_goal=str(active_packet.get("signal_goal") or ""),
+                expected_space=list(active_packet.get("expected_space") or [])[:4],
+                covered_expected_space=list(active_packet.get("covered_expected_space") or [])[:4],
+                missing_expected_space=list(active_packet.get("missing_expected_space") or active_packet.get("expected_space") or [])[:4],
+                coverage_dimension_id=str(active_packet.get("coverage_dimension_id") or ""),
+                coverage_dimension_label=str(active_packet.get("coverage_dimension_label") or ""),
             )
 
         # ── Step 2: Determine fast response ──────────────────────────────────
@@ -1780,7 +3809,7 @@ class Orchestrator:
         # a) current question packet follow-up — deterministic deepening before topic advance
         # b) prepped_next_packet — background-prepared next main question
         # c) speculative_cache — entity/admission-triggered Haiku question from partials
-        # d) sprint fallback template (instant, no LLM)
+        # d) fail closed when no LLM/map-authored question exists
         prepped_q = None
         prepped_context: dict = {}
         prepped_packet: dict = {}
@@ -1792,13 +3821,118 @@ class Orchestrator:
             prepped_context = state.get("prepped_next_context", {})
             prepped_packet = _clone_question_packet(state.get("prepped_next_packet"))
             seed_turn_number = state.get("prepped_next_question_turn_number")
+            application_anchor_recovery_q = ""
+            if _application_anchor_recovery_ready(state):
+                application_anchor_recovery_q = _application_anchor_recovery_question(current_focus_label)
             application_q = ""
+            application_grounding_q = ""
+            if _application_grounding_ready(state):
+                application_grounding_q = str(
+                    (_ensure_application_transfer_arc(state).get("grounding_question") or _coverage_grounding_question(state))
+                ).strip()
             if (
                 state.get("prepped_application_question")
                 and not state.get("application_question_served")
-                and state.get("question_count", 0) >= 3
+                and _application_transfer_ready(state)
             ):
                 application_q = str(state.get("prepped_application_question") or "").strip()
+            coverage_q = ""
+            coverage_route_kind = "coverage_surface"
+            coverage_packet_kwargs: dict = {}
+            if (
+                answered_route_kind_for_count == "application_transfer"
+                and state.get("application_question_served")
+                and isinstance(state.get("coverage_map"), dict)
+                and _coverage_route_allowed(
+                    state,
+                    current_focus_key=current_focus_key,
+                    current_focus_label=current_focus_label,
+                )
+            ):
+                from backend.models.coverage_map import AnswerCoverageMap as _ACMap
+
+                _cmap = _ACMap.from_dict(state["coverage_map"])
+                _unsurfaced = _cmap.unsurfaced_dimensions()
+                if _unsurfaced:
+                    _unsurfaced.sort(key=lambda _d: _d.weight, reverse=True)
+                    _next_dim = _unsurfaced[0]
+                    _next_dim.surfacing_attempted = True
+                    agenda_state = ensure_interview_agenda(state)
+                    agenda_state["phase"] = "coverage_surface"
+                    agenda_state["coverage_opening_count"] = int(agenda_state.get("coverage_opening_count") or 0) + 1
+                    agenda_state["last_route_reason"] = "fast_coverage_after_application_transfer"
+                    state["interview_agenda"] = agenda_state
+                    arc = _ensure_application_transfer_arc(state)
+                    arc["surface_count"] = int(arc.get("surface_count") or 0) + 1
+                    state["application_transfer_arc"] = arc
+                    state["_last_coverage_dim_id"] = _next_dim.id
+                    state["_last_coverage_recovery_depth"] = None
+                    state["coverage_map"] = _cmap.to_dict()
+                    coverage_q = await self.followup_agent.generate_coverage_surface(
+                        dimension_id=_next_dim.id,
+                        coverage_map=_cmap,
+                        state=state,
+                    )
+                    coverage_packet_kwargs = {
+                        "coverage_dimension_id": _next_dim.id,
+                        "coverage_dimension_label": _next_dim.label,
+                        "question_posture": "explore",
+                        "signal_goal": f"Surface application-transfer coverage: {_next_dim.label}",
+                        "expected_space": list(_next_dim.expected_approaches or [])[:4],
+                    }
+                else:
+                    _depth_dim_dict = _select_earned_coverage_depth_dimension(_cmap.to_dict(), state)
+                    _depth_dim = None
+                    if _depth_dim_dict:
+                        _depth_id = str(_depth_dim_dict.get("id") or _depth_dim_dict.get("dimension_id") or "").strip()
+                        _depth_dim = next((_d for _d in _cmap.dimensions if _d.id == _depth_id), None)
+                    if _depth_dim is not None:
+                        _mark_coverage_depth_probe(state, _cmap, _depth_dim)
+                        coverage_q = await self.followup_agent.generate_coverage_depth_probe(
+                            dimension_id=_depth_dim.id,
+                            coverage_map=_cmap,
+                            candidate_surface_response=_depth_dim.candidate_response or text,
+                            state=state,
+                        )
+                        coverage_route_kind = "coverage_depth_probe"
+                        coverage_packet_kwargs = {
+                            "coverage_dimension_id": _depth_dim.id,
+                            "coverage_dimension_label": _depth_dim.label,
+                            "question_posture": "pressure",
+                            "signal_goal": f"Light depth check for application-transfer coverage: {_depth_dim.label}",
+                            "expected_space": list(_depth_dim.expected_approaches or [])[:4],
+                        }
+
+            closing_started = (
+                _is_close_route(active_packet.get("route_kind"))
+                or _synthesis_close_count(state.get("history", [])) > 0
+                or _is_close_route(prepped_context.get("route_kind"))
+            )
+            if coverage_q:
+                closing_started = False
+            if closing_started and not _is_close_route(prepped_context.get("route_kind")):
+                close_count = _synthesis_close_count(state.get("history", []))
+                prepped_q = await self.followup_agent.generate_graceful_close(state, close_count)
+                prepped_context = {
+                    "pivoting": True,
+                    "route_kind": "graceful_exit" if close_count else "synthesis_close",
+                    "weakness": None,
+                    "discrepancy": None,
+                }
+                prepped_packet = _build_question_packet(
+                    question_text=prepped_q,
+                    sprint=sprint,
+                    route_kind=prepped_context["route_kind"],
+                    parsed_resume=parsed_resume,
+                    resume=resume,
+                    followups=[],
+                    pivoting=True,
+                    source_turn_number=state.get("question_count", 0),
+                    focus_key_override=current_focus_key,
+                    focus_label_override=current_focus_label,
+                )
+                application_q = ""
+                print(f"[FastTrack] Closing flow protected from map/generic promotion for {session_id}")
 
             if prepped_q and seed_turn_number == 0:
                 if not _seed_relevant_to_answer(prepped_q, text, entities or [], parsed_resume, resume):
@@ -1806,7 +3940,15 @@ class Orchestrator:
                     prepped_q = None
                     prepped_context = {}
                     prepped_packet = {}
-            if seed_turn_number == 0 and current_focus_key not in ("general", "general background"):
+            if (
+                not closing_started
+                and not application_anchor_recovery_q
+                and not application_grounding_q
+                and not application_q
+                and not coverage_q
+                and seed_turn_number == 0
+                and current_focus_key not in ("general", "general background")
+            ):
                 trajectory_seed = select_from_trajectory_map_detailed(
                     state.get("interview_trajectory_map", {}),
                     sprint=sprint,
@@ -1842,6 +3984,7 @@ class Orchestrator:
                             source_turn_number=state.get("question_count", 0),
                             focus_key_override=trajectory_focus_key,
                             focus_label_override=trajectory_focus_label,
+                            **_question_packet_ladder_kwargs(trajectory_seed),
                         )
                         print(f"[FastTrack] Trajectory map replaced seed for {session_id}")
 
@@ -1857,7 +4000,7 @@ class Orchestrator:
 
         admission = _looks_like_admission(text)
         trajectory_admission = None
-        if not is_turn_revision and admission:
+        if not is_turn_revision and admission and not locals().get("closing_started"):
             trajectory_admission = select_from_trajectory_map_detailed(
                 state.get("interview_trajectory_map", {}),
                 sprint=sprint,
@@ -1873,10 +4016,14 @@ class Orchestrator:
         current_packet_followups = _packet_followups_remaining(active_packet)
         should_use_packet_followup = (
             not is_turn_revision
+            and not bool(locals().get("closing_started"))
             and bool(current_packet_followups)
             and not active_packet.get("pivoting")
             and not trajectory_admission
+            and not bool(locals().get("application_anchor_recovery_q"))
+            and not bool(locals().get("application_grounding_q"))
             and not bool(locals().get("application_q"))
+            and not bool(locals().get("coverage_q"))
             and _should_prioritize_bank_followup(prepped_context, current_packet_followups, active_packet)
         )
 
@@ -1901,7 +4048,83 @@ class Orchestrator:
             print(f"[FastTrack] Active-packet follow-up served for {session_id}")
 
         else:
-            if locals().get("application_q"):
+            if locals().get("application_anchor_recovery_q"):
+                prepped_q = application_anchor_recovery_q
+                prepped_context = {
+                    "pivoting": False,
+                    "route_kind": "application_anchor_recovery",
+                    "weakness": None,
+                    "discrepancy": None,
+                }
+                prepped_packet = _build_question_packet(
+                    question_text=prepped_q,
+                    sprint=sprint,
+                    route_kind="application_anchor_recovery",
+                    parsed_resume=parsed_resume,
+                    resume=resume,
+                    followups=[],
+                    source_turn_number=state.get("question_count", 0),
+                    focus_key_override=current_focus_key,
+                    focus_label_override=current_focus_label,
+                    question_posture="clarify",
+                    signal_goal="Recover one grounded transfer anchor from vague early answers before using resume fallback.",
+                    expected_space=["decision", "metric", "tradeoff", "personal contribution"],
+                    information_gain="high",
+                    voice_complexity="low",
+                )
+                served_route_kind = "application_anchor_recovery"
+                pivoting = False
+                state["application_anchor_recovery_served"] = True
+                state.pop("prepped_next_question", None)
+                state.pop("prepped_next_question_turn_number", None)
+                state.pop("prepped_next_context", None)
+                state.pop("prepped_next_packet", None)
+                print(f"[FastTrack] Application-transfer anchor recovery promoted for {session_id}")
+
+            elif locals().get("application_grounding_q"):
+                prepped_q = application_grounding_q
+                prepped_context = {
+                    "pivoting": False,
+                    "route_kind": "application_grounding",
+                    "weakness": None,
+                    "discrepancy": None,
+                }
+                _coverage_focus = str(
+                    state.get("application_transfer_fallback_focus_key")
+                    or current_focus_key
+                    or ""
+                ).strip()
+                _coverage_label = str(
+                    state.get("application_transfer_fallback_focus_label")
+                    or current_focus_label
+                    or "Application Transfer"
+                ).strip()
+                prepped_packet = _build_question_packet(
+                    question_text=prepped_q,
+                    sprint=sprint,
+                    route_kind="application_grounding",
+                    parsed_resume=parsed_resume,
+                    resume=resume,
+                    followups=[],
+                    source_turn_number=state.get("question_count", 0),
+                    focus_key_override=_coverage_focus,
+                    focus_label_override=_coverage_label,
+                    question_posture="clarify",
+                    signal_goal="Calibrate which depth layer the candidate actually worked at before application transfer.",
+                    expected_space=["decision/framing", "operating workflow", "specialized internals", "something else"],
+                )
+                served_route_kind = "application_grounding"
+                pivoting = False
+                arc = _ensure_application_transfer_arc(state)
+                arc["grounding_served"] = True
+                state["application_transfer_arc"] = arc
+                state.pop("prepped_next_question", None)
+                state.pop("prepped_next_question_turn_number", None)
+                state.pop("prepped_next_context", None)
+                state.pop("prepped_next_packet", None)
+                print(f"[FastTrack] Application-transfer grounding promoted for {session_id}")
+
+            elif locals().get("application_q"):
                 prepped_q = application_q
                 prepped_context = {
                     "pivoting": False,
@@ -1909,9 +4132,16 @@ class Orchestrator:
                     "weakness": None,
                     "discrepancy": None,
                 }
-                _coverage_focus = _focus_key(
-                    ((state.get("coverage_map") or {}).get("implementation_anchor") or current_focus_label or "application_transfer")
-                )
+                _coverage_focus = str(
+                    state.get("application_transfer_fallback_focus_key")
+                    or current_focus_key
+                    or ""
+                ).strip()
+                _coverage_label = str(
+                    state.get("application_transfer_fallback_focus_label")
+                    or current_focus_label
+                    or "Application Transfer"
+                ).strip()
                 prepped_packet = _build_question_packet(
                     question_text=prepped_q,
                     sprint=sprint,
@@ -1921,17 +4151,48 @@ class Orchestrator:
                     followups=[],
                     source_turn_number=state.get("question_count", 0),
                     focus_key_override=_coverage_focus,
-                    focus_label_override="Application Transfer",
+                    focus_label_override=_coverage_label,
                 )
                 served_route_kind = "application_transfer"
                 pivoting = False
                 state["application_question_served"] = True
+                arc = _ensure_application_transfer_arc(state)
+                arc["main_transfer_served"] = True
+                state["application_transfer_arc"] = arc
                 state.pop("prepped_application_question", None)
                 state.pop("prepped_next_question", None)
                 state.pop("prepped_next_question_turn_number", None)
                 state.pop("prepped_next_context", None)
                 state.pop("prepped_next_packet", None)
                 print(f"[FastTrack] Application-transfer question promoted for {session_id}")
+
+            elif locals().get("coverage_q"):
+                prepped_q = coverage_q
+                prepped_context = {
+                    "pivoting": False,
+                    "route_kind": coverage_route_kind,
+                    "weakness": None,
+                    "discrepancy": None,
+                }
+                prepped_packet = _build_question_packet(
+                    question_text=prepped_q,
+                    sprint=sprint,
+                    route_kind=coverage_route_kind,
+                    parsed_resume=parsed_resume,
+                    resume=resume,
+                    followups=[],
+                    source_turn_number=state.get("question_count", 0),
+                    focus_key_override=current_focus_key,
+                    focus_label_override=current_focus_label,
+                    **coverage_packet_kwargs,
+                )
+                served_route_kind = coverage_route_kind
+                pivoting = False
+                state.pop("prepped_next_question", None)
+                state.pop("prepped_next_question_turn_number", None)
+                state.pop("prepped_next_context", None)
+                state.pop("prepped_next_packet", None)
+                print(f"[FastTrack] Coverage promoted immediately after application transfer for {session_id}")
 
             generic_prepped_fasttrack = bool(prepped_q) and _is_generic_fasttrack_route(
                 prepped_context.get("route_kind")
@@ -1946,6 +4207,7 @@ class Orchestrator:
                     "weakness": None,
                     "discrepancy": None,
                 }
+                served_route_kind = trajectory_route_kind
                 prepped_packet = _build_question_packet(
                     question_text=prepped_q,
                     sprint=sprint,
@@ -1957,6 +4219,7 @@ class Orchestrator:
                     source_turn_number=state.get("question_count", 0),
                     focus_key_override=trajectory_admission["focus_key"],
                     focus_label_override=trajectory_admission["focus_label"],
+                    **_question_packet_ladder_kwargs(trajectory_admission),
                 )
                 generic_prepped_fasttrack = False
                 print(f"[FastTrack] Trajectory-map honesty probe promoted for {session_id}")
@@ -1975,6 +4238,7 @@ class Orchestrator:
                         "weakness": None,
                         "discrepancy": None,
                     }
+                    served_route_kind = "speculative_fast"
                     prepped_packet = _build_question_packet(
                         question_text=prepped_q,
                         sprint=sprint,
@@ -2008,6 +4272,7 @@ class Orchestrator:
                             "weakness": None,
                             "discrepancy": None,
                         }
+                        served_route_kind = trajectory_route_kind
                         prepped_packet = _build_question_packet(
                             question_text=prepped_q,
                             sprint=sprint,
@@ -2019,6 +4284,7 @@ class Orchestrator:
                             source_turn_number=state.get("question_count", 0),
                             focus_key_override=trajectory_generic["focus_key"],
                             focus_label_override=trajectory_generic["focus_label"],
+                            **_question_packet_ladder_kwargs(trajectory_generic),
                         )
                         generic_prepped_fasttrack = False
                         print(
@@ -2053,6 +4319,7 @@ class Orchestrator:
             rescued = False
             should_try_short_answer_rescue = (
                 not is_turn_revision
+                and not bool(locals().get("closing_started"))
                 and _short_answer_rescue_eligible(text)
                 and (not prepped_q or generic_prepped_fasttrack)
             )
@@ -2084,6 +4351,7 @@ class Orchestrator:
                         source_turn_number=state.get("question_count", 0),
                         focus_key_override=traj_short["focus_key"],
                         focus_label_override=traj_short["focus_label"],
+                        **_question_packet_ladder_kwargs(traj_short),
                     )
                     pivoting = False
                     rescued = True
@@ -2176,14 +4444,205 @@ class Orchestrator:
             # discard it so we don't repeat the same text back-to-back.
             if prepped_q and not rescued and not is_turn_revision:
                 if _question_already_asked(prepped_q, state.get("history", [])):
-                    print(f"[FastTrack] Dedup: prepped_q already in history — discarding for {session_id}")
-                    prepped_q = None
-                    state.pop("prepped_next_question", None)
-                    state.pop("prepped_next_question_turn_number", None)
-                    state.pop("prepped_next_context", None)
-                    state.pop("prepped_next_packet", None)
-                    prepped_context = {}
-                    prepped_packet = {}
+                    if str(prepped_context.get("route_kind") or "") in {"synthesis_close", "graceful_exit"}:
+                        calibration_q = (
+                            "One final calibration before we wrap: what is the strongest part of your experience "
+                            "that you think this interview has not fairly tested yet?"
+                        )
+                        final_wrap_q = (
+                            "That wraps up our interview. Thanks for walking through the details. "
+                            "Your report is being generated now."
+                        )
+                        prepped_q = calibration_q
+                        if _question_already_asked(calibration_q, state.get("history", [])):
+                            prepped_q = final_wrap_q
+                        if prepped_packet:
+                            prepped_packet["question_text"] = prepped_q
+                    elif str(prepped_context.get("route_kind") or prepped_packet.get("route_kind") or "") == "second_anchor":
+                        second_anchor_target = {
+                            "focus_key": str(prepped_packet.get("focus_key") or "").strip(),
+                            "focus_label": str(prepped_packet.get("focus_label") or "").strip(),
+                            "sub_focus_key": str(prepped_packet.get("sub_focus_key") or "").strip(),
+                            "sub_focus_label": str(prepped_packet.get("sub_focus_label") or "").strip(),
+                            "surface_kind": str(prepped_packet.get("surface_kind") or "").strip(),
+                            "surface_key": _route_surface_key(
+                                str(prepped_packet.get("focus_key") or "").strip(),
+                                str(prepped_packet.get("sub_focus_key") or "").strip(),
+                            ),
+                        }
+                        replacement = _reselect_second_anchor_for_surface(
+                            state,
+                            state.get("history", []),
+                            sprint=sprint,
+                            target=second_anchor_target,
+                            avoid_focus=str((active_packet or {}).get("focus_key") or current_focus_key or ""),
+                            answer=text,
+                            entities=entities or [],
+                            admission=admission,
+                            has_discrepancy=bool(served_discrepancy),
+                        )
+                        if replacement and not _question_already_asked(replacement.get("question", ""), state.get("history", [])):
+                            prepped_q = replacement["question"]
+                            prepped_context["route_kind"] = "second_anchor"
+                            prepped_packet = _build_question_packet(
+                                question_text=prepped_q,
+                                sprint=sprint,
+                                route_kind="second_anchor",
+                                parsed_resume=parsed_resume,
+                                resume=resume,
+                                followups=[],
+                                source_turn_number=state.get("question_count", 0),
+                                focus_key_override=str(replacement.get("focus_key") or "").strip(),
+                                focus_label_override=str(replacement.get("focus_label") or "").strip(),
+                                sub_focus_key_override=str(replacement.get("sub_focus_key") or "").strip(),
+                                sub_focus_label_override=str(replacement.get("sub_focus_label") or "").strip(),
+                                **_question_packet_ladder_kwargs(replacement),
+                            )
+                            state["prepped_next_question"] = prepped_q
+                            state["prepped_next_context"] = prepped_context
+                            state["prepped_next_packet"] = prepped_packet
+                            print(f"[FastTrack] Dedup: reselected second-anchor surface for {session_id}")
+                        else:
+                            print(f"[FastTrack] Dedup: second-anchor replacement unavailable — discarding for {session_id}")
+                            prepped_q = None
+                            state.pop("prepped_next_question", None)
+                            state.pop("prepped_next_question_turn_number", None)
+                            state.pop("prepped_next_context", None)
+                            state.pop("prepped_next_packet", None)
+                            prepped_context = {}
+                            prepped_packet = {}
+                    else:
+                        print(f"[FastTrack] Dedup: prepped_q already in history — discarding for {session_id}")
+                        prepped_q = None
+                        state.pop("prepped_next_question", None)
+                        state.pop("prepped_next_question_turn_number", None)
+                        state.pop("prepped_next_context", None)
+                        state.pop("prepped_next_packet", None)
+                        prepped_context = {}
+                        prepped_packet = {}
+
+            if prepped_q and not rescued and not is_turn_revision:
+                prepped_route = str(prepped_context.get("route_kind") or prepped_packet.get("route_kind") or "").strip()
+                if prepped_route == "second_anchor":
+                    history_now = list(state.get("history", []) or [])
+                    block_reason = _second_anchor_packet_block_reason(
+                        prepped_packet,
+                        history_now,
+                        _evidence_question_count(state),
+                    )
+                    if block_reason:
+                        replacement = _reselect_second_anchor_for_surface(
+                            state,
+                            history_now,
+                            sprint=sprint,
+                            target=_second_anchor_target_from_packet(prepped_packet),
+                            avoid_focus=str((active_packet or {}).get("focus_key") or current_focus_key or ""),
+                            answer=text,
+                            entities=entities or [],
+                            admission=admission,
+                            has_discrepancy=bool(served_discrepancy),
+                        )
+                        if replacement and not _question_already_asked(replacement.get("question", ""), history_now):
+                            replacement_packet = _build_question_packet(
+                                question_text=replacement["question"],
+                                sprint=sprint,
+                                route_kind="second_anchor",
+                                parsed_resume=parsed_resume,
+                                resume=resume,
+                                followups=[],
+                                source_turn_number=state.get("question_count", 0),
+                                focus_key_override=str(replacement.get("focus_key") or "").strip(),
+                                focus_label_override=str(replacement.get("focus_label") or "").strip(),
+                                sub_focus_key_override=str(replacement.get("sub_focus_key") or "").strip(),
+                                sub_focus_label_override=str(replacement.get("sub_focus_label") or "").strip(),
+                                **_question_packet_ladder_kwargs(replacement),
+                            )
+                            if not _second_anchor_packet_block_reason(
+                                replacement_packet,
+                                history_now,
+                                _evidence_question_count(state),
+                            ):
+                                prepped_q = replacement["question"]
+                                prepped_context["route_kind"] = "second_anchor"
+                                prepped_packet = replacement_packet
+                                state["prepped_next_question"] = prepped_q
+                                state["prepped_next_context"] = prepped_context
+                                state["prepped_next_packet"] = prepped_packet
+                                await self._trace(
+                                    session_id,
+                                    "second_anchor_reselected_before_serve",
+                                    turn_id=turn_id,
+                                    reason=block_reason,
+                                    replacement_focus_key=str(replacement.get("focus_key") or ""),
+                                    replacement_sub_focus_key=str(replacement.get("sub_focus_key") or ""),
+                                )
+                                print(f"[FastTrack] Retired stale second-anchor packet and reselected surface for {session_id}")
+                            else:
+                                replacement = None
+                        if not replacement:
+                            reserve_result = _select_reserve_question(
+                                state,
+                                history_now,
+                                avoid_focus=str((prepped_packet or {}).get("focus_key") or current_focus_key or ""),
+                            )
+                            next_visible_turn = _next_visible_turn_number(state, history_now)
+                            if reserve_result and next_visible_turn < SYNTHESIS_START_FLOOR:
+                                prepped_q = reserve_result["question"]
+                                prepped_context = {
+                                    "pivoting": False,
+                                    "route_kind": reserve_result["route_kind"],
+                                    "weakness": None,
+                                    "discrepancy": None,
+                                }
+                                prepped_packet = _build_question_packet(
+                                    question_text=prepped_q,
+                                    sprint=sprint,
+                                    route_kind=reserve_result["route_kind"],
+                                    parsed_resume=parsed_resume,
+                                    resume=resume,
+                                    followups=[],
+                                    source_turn_number=state.get("question_count", 0),
+                                    focus_key_override=str(reserve_result.get("focus_key") or "").strip(),
+                                    focus_label_override=str(reserve_result.get("focus_label") or "").strip(),
+                                    sub_focus_key_override=str(reserve_result.get("sub_focus_key") or "").strip(),
+                                    sub_focus_label_override=str(reserve_result.get("sub_focus_label") or "").strip(),
+                                    **_question_packet_ladder_kwargs(reserve_result),
+                                )
+                                await self._trace(
+                                    session_id,
+                                    "second_anchor_replaced_with_reserve_before_serve",
+                                    turn_id=turn_id,
+                                    reason=block_reason,
+                                    reserve_focus_key=str(reserve_result.get("focus_key") or ""),
+                                )
+                            else:
+                                close_count = _synthesis_close_count(history_now)
+                                prepped_q = await self.followup_agent.generate_graceful_close(state, close_count)
+                                prepped_context = {
+                                    "pivoting": True,
+                                    "route_kind": "graceful_exit" if close_count else "synthesis_close",
+                                    "weakness": None,
+                                    "discrepancy": None,
+                                }
+                                prepped_packet = _build_question_packet(
+                                    question_text=prepped_q,
+                                    sprint=sprint,
+                                    route_kind=prepped_context["route_kind"],
+                                    parsed_resume=parsed_resume,
+                                    resume=resume,
+                                    followups=[],
+                                    source_turn_number=state.get("question_count", 0),
+                                )
+                                await self._trace(
+                                    session_id,
+                                    "second_anchor_replaced_with_close_before_serve",
+                                    turn_id=turn_id,
+                                    reason=block_reason,
+                                    close_route=prepped_context["route_kind"],
+                                )
+                            state["prepped_next_question"] = prepped_q
+                            state["prepped_next_context"] = prepped_context
+                            state["prepped_next_packet"] = prepped_packet
 
             if prepped_q and not rescued:
                 fast_response = prepped_q
@@ -2210,6 +4669,10 @@ class Orchestrator:
                 print(f"[FastTrack] {served_route_kind} ready — serving instantly for {session_id}")
 
             elif not rescued:
+                    if bool(locals().get("closing_started")):
+                        raise RuntimeError(
+                            "Closing flow has started but no close packet was available; refusing map fallback."
+                        )
                     # ── 1. Trajectory map — resume-grounded, instant ──────────
                     traj_result = select_from_trajectory_map_detailed(
                         state.get("interview_trajectory_map", {}),
@@ -2235,6 +4698,7 @@ class Orchestrator:
                             source_turn_number=state.get("question_count", 0),
                             focus_key_override=traj_result["focus_key"],
                             focus_label_override=traj_result["focus_label"],
+                            **_question_packet_ladder_kwargs(traj_result),
                         )
                         await self._trace(
                             session_id,
@@ -2245,32 +4709,15 @@ class Orchestrator:
                         )
                         print(f"[FastTrack] Trajectory map served ({served_route_kind}) for {session_id}")
                     else:
-                        # ── 2. Generic fallback — last resort ─────────────────
-                        fallbacks = _FALLBACK_FOLLOWUPS.get(sprint, ["Walk me through your thinking on that."])
-                        history_for_dedup = state.get("history", [])
-                        # Pick the first fallback not already in session history.
-                        # If all are exhausted (very long generic sessions), cycle back to [0].
-                        fast_response = next(
-                            (fb for fb in fallbacks if not _question_already_asked(fb, history_for_dedup)),
-                            fallbacks[0],
+                        raise RuntimeError(
+                            "No prepared or trajectory-map question available; refusing generic sprint fallback."
                         )
-                        served_route_kind = "sprint_fallback"
-                        print(f"[FastTrack] Sprint fallback served for {session_id}")
 
                     served_weakness = None
                     served_discrepancy = None
                     # No generic follow-ups chained off a fallback — the BGPipeline will generate
                     # a proper question packet after this answer. Chaining fallbacks creates a generic
                     # loop that's worse than waiting for the background pipeline.
-                    active_packet = _build_question_packet(
-                        question_text=fast_response,
-                        sprint=sprint,
-                        route_kind=served_route_kind,
-                        parsed_resume=parsed_resume,
-                        resume=resume,
-                        followups=[],
-                        source_turn_number=state.get("question_count", 0),
-                    )
                     pivoting = False
 
         await self._trace(
@@ -2294,33 +4741,23 @@ class Orchestrator:
         current_turn_number = state.get("current_answer_turn_number", state.get("question_count", 0))
         if not is_turn_revision:
             state["question_count"] = state.get("question_count", 0) + 1
-            state["sprint_question_count"] = state.get("sprint_question_count", 0) + 1
+            if _counts_toward_evidence_budget(answered_route_kind_for_count):
+                state["evidence_question_count"] = _evidence_question_count(state) + 1
+                state["sprint_question_count"] = state.get("sprint_question_count", 0) + 1
+            else:
+                state["evidence_question_count"] = _evidence_question_count(state)
             state["last_question"] = fast_response
             current_turn_number = state["question_count"]
 
-            advanced, sprint_opener = await self._maybe_advance_sprint(
+            advanced, _ = await self._maybe_advance_sprint(
                 state,
                 answered_question=last_question,
                 current_answer=text,
             )
             if advanced:
-                fast_response = sprint_opener
-                state["last_question"] = fast_response
-                state.pop("prepped_next_question", None)
-                state.pop("prepped_next_question_turn_number", None)
-                state.pop("prepped_next_context", None)
-                state.pop("prepped_next_packet", None)
-                # No generic follow-ups on sprint openers — same reason as session start.
-                # The BGPipeline for the opener answer will build proper follow-ups.
-                active_packet = _build_question_packet(
-                    question_text=fast_response,
-                    sprint=state["current_sprint"],
-                    route_kind="sprint_opener",
-                    parsed_resume=parsed_resume,
-                    resume=resume,
-                    followups=[],
-                    source_turn_number=state.get("question_count", 0),
-                )
+                persona = state["current_persona"]
+                if active_packet:
+                    active_packet["sprint"] = state["current_sprint"]
         else:
             state["last_question"] = fast_response
 
@@ -2349,6 +4786,14 @@ class Orchestrator:
             "answer_version": current_answer_version,
             "packet_focus_key": active_packet.get("focus_key", ""),
             "packet_focus_label": active_packet.get("focus_label", ""),
+            "surface_kind": active_packet.get("surface_kind", ""),
+            "question_posture": active_packet.get("question_posture", ""),
+            "signal_goal": active_packet.get("signal_goal", ""),
+            "expected_space": list(active_packet.get("expected_space") or [])[:4],
+            "covered_expected_space": list(active_packet.get("covered_expected_space") or [])[:4],
+            "missing_expected_space": list(active_packet.get("missing_expected_space") or active_packet.get("expected_space") or [])[:4],
+            "coverage_dimension_id": str(active_packet.get("coverage_dimension_id") or ""),
+            "coverage_dimension_label": str(active_packet.get("coverage_dimension_label") or ""),
             "closing_phase": closing_phase,
         }
         state["current_answer_turn_number"] = current_turn_number
@@ -2381,7 +4826,7 @@ class Orchestrator:
                 elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
             )
             return {
-                "response": "That wraps up our interview. Well done for getting through all three sprints. Your report is being generated now.",
+                "response": "That wraps up our interview. Thanks for walking through the details. Your report is being generated now.",
                 "sprint": state["current_sprint"],
                 "persona": persona,
                 "complete": True,
@@ -2469,6 +4914,16 @@ class Orchestrator:
             "persona": staged.get("persona", state.get("current_persona", "curious_lead")),
             "focus_key": staged.get("focus_key", ""),
             "focus_label": staged.get("focus_label", ""),
+            "sub_focus_key": staged.get("sub_focus_key", ""),
+            "sub_focus_label": staged.get("sub_focus_label", ""),
+            "surface_kind": staged.get("surface_kind", ""),
+            "question_posture": staged.get("question_posture", ""),
+            "signal_goal": staged.get("signal_goal", ""),
+            "expected_space": list(staged.get("expected_space") or [])[:4],
+            "covered_expected_space": list(staged.get("covered_expected_space") or [])[:4],
+            "missing_expected_space": list(staged.get("missing_expected_space") or staged.get("expected_space") or [])[:4],
+            "coverage_dimension_id": str(staged.get("coverage_dimension_id") or ""),
+            "coverage_dimension_label": str(staged.get("coverage_dimension_label") or ""),
             "answer_version": staged.get("answer_version", 1),
             "route_kind": metadata.get("route_kind", "unknown"),
             "analysis_status": "complete",
@@ -2478,6 +4933,47 @@ class Orchestrator:
             existing_turn.update(payload)
         else:
             history.append(payload)
+
+        if not already_complete:
+            agenda = ensure_interview_agenda(state)
+            focus_key = str(payload.get("focus_key") or "").strip()
+            if focus_key and focus_key not in ("general", "general_background", "general background"):
+                agenda["current_focus_key"] = focus_key
+                turns_by_focus = dict(agenda.get("turns_by_focus") or {})
+                turns_by_focus[focus_key] = int(turns_by_focus.get(focus_key, 0) or 0) + 1
+                agenda["turns_by_focus"] = turns_by_focus
+                sub_focus_key = str(payload.get("sub_focus_key") or "").strip()
+                surface_key = f"{focus_key}::{sub_focus_key}" if sub_focus_key else focus_key
+                turns_by_surface = dict(agenda.get("turns_by_surface") or {})
+                turns_by_surface[surface_key] = int(turns_by_surface.get(surface_key, 0) or 0) + 1
+                agenda["turns_by_surface"] = turns_by_surface
+                exhausted = list(agenda.get("exhausted_focus_keys") or [])
+                surface_breadth = len(surfaces_by_focus(history).get(focus_key, []))
+                if (
+                    turns_by_focus[focus_key] >= FOCUS_STREAK_CAP
+                    and surface_breadth < 2
+                    and focus_key not in exhausted
+                ):
+                    exhausted.append(focus_key)
+                agenda["exhausted_focus_keys"] = exhausted
+
+                cs = state.setdefault("candidate_state", {})
+                fatigue = dict(cs.get("topic_fatigue") or {})
+                counts = dict(cs.get("topic_question_counts") or {})
+                fatigue[focus_key] = int(fatigue.get(focus_key, 0) or 0) + 1
+                counts[focus_key] = int(counts.get(focus_key, 0) or 0) + 1
+                cs["topic_fatigue"] = fatigue
+                cs["topic_question_counts"] = counts
+
+            agenda["phase"] = metadata.get("agenda_phase") or _route_phase_from_kind(metadata.get("route_kind", ""))
+            agenda["last_route_reason"] = metadata.get("agenda_reason") or metadata.get("route_kind", "unknown")
+            agenda["phase_turn_count"] = int(agenda.get("phase_turn_count") or 0) + 1
+            state["interview_agenda"] = agenda
+            state["assessment_coverage"] = _assessment_coverage(state)
+            state["interview_agenda"]["completion_eligible"] = bool(
+                state["assessment_coverage"].get("full_completion_eligible")
+                or state["assessment_coverage"].get("minimum_viable_completion")
+            )
 
         # Append weakness to ledger
         weakness = staged.get("weakness")
@@ -2682,38 +5178,26 @@ class Orchestrator:
 
             async def _safe_weakness():
                 weak_started = time.perf_counter()
-                try:
-                    result = await self.weakness_agent.detect(
-                        last_question, text, sprint=sprint,
-                        prior_weaknesses=prior_weaknesses,
-                        memory_context=memory_context,
-                        parsed_resume=parsed_resume,
-                        target_role=target_role,
-                        years_experience=years_experience,
-                        focus_areas=_weakness_focus_areas,
-                    )
-                    return result, round((time.perf_counter() - weak_started) * 1000, 3)
-                except Exception as e:
-                    print(f"[BGPipeline] WeaknessAgent failed: {e}")
-                    return _WEAKNESS_FALLBACK, round((time.perf_counter() - weak_started) * 1000, 3)
+                result = await self.weakness_agent.detect(
+                    last_question, text, sprint=sprint,
+                    prior_weaknesses=prior_weaknesses,
+                    memory_context=memory_context,
+                    parsed_resume=parsed_resume,
+                    target_role=target_role,
+                    years_experience=years_experience,
+                    focus_areas=_weakness_focus_areas,
+                )
+                return result, round((time.perf_counter() - weak_started) * 1000, 3)
 
             async def _safe_discrepancy():
                 disc_started = time.perf_counter()
-                try:
-                    result = await self.discrepancy_agent.check(resume, text, memory_context=memory_context)
-                    return result, round((time.perf_counter() - disc_started) * 1000, 3)
-                except Exception as e:
-                    print(f"[BGPipeline] DiscrepancyAgent failed: {e}")
-                    return _DISCREPANCY_FALLBACK, round((time.perf_counter() - disc_started) * 1000, 3)
+                result = await self.discrepancy_agent.check(resume, text, memory_context=memory_context)
+                return result, round((time.perf_counter() - disc_started) * 1000, 3)
 
             async def _safe_reasoning():
                 reasoning_started = time.perf_counter()
-                try:
-                    result = await self.reasoning_agent.evaluate(text, was_challenged=was_challenged)
-                    return result, round((time.perf_counter() - reasoning_started) * 1000, 3)
-                except Exception as e:
-                    print(f"[BGPipeline] ReasoningAgent failed: {e}")
-                    return _REASONING_FALLBACK, round((time.perf_counter() - reasoning_started) * 1000, 3)
+                result = await self.reasoning_agent.evaluate(text, was_challenged=was_challenged)
+                return result, round((time.perf_counter() - reasoning_started) * 1000, 3)
 
             if entities:
                 (weakness, weakness_ms), (discrepancy, discrepancy_ms), (reasoning, reasoning_ms) = await asyncio.gather(
@@ -2724,11 +5208,8 @@ class Orchestrator:
             else:
                 async def _safe_concepts():
                     concept_started = time.perf_counter()
-                    try:
-                        result = await self.concept_agent.extract(text)
-                        return result, round((time.perf_counter() - concept_started) * 1000, 3)
-                    except Exception:
-                        return [], round((time.perf_counter() - concept_started) * 1000, 3)
+                    result = await self.concept_agent.extract(text)
+                    return result, round((time.perf_counter() - concept_started) * 1000, 3)
                 (concepts_result, concepts_ms), ((weakness, weakness_ms), (discrepancy, discrepancy_ms), (reasoning, reasoning_ms)) = await asyncio.gather(
                     _safe_concepts(),
                     asyncio.gather(_safe_weakness(), _safe_discrepancy(), _safe_reasoning()),
@@ -2754,15 +5235,24 @@ class Orchestrator:
                     session_id,
                     last_question,
                     text,
+                    turn_id=turn_id,
+                    turn_number=turn_number,
+                    route_kind=answered_route_kind,
+                    focus_key=current_turn_skeleton.get("focus_key") or "",
+                    focus_label=current_turn_skeleton.get("focus_label") or "",
+                    sub_focus_key=current_turn_skeleton.get("sub_focus_key") or "",
+                    sub_focus_label=current_turn_skeleton.get("sub_focus_label") or "",
+                    weakness=weakness if isinstance(weakness, dict) else None,
+                    reasoning=reasoning if isinstance(reasoning, dict) else None,
                     target_role=target_role,
                     years_experience=years_experience,
                 )
             )
 
-            # ── STAR-lite extraction at turn 3 (end of Phase 2) ──────────────
+            # ── STAR-lite extraction after enough evidence-bearing turns ──────
             # Extract implementation_anchor from the candidate's narration turns
             # and kick off application transfer question generation in background.
-            if turn_number == 3 and not (state.get("candidate_state") or {}).get("implementation_anchor"):
+            if _should_prepare_application_transfer(state):
                 _phase2_answers = [
                     h.get("answer", "")
                     for h in history[-2:]
@@ -2780,9 +5270,7 @@ class Orchestrator:
                     _anchor_save_state.setdefault("candidate_state", {})["implementation_anchor"] = anchor
                     _anchor_save_state.setdefault("candidate_state", {})["anchor_confidence"] = cs["anchor_confidence"]
                     await self.session_manager.save_state(session_id, _anchor_save_state)
-                    asyncio.create_task(
-                        self._generate_application_transfer(session_id, state)
-                    )
+                    await self._generate_application_transfer(session_id, state)
                     await self._trace(session_id, "star_lite_anchor_extracted",
                                       turn_number=turn_number,
                                       anchor_confidence=cs["anchor_confidence"],
@@ -2801,13 +5289,29 @@ class Orchestrator:
             if isinstance(reasoning, dict) and reasoning.get("adaptability"):
                 state["_reasoning_tone_signal"] = reasoning.get("adaptability", "")
 
+            # C-2 fix: WeaknessAgent inferred_focus_key is most specific → use first.
+            # Fall back to active_question_packet.focus_key (already known from staging).
+            # Only call _infer_focus() as last resort when neither is available.
+            _valid_focus_keys = {
+                str(fa.get("focus_key", "") or "").strip()
+                for fa in (_weakness_focus_areas or [])
+                if str(fa.get("focus_key", "") or "").strip()
+            }
             _llm_focus_key = (weakness.get("inferred_focus_key") or "").strip() if isinstance(weakness, dict) else ""
+            if _llm_focus_key and _llm_focus_key not in _valid_focus_keys:
+                _llm_focus_key = ""
+            _active_pkt = state.get("active_question_packet") or {}
+            _pkt_focus_key_bg = str(_active_pkt.get("focus_key") or "").strip()
+            _pkt_focus_label_bg = str(_active_pkt.get("focus_label") or "").strip()
             if _llm_focus_key:
                 current_focus_key = _llm_focus_key
                 current_focus_label = next(
                     (fa.get("label", _llm_focus_key) for fa in (_weakness_focus_areas or []) if fa.get("focus_key") == _llm_focus_key),
                     _llm_focus_key,
                 )
+            elif _pkt_focus_key_bg and _pkt_focus_key_bg not in ("general", "general_background", "general background"):
+                current_focus_key = _pkt_focus_key_bg
+                current_focus_label = _pkt_focus_label_bg or _pkt_focus_key_bg
             else:
                 current_focus_key, current_focus_label = _infer_focus(
                     last_question,
@@ -2816,6 +5320,20 @@ class Orchestrator:
                     resume,
                     trajectory_focus_areas=_weakness_focus_areas,
                 )
+            _pkt_sub_focus_key_bg = str(_active_pkt.get("sub_focus_key") or "").strip()
+            _pkt_sub_focus_label_bg = str(_active_pkt.get("sub_focus_label") or "").strip()
+            if _pkt_sub_focus_key_bg:
+                answered_sub_focus_key = _pkt_sub_focus_key_bg
+                answered_sub_focus_label = _pkt_sub_focus_label_bg or _pkt_sub_focus_key_bg
+            else:
+                answered_sub_focus_key, answered_sub_focus_label = _infer_sub_focus(
+                    state.get("interview_trajectory_map", {}),
+                    current_focus_key,
+                    last_question,
+                    text,
+                )
+            answered_focus_key = current_focus_key
+            answered_focus_label = current_focus_label
             focus_prompt_pack = _build_focus_prompt_pack(
                 state.get("interview_trajectory_map", {}),
                 focus_key=current_focus_key,
@@ -2859,18 +5377,38 @@ class Orchestrator:
             # Uses topic focus keys from history, not weakness type repetition.
             weakness_type = weakness.get("type") if isinstance(weakness, dict) else None
 
-            # ── Consecutive weakness guardrail ────────────────────────────────
+            # ── C-3 fix: Bridge trigger by focus-area exhaustion ─────────────
+            # Old logic required same weakness TYPE to repeat — weakness types often
+            # change turn-to-turn so the count never reached 3. New logic counts
+            # medium/high weaknesses by inferred_focus_key from the ledger.
+            # If 3+ weaknesses share the same focus area → force bridge regardless
+            # of weakness type cycling.
             wtype = weakness_type
-            if weakness and weakness.get("severity") == "high":
-                if wtype == state.get("last_weakness_type"):
-                    new_consecutive = state.get("consecutive_high_weakness_count", 0) + 1
-                else:
-                    new_consecutive = 1
+            if weakness and weakness.get("severity") in ("high", "medium"):
+                new_consecutive = state.get("consecutive_high_weakness_count", 0) + 1
             else:
                 new_consecutive = 0
                 wtype = None
 
-            force_sprint_question = new_consecutive >= 3
+            # Focus-area saturation check: count weaknesses with same inferred_focus_key
+            _current_inferred_fk = (weakness.get("inferred_focus_key") or current_focus_key or "").strip() if isinstance(weakness, dict) else current_focus_key or ""
+            _ledger_focus_hits = sum(
+                1 for w in state.get("weaknesses", [])
+                if isinstance(w, dict)
+                and (w.get("inferred_focus_key") or "").strip() == _current_inferred_fk
+                and w.get("severity") in ("medium", "high")
+                and _current_inferred_fk
+            )
+            # Hard cap: no focus area gets more than 5 turns total in history
+            _history_focus_turns = sum(1 for t in history if t.get("focus_key") == current_focus_key)
+            _history_focus_surfaces = len(surfaces_by_focus(history).get(current_focus_key, []))
+
+            # Do not use the global consecutive weakness count as a focus-rotation
+            # trigger. Three weak answers across three different topics should not
+            # masquerade as topic tunneling; focus-specific ledger/history counts
+            # are the only safe rotation signal here.
+            focus_turn_cap_hit = _history_focus_turns >= 5 and _history_focus_surfaces < 2
+            force_sprint_question = _ledger_focus_hits >= 3 or focus_turn_cap_hit
             pivoting = force_sprint_question
 
             # ── Skip signal / forced rotation ────────────────────────────────
@@ -2879,15 +5417,13 @@ class Orchestrator:
                 pivoting = True
                 state.pop("_force_focus_rotation", None)
 
-            # ── Topic fatigue ratio (55% cap) ────────────────────────────────
-            total_questions = state.get("question_count", 0)
-            if total_questions >= 4 and current_focus_key:
-                same_focus_total = sum(
-                    1 for turn in history if turn.get("focus_key") == current_focus_key
-                )
-                if same_focus_total / total_questions > 0.55:
-                    force_sprint_question = True
-                    pivoting = True
+            # ── Topic fatigue ratio ─────────────────────────────────────────
+            # Keep this aligned with the agenda controller. The denominator must
+            # be focus-bearing evidence turns, not total question count; warm
+            # openers and empty/inferred turns distort the ratio badly.
+            if _should_force_focus_ratio_rotation(state, history, current_focus_key):
+                force_sprint_question = True
+                pivoting = True
 
             # ── Disengagement thresholds ─────────────────────────────────────
             candidate_state = state.get("candidate_state") or {}
@@ -2950,9 +5486,76 @@ class Orchestrator:
                 and weakness.get("probe_direction") not in ("clarification", "ownership_probe")
                 and turn_number >= 2
             )
+            agenda_decision = _select_agenda_decision(
+                state,
+                history=history,
+                current_focus_key=current_focus_key,
+                current_focus_label=current_focus_label,
+                answered_route_kind=answered_route_kind,
+                weakness=weakness if isinstance(weakness, dict) else None,
+                discrepancy_conflict=discrepancy_conflict,
+                honest_admission=honest_admission,
+                force_focus_rotation=bool(force_sprint_question),
+            )
+            agenda_phase = str(agenda_decision.get("phase") or "primary_depth")
+            agenda_route = str(agenda_decision.get("route") or "phase_depth")
+            agenda_reason = str(agenda_decision.get("reason") or agenda_route)
+            selected_focus_key = str(agenda_decision.get("focus_key") or current_focus_key or "").strip()
+            selected_focus_label = str(agenda_decision.get("focus_label") or current_focus_label or selected_focus_key).strip()
+            selected_sub_focus_key = str(agenda_decision.get("sub_focus_key") or "").strip()
+            selected_sub_focus_label = str(agenda_decision.get("sub_focus_label") or "").strip()
+            selected_surface_kind = str(agenda_decision.get("surface_kind") or "").strip()
+            selected_surface_key = str(agenda_decision.get("surface_key") or "").strip()
+            if selected_focus_key and selected_focus_key != current_focus_key:
+                current_focus_key = selected_focus_key
+                current_focus_label = selected_focus_label
+                focus_prompt_pack = _build_focus_prompt_pack(
+                    state.get("interview_trajectory_map", {}),
+                    focus_key=current_focus_key,
+                    last_question=last_question,
+                    answer=text,
+                    history=history,
+                )
+                force_sprint_question = True
+                pivoting = True
+            if not bool(agenda_decision.get("allow_same_focus_probe", True)):
+                clarification_probe = False
+                deep_probe = False
+            if agenda_route == "application_transfer_blocked":
+                latest_app_state = await self.session_manager.get_state(session_id)
+                if latest_app_state.get("application_question_served") or latest_app_state.get("interview_complete"):
+                    return
+                if _application_transfer_ready(latest_app_state):
+                    state = latest_app_state
+                    agenda_route = "application_transfer"
+                    agenda_phase = "application_transfer"
+                    agenda_reason = "stale_pipeline_observed_application_transfer_ready"
+            if agenda_route == "application_transfer_blocked":
+                if not state.get("application_transfer_fallback_attempted"):
+                    state["application_transfer_fallback_attempted"] = True
+                    state["application_transfer_error"] = state.get("application_transfer_error") or (
+                        "Primary application transfer anchor was not grounded in live answers."
+                    )
+                    await self.session_manager.save_state(session_id, state)
+                    await self._generate_application_transfer(
+                        session_id,
+                        state,
+                        allow_resume_anchor_fallback=True,
+                        current_focus_key=current_focus_key,
+                    )
+                    state = await self.session_manager.get_state(session_id)
+                    if _application_transfer_ready(state):
+                        agenda_route = "application_transfer"
+                        agenda_phase = "application_transfer"
+                        agenda_reason = "resume_focus_fallback_application_transfer_ready"
+                if agenda_route == "application_transfer_blocked":
+                    error = state.get("application_transfer_error") or "Application transfer required by agenda but no grounded application question is ready."
+                    state["application_transfer_error"] = str(error)
+                    await self.session_manager.save_state(session_id, state)
+                    raise RuntimeError(str(error))
             resume_context = _build_resume_context_for_followup(parsed_resume, resume)
             seed_followups: list[str] = []
-            route_kind = "sprint_seed"
+            route_kind = "legacy_agenda_backup"
             trajectory_hint = select_from_trajectory_map_detailed(
                 state.get("interview_trajectory_map", {}),
                 sprint=sprint,
@@ -3001,17 +5604,18 @@ class Orchestrator:
                         error=str(e)[:300],
                         level="warn",
                     )
+                    raise
 
-            # ── Coverage routing (Phase 4, turns 5+) ────────────────────────────
+            # ── Coverage routing after application transfer ───────────────────
             # When an AnswerCoverageMap exists and no forced rotation is active,
             # surface unsurfaced dimensions in weight order before normal routing.
             _coverage_question: str | None = None
             _coverage_route_kind: str | None = None
             if (
-                turn_number >= 5
+                state.get("application_question_served")
                 and state.get("coverage_map")
-                and not force_sprint_question
                 and not state.get("_next_route_hint")
+                and agenda_route == "coverage"
             ):
                 from backend.models.coverage_map import AnswerCoverageMap as _ACMap
                 _cmap = _ACMap.from_dict(state["coverage_map"])
@@ -3038,15 +5642,21 @@ class Orchestrator:
                     _cov_state, _rec_depth = await self._evaluate_coverage_dimension(
                         _last_dim_id, state["coverage_map"], text
                     )
+                    _dim_depth_eligible = False
                     for _d in _cmap.dimensions:
                         if _d.id == _last_dim_id:
+                            _dim_depth_eligible = bool(getattr(_d, "depth_eligible", False))
                             _d.coverage_state = _cov_state
                             break
                     state["coverage_map"] = _cmap.to_dict()
 
-                    if _rec_depth == "surface":
+                    _arc = _ensure_application_transfer_arc(state)
+                    _confirmed_depth = int(_arc.get("confirmed_depth_level") or 2)
+                    if _rec_depth == "surface" and _dim_depth_eligible and int(_arc.get("depth_count") or 0) < 2 and _confirmed_depth >= 2:
                         # Named the concept without mechanism — generate depth probe next turn.
-                        state["_last_coverage_recovery_depth"] = "surface"
+                        _dim = next((_d for _d in _cmap.dimensions if _d.id == _last_dim_id), None)
+                        if _dim is not None:
+                            _mark_coverage_depth_probe(state, _cmap, _dim)
                         # Generate the depth probe now so it's ready.
                         _coverage_question = await self.followup_agent.generate_coverage_depth_probe(
                             dimension_id=_last_dim_id,
@@ -3064,6 +5674,12 @@ class Orchestrator:
                             _unsurfaced.sort(key=lambda _d: _d.weight, reverse=True)
                             _next_dim = _unsurfaced[0]
                             _next_dim.surfacing_attempted = True
+                            agenda_state = ensure_interview_agenda(state)
+                            agenda_state["coverage_opening_count"] = int(agenda_state.get("coverage_opening_count") or 0) + 1
+                            state["interview_agenda"] = agenda_state
+                            _arc = _ensure_application_transfer_arc(state)
+                            _arc["surface_count"] = int(_arc.get("surface_count") or 0) + 1
+                            state["application_transfer_arc"] = _arc
                             state["_last_coverage_dim_id"] = _next_dim.id
                             state["coverage_map"] = _cmap.to_dict()
                             _coverage_question = await self.followup_agent.generate_coverage_surface(
@@ -3072,6 +5688,21 @@ class Orchestrator:
                                 state=state,
                             )
                             _coverage_route_kind = "coverage_surface"
+                        else:
+                            _depth_dim_dict = _select_earned_coverage_depth_dimension(_cmap.to_dict(), state)
+                            _depth_dim = None
+                            if _depth_dim_dict:
+                                _depth_id = str(_depth_dim_dict.get("id") or _depth_dim_dict.get("dimension_id") or "").strip()
+                                _depth_dim = next((_d for _d in _cmap.dimensions if _d.id == _depth_id), None)
+                            if _depth_dim is not None:
+                                _mark_coverage_depth_probe(state, _cmap, _depth_dim)
+                                _coverage_question = await self.followup_agent.generate_coverage_depth_probe(
+                                    dimension_id=_depth_dim.id,
+                                    coverage_map=_cmap,
+                                    candidate_surface_response=_depth_dim.candidate_response or text,
+                                    state=state,
+                                )
+                                _coverage_route_kind = "coverage_depth_probe"
 
                 else:
                     # No previous dim in flight — surface the highest-weight unsurfaced dim.
@@ -3080,6 +5711,12 @@ class Orchestrator:
                         _unsurfaced.sort(key=lambda _d: _d.weight, reverse=True)
                         _next_dim = _unsurfaced[0]
                         _next_dim.surfacing_attempted = True
+                        agenda_state = ensure_interview_agenda(state)
+                        agenda_state["coverage_opening_count"] = int(agenda_state.get("coverage_opening_count") or 0) + 1
+                        state["interview_agenda"] = agenda_state
+                        _arc = _ensure_application_transfer_arc(state)
+                        _arc["surface_count"] = int(_arc.get("surface_count") or 0) + 1
+                        state["application_transfer_arc"] = _arc
                         state["_last_coverage_dim_id"] = _next_dim.id
                         state["_last_coverage_recovery_depth"] = None
                         state["coverage_map"] = _cmap.to_dict()
@@ -3089,12 +5726,363 @@ class Orchestrator:
                             state=state,
                         )
                         _coverage_route_kind = "coverage_surface"
+                    else:
+                        _depth_dim_dict = _select_earned_coverage_depth_dimension(_cmap.to_dict(), state)
+                        _depth_dim = None
+                        if _depth_dim_dict:
+                            _depth_id = str(_depth_dim_dict.get("id") or _depth_dim_dict.get("dimension_id") or "").strip()
+                            _depth_dim = next((_d for _d in _cmap.dimensions if _d.id == _depth_id), None)
+                        if _depth_dim is not None:
+                            _mark_coverage_depth_probe(state, _cmap, _depth_dim)
+                            _coverage_question = await self.followup_agent.generate_coverage_depth_probe(
+                                dimension_id=_depth_dim.id,
+                                coverage_map=_cmap,
+                                candidate_surface_response=_depth_dim.candidate_response or text,
+                                state=state,
+                            )
+                            _coverage_route_kind = "coverage_depth_probe"
 
             # ── Route hint overrides (confession pivot / graceful exit) ─────────
             route_hint = state.pop("_next_route_hint", None)
-            if _coverage_question and _coverage_route_kind and not route_hint:
+            selected_map_result: dict | None = None
+            if agenda_route == "application_anchor_recovery" and _application_anchor_recovery_ready(state) and not route_hint:
+                next_question = _application_anchor_recovery_question(current_focus_label)
+                route_kind = "application_anchor_recovery"
+                pivoting = False
+                state["application_anchor_recovery_served"] = True
+            elif agenda_route == "application_grounding" and _application_grounding_ready(state) and not route_hint:
+                arc = _ensure_application_transfer_arc(state)
+                next_question = str(arc.get("grounding_question") or _coverage_grounding_question(state) or "").strip()
+                if not next_question:
+                    raise RuntimeError("Agenda selected application grounding but no grounding question was available.")
+                route_kind = "application_grounding"
+                pivoting = False
+                arc["grounding_served"] = True
+                state["application_transfer_arc"] = arc
+            elif agenda_route == "application_transfer" and state.get("prepped_application_question") and not route_hint:
+                next_question = str(state.get("prepped_application_question") or "").strip()
+                if not next_question:
+                    raise RuntimeError("Agenda selected application transfer but staged question was empty.")
+                route_kind = "application_transfer"
+                pivoting = False
+            elif _coverage_question and _coverage_route_kind and not route_hint:
                 next_question = _coverage_question
                 route_kind = _coverage_route_kind
+                pivoting = False
+            elif agenda_route == "coverage" and not route_hint:
+                next_visible_turn = _next_visible_turn_number(state, history)
+                next_surface = next_secondary_surface(state, avoid_focus=current_focus_key)
+                next_focus = str(next_surface.get("focus_key") or "").strip()
+                next_label = str(next_surface.get("focus_label") or next_focus).strip()
+                if not next_focus:
+                    grounded_result = trajectory_hint
+                    if (
+                        grounded_result
+                        and grounded_result.get("focus_key")
+                        and grounded_result.get("focus_key") != current_focus_key
+                    ):
+                        grounded_result = None
+                    if not grounded_result:
+                        grounded_result = select_from_trajectory_map_detailed(
+                            state.get("interview_trajectory_map", {}),
+                            sprint=sprint,
+                            focus_key=current_focus_key,
+                            answer=text,
+                            entities=entities or [],
+                            history=history,
+                            admission=honest_admission,
+                            has_discrepancy=discrepancy_conflict,
+                        )
+                    if grounded_result and next_visible_turn < SYNTHESIS_START_FLOOR:
+                        next_question = grounded_result["question"]
+                        selected_map_result = grounded_result
+                        route_kind = grounded_result["route_kind"]
+                        agenda_phase = "primary_depth"
+                    else:
+                        third_surface_result = (
+                            _select_third_surface_probe(
+                                state,
+                                history,
+                                sprint=sprint,
+                                avoid_focus=current_focus_key,
+                                answer=text,
+                                entities=entities or [],
+                                admission=honest_admission,
+                                has_discrepancy=discrepancy_conflict,
+                                turn_number=turn_number,
+                            )
+                            if next_visible_turn < SYNTHESIS_START_FLOOR
+                            else None
+                        )
+                        reserve_result = None
+                        if not third_surface_result and next_visible_turn < SYNTHESIS_START_FLOOR:
+                            reserve_result = _select_reserve_question(state, history, avoid_focus=current_focus_key)
+                        if third_surface_result:
+                            next_question = third_surface_result["question"]
+                            selected_map_result = third_surface_result
+                            route_kind = THIRD_SURFACE_ROUTE_KIND
+                            agenda_phase = "primary_depth"
+                        elif reserve_result:
+                            next_question = reserve_result["question"]
+                            selected_map_result = reserve_result
+                            route_kind = reserve_result["route_kind"]
+                            agenda_phase = "primary_depth"
+                        else:
+                            next_question = await self.followup_agent.generate_graceful_close(state, 0)
+                            route_kind = "synthesis_close"
+                            agenda_phase = "synthesis_close"
+                else:
+                    current_focus_key = next_focus
+                    current_focus_label = next_label
+                    focus_prompt_pack = _build_focus_prompt_pack(
+                        state.get("interview_trajectory_map", {}),
+                        focus_key=current_focus_key,
+                        last_question=last_question,
+                        answer=text,
+                        history=history,
+                    )
+                    second_anchor_result = select_from_trajectory_map_detailed(
+                        state.get("interview_trajectory_map", {}),
+                        sprint=sprint,
+                        focus_key=current_focus_key,
+                        answer=text,
+                        entities=entities or [],
+                        history=history,
+                        admission=honest_admission,
+                        has_discrepancy=discrepancy_conflict,
+                        preferred_sub_focus_key=str(next_surface.get("sub_focus_key") or "").strip(),
+                        preferred_surface_kind=str(next_surface.get("surface_kind") or "").strip(),
+                    )
+                    third_surface_result = None
+                    if bool(_second_anchor_turns(history)):
+                        third_surface_result = _select_third_surface_probe(
+                            state,
+                            history,
+                            sprint=sprint,
+                            avoid_focus=answered_focus_key or current_focus_key,
+                            answer=text,
+                            entities=entities or [],
+                            admission=honest_admission,
+                            has_discrepancy=discrepancy_conflict,
+                            turn_number=turn_number,
+                        )
+                    if third_surface_result and (
+                        next_visible_turn >= SECOND_ANCHOR_START_FLOOR
+                        or bool(_second_anchor_turns(history))
+                    ):
+                        next_question = third_surface_result["question"]
+                        selected_map_result = third_surface_result
+                        route_kind = THIRD_SURFACE_ROUTE_KIND
+                        agenda_phase = "primary_depth"
+                    elif second_anchor_result and (
+                        next_visible_turn >= SECOND_ANCHOR_START_FLOOR
+                        or bool(_second_anchor_turns(history))
+                    ):
+                        next_question = second_anchor_result["question"]
+                        selected_map_result = second_anchor_result
+                        selected_map_result["second_anchor_target"] = next_surface
+                        route_kind = "second_anchor"
+                        agenda_phase = "second_anchor"
+                    else:
+                        if next_visible_turn < SYNTHESIS_START_FLOOR:
+                            current_focus_key = selected_focus_key or answered_focus_key or current_focus_key
+                            current_focus_label = selected_focus_label or answered_focus_label or current_focus_label
+                            grounded_result = select_from_trajectory_map_detailed(
+                                state.get("interview_trajectory_map", {}),
+                                sprint=sprint,
+                                focus_key=current_focus_key,
+                                answer=text,
+                                entities=entities or [],
+                                history=history,
+                                admission=honest_admission,
+                                has_discrepancy=discrepancy_conflict,
+                            )
+                            if grounded_result:
+                                next_question = grounded_result["question"]
+                                selected_map_result = grounded_result
+                                route_kind = grounded_result["route_kind"]
+                                agenda_phase = "primary_depth"
+                            else:
+                                third_surface_result = _select_third_surface_probe(
+                                    state,
+                                    history,
+                                    sprint=sprint,
+                                    avoid_focus=current_focus_key,
+                                    answer=text,
+                                    entities=entities or [],
+                                    admission=honest_admission,
+                                    has_discrepancy=discrepancy_conflict,
+                                    turn_number=turn_number,
+                                )
+                                reserve_result = None
+                                if not third_surface_result:
+                                    reserve_result = _select_reserve_question(
+                                        state,
+                                        history,
+                                        avoid_focus=current_focus_key,
+                                    )
+                                if third_surface_result:
+                                    next_question = third_surface_result["question"]
+                                    selected_map_result = third_surface_result
+                                    route_kind = THIRD_SURFACE_ROUTE_KIND
+                                    agenda_phase = "primary_depth"
+                                elif reserve_result:
+                                    next_question = reserve_result["question"]
+                                    selected_map_result = reserve_result
+                                    route_kind = reserve_result["route_kind"]
+                                    agenda_phase = "primary_depth"
+                                else:
+                                    next_question = await self.followup_agent.generate_graceful_close(state, 0)
+                                    route_kind = "synthesis_close"
+                                    agenda_phase = "synthesis_close"
+                        else:
+                            next_question = await self.followup_agent.generate_graceful_close(state, 0)
+                            route_kind = "synthesis_close"
+                            agenda_phase = "synthesis_close"
+                pivoting = True
+            elif agenda_route in {"second_anchor", "focus_pivot"} and not route_hint:
+                next_visible_turn = _next_visible_turn_number(state, history)
+                second_anchor_target = {
+                    "focus_key": current_focus_key,
+                    "focus_label": current_focus_label,
+                    "sub_focus_key": selected_sub_focus_key,
+                    "sub_focus_label": selected_sub_focus_label,
+                    "surface_kind": selected_surface_kind,
+                    "surface_key": selected_surface_key,
+                }
+                third_surface_result = None
+                if bool(_second_anchor_turns(history)):
+                    third_surface_result = _select_third_surface_probe(
+                        state,
+                        history,
+                        sprint=sprint,
+                        avoid_focus=answered_focus_key or current_focus_key,
+                        answer=text,
+                        entities=entities or [],
+                        admission=honest_admission,
+                        has_discrepancy=discrepancy_conflict,
+                        turn_number=turn_number,
+                    )
+                second_anchor_result = None if third_surface_result else _reselect_second_anchor_for_surface(
+                    state,
+                    history,
+                    sprint=sprint,
+                    target=second_anchor_target,
+                    avoid_focus=answered_focus_key or "",
+                    answer=text,
+                    entities=entities or [],
+                    admission=honest_admission,
+                    has_discrepancy=discrepancy_conflict,
+                )
+                if third_surface_result and (
+                    next_visible_turn >= SECOND_ANCHOR_START_FLOOR
+                    or bool(_second_anchor_turns(history))
+                ):
+                    next_question = third_surface_result["question"]
+                    selected_map_result = third_surface_result
+                    route_kind = THIRD_SURFACE_ROUTE_KIND
+                    agenda_phase = "primary_depth"
+                elif second_anchor_result and (
+                    next_visible_turn >= SECOND_ANCHOR_START_FLOOR
+                    or bool(_second_anchor_turns(history))
+                ):
+                    next_question = second_anchor_result["question"]
+                    route_kind = "second_anchor" if agenda_route == "second_anchor" or agenda_phase == "second_anchor" else "trajectory_map_focus_pivot"
+                    selected_map_result = second_anchor_result
+                else:
+                    if next_visible_turn < SYNTHESIS_START_FLOOR:
+                        grounded_result = select_from_trajectory_map_detailed(
+                            state.get("interview_trajectory_map", {}),
+                            sprint=sprint,
+                            focus_key=answered_focus_key or current_focus_key,
+                            answer=text,
+                            entities=entities or [],
+                            history=history,
+                            admission=honest_admission,
+                            has_discrepancy=discrepancy_conflict,
+                        )
+                        if grounded_result:
+                            next_question = grounded_result["question"]
+                            selected_map_result = grounded_result
+                            route_kind = grounded_result["route_kind"]
+                            agenda_phase = "primary_depth"
+                        else:
+                            third_surface_result = _select_third_surface_probe(
+                                state,
+                                history,
+                                sprint=sprint,
+                                avoid_focus=current_focus_key,
+                                answer=text,
+                                entities=entities or [],
+                                admission=honest_admission,
+                                has_discrepancy=discrepancy_conflict,
+                                turn_number=turn_number,
+                            )
+                            reserve_result = None
+                            if not third_surface_result:
+                                reserve_result = _select_reserve_question(
+                                    state,
+                                    history,
+                                    avoid_focus=current_focus_key,
+                                )
+                            if third_surface_result:
+                                next_question = third_surface_result["question"]
+                                selected_map_result = third_surface_result
+                                route_kind = THIRD_SURFACE_ROUTE_KIND
+                                agenda_phase = "primary_depth"
+                            elif reserve_result:
+                                next_question = reserve_result["question"]
+                                selected_map_result = reserve_result
+                                route_kind = reserve_result["route_kind"]
+                                agenda_phase = "primary_depth"
+                            else:
+                                next_question = await self.followup_agent.generate_graceful_close(state, 0)
+                                route_kind = "synthesis_close"
+                                agenda_phase = "synthesis_close"
+                    else:
+                        next_question = await self.followup_agent.generate_graceful_close(state, 0)
+                        route_kind = "synthesis_close"
+                        agenda_phase = "synthesis_close"
+                pivoting = True
+            elif agenda_route == "synthesis_close" and not route_hint:
+                next_visible_turn = _next_visible_turn_number(state, history)
+                third_surface_result = (
+                    _select_third_surface_probe(
+                        state,
+                        history,
+                        sprint=sprint,
+                        avoid_focus=current_focus_key,
+                        answer=text,
+                        entities=entities or [],
+                        admission=honest_admission,
+                        has_discrepancy=discrepancy_conflict,
+                        turn_number=turn_number,
+                    )
+                    if next_visible_turn < SYNTHESIS_START_FLOOR
+                    else None
+                )
+                reserve_result = None
+                if not third_surface_result and next_visible_turn < SYNTHESIS_START_FLOOR:
+                    reserve_result = _select_reserve_question(state, history, avoid_focus=current_focus_key)
+                if third_surface_result:
+                    next_question = third_surface_result["question"]
+                    selected_map_result = third_surface_result
+                    route_kind = THIRD_SURFACE_ROUTE_KIND
+                    agenda_phase = "primary_depth"
+                elif reserve_result:
+                    next_question = reserve_result["question"]
+                    selected_map_result = reserve_result
+                    route_kind = reserve_result["route_kind"]
+                    agenda_phase = "primary_depth"
+                else:
+                    close_count = _synthesis_close_count(history)
+                    next_question = await self.followup_agent.generate_graceful_close(state, close_count)
+                    route_kind = "graceful_exit" if close_count else "synthesis_close"
+                pivoting = True
+            elif agenda_route == "graceful_exit" and not route_hint:
+                next_question = "Thanks, that gives me enough signal for now. We'll wrap here and generate the interview report."
+                route_kind = "graceful_exit"
+                pivoting = True
             elif route_hint == "confession_pivot":
                 next_question = await self.followup_agent.generate_confession_pivot(
                     target_role=target_role,
@@ -3102,7 +6090,7 @@ class Orchestrator:
                 )
                 route_kind = "confession_pivot"
             elif route_hint == "graceful_exit":
-                next_question = "We're wrapping up — before we finish, is there anything about your work that you wanted to mention that we didn't get to?"
+                next_question = "Thanks, that gives me enough signal for now. We'll wrap here and generate the interview report."
                 route_kind = "graceful_exit"
             elif discrepancy_conflict and not force_sprint_question:
                 next_question = await self.followup_agent.generate_discrepancy_challenge(
@@ -3170,7 +6158,7 @@ class Orchestrator:
                     pivoting_hint=pivoting,
                 )
                 next_question, seed_followups = sprint_result
-                route_kind = "sprint_seed"
+                route_kind = "legacy_agenda_backup"
 
             await self._trace(
                 session_id,
@@ -3187,10 +6175,27 @@ class Orchestrator:
                 same_focus_recent=same_focus_recent,
                 same_focus_confirmed=same_focus_confirmed,
                 same_focus_deflections=same_focus_deflections,
+                # C-3/C-4 additions: focus-area exhaustion signals
+                focus_key=current_focus_key,
+                answered_focus_key=answered_focus_key,
+                ledger_focus_hits=_ledger_focus_hits,
+                history_focus_turns=_history_focus_turns,
+                history_focus_surfaces=_history_focus_surfaces,
+                inferred_focus_key=_current_inferred_fk,
+                consecutive_high_weakness_count=new_consecutive,
                 weakness_type=weakness.get("type") if isinstance(weakness, dict) else None,
                 weakness_severity=weakness.get("severity") if isinstance(weakness, dict) else None,
                 discrepancy_conflict=discrepancy.get("conflict_level") if isinstance(discrepancy, dict) else None,
                 followups_to_seed=len(seed_followups),
+                agenda_phase=agenda_phase,
+                agenda_route=agenda_route,
+                agenda_reason=agenda_reason,
+            )
+            print(
+                f"[BGPipeline] Turn {turn_number} → {route_kind} | "
+                f"focus={current_focus_key!r} ledger_hits={_ledger_focus_hits} "
+                f"hist_turns={_history_focus_turns} consec={new_consecutive} "
+                f"pivot={pivoting}"
             )
 
             # ── Candidate model updates (no LLM call) ────────────────────────
@@ -3208,8 +6213,8 @@ class Orchestrator:
             # Follow-up sequencing metadata — passed to _apply_staged_analysis on next turn
             if route_kind == "bank_followup_fast":
                 followups_to_store = list(state.get("current_question_followups", []))[1:3]
-            elif route_kind == "sprint_seed":
-                followups_to_store = seed_followups[:2] or _FALLBACK_FOLLOWUPS.get(sprint, [])[:2]
+            elif route_kind in {"sprint_seed", "legacy_agenda_backup"}:
+                followups_to_store = seed_followups[:2]
             else:
                 followups_to_store = []
 
@@ -3219,7 +6224,14 @@ class Orchestrator:
             # doesn't overwrite canonical counters with stale values.
             background_state_patch = {
                 key: state.get(key)
-                for key in ("coverage_map", "_last_coverage_dim_id", "_last_coverage_recovery_depth")
+                for key in (
+                    "application_transfer_arc",
+                    "coverage_map",
+                    "_last_coverage_dim_id",
+                    "_last_coverage_recovery_depth",
+                    "interview_agenda",
+                    "assessment_coverage",
+                )
                 if key in state
             }
             background_candidate_patch = {
@@ -3228,6 +6240,8 @@ class Orchestrator:
                 if key in {
                     "implementation_anchor",
                     "anchor_confidence",
+                    "application_transfer_depth_level",
+                    "application_transfer_depth_terms",
                     "_save_face_pivot_used",
                     "communication_mode",
                     "forced_exit_triggered",
@@ -3242,6 +6256,63 @@ class Orchestrator:
                 state.update(background_state_patch)
             if background_candidate_patch:
                 state.setdefault("candidate_state", {}).update(background_candidate_patch)
+
+            # A slow background pipeline can decide to stage application transfer
+            # after the fast path has already served it. Do not let stale work
+            # re-stage the same application question; move directly into coverage
+            # when an answer coverage map exists.
+            if route_kind == "application_transfer" and state.get("application_question_served"):
+                if isinstance(state.get("coverage_map"), dict):
+                    from backend.models.coverage_map import AnswerCoverageMap as _ACMap
+
+                    _cmap = _ACMap.from_dict(state["coverage_map"])
+                    _unsurfaced = _cmap.unsurfaced_dimensions()
+                    if _unsurfaced:
+                        _unsurfaced.sort(key=lambda _d: _d.weight, reverse=True)
+                        _next_dim = _unsurfaced[0]
+                        _next_dim.surfacing_attempted = True
+                        agenda_state = ensure_interview_agenda(state)
+                        agenda_state["phase"] = "coverage_surface"
+                        agenda_state["coverage_opening_count"] = int(agenda_state.get("coverage_opening_count") or 0) + 1
+                        agenda_state["last_route_reason"] = "stale_application_transfer_stage_redirected_to_coverage"
+                        state["interview_agenda"] = agenda_state
+                        _arc = _ensure_application_transfer_arc(state)
+                        _arc["surface_count"] = int(_arc.get("surface_count") or 0) + 1
+                        state["application_transfer_arc"] = _arc
+                        state["_last_coverage_dim_id"] = _next_dim.id
+                        state["_last_coverage_recovery_depth"] = None
+                        state["coverage_map"] = _cmap.to_dict()
+                        next_question = await self.followup_agent.generate_coverage_surface(
+                            dimension_id=_next_dim.id,
+                            coverage_map=_cmap,
+                            state=state,
+                        )
+                        route_kind = "coverage_surface"
+                        agenda_phase = "coverage_surface"
+                        agenda_reason = "stale_application_transfer_stage_redirected_to_coverage"
+                        pivoting = False
+                    else:
+                        _depth_dim_dict = _select_earned_coverage_depth_dimension(_cmap.to_dict(), state)
+                        _depth_dim = None
+                        if _depth_dim_dict:
+                            _depth_id = str(_depth_dim_dict.get("id") or _depth_dim_dict.get("dimension_id") or "").strip()
+                            _depth_dim = next((_d for _d in _cmap.dimensions if _d.id == _depth_id), None)
+                        if _depth_dim is not None:
+                            _mark_coverage_depth_probe(state, _cmap, _depth_dim)
+                            next_question = await self.followup_agent.generate_coverage_depth_probe(
+                                dimension_id=_depth_dim.id,
+                                coverage_map=_cmap,
+                                candidate_surface_response=_depth_dim.candidate_response,
+                                state=state,
+                            )
+                            route_kind = "coverage_depth_probe"
+                            agenda_phase = "coverage_depth"
+                            agenda_reason = "stale_application_transfer_stage_redirected_to_depth_probe"
+                            pivoting = False
+                        else:
+                            return
+                else:
+                    return
 
             latest_turn_versions = dict(state.get("latest_turn_versions", {}))
             latest_known_version = _coerce_positive_int(
@@ -3263,6 +6334,104 @@ class Orchestrator:
                     level="warn",
                 )
                 return
+
+            if route_kind == "second_anchor":
+                history_now = list(state.get("history", []) or history or [])
+                provisional_packet = {
+                    "route_kind": "second_anchor",
+                    "focus_key": str((selected_map_result or {}).get("focus_key") or current_focus_key or "").strip(),
+                    "focus_label": str((selected_map_result or {}).get("focus_label") or current_focus_label or "").strip(),
+                    "sub_focus_key": str((selected_map_result or {}).get("sub_focus_key") or selected_sub_focus_key or "").strip(),
+                    "sub_focus_label": str((selected_map_result or {}).get("sub_focus_label") or selected_sub_focus_label or "").strip(),
+                    "surface_kind": str((selected_map_result or {}).get("surface_kind") or selected_surface_kind or "").strip(),
+                }
+                block_reason = _second_anchor_packet_block_reason(
+                    provisional_packet,
+                    history_now,
+                    _evidence_question_count(state),
+                )
+                if block_reason:
+                    replacement = _reselect_second_anchor_for_surface(
+                        state,
+                        history_now,
+                        sprint=sprint,
+                        target=_second_anchor_target_from_packet(provisional_packet),
+                        avoid_focus=answered_focus_key or current_focus_key or "",
+                        answer=text,
+                        entities=entities or [],
+                        admission=honest_admission,
+                        has_discrepancy=discrepancy_conflict,
+                    )
+                    replacement_packet = {
+                        "route_kind": "second_anchor",
+                        "focus_key": str((replacement or {}).get("focus_key") or "").strip(),
+                        "focus_label": str((replacement or {}).get("focus_label") or "").strip(),
+                        "sub_focus_key": str((replacement or {}).get("sub_focus_key") or "").strip(),
+                        "sub_focus_label": str((replacement or {}).get("sub_focus_label") or "").strip(),
+                        "surface_kind": str((replacement or {}).get("surface_kind") or "").strip(),
+                    }
+                    if (
+                        replacement
+                        and not _question_already_asked(str(replacement.get("question") or ""), history_now)
+                        and not _second_anchor_packet_block_reason(
+                            replacement_packet,
+                            history_now,
+                            _evidence_question_count(state),
+                        )
+                    ):
+                        next_question = str(replacement.get("question") or "").strip()
+                        selected_map_result = replacement
+                        route_kind = "second_anchor"
+                        agenda_phase = "second_anchor"
+                        agenda_reason = f"second_anchor_reselected_after_{block_reason}"
+                        pivoting = True
+                        await self._trace(
+                            session_id,
+                            "second_anchor_reselected_before_stage",
+                            turn_id=turn_id,
+                            turn_number=turn_number,
+                            reason=block_reason,
+                            replacement_focus_key=str(replacement.get("focus_key") or ""),
+                            replacement_sub_focus_key=str(replacement.get("sub_focus_key") or ""),
+                        )
+                    else:
+                        reserve_result = _select_reserve_question(
+                            state,
+                            history_now,
+                            avoid_focus=str(provisional_packet.get("focus_key") or current_focus_key or ""),
+                        )
+                        next_visible_turn = _next_visible_turn_number(state, history_now)
+                        if reserve_result and next_visible_turn < SYNTHESIS_START_FLOOR:
+                            next_question = reserve_result["question"]
+                            selected_map_result = reserve_result
+                            route_kind = reserve_result["route_kind"]
+                            agenda_phase = "primary_depth"
+                            agenda_reason = f"second_anchor_retired_to_reserve_after_{block_reason}"
+                            pivoting = True
+                            await self._trace(
+                                session_id,
+                                "second_anchor_replaced_with_reserve_before_stage",
+                                turn_id=turn_id,
+                                turn_number=turn_number,
+                                reason=block_reason,
+                                reserve_focus_key=str(reserve_result.get("focus_key") or ""),
+                            )
+                        else:
+                            close_count = _synthesis_close_count(history_now)
+                            next_question = await self.followup_agent.generate_graceful_close(state, close_count)
+                            selected_map_result = None
+                            route_kind = "graceful_exit" if close_count else "synthesis_close"
+                            agenda_phase = "synthesis_close"
+                            agenda_reason = f"second_anchor_retired_to_close_after_{block_reason}"
+                            pivoting = True
+                            await self._trace(
+                                session_id,
+                                "second_anchor_replaced_with_close_before_stage",
+                                turn_id=turn_id,
+                                turn_number=turn_number,
+                                reason=block_reason,
+                                close_route=route_kind,
+                            )
 
             queue = [
                 item
@@ -3289,8 +6458,13 @@ class Orchestrator:
                     "reasoning_behavior": reasoning,
                     "sprint": sprint,
                     "persona": persona,
-                    "focus_key": current_focus_key,
-                    "focus_label": current_focus_label,
+                    "focus_key": answered_focus_key,
+                    "focus_label": answered_focus_label,
+                    "sub_focus_key": answered_sub_focus_key,
+                    "sub_focus_label": answered_sub_focus_label,
+                    "surface_kind": str((state.get("current_answer_context") or {}).get("surface_kind") or ""),
+                    "coverage_dimension_id": str((state.get("current_answer_context") or {}).get("coverage_dimension_id") or ""),
+                    "coverage_dimension_label": str((state.get("current_answer_context") or {}).get("coverage_dimension_label") or ""),
                     "candidate_model_updates": candidate_model_updates,
                 },
                 "metadata": {
@@ -3301,11 +6475,82 @@ class Orchestrator:
                     "current_question_followups": followups_to_store,
                     "current_question_followup_asked": False,
                     "answer_version": answer_version,
+                    "agenda_phase": agenda_phase,
+                    "agenda_reason": agenda_reason,
                 },
             })
             state["prepped_turn_queue"] = queue
 
             if turn_number >= state.get("prepped_next_question_turn_number", 0):
+                packet_extra: dict = {}
+                if route_kind == "application_anchor_recovery":
+                    packet_extra.update({
+                        "question_posture": "clarify",
+                        "signal_goal": "Recover one grounded transfer anchor from vague early answers before using resume fallback.",
+                        "expected_space": [
+                            "decision",
+                            "metric",
+                            "tradeoff",
+                            "personal contribution",
+                        ],
+                        "information_gain": "high",
+                        "voice_complexity": "low",
+                    })
+                if route_kind == "application_grounding":
+                    packet_extra.update({
+                        "question_posture": "clarify",
+                        "signal_goal": "Calibrate which depth layer the candidate actually worked at before application transfer.",
+                        "expected_space": [
+                            "decision/framing",
+                            "operating workflow",
+                            "specialized internals",
+                            "something else",
+                        ],
+                    })
+                selected_coverage_dimension_id = (
+                    str((selected_map_result or {}).get("coverage_dimension_id") or "").strip()
+                    or str(state.get("_last_coverage_dim_id") or "").strip()
+                )
+                if route_kind in {"coverage_surface", "coverage_depth_probe"}:
+                    packet_extra.update(
+                        _coverage_dimension_packet_kwargs(
+                            state.get("coverage_map"),
+                            selected_coverage_dimension_id,
+                        )
+                    )
+                packet_focus_key = str(
+                    (selected_map_result or {}).get("focus_key")
+                    or current_focus_key
+                    or ""
+                ).strip()
+                packet_focus_label = str(
+                    (selected_map_result or {}).get("focus_label")
+                    or current_focus_label
+                    or ""
+                ).strip()
+                next_sub_focus_key = str((selected_map_result or {}).get("sub_focus_key") or "").strip()
+                next_sub_focus_label = str((selected_map_result or {}).get("sub_focus_label") or "").strip()
+                if not next_sub_focus_key and route_kind not in {"coverage_surface", "coverage_depth_probe"}:
+                    next_sub_focus_key, next_sub_focus_label = _infer_sub_focus(
+                        state.get("interview_trajectory_map", {}),
+                        packet_focus_key,
+                        next_question,
+                        "",
+                    )
+                if route_kind in {"coverage_surface", "coverage_depth_probe"} and selected_coverage_dimension_id:
+                    packet_extra.setdefault("coverage_dimension_id", selected_coverage_dimension_id)
+                    packet_extra.setdefault(
+                        "coverage_dimension_label",
+                        str((selected_map_result or {}).get("coverage_dimension_label") or selected_coverage_dimension_id),
+                    )
+                packet_extra = {
+                    **_question_packet_ladder_kwargs(selected_map_result),
+                    **packet_extra,
+                }
+                packet_extra.setdefault(
+                    "question_posture",
+                    str((selected_map_result or {}).get("question_posture") or ""),
+                )
                 state["prepped_next_question"] = next_question
                 state["prepped_next_question_turn_number"] = turn_number
                 state["prepped_next_context"] = {
@@ -3327,7 +6572,56 @@ class Orchestrator:
                     weakness=weakness,
                     discrepancy=discrepancy,
                     source_turn_number=turn_number,
+                    focus_key_override=packet_focus_key,
+                    focus_label_override=packet_focus_label,
+                    sub_focus_key_override=next_sub_focus_key,
+                    sub_focus_label_override=next_sub_focus_label,
+                    **packet_extra,
                 )
+            policy_check = self.policy_checker_agent.check(
+                state,
+                next_packet=state.get("prepped_next_packet") or {},
+                next_route_kind=route_kind,
+                agenda_phase=agenda_phase,
+                agenda_reason=agenda_reason,
+                turn_number=turn_number,
+            )
+            state["last_policy_check"] = policy_check
+            policy_events = [
+                item for item in state.get("policy_checker_events", [])
+                if isinstance(item, dict)
+            ]
+            policy_events.append(
+                {
+                    "turn_id": turn_id,
+                    "turn_number": turn_number,
+                    "answer_version": answer_version,
+                    "route_kind": route_kind,
+                    "agenda_phase": agenda_phase,
+                    "policy_status": policy_check.get("policy_status"),
+                    "warning_codes": list(policy_check.get("primary_warning_codes") or []),
+                    "warnings": list(policy_check.get("warnings") or [])[:5],
+                    "metrics": dict(policy_check.get("metrics") or {}),
+                }
+            )
+            state["policy_checker_events"] = policy_events[-50:]
+            state["policy_warning_count"] = sum(
+                len(item.get("warnings") or [])
+                for item in state["policy_checker_events"]
+                if isinstance(item, dict)
+            )
+            await self._trace(
+                session_id,
+                "policy_checker_warning" if policy_check.get("warnings") else "policy_checker_ok",
+                turn_id=turn_id,
+                turn_number=turn_number,
+                answer_version=answer_version,
+                route_kind=route_kind,
+                agenda_phase=agenda_phase,
+                policy_status=policy_check.get("policy_status"),
+                warning_codes=list(policy_check.get("primary_warning_codes") or []),
+                metrics=dict(policy_check.get("metrics") or {}),
+            )
             state["prepped_turn_analysis"] = {
                 "session_id": session_id,
                 "turn_id": turn_id,
@@ -3341,7 +6635,20 @@ class Orchestrator:
                 "reasoning_behavior": reasoning,
                 "sprint": sprint,
                 "persona": persona,
+                "focus_key": current_focus_key,
+                "focus_label": current_focus_label,
+                "sub_focus_key": answered_sub_focus_key,
+                "sub_focus_label": answered_sub_focus_label,
+                "surface_kind": str((state.get("current_answer_context") or {}).get("surface_kind") or ""),
+                "question_posture": str((state.get("current_answer_context") or {}).get("question_posture") or ""),
+                "signal_goal": str((state.get("current_answer_context") or {}).get("signal_goal") or ""),
+                "expected_space": list((state.get("current_answer_context") or {}).get("expected_space") or [])[:4],
+                "covered_expected_space": list((state.get("current_answer_context") or {}).get("covered_expected_space") or [])[:4],
+                "missing_expected_space": list((state.get("current_answer_context") or {}).get("missing_expected_space") or [])[:4],
+                "coverage_dimension_id": str((state.get("current_answer_context") or {}).get("coverage_dimension_id") or ""),
+                "coverage_dimension_label": str((state.get("current_answer_context") or {}).get("coverage_dimension_label") or ""),
                 "candidate_model_updates": candidate_model_updates,
+                "policy_check": policy_check,
             }
             state["prepped_next_metadata"] = {
                 "pivoting": pivoting,
@@ -3351,6 +6658,9 @@ class Orchestrator:
                 "current_question_followups": followups_to_store,
                 "current_question_followup_asked": False,
                 "answer_version": answer_version,
+                "agenda_phase": agenda_phase,
+                "agenda_reason": agenda_reason,
+                "policy_check": policy_check,
             }
 
             await self.session_manager.save_state(session_id, state)
@@ -3366,6 +6676,8 @@ class Orchestrator:
                 followups_staged=len(followups_to_store),
                 prepped_question_chars=len(next_question),
                 elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
+                agenda_phase=agenda_phase,
+                agenda_reason=agenda_reason,
             )
 
             # Pre-generate TTS audio for the staged question so the /tts call
@@ -3382,7 +6694,6 @@ class Orchestrator:
                 asyncio.create_task(self.tts_service.pre_generate(session_id, next_question))
 
         except Exception as e:
-            # Non-fatal: next turn gracefully falls back to bank follow-up or sprint fallback
             print(f"[BGPipeline] Failed for session {session_id}: {e}")
             await self._trace(
                 session_id,
@@ -3395,6 +6706,7 @@ class Orchestrator:
                 error=str(e)[:300],
                 elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
             )
+            raise
         finally:
             # Always release the inflight slot so exact-version retries can rerun if needed.
             self._pipeline_inflight.discard(pipeline_key)
@@ -3420,23 +6732,14 @@ class Orchestrator:
                 state.get("parsed_resume"), state.get("resume", "")
             )
             seed_followups: list[str] = []
-            try:
-                question = await asyncio.wait_for(
-                    self.followup_agent.generate_seed_question(
-                        sprint=1,
-                        persona="curious_lead",
-                        resume_context=resume_context,
-                    ),
-                    timeout=8.0,
-                )
-            except asyncio.TimeoutError:
-                question = "Great, that's really helpful context. So tell me more about what you've been building — like, what were you actually doing there? What did you build, what tech were you working with, feel free to just walk me through it."
-                await self._trace(
-                    session_id,
-                    "seed_first_question_timeout_fallback",
-                    level="warn",
-                    elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
-                )
+            question = await asyncio.wait_for(
+                self.followup_agent.generate_seed_question(
+                    sprint=1,
+                    persona="curious_lead",
+                    resume_context=resume_context,
+                ),
+                timeout=8.0,
+            )
             # Re-read before saving — don't overwrite any parallel changes
             state = await self.session_manager.get_state(session_id)
             if (
@@ -3451,7 +6754,7 @@ class Orchestrator:
             state["prepped_next_question_turn_number"] = 0
             state["prepped_next_context"] = {
                 "pivoting": False,
-                "route_kind": "sprint_seed",
+                "route_kind": "seed_first_followup",
                 "weakness": None,
                 "discrepancy": None,
                 "turn_id": "",
@@ -3459,7 +6762,7 @@ class Orchestrator:
             state["prepped_next_packet"] = _build_question_packet(
                 question_text=question,
                 sprint=1,
-                route_kind="sprint_seed",
+                route_kind="seed_first_followup",
                 parsed_resume=state.get("parsed_resume"),
                 resume=state.get("resume", ""),
                 followups=seed_followups[:2],
@@ -3470,7 +6773,7 @@ class Orchestrator:
             await self._trace(
                 session_id,
                 "seed_first_question_ready",
-                route_kind="sprint_seed",
+                route_kind="seed_first_followup",
                 question_chars=len(question),
                 followups_seeded=len(seed_followups[:2]),
                 elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
@@ -3485,6 +6788,7 @@ class Orchestrator:
                 error=str(e)[:300],
                 elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
             )
+            raise
 
     async def _build_interview_map(self, session_id: str, max_wait_seconds: float = MAP_PREP_TIMEOUT_SECONDS) -> bool:
         """
@@ -3493,7 +6797,7 @@ class Orchestrator:
         Product contract:
         - build the interview map before the interview can start
         - keep hydrating until the map is rich and validated, or fail preparation
-        - deterministic fallback can bootstrap hydration, but it does not count as "ready"
+        - no deterministic fallback: an invalid LLM map fails startup
         """
         started_at = time.perf_counter()
         try:
@@ -3506,31 +6810,14 @@ class Orchestrator:
             state["interview_map_status"] = "preparing"
             state["interview_map_error"] = ""
             await self.session_manager.save_state(session_id, state)
-            try:
-                interview_map = await asyncio.wait_for(
-                    generate_interview_map(
-                        resume=resume,
-                        session_id=session_id,
-                        target_role=state.get("target_role", ""),
-                    ),
-                    timeout=min(MAP_PREP_GENERATE_TIMEOUT_SECONDS, max_wait_seconds),
-                )
-            except Exception as exc:
-                map_source = "deterministic_fallback"
-                interview_map = build_deterministic_interview_map(
+            interview_map = await asyncio.wait_for(
+                generate_interview_map(
                     resume=resume,
                     session_id=session_id,
-                    role_type=state.get("target_role", ""),
-                )
-                await self._trace(
-                    session_id,
-                    "interview_map_fallback_ready",
-                    level="warn",
-                    fallback_reason=type(exc).__name__,
-                    error=str(exc)[:200],
-                    focus_areas=len(interview_map.get("focus_areas", [])),
-                    elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
-                )
+                    target_role=state.get("target_role", ""),
+                ),
+                timeout=min(MAP_PREP_GENERATE_TIMEOUT_SECONDS, max_wait_seconds),
+            )
             if not interview_map:
                 await self._trace(session_id, "interview_map_empty", level="warn",
                               elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3))
@@ -3553,6 +6840,11 @@ class Orchestrator:
                 str(r.get("focus_key", "") or "")
                 for r in focus_reports[MAP_STARTUP_FOCUS_AREAS:]
                 if not bool(r.get("ready")) and str(r.get("focus_key", "") or "")
+            ]
+            pending_async_hydration = [
+                str(key)
+                for key in (interview_map.get("pending_hydration_focus_keys", []) or [])
+                if str(key)
             ]
 
             hydration_passes = 0
@@ -3587,28 +6879,29 @@ class Orchestrator:
                     elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
                 )
 
-            # Fire remaining areas as background tasks — don't block the startup contract
-            if background_unready:
-                asyncio.create_task(
-                    self._hydrate_interview_map(session_id, background_unready),
-                    name=f"hydrate_bg_{session_id[:8]}",
-                )
+            # Fire remaining areas after the launch map is saved below. Starting
+            # the task before persistence can race and make hydration read an
+            # empty session map, silently losing deferred surfaces.
+            background_targets = pending_async_hydration or background_unready
 
             state = await self.session_manager.get_state(session_id)
             if state.get("interview_complete"):
                 return False
             state["interview_trajectory_map"] = interview_map
             state["interview_map_validation"] = validation
+            state["interview_agenda"] = initial_interview_agenda(interview_map)
 
             focus_count = len(interview_map.get("focus_areas", []))
             preview = [
                 {
                     "label": str(area.get("label", "") or ""),
                     "focus_key": str(area.get("focus_key", "") or ""),
-                    "opener": str(area.get("opener", "") or ""),
-                    "dimension_count": len(area.get("dimensions", []) or []),
+                    "opener": _track_opener(area),
+                    "dimension_count": len(_track_dimensions(area)),
                     "track_source": str(area.get("track_source", "") or ""),
                     "track_schema": str(area.get("track_schema", "") or ""),
+                    "map_schema_version": str(area.get("map_schema_version", "") or ""),
+                    "primary_question_contract": str(area.get("primary_question_contract", "") or ""),
                     "llm_branch_count": int(area.get("llm_branch_count", 0) or 0),
                 }
                 for area in interview_map.get("focus_areas", [])[:3]
@@ -3619,6 +6912,12 @@ class Orchestrator:
                 state["interview_map_error"] = ""
                 state["interview_map_prepared_at"] = time.time()
                 await self.session_manager.save_state(session_id, state)
+                if background_targets:
+                    self._hydration_inflight.add(session_id)
+                    asyncio.create_task(
+                        self._hydrate_interview_map(session_id, background_targets),
+                        name=f"hydrate_bg_{session_id[:8]}",
+                    )
                 await self._trace(
                     session_id,
                     "interview_map_ready",
@@ -3626,6 +6925,9 @@ class Orchestrator:
                     focus_areas=focus_count,
                     llm_focuses=int(validation.get("llm_focus_count", 0) or 0),
                     rich_focuses=int(validation.get("rich_focus_count", 0) or 0),
+                    launch_ready=bool(interview_map.get("launch_ready")),
+                    full_map_ready=bool(interview_map.get("full_map_ready")),
+                    pending_async_hydration=len(pending_async_hydration),
                     focus_preview=preview,
                     elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
                 )
@@ -3649,16 +6951,28 @@ class Orchestrator:
             )
             return False
         except Exception as e:
-            print(f"[TrajectoryMap] Build failed for {session_id[:8]}: {e}")
+            error_text = str(e).strip() or type(e).__name__
+            diagnostics = getattr(e, "diagnostics", {}) if isinstance(e, MapPreparationError) else {}
+            try:
+                setattr(e, "session_id", session_id)
+                if diagnostics:
+                    setattr(e, "diagnostics", diagnostics)
+            except Exception:
+                pass
+            print(f"[TrajectoryMap] Build failed for {session_id[:8]}: {error_text}")
             try:
                 state = await self.session_manager.get_state(session_id)
                 state["interview_map_status"] = "failed"
-                state["interview_map_error"] = str(e)[:300]
+                state["interview_map_error"] = error_text[:300]
+                if diagnostics:
+                    state["interview_map_failure_diagnostics"] = diagnostics
                 await self.session_manager.save_state(session_id, state)
             except Exception:
                 pass
             await self._trace(session_id, "interview_map_failed", level="warn",
-                              error=str(e)[:200],
+                              error=error_text[:200],
+                              has_diagnostics=bool(diagnostics),
+                              diagnostic_cause=(diagnostics.get("cause", "")[:200] if isinstance(diagnostics, dict) else ""),
                               elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3))
             raise
 
@@ -3683,6 +6997,12 @@ class Orchestrator:
             if state.get("interview_complete"):
                 return
             state["interview_trajectory_map"] = hydrated
+            state["interview_map_validation"] = validate_interview_map(
+                hydrated,
+                require_all_llm=False,
+                min_llm_branch_ratio=MAP_PREP_MIN_LLM_BRANCH_RATIO,
+            )
+            ensure_interview_agenda(state)
             await self.session_manager.save_state(session_id, state)
             remaining = list(hydrated.get("pending_hydration_focus_keys", []) or [])
             await self._trace(
@@ -3690,6 +7010,8 @@ class Orchestrator:
                 "interview_map_hydrated",
                 hydrated_focuses=max(len(focus_keys) - len(remaining), 0),
                 remaining_focuses=len(remaining),
+                quarantined_focuses=len(hydrated.get("map_quarantine", []) or []),
+                full_map_ready=bool(hydrated.get("full_map_ready")),
                 elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
             )
         except Exception as exc:
@@ -3701,6 +7023,8 @@ class Orchestrator:
                 error=str(exc)[:300],
                 elapsed_ms=round((time.perf_counter() - started_at) * 1000, 3),
             )
+        finally:
+            self._hydration_inflight.discard(session_id)
 
     async def _run_speculative_generation(
         self,
@@ -3867,9 +7191,9 @@ class Orchestrator:
         """
         Advance sprint if current one is exhausted. Mutates state in place.
 
-        Sprint openers are generated dynamically — Haiku call (~300ms) with the last
-        sprint's history + resume context. Falls back to static SPRINT_OPENERS if the
-        LLM call fails.
+        Sprints are persona/pressure stages only. The interview agenda is owned by
+        the trajectory map, application-transfer, coverage, and weakness routes; this
+        method must never inject or overwrite the next question.
         """
         if state["sprint_question_count"] < QUESTIONS_PER_SPRINT:
             return False, ""
@@ -3887,72 +7211,30 @@ class Orchestrator:
         state["sprint_question_count"] = 0
         state["consecutive_high_weakness_count"] = 0
         state["last_weakness_type"] = None
-        state["current_question_followups"] = []
-        state["current_question_followup_asked"] = False
-
-        # Pull the turns from the sprint we're leaving — used as context for the opener.
-        # The current turn's analysis is still in the background pipeline (not yet in history),
-        # so we synthesize a partial record for it using what we do have: the last question
-        # asked and the candidate's current answer.
-        history = state.get("history", [])
-        prior_sprint_history = [h for h in history if h.get("sprint") == prior_sprint]
-        if current_answer and answered_question:
-            answered_focus_key, answered_focus_label = _infer_focus(
-                answered_question,
-                current_answer,
-                state.get("parsed_resume"),
-                state.get("resume", ""),
-            )
-            prior_sprint_history = prior_sprint_history + [{
-                "question": answered_question,
-                "answer": current_answer,
-                "sprint": prior_sprint,
-                "focus_key": answered_focus_key,
-                "focus_label": answered_focus_label,
-            }]
-
-        continuity_brief = _build_continuity_brief(
-            history=prior_sprint_history,
-            candidate_model=state.get("candidate_model", {}),
-            current_question=answered_question,
-            current_answer=current_answer,
+        state["persona_transition_note"] = (
+            f"Sprint {prior_sprint} complete; persona advanced to {next_persona}. "
+            "Next question remains owned by the active agenda route."
         )
-        avoid_topics = _collect_overprobed_topics(prior_sprint_history)
-        opener_focus_pack = _build_focus_prompt_pack(
-            state.get("interview_trajectory_map", {}),
-            focus_key=answered_focus_key if current_answer and answered_question else "",
-            last_question=answered_question,
-            answer=current_answer,
-            history=prior_sprint_history,
-        )
-
-        try:
-            opener = await self.followup_agent.generate_sprint_opener(
-                sprint=next_sprint,
-                persona=next_persona,
-                resume=state.get("resume", ""),
-                parsed_resume=state.get("parsed_resume"),
-                prior_sprint_history=prior_sprint_history,
-                transition_brief=continuity_brief,
-                avoid_topics=avoid_topics,
-                focus_context=opener_focus_pack.get("prompt_context", ""),
-                resume_snippets=opener_focus_pack.get("resume_snippets", []),
-            )
-        except Exception as e:
-            print(f"[SprintOpener] LLM failed for sprint {next_sprint}, using context fallback: {e}")
-            # Build a context-aware fallback from the last substantive thread instead of
-            # using a generic static template.
-            opener = _build_sprint_fallback_opener(next_sprint, prior_sprint_history, state.get("parsed_resume"))
-
-        state["last_question"] = opener
-        return True, opener
+        return True, ""
 
     def _is_complete(self, state: dict) -> bool:
         """Interview ends when sprint 3 is exhausted, 30 minutes elapsed, or terminal admission."""
+        if state.get("question_count", 0) <= 0:
+            return False
+        if state.get("question_count", 0) >= MIN_COMPLETION_TURNS:
+            state["assessment_coverage"] = _assessment_coverage(state)
+            agenda = ensure_interview_agenda(state)
+            agenda["phase"] = "complete"
+            agenda["completion_eligible"] = True
+            agenda["close_reason"] = "15_turn_cap"
+            state["interview_agenda"] = agenda
+            return True
         if state["current_sprint"] == 3 and state["sprint_question_count"] >= QUESTIONS_PER_SPRINT:
+            state["assessment_coverage"] = _assessment_coverage(state)
             return True
         elapsed_minutes = (time.time() - state["interview_start_time"]) / 60
         if elapsed_minutes >= MAX_INTERVIEW_MINUTES:
+            state["assessment_coverage"] = _assessment_coverage(state)
             return True
         # Terminal admission: 2+ consecutive turns where candidate explicitly admitted they
         # cannot answer (admitted_gap with structure_score == 0). Continuing past this point

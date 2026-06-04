@@ -266,3 +266,10 @@ If the next session needs to analyze a run:
 ## 12. One-Line State Summary
 
 Antigravity is asking better questions now, but the next wins are no longer in prompt quality alone; they are in first-turn steering, transcript integrity, and faster audio handoff.
+
+Best next-session bootstrap is:
+
+read AGENTS.md
+read COLLAB.md
+read CODEX_SESSION_HANDOFF_2026-04-14.md
+No runtime code changed in this step beyond creating the handoff document.

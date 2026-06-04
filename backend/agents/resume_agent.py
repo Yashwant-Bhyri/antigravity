@@ -1,68 +1,38 @@
-from backend.models.llm_router import LLMRouter
+from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
 import re
 
 
-PROMPT = """You are a resume parser.
+PROMPT = """You are a resume parser. Extract structured data from the resume below.
 
-Your job is to extract not just technologies, but ownership and level signals that help calibrate interview pressure fairly.
+IMPORTANT rules:
+- Bullet points that wrap across lines belong to the same claim — join them.
+- Do NOT classify contact info (email, phone, LinkedIn, GitHub, address) as a project or experience.
+- Do NOT classify education entries (B.Tech, M.S., GPA lines) as projects.
+- Skills and tools should contain individual technology names, not full sentences.
+- Claims should be complete sentences (join line-wrapped bullet points into one claim).
+- experience_tier: derive from explicit years of experience stated or implied by total career length.
+  - 0–1 year → "junior"; 1–3 years → "mid"; 3+ years → "senior"
 
 Extract:
 - candidate_name (str): the person's full name from the top of the resume, or empty string if not found
 - skills (list[str])
 - tools (list[str])
-- projects (list[object]) with:
-  - name
-  - description
-  - technologies
-  - ownership_level: "primary | shared | supporting"
-  - contribution_type: "led | built | contributed | assisted"
-- experiences (list[object]) with:
-  - title
-  - company
-  - duration
-  - contribution_type: "led | built | contributed | assisted"
-- claims (list[object]) with:
-  - text
-  - project
-  - strength: "modest | strong | flagship"
-  - contribution_type: "led | built | contributed | assisted"
-- years of experience per domain
+- projects (list[object]) with name, description, technologies, ownership_level, contribution_type
+- experiences (list[object]) with title, company, duration, contribution_type
+- claims (list[object]) with text (complete sentence), project, strength, contribution_type
 - experience_tier: "junior | mid | senior"
 
-Return JSON:
+Return ONLY valid JSON (no markdown fences):
 {
   "candidate_name": "...",
   "skills": [...],
-  "projects": [
-    {
-      "name": "...",
-      "description": "...",
-      "technologies": ["..."],
-      "ownership_level": "primary | shared | supporting",
-      "contribution_type": "led | built | contributed | assisted"
-    }
-  ],
-  "claims": [
-    {
-      "text": "...",
-      "project": "...",
-      "strength": "modest | strong | flagship",
-      "contribution_type": "led | built | contributed | assisted"
-    }
-  ],
+  "projects": [{"name": "...", "description": "...", "technologies": ["..."], "ownership_level": "primary", "contribution_type": "built"}],
+  "claims": [{"text": "...", "project": "...", "strength": "strong", "contribution_type": "built"}],
   "tools": [...],
-  "experiences": [
-    {
-      "title": "...",
-      "company": "...",
-      "duration": "...",
-      "contribution_type": "led | built | contributed | assisted"
-    }
-  ],
+  "experiences": [{"title": "...", "company": "...", "duration": "...", "contribution_type": "built"}],
   "experience": {"ml": 0, "swe": 0, "data_eng": 0},
-  "experience_tier": "junior | mid | senior"
-}
-"""
+  "experience_tier": "junior"
+}"""
 
 
 class ResumeAgent:
@@ -74,133 +44,48 @@ class ResumeAgent:
     def __init__(self):
         self.llm = LLMRouter(tier="small")
 
-    def _heuristic_parse(
-        self,
-        resume_text: str,
-        years_experience: str = "",
-    ) -> dict:
-        lines = [line.strip() for line in resume_text.splitlines() if line.strip()]
-        skills: list[str] = []
-        tools: list[str] = []
-        experiences: list[dict] = []
-        projects: list[dict] = []
-        claims: list[dict] = []
-
-        current_project = ""
-        current_contribution = "contributed"
-
-        def _split_tokens(text: str) -> list[str]:
-            return [
-                token.strip(" .:-")
-                for token in re.split(r"[,\u2022|/]+", text)
-                if token.strip(" .:-")
-            ]
-
-        for index, line in enumerate(lines):
-            lower = line.lower()
-            if "top skills:" in lower or lower.startswith("skills:") or lower.startswith("technical skills"):
-                payload = line.split(":", 1)[1] if ":" in line else line
-                if index + 1 < len(lines) and ":" in lines[index + 1] and "skills" in lower:
-                    payload = f"{payload}, {lines[index + 1]}"
-                tokens = _split_tokens(payload)
-                for token in tokens:
-                    if len(token) > 1 and token not in skills:
-                        skills.append(token)
+    def _join_continuation_lines(self, text: str) -> str:
+        """Join bullet-point lines that wrap across lines due to PDF/text extraction."""
+        lines = text.splitlines()
+        result: list[str] = []
+        bullet_chars = ("•", "-", "*", "◦", "–", "▪")
+        header_keywords = re.compile(
+            r"^(experience|education|skills|projects|summary|objective|certifications|"
+            r"awards|publications|work history|technical|contact|languages)\b",
+            re.IGNORECASE,
+        )
+        date_pattern = re.compile(r"^\d{4}|^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)", re.IGNORECASE)
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                result.append(stripped)
                 continue
-
-            if any(keyword in lower for keyword in ("aws", "docker", "linux", "gcp", "git", "deployment")):
-                for token in _split_tokens(line):
-                    if token not in tools and len(token) > 1:
-                        tools.append(token)
-
-            if not line.startswith(("•", "-", "*")) and (
-                "@" in line or "intern" in lower or "research assistant" in lower or "engineer" in lower
-            ):
-                company_match = re.search(r"@([^@]+?)(?:\s+\d{4}|\s+Jan|\s+Feb|\s+Mar|\s+Apr|\s+May|\s+Jun|\s+Jul|\s+Aug|\s+Sep|\s+Oct|\s+Nov|\s+Dec|$)", line)
-                company = company_match.group(1).strip(" -:") if company_match else ""
-                title_part = line.split("@")[0].strip(" :-") if "@" in line else line
-                title = re.sub(r"\s{2,}", " ", title_part)
-                duration_match = re.search(r"((?:19|20)\d{2}[^@]*)$", line)
-                duration = duration_match.group(1).strip() if duration_match else ""
-                contribution = "assisted" if "assistant" in lower else "built" if "engineer" in lower else "contributed"
-                current_project = company or title
-                current_contribution = contribution
-                experiences.append({
-                    "title": title[:120],
-                    "company": company[:120],
-                    "duration": duration[:80],
-                    "contribution_type": contribution,
-                })
-                projects.append({
-                    "name": current_project[:120] or title[:120],
-                    "description": title[:200],
-                    "technologies": [],
-                    "ownership_level": "supporting" if contribution == "assisted" else "shared",
-                    "contribution_type": contribution,
-                })
-                continue
-
-            if line.startswith(("•", "-", "*")):
-                bullet = line.lstrip("•-* ").strip()
-                if not bullet:
-                    continue
-                claims.append({
-                    "text": bullet[:240],
-                    "project": current_project[:120],
-                    "strength": "flagship" if any(sym in bullet for sym in ("%", "×", "x", "95", "200+", "12,")) else "strong",
-                    "contribution_type": current_contribution,
-                })
-                if projects:
-                    tech_hits = [
-                        token for token in _split_tokens(bullet)
-                        if any(ch.isupper() for ch in token) or token.lower() in {"python", "c++", "sql", "docker", "linux", "tensorflow", "mediapipe"}
-                    ]
-                    if tech_hits:
-                        existing = projects[-1].setdefault("technologies", [])
-                        for tech in tech_hits[:8]:
-                            if tech not in existing:
-                                existing.append(tech)
-
-        tier = "junior"
-        years_lower = years_experience.lower()
-        if any(token in years_lower for token in ("4", "5", "senior", "staff")):
-            tier = "senior"
-        elif any(token in years_lower for token in ("2", "3", "mid")):
-            tier = "mid"
-        elif any("intern" in exp.get("title", "").lower() for exp in experiences):
-            tier = "junior"
-
-        return {
-            "skills": skills[:20],
-            "tools": tools[:15],
-            "projects": projects[:6],
-            "claims": claims[:10],
-            "experiences": experiences[:6],
-            "experience": {"ml": 0, "swe": 0, "data_eng": 0},
-            "experience_tier": tier,
-        }
-
-    _LIST_OF_DICT_KEYS = {"projects", "claims", "experiences"}
-
-    def _merge_with_fallback(self, parsed: dict, fallback: dict) -> dict:
-        merged = dict(parsed or {})
-        for key, fallback_value in fallback.items():
-            current_value = merged.get(key)
-            if isinstance(fallback_value, list):
-                if isinstance(current_value, list) and current_value:
-                    if key in self._LIST_OF_DICT_KEYS:
-                        # Ensure every item is a dict; drop malformed entries from LLM
-                        cleaned = [item for item in current_value if isinstance(item, dict)]
-                        merged[key] = cleaned if cleaned else fallback_value
-                    else:
-                        merged[key] = current_value
-                else:
-                    merged[key] = fallback_value
-            elif isinstance(fallback_value, dict):
-                merged[key] = current_value if isinstance(current_value, dict) and current_value else fallback_value
+            is_bullet = stripped[0] in bullet_chars
+            is_header = bool(header_keywords.match(stripped))
+            is_date = bool(date_pattern.match(stripped))
+            is_new_section = is_bullet or is_header or is_date or (len(stripped) > 2 and stripped[0].isupper() and stripped.endswith(":"))
+            if result and not is_new_section and result[-1] and not result[-1].endswith("."):
+                result[-1] = result[-1].rstrip() + " " + stripped
             else:
-                merged[key] = current_value or fallback_value
-        return merged
+                result.append(stripped)
+        return "\n".join(result)
+
+    def _derive_experience_tier(self, years_experience: str) -> str:
+        """Derive experience tier from years_experience string (e.g. '0-1', '1-3', '3+')."""
+        if not years_experience:
+            return "junior"
+        yl = years_experience.lower().strip()
+        if any(kw in yl for kw in ("senior", "staff", "lead", "principal", "architect")):
+            return "senior"
+        # Extract first number
+        nums = re.findall(r"\d+", yl)
+        if nums:
+            low = int(nums[0])
+            if low >= 3:
+                return "senior"
+            if low >= 1:
+                return "mid"
+        return "junior"
 
     async def parse(
         self,
@@ -208,15 +93,31 @@ class ResumeAgent:
         target_role: str = "",
         years_experience: str = "",
     ) -> dict:
+        preprocessed = self._join_continuation_lines(resume_text)
         result = await self.llm.call(
             system=PROMPT,
             user=(
                 f"Target role: {target_role or 'not provided'}\n"
                 f"Expected years of experience: {years_experience or 'not provided'}\n\n"
-                f"Resume:\n{resume_text}"
+                f"Resume:\n{preprocessed}"
             ),
+            max_tokens=5000,
+            response_format=JSON_OBJECT_FORMAT,
         )
-        fallback = self._heuristic_parse(resume_text, years_experience=years_experience)
         if not isinstance(result, dict):
-            return fallback
-        return self._merge_with_fallback(result, fallback)
+            raise RuntimeError("ResumeAgent returned non-JSON output; refusing heuristic fallback.")
+        for key in ("skills", "tools", "projects", "claims", "experiences"):
+            if key not in result:
+                raise RuntimeError(f"ResumeAgent output missing required key: {key}")
+        for key in ("skills", "tools"):
+            if not isinstance(result.get(key), list):
+                raise RuntimeError(f"ResumeAgent output key '{key}' must be a list.")
+        for key in ("projects", "claims", "experiences"):
+            value = result.get(key)
+            if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+                raise RuntimeError(f"ResumeAgent output key '{key}' must be a list of objects.")
+        # Ensure experience_tier uses years_experience as primary signal
+        derived_tier = self._derive_experience_tier(years_experience)
+        if derived_tier and years_experience:
+            result["experience_tier"] = derived_tier
+        return result

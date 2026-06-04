@@ -7,6 +7,11 @@ try:
     project_root = Path(__file__).resolve().parents[1]
     env_file = project_root / ".env"
     env_local = project_root / ".env.local"
+    inherited_env = {
+        key: value
+        for key, value in os.environ.items()
+        if key.startswith(("OPENROUTER_", "ANTIGRAVITY_", "TTS_", "CARTESIA_", "ELEVENLABS_"))
+    }
 
     loaded_any = False
     if env_file.exists():
@@ -22,6 +27,9 @@ try:
         loaded_any = True
     if not loaded_any:
         print("[System] No project-root .env file found; using inherited environment only")
+    for key, value in inherited_env.items():
+        if value:
+            os.environ[key] = value
 except ImportError:
     pass  # In Vercel/Docker, environment variables are injected natively; no dotenv needed
 except Exception as e:
@@ -63,10 +71,14 @@ _frontend_url = (os.getenv("FRONTEND_URL") or "").strip()
 _allow_origins = _cors_extra or [
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
     "http://localhost:5173",
     "http://localhost:8080",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+    "http://127.0.0.1:3003",
     "https://provenhire.in",
     "https://www.provenhire.in",
 ]

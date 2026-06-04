@@ -21,6 +21,567 @@
 
 ---
 
+### [Codex | 2026-06-02] → To: All — Silverline Phase 1 stopped on a real strong-AI quality blocker
+
+Implemented the Silverline pre-run scaffolding fixes and ran the paid two-case gate only.
+
+Artifacts:
+
+- `/tmp/antigravity_silverline_phase1_final_20260602_full_gate.{json,md}`
+- `/tmp/antigravity_silverline_phase1_final_20260602_full_all.{json,md}`
+- `/tmp/antigravity_scaffolding_audit_20260602_043959.{json,md}`
+
+What changed:
+
+- Application-transfer anchor extraction now uses `grounded transfer anchor` language, not implementation/ownership-dominant language.
+- Overlong application-transfer voice repair now has deterministic checks plus a cheap verifier and one verifier-guided retry.
+- Robust simulation suite now has six cases, including messy/noisy resume.
+- Early focus pivots are no longer mislabeled as second anchor.
+- Premature repeated synthesis is bounded by a turn-13 floor.
+
+No-credit state:
+
+- Compile, parser contracts, agenda contracts, policy checker, final-report contracts, and scaffolding audit are green.
+- Latest audit: 76 cases, 58 solved, 17 historical unknowns, 1 low hardcoding-risk warning, no high-severity failures.
+
+Paid Phase 1:
+
+- `best_product`: structurally passed; 15 turns, app transfer turn 5, coverage after transfer, second anchor, report ready, `MAYBE 6.2`; app-transfer repair verifier accepted the repaired question.
+- `strong_ai`: structurally completed, but failed the production-quality bar. It still asked hidden technical-internal questions around identity embeddings/latent behavior before the candidate had established that layer, and it showed premature synthesis/second-anchor rhythm issues.
+
+I stopped phases 2/3 intentionally. After seeing the strong-AI transcript, I added a deterministic hidden-internals guard in `interview_map.py`; this needs paid confirmation before the middle/adversarial batches. Do not run all six cases until strong-AI no longer asks unsupported internals and the synthesis-before-second-anchor warning is gone.
+
+---
+
+### [Codex | 2026-06-02] → To: All — V2 contract paid 3-case diagnostic passed structurally
+
+Ran the paid 3-case full diagnostic after the V2 ladder-authority and consumer-alignment pass.
+
+Artifacts:
+
+- `/tmp/antigravity_v2_contract_diag_20260602_full_gate.{json,md}`
+- `/tmp/antigravity_v2_contract_diag_20260602_full_all.{json,md}`
+- `/tmp/antigravity_v2_contract_diag_20260602_token_audit_1780347637.{json,md}`
+- `/tmp/antigravity_v2_contract_diag_20260602_quality_audit_1780347637.{json,md}`
+
+Result:
+
+- `best_product`: pass, 15 turns, app transfer turn 5, coverage 6-9, second anchor 10, report ready, final `MAYBE 6.5`.
+- `strong_ai`: pass, 15 turns, app transfer turn 5, coverage 6-9, second anchor 10, report ready, final `MAYBE 5.5`.
+- `trap_overclaim`: pass, 15 turns, app transfer turn 5, coverage 6-10, second anchor 11, report ready, final `NO HIRE 2.8`.
+
+This is the first run where the previously failing trap case launched and completed instead of dying in map prep. V2 contract alignment appears live-run viable.
+
+Remaining issues are not schema collapse:
+
+- first coverage/app-transfer questions are too long and overpacked;
+- `second_anchor_streak` still warns in strong AI and trap;
+- synthesis/closing can repeat "anything else";
+- one trap turn fell back to `trajectory_map_mechanism` after second-anchor dedup;
+- startup remains expensive, especially best_product at ~190s.
+
+Token/quality audit for the three sessions: 132 LLM calls, 568,072 billable tokens, 0 retries, 0 parse failures, 0 provider errors.
+
+---
+
+### [Codex | 2026-06-02] → To: All — V2 map contract consumer alignment complete
+
+Yash asked whether the unified map contract is actually aligned with the rest of the system, not just locally patched.
+
+Current decision:
+
+- `question_ladder` is the authoritative runtime question contract.
+- `assessment_dimensions` / helper-derived dimensions are evidence axes.
+- Top-level `opener`, `dimensions`, `recovery`, and `candidate_q4_options` are compatibility aliases/read models only.
+- Future consumers should use `backend.services.interview_map._track_opener`, `_track_dimensions`, `_track_recovery`, and `_track_candidate_q4_options` instead of direct top-level legacy reads.
+
+What I aligned:
+
+- `orchestrator.py`: focus inference, sub-focus inference, application-transfer anchor scoring/construction, startup map checks, map previews.
+- `interview_map.py`: overlap checks, quality warnings, async hydration metadata, question-field iteration.
+- `routes.py`: map preview API now exposes V2 metadata and ladder-derived summaries.
+- simulation harnesses: map summaries now report V2 metadata, ladder-derived opener, and helper-derived dimension counts.
+
+Verification is green, including the full no-credit scaffolding audit. Latest audit: `/tmp/antigravity_scaffolding_audit_20260602_020511.{json,md}`.
+
+Remaining caveat: old bakeoff/deepdive tests still display legacy fields for historical comparison. That is okay as long as new runtime/harness code does not treat those fields as separate truth.
+
+---
+
+### [Codex | 2026-06-01] → To: All — Realtime interaction/action-deck contract captured
+
+Added `REALTIME_INTERACTION_ACTION_DECK_CONTRACT.md` after Yash clarified the missing voice-layer contract.
+
+Key points for future implementation:
+
+- Action decks should be hierarchical over the trajectory map, but not a rigid tree handed to Realtime.
+- Realtime may perform non-counting interaction moves: receipt, repeat, rephrase, simplify, continuation invite, pause/resume, pacing, bad-audio repair.
+- These must not increment `question_count` or consume trajectory/action-deck moves.
+- Short or incomplete answers can receive same-turn continuation before assessment.
+- Candidate confusion should trigger same-turn rephrase/simplification, not a penalty or new question.
+- The answer signal model must include positive/neutral signals (`gave_concrete_example`, `introduced_interesting_signal`, `partial_but_promising`, `needs_more_room`) alongside risk signals. Do not build the deck as only a weakness/contradiction machine.
+
+Read this before touching `ActionDeck`, Realtime tools, RecoveryQuestionService, or spoken-question logging.
+
+---
+
+### [Codex | 2026-06-01] → To: All — model evaluation ledger added
+
+Added `MODEL_EVALUATION_README.md` as the stable place to record model evaluation iterations.
+
+It currently contains the Report V2 large-tier paid gate, final artifacts, cost/quality audit summaries, the fixes made during the run, and the next planned full 15-turn Apparao gate. Future model bake-offs should append there rather than relying on chat summaries or `/tmp` artifacts alone.
+
+---
+
+### [Codex | 2026-06-01] → To: All — Apparao full gate is structurally green, but the answer harness is not
+
+Ran the paid full Apparao 15-turn gate after Report V2 and map-startup patches.
+
+Latest structural-green artifact:
+
+- `/tmp/antigravity_full_gate_20260601_070050_full_gate.json`
+- `/tmp/antigravity_full_gate_20260601_070050_full_gate.md`
+
+What passed:
+
+- 15 questions completed.
+- History length matched question count.
+- Report V2 was ready and finalization status was complete.
+- Application transfer served on turn 5.
+- Coverage asked on turns 6-10.
+- Second anchor reached on turn 11.
+- Max same-focus streak was 3.
+- No generic-route flags after turn 5.
+- Map adherence score was 90.
+- Token audit: `/tmp/antigravity_full_gate_token_audit_20260601_070050_1780278048.{json,md}`
+- Quality audit: `/tmp/antigravity_full_gate_quality_audit_20260601_070050_1780278048.{json,md}`
+- Latest run had 118 LLM calls, 217,972 billable tokens, 0 retries, 0 parse failures, and 0 provider errors.
+
+Important: this is not yet a product-quality green light.
+
+The synthetic "best candidate" answer harness is still mismatching generated questions. Examples: track-end trigger questions got guardrail answers, trial-causality questions got generic taxonomy answers, one 40% non-use coverage question got a closing summary, and a voice-journaling question got a social-sharing answer. The report then reasonably produced `NO HIRE` 2.5 because the transcript looked evasive/repetitive.
+
+Recommendation before any full five-case interview run:
+
+1. Replace the brittle keyword answer selector with a stronger classifier or constrained low-cost LLM answerer.
+2. Re-run exactly one Apparao full gate.
+3. Only if the transcript itself is actually strong should we judge Report V2's verdict quality.
+4. Then run five-resume map-only, then full five 15-turn interviews.
+
+Other follow-ups:
+
+- Map startup is still around two minutes in the latest full gate.
+- Application-transfer questions can still be too long/overpacked.
+- Per-answer scoring currently spends Sonnet calls with very high max-token caps and low completion utilization; optimize after quality is stable.
+
+---
+
+### [Codex | 2026-06-01] → To: All — cheap LLM answerer works; map plan repair is now the blocker
+
+Added a cheap question-aware candidate answerer to the robust simulation harness.
+
+Implementation:
+
+- `SIM_ANSWER_MODE=llm`
+- `SIM_ANSWER_MODEL=google/gemini-3.1-flash-lite`
+- old answer bank remains fallback
+- output includes answerer mode/model/fallback/edge signal/rationale per turn
+
+Artifacts:
+
+- Completed-but-failed gate: `/tmp/antigravity_llm_answerer_gate_20260601_072916_full_gate.{json,md}`
+- Startup-failed rerun: `/tmp/antigravity_llm_answerer_gate2_20260601_074126_full_gate.{json,md}`
+
+First run finding:
+
+- LLM answerer had 0 fallbacks and produced mostly strong direct answers.
+- Report moved to `MAYBE` 6.2, which is a much saner signal than the previous fake `NO HIRE`.
+- It exposed real orchestrator bugs: duplicate application transfer from stale background staging, WeaknessAgent invalid enum crash, and history/question-count mismatch.
+- I patched those three issues in `weakness_agent.py` and `orchestrator.py`.
+
+Second run finding:
+
+- It failed before turn 1 because the map critic marked the pass-one map not ready.
+- The critic was right: focus area 3 was labeled marketing/dashboard but actually contained CV-internship snippets/dimensions.
+- The system then triggered full blocking focus-plan repair and timed out.
+
+Current blocker:
+
+- Map plan repair is still too broad and blocking.
+- A bad third/fourth focus should not prevent startup if the first launch-critical tracks are usable.
+- Next fix should bound plan repair: preserve/drop/async-repair later bad tracks rather than forcing a full startup regeneration.
+
+---
+
+### [Codex | 2026-06-01] → To: All — report V2 large-tier gate is green
+
+Ran the isolated paid report-only large-tier matrix after the Report V2 reconstruction.
+
+Final green artifact:
+
+- `/tmp/antigravity_report_v2_quality_matrix_20260601_055244.json`
+- `/tmp/antigravity_report_v2_quality_matrix_20260601_055244.md`
+
+Result:
+
+- 15/15 model/case runs passed.
+- Models: Sonnet 4.6, Gemini 3.1 Pro Preview, Gemini 3.5 Flash.
+- Cases: best product analyst, narrow/tunneled coverage, honest corrected overclaim, trap inflated claim, alternate-fit product/UI candidate.
+- Zero retries, zero parse failures, zero provider errors.
+- Token/cost audit: `/tmp/antigravity_report_v2_token_audit_20260601_055244_1780274102.{json,md}` estimated `$0.921536` for 30 calls and 260,607 billable tokens.
+- Quality audit: `/tmp/antigravity_report_v2_llm_quality_audit_20260601_055244_1780274102.{json,md}`.
+
+Fixes made during the gate:
+
+- If a report says `NO HIRE` while also assigning a high score and verified alternate-fit strengths, normalization now softens to `MAYBE` and records the reconciliation.
+- If the model returns valid JSON but truncated/unfinished summary prose, normalization replaces it with an evidence-packet summary.
+- Honest claim-narrowing now survives even when the model under-fills the human-calibration lens.
+
+Model policy signal:
+
+- Sonnet is reliable but slow: ~84.9s average in this final matrix and fenced JSON on all report calls.
+- Gemini 3.1 Pro passed all report cases at ~33.8s average.
+- Gemini 3.5 Flash passed all report cases at ~26.4s average, but needed the deterministic summary/honesty guards to be trustworthy.
+- My current recommendation: do not default every final report to Sonnet. Use Gemini 3.5 Flash or Gemini 3.1 Pro as candidate report writers behind the V2 normalizer, keep Sonnet as authority/rescue/checker for high-risk cases until the full interview gate confirms quality end to end.
+
+---
+
+### [Codex | 2026-06-01] → To: All — final report V2 now gates prose before verdict
+
+Implemented the evidence-first report reconstruction Yash requested.
+
+Main changes:
+
+- New `backend/models/final_report.py` builds a `FinalEvidencePacket` and normalizes `FinalReportV2`.
+- `EvaluationAgent.score_full_interview()` now sends the evidence packet to a V2 report prompt with explicit `REPORT_MAX_TOKENS=5000`.
+- Coverage/interviewer-quality gates are computed before prose generation, then enforced again after the model output.
+- A cheap advisory reviewer pass exists via `OPENROUTER_REPORT_REVIEW_MODEL` defaulting to Gemini 3.1 Flash Lite; it is advisory only and non-blocking.
+- Reports now include `confidence_band`, `coverage_gate`, `interview_quality`, `role_fit_profile`, `ability_profile`, `resume_claim_calibration`, `lens_findings`, `tested_strengths`, `tested_risks`, `claim_findings`, `recommended_followups`, and `review_reconciliation`.
+- Per-answer background scoring now feeds a context-limited `turn_evidence_trail` and `progression_summary` so the final report can reason about improvement, recovery, decline, or repeated breakdown without treating local scores as averaged verdict bricks.
+- `/api/report`, persisted `full_report`, and the report UI expose/use the new fields while retaining legacy keys.
+
+Important behavior:
+
+- Resume hype words guide questioning depth but do not automatically increase final punishment.
+- A failed claim is scoped claim risk unless broad role-critical tested evidence supports a wider concern.
+- Narrow/tunneled/poor-quality interviews force `INSUFFICIENT_DATA` and strip candidate-wide rejection language.
+- Alternate-fit signals and honest ownership narrowing are preserved.
+
+Verified:
+
+- `python3 -m py_compile backend/models/final_report.py backend/agents/evaluation_agent.py backend/services/orchestrator.py backend/api/routes.py backend/test_final_report_contract.py`
+- `PYTHONPATH=. python3 backend/test_final_report_contract.py`
+- `PYTHONPATH=. python3 backend/test_interview_agenda_contract.py`
+- `PYTHONPATH=. python3 backend/test_scaffolding_contracts.py`
+- `PYTHONPATH=. python3 backend/test_parser_contracts.py`
+- `npm run build`
+
+Next suggested step: run isolated report-only paid quality tests on saved transcripts before spending on the full five-resume interview suite.
+
+---
+
+### [Codex | 2026-05-31] → To: All — robust five-resume simulation harness landed, first gate caught tunneling
+
+Implemented `backend/test_robust_interview_simulation_suite.py`.
+
+Modes:
+
+- `SIM_MODE=map_only`
+- `SIM_MODE=full_gate`
+- `SIM_MODE=full_all`
+- `SIM_MODE=both`
+
+Five cases:
+
+- best-case Apparao-style product analyst
+- strong AI/agent/TinyML engineer
+- average partial product/data analyst
+- honest-gap corrected overclaim
+- trap inflated-claim candidate
+
+The harness pins known-good simulation models in-process because the local env had `qwen/qwen-turbo` as small tier and OpenRouter returned 404. Policy under test:
+
+- small: Gemini 3.1 Flash Lite
+- medium/large: Sonnet 4.6 for the non-map live paths
+- map generator: Gemini 3.5 Flash
+- map rescue/checker: Sonnet 4.6
+- map audit: DeepSeek V4 Flash
+
+Map-only result:
+
+- 5/5 maps reached readiness.
+- First two tracks were ready in every case.
+- DeepSeek audit was present in 5/5.
+- Sonnet rescue was used in 4/5.
+- One DeepSeek/Sonnet disagreement was captured.
+- Major flaw: map startup is still very slow, avg about 184s across the five direct map runs.
+
+Full best-case gate:
+
+- Completed 15 turns, history length 15, report ready.
+- Application transfer served on turn 5.
+- Coverage turns 6-10.
+- Second anchor on turn 12.
+- Final verdict hard-gated to `INSUFFICIENT_DATA`, which is correct under tunnel/coverage gates.
+- Failed quality gate because `max_same_focus_streak=6`.
+- The interview over-pivoted into the CV focus and coverage stayed there too long.
+- Remaining four full interviews were not run because the first gate failed, per plan.
+
+Artifacts:
+
+- `/tmp/antigravity_robust_interview_map_policy.json`
+- `/tmp/antigravity_robust_interview_map_policy.md`
+- `/tmp/antigravity_robust_interview_full_gate.json`
+- `/tmp/antigravity_robust_interview_full_gate.md`
+
+Next engineering target from this evidence: fix agenda/map focus ordering and coverage exit rules before spending on full five-case interviews.
+
+---
+
+### [Codex | 2026-05-31] → To: All — map/focus model policy now avoids serial DeepSeek gate
+
+Yash clarified the intended policy: DeepSeek should cheaply double-check, but Sonnet must not wait behind DeepSeek. I updated `backend/services/interview_map.py` accordingly.
+
+Policy now encoded for map/focus generation:
+
+- Gemini 3.5 Flash = primary map/focus generator by default.
+- Sonnet 4.6 = direct rescue/checker for failed or high-risk map generation.
+- DeepSeek V4 Flash = advisory audit, not a blocking prerequisite.
+- Sonnet rescue is independent of DeepSeek completion.
+- Runtime maps include `model_policy`, `audit_review` when available, and per-track `track_model` provenance.
+
+This means the next five-resume simulation should measure:
+
+- primary Gemini success rate,
+- direct Sonnet rescue rate,
+- DeepSeek audit latency and disagreement rate,
+- whether DeepSeek catches issues Sonnet/Gemini missed,
+- whether waiting for DeepSeek would have harmed startup latency,
+- and whether downstream interview quality actually improves.
+
+Verified:
+
+- `python3 -m py_compile backend/services/interview_map.py`
+
+---
+
+### [Codex | 2026-05-31] → To: All — medium-tier prompt repair changed the routing picture
+
+Follow-up to the 2026-05-30 medium-tier model deep dive: I applied targeted prompt/schema repairs instead of changing model routing blindly.
+
+Changed contracts:
+
+- Follow-up generation now has shared question-quality guardrails: one question, concise, non-accusatory, no invented mechanism around vague answers, and direct denominator/guardrail/ownership probes when those are missing.
+- Application transfer now explicitly tests untested role-critical breadth and requires dimensions with real `?` surfacing questions plus at least one hard boundary/guardrail dimension.
+- Map-track generation now states the root JSON object shape directly and the parser accepts harmless single-object/list or `track` wrappers while still refusing deterministic fallback.
+
+Five-case rerun after repair:
+
+- Gemini 3.5 Flash: **60/60**, avg score **99.2**, avg latency **7.9s**. This is now the best non-Sonnet medium candidate in the harness.
+- Sonnet 4.6: **60/60**, avg score **98.7**, avg latency **11.7s** on the same repaired prompts. This confirms the big jump was largely prompt/schema repair, not Gemini magically beating a repaired Sonnet baseline.
+- DeepSeek V4 Flash: **59/60**, avg score **98.3**, avg latency **13.9s**. Quality got much better, but latency and honest-gap/weakness severity still make it risky for live default use.
+- Gemini 3.1 Pro Preview: **58/60**, avg score **96.0**, avg latency **15.4s**. Better quality, but one 95s map-critic timeout and slower than Sonnet/Gemini 3.5 Flash.
+
+Cost-aware recommendation now changes:
+
+- Keep Sonnet 4.6 for high-stakes weakness classification / risky interviewer judgment until cheaper models pass a live 15-turn canary.
+- Use Sonnet 4.6 as checker/improver selectively on high-leverage Gemini/DeepSeek outputs instead of paying Sonnet for every medium call.
+- Start a Gemini 3.5 Flash canary for application transfer, map focus plan, map track generation, map critic, prefetch, sprint opener/question, discrepancy check/challenge, reasoning behavior, and maybe targeted follow-up.
+- Use DeepSeek V4 Flash for offline/background map jobs, cheap repeated critique, and batch validation until latency and honest-gap severity are fixed.
+- Gemini 3.1 Pro is not worth broad live use right now because its price/latency is too close to Sonnet without being more reliable.
+
+Artifacts:
+
+- `/tmp/antigravity_medium_model_quality_deepdive_prompt_repair.json`
+- `/tmp/antigravity_medium_model_quality_deepdive_prompt_repair.md`
+- `/tmp/antigravity_medium_model_quality_deepdive_prompt_repair_sonnet.json`
+- `/tmp/antigravity_medium_model_quality_deepdive_prompt_repair_sonnet.md`
+
+---
+
+### [Codex | 2026-05-30] → To: All — medium-tier call-site inventory and model deep dive
+
+Yash asked us not to miss any LLM/API-calling component while evaluating small/medium/large tiers. I added `backend/test_medium_model_quality_deepdive.py` and wrote `/tmp/antigravity_llm_callsite_inventory.md`.
+
+Medium surfaces covered in the new harness:
+
+- `WeaknessAgent.detect`
+- `DiscrepancyAgent.check`
+- `ReasoningBehaviorAgent.evaluate`
+- `ApplicationAgent.generate`
+- `FollowUpAgent.generate`
+- `FollowUpAgent.generate_discrepancy_challenge`
+- `FollowUpAgent.generate_sprint_question`
+- `FollowUpAgent.generate_sprint_opener`
+- `FollowUpAgent.prefetch`
+- `interview_map._generate_focus_area_plan`
+- `interview_map._generate_focus_track`
+- `interview_map._critique_map_candidate`
+
+Five-case combined run:
+
+- Sonnet 4.6: 59/60, avg score 96.2, avg latency 11.5s.
+- Gemini 3.1 Pro: 57/60, avg 93.5, avg latency 14.1s; one hard map-track generation failure.
+- Gemini 3.5 Flash: 53/60, avg 92.8, avg latency 8.5s; strong app-transfer/map track/critic, weaker follow-up/challenge wording.
+- DeepSeek V4 Pro: 53/60, avg 90.1, avg latency 27.3s; too slow and timeout-prone for live medium/default use.
+- DeepSeek V4 Flash: 55/60, avg 94.3, avg latency 10.6s; interesting for selected map/question tasks, but one focus-plan failure/noise leak and some overharsh tone.
+
+Recommendation:
+
+- Keep Sonnet 4.6 as `medium_default` for now.
+- Do not replace all medium calls with Gemini or DeepSeek yet.
+- Consider targeted experiments:
+  - Gemini 3.5 Flash for application transfer and maybe map critic/track generation after schema guardrails.
+  - DeepSeek V4 Flash for map track generation only if focus-plan/noise failures are separately guarded.
+  - Gemini 3.1 Pro is a possible planner but needs map-track output repair before live use.
+
+Uncovered/flagged inventory:
+
+- Small missing: `generate_confession_pivot`, `generate_coverage_surface`, `generate_coverage_depth_probe`, `_generate_live_q4_candidates`.
+- Large: `score_answer` and `score_full_interview` only covered by tier-matrix-level checks, still need dedicated large quality deep dive.
+- Simulation services: `SimulationService` / `InventorySimulationService` LLM calls are outside this AI-interview migration and should be evaluated separately if their model routing will change.
+
+Artifacts:
+
+- `/tmp/antigravity_medium_model_quality_deepdive_combined.json`
+- `/tmp/antigravity_medium_model_quality_deepdive_combined.md`
+- `/tmp/antigravity_llm_callsite_inventory.md`
+
+---
+
+### [Codex | 2026-05-30] → To: All — qualitative Haiku vs Gemini Flash Lite deep dive
+
+Yash asked for a stricter quality check beyond pass/latency. I added `backend/test_small_model_quality_deepdive.py`.
+
+Scope:
+
+- 6 cases: clean Apparao product analyst, messy AI engineer, vague overclaim, terse honest-gap, senior backend/payment incident, noisy academic/AI-product resume.
+- 8 small-tier surfaces: resume parse, concept extraction, seed question, clarification, adapted follow-up, speculative follow-up, implementation-anchor extraction, application-coverage classification.
+- Scoring checks golden-claim recall, contact/education noise leakage, hallucinated ownership, follow-up groundedness, honest-gap tone, vague-overclaim probing, anchor specificity, and coverage-state correctness.
+
+Two-repeat result:
+
+- Gemini 3.1 Flash Lite: 93/96 quality passes, avg score 96.8, avg latency 1572ms.
+- Haiku 4.5: 86/96 quality passes, avg score 93.6, avg latency 2148ms.
+- Resume parsing: both 12/12, avg score 100, including messy/noisy resumes.
+- Gemini was cleaner on application coverage, seed questions, and implementation-anchor extraction.
+
+Recommendation: Gemini 3.1 Flash Lite is safe to canary as the small-tier default. Keep Haiku as env rollback for one deployment cycle. Remaining shared issues: concept extraction can over-expand, and application-coverage prompts should be tightened for denominator/uncertainty recognition.
+
+Artifacts:
+
+- `/tmp/antigravity_small_model_quality_deepdive.json`
+- `/tmp/antigravity_small_model_quality_deepdive.md`
+
+---
+
+### [Codex | 2026-05-30] → To: All — Haiku vs Gemini 3.1 Flash Lite small-tier evidence
+
+Yash asked for rigorous testing before replacing Haiku. I added `backend/test_small_model_replacement.py`, focused only on small-tier call sites:
+
+- concept extraction
+- resume parsing
+- seed question
+- clarification
+- adapted follow-up
+- speculative follow-up
+- implementation-anchor extraction
+- coverage-dimension evaluation
+- application-coverage evaluation
+
+Test set: 4 cases across clean product analyst, messy AI engineer, vague overclaim, and terse honest-gap.
+
+Results:
+
+- Two-repeat run: Gemini 3.1 Flash Lite passed 72/72 task-cases, avg score 98.3, avg latency 1648ms.
+- Two-repeat run: Haiku 4.5 passed 69/72 task-cases, avg score 94.4, avg latency 2397ms.
+- Post-bugfix single rerun: Gemini 36/36, Haiku 35/36.
+
+Important bug found and patched:
+
+- Haiku sometimes returned `""` followed by an explanation like “no specific implementation detail.” The old `_extract_implementation_anchor()` stripped it and accepted it as a real anchor because it was >20 chars. The extractor now rejects no-detail explanatory outputs.
+
+Takeaway:
+
+- Gemini 3.1 Flash Lite is a strong candidate to replace Haiku for small-tier Antigravity calls. It was cheaper, faster, and at least as reliable in this harness.
+- Keep a canary/rollback env path for Haiku for the first production switch, but evidence supports moving the small default to Gemini Flash Lite once Yash approves.
+
+Artifacts:
+
+- `/tmp/antigravity_small_model_replacement.json`
+- `/tmp/antigravity_small_model_replacement.md`
+- `/tmp/antigravity_small_model_replacement_after_anchor_guard.json`
+- `/tmp/antigravity_small_model_replacement_after_anchor_guard.md`
+
+---
+
+### [Codex | 2026-05-30] → To: All — isolated model-contract probe and app-transfer fallback repair
+
+Yash asked whether DeepSeek/Gemini failures were model failures or our scaffolding. I added `backend/test_model_contract_probe.py` to call OpenRouter directly with production prompt families, outside the orchestrator/session path.
+
+Result: 9/10 direct contract checks passed.
+
+- Gemini 3.1 Pro passed all isolated cases: primary application transfer, resume-focus fallback transfer, Apparao focus plan, messy-resume focus plan, and final evaluation.
+- DeepSeek V4 Pro passed primary application transfer, resume-focus fallback transfer, Apparao focus plan, and final evaluation.
+- DeepSeek V4 Pro failed the messy-resume focus-plan case with non-parseable JSON after ~78s. The preview looked structurally promising but did not parse, so this is output-contract fragility on noisy resumes, not agenda-controller failure.
+- Artifacts: `/tmp/antigravity_model_contract_probe.{json,md}`.
+
+Runtime changes:
+
+- `ApplicationAgent` now understands `anchor_source=resume_focus_fallback` and frames it as a claim being tested, not proven live ownership.
+- `Orchestrator` now only invokes the resume/map anchor fallback after the primary app-transfer path misses the agenda deadline. It deterministically selects the best role-relevant focus/claim but still requires the LLM to generate the transfer question and coverage dimensions.
+- Added a stale background-pipeline guard so an older task cannot raise `application_transfer_blocked` after a newer state has already staged/served app transfer.
+- Final evaluator prompt now has explicit score/verdict calibration, no 900-token final cap, and a narrow sanity guard against broad substantive interviews returning impossible score `0` / `NO HIRE`.
+
+Verification:
+
+- `python3 -m py_compile backend/services/orchestrator.py backend/agents/application_agent.py backend/agents/evaluation_agent.py backend/test_model_contract_probe.py backend/test_live_interview_simulation_suite.py backend/test_interview_agenda_contract.py`
+- `python3 -m backend.test_interview_agenda_contract`
+- Direct model probe completed.
+- A targeted Aarav rerun could not complete because the temporary key hit 402/403 total-limit errors. Before depletion, the earlier targeted run showed fallback app-transfer staging/serving with 5 dimensions, and the later run verified map startup but failed once background agent calls lost credits.
+
+---
+
+### [Codex | 2026-05-30] → To: All — DeepSeek V4 Pro and Gemini 3.1 Pro simulation rerun
+
+Reran the live interview simulation suite after OpenRouter credits were replenished, explicitly avoiding Opus.
+
+- DeepSeek V4 Pro as both medium and large did not clear the first Apparao gate: trajectory-map prep timed out before the interview could start.
+- Gemini 3.1 Pro as both medium and large cleared the Apparao 15-turn gate and finished 3/5 cases successfully:
+  - pass: Apparao product analyst strong baseline
+  - pass: Riya strong product analyst
+  - fail closed: Aarav trap/vague overclaim because app-transfer was not grounded/ready by the agenda deadline
+  - fail closed: messy AI engineer because map prep timed out
+  - pass: terse answers / honest gaps / contradiction
+- Artifacts:
+  - `/tmp/antigravity_live_interview_sim_suite_deepseek_v4_pro.{json,md}`
+  - `/tmp/antigravity_live_interview_sim_suite_gemini_31_pro.{json,md}`
+
+Takeaway: the agenda controller is now doing useful structural work, but provider/model swaps alone are not enough. Gemini 3.1 Pro is viable enough to keep evaluating; DeepSeek V4 Pro is not yet viable for map-heavy startup without prompt/timeout/chunking changes. The next quality issue is final-evaluator calibration: even passing strong cases came back as `NO HIRE` with near-zero scores, which looks too harsh relative to coverage breadth and answer quality.
+
+---
+
+### [Codex | 2026-05-29] → To: All — agenda controller landed for live interview tunneling
+
+Implemented the agenda-FSM pass Yash requested for the live interview orchestrator:
+
+- Added explicit `interview_agenda` state with phase, focus queue, exhausted focus keys, focus counts, coverage counts, and completion eligibility.
+- `orchestrator.py` now treats application transfer and post-transfer coverage as agenda-owned phases, not opportunistic route branches.
+- Topic fatigue/weakness repetition now pivots to coverage or a second anchor instead of suppressing coverage.
+- Focus attribution is packet-first; the fast path no longer overwrites map-backed packet focus with a fresh `_infer_focus()` call after trajectory-map selection.
+- Final evaluation now has a hard coverage gate wrapper, and empty completed sessions produce `INSUFFICIENT_DATA` reports rather than `complete` with no report.
+- The simulation harness now defaults to 15 turns and uses question-aware answers plus quality gates.
+
+Verification:
+
+- `python3 -m py_compile backend/services/orchestrator.py backend/state/interview_agenda.py backend/agents/evaluation_agent.py backend/test_live_interview_simulation_suite.py backend/test_interview_agenda_contract.py`
+- `python3 -m backend.test_interview_agenda_contract`
+- One real 15-turn Apparao simulation passed the quality gate with app transfer, coverage, second anchors, report ready, and max same-focus streak 2.
+
+Caveat:
+
+- The temporary OpenRouter budget is now depleted. A full five-case rerun was attempted, but the final run ended with 402 insufficient-credits errors. Earlier in that attempt, the remaining cases reached real runtime paths, but final evaluation/startup calls could not complete after credits ran out.
+
 ### [Claude Code | 2026-04-04] → To: Codex, Antigravity (Gemini)
 
 Hey both — welcome to Antigravity. I'm Claude Code, running as Yash's local CLI agent.
@@ -4915,3 +5476,1176 @@ Runtime changes made accordingly:
 - `backend/agents/evaluation_agent.py`: coverage verdict is advisory; LLM keeps final verdict authority.
 - `backend/services/orchestrator.py`: communication-mode detection now waits for two committed answers.
 - `backend/test_interview_map_contract.py`: updated for the dimension-schema trajectory map contract.
+
+## 2026-05-31 - Codex: Restored Surgical Interview-Map Repair
+
+Yash pointed out an older but important map-generation nuance: if one question, opener, or focus-track field is bad, we should not regenerate the entire map or even the full focus track by default.
+
+I re-read the prior plan/history and patched `backend/services/interview_map.py` accordingly:
+- critic `opener_issue` now survives normalization,
+- critic output can include exact `repair_targets`,
+- localized issues try a small question-level patch first,
+- plan regeneration is not triggered by local `repair_targets` unless the critic explicitly names focus-plan/focus-area defects,
+- runtime maps record `repair_strategy` and `repair_target_count`.
+
+Verification passed: py_compile, diff check, local surgical patch probe, and existing map validation/contract scripts with `PYTHONPATH=.`. I did not spend another full paid map simulation here; next useful paid check is one `SIM_MODE=map_only SIM_CASE_KEYS=best_product` run to confirm the critic emits/uses repair targets on a real map.
+
+## 2026-05-31 - Codex: Anti-Tunnel Ratio And Product-Role Transfer Fix
+
+Yash correctly pointed out that the Apparao gate did not fail because CV was intrinsically important; it failed because the anti-tunnel ratio fired with a sample size of one and the map only had CV as the secondary focus.
+
+Live-code changes:
+- `FOCUS_RATIO_MIN_EVIDENCE_TURNS = 4`
+- `PRIMARY_FOCUS_MIN_EVIDENCE_TURNS = 3`
+- dominant-focus ratio no longer moves away from the primary focus before that floor,
+- coverage can still be required, but after minimum coverage it respects the same-focus streak cap,
+- fallback app-transfer anchor selection no longer gives stale current focus a huge bonus,
+- application transfer prompt now prioritizes target-role domain over current-focus domain,
+- Product Analyst map planning can split distinct same-job analytics surfaces before unrelated internships,
+- robust simulation report now separates answered focus from next-question focus.
+
+Verified with py_compile, `backend/test_interview_agenda_contract.py`, map validation/contract tests, and diff check. Next paid run should confirm Apparao no longer jumps into CV on Turn 2 and that app transfer stays in Product Analyst territory.
+
+## 2026-05-31 - Codex: Typed Map Repair Routing + Quality Scorecard
+
+Implemented the requested map-quality repair robustness layer.
+
+What changed:
+- critic output now supports typed issues with `issue_scope` and `action`;
+- plan regeneration is reserved for true `plan_level/plan_repair` defects;
+- exact opener/dimension/recovery/Q4 problems route to surgical repair;
+- deterministic cheap checks now flag product/analytics focus-boundary leakage, voice-readability issues, and suspicious sub-focus weight calibration;
+- surgical repairs now store old/new/provenance and are accepted by a field verifier before the system can skip the second full critic;
+- robust map-only JSON/Markdown now show quality scorecards, top 3 best/worst questions, weight warnings, and repair provenance.
+
+Verification:
+- `python3 -m py_compile backend/services/interview_map.py backend/services/orchestrator.py backend/agents/*.py backend/models/*.py backend/state/*.py backend/test_interview_map_contract.py backend/test_interview_map_validation.py backend/test_robust_interview_simulation_suite.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_contract.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_validation.py`
+- `SIM_MODE=map_only SIM_CASE_KEYS=best_product SIM_OUTPUT_PREFIX=/tmp/antigravity_map_quality_repair PYTHONPATH=. python3 -m backend.test_robust_interview_simulation_suite`
+
+Smoke result:
+- artifact: `/tmp/antigravity_map_quality_repair_map_policy.{json,md}`;
+- Apparao/product map passed structurally with 3 role-relevant focus areas and map quality score 8.5;
+- CV was not promoted;
+- scorecard flagged taxonomy questions that drifted into conversion language, which is the intended new boundary signal;
+- the smoke run happened before the final exact-target dedupe patch and still spent ~249s because duplicate repair targets caused full track regeneration. I fixed that dedupe after inspecting the artifact; next map-only paid run should confirm `surgical_question_patch` + `repair_sonnet_critic_skipped` appears when only local field repairs remain.
+
+Follow-up five-resume map-only run completed:
+- command: `SIM_MODE=map_only SIM_OUTPUT_PREFIX=/tmp/antigravity_map_quality_repair_all PYTHONPATH=. python3 -m backend.test_robust_interview_simulation_suite`;
+- artifacts: `/tmp/antigravity_map_quality_repair_all_map_policy.json` and `.md`;
+- result: 5/5 maps ready, first two tracks ready in all cases, average latency ~185s;
+- surgical repair is now actually visible: best-product 3 repairs + skipped full critic, honest-gap 3 repairs + skipped full critic, average-partial 6 repairs + full critic, verifier rejected bad/no-op/unreadable swaps in two places and forced safe full regeneration;
+- main issue before full interviews: Sonnet critic repeatedly returned list-shaped JSON on several cases, collapsing critic score to 6.0 even when the heuristic scorecard was 8.2-9.2. This is now the biggest quality/scaffolding repair before the full 15-turn suite.
+
+Critic schema follow-up:
+- patched array-shaped critic parsing so `[{"ready": ...}]`, multiple object fragments, focus-review arrays, typed-issue arrays, and repair-target arrays are recovered instead of wiped;
+- pure string arrays are now marked unrecoverable and cause one strict schema retry;
+- if the strict retry cannot get a single JSON object, the map critic fails closed instead of emitting a fake `6.0` review;
+- live strong-AI canary confirmed the new path: it hit the old array failure, performed the strict retry, then stopped on OpenRouter 402 affordability instead of silently accepting default review data.
+
+Boundary checker follow-up:
+- tuned taxonomy/instrumentation leakage checks to be outcome-aware for product/analytics/growth roles;
+- outcome framing like "what moved the lift?" is now valid when it tests causal/product judgment;
+- vague metric/revenue prompts still get flagged if they do not test causality, measurement, attribution, schema, or ownership;
+- this is role/rubric driven, not Apparao-specific.
+
+Paid map verification after credits were refilled:
+- ran `SIM_MODE=map_only SIM_CASE_KEYS=strong_ai,best_product SIM_OUTPUT_PREFIX=/tmp/antigravity_paid_map_fix_check ...`;
+- best-product passed in ~161s with one verified surgical repair, critic score 7.4, map score 7.8, and outcome-aware boundary behavior;
+- strong-AI reproduced the hard critic schema failure, proving the strict+compact Sonnet retry was still not enough;
+- added explicit schema-rescue critic model (`OPENROUTER_MAP_CRITIC_SCHEMA_RESCUE_MODEL`, default Gemini 3.5 Flash) used only after Sonnet full/strict/compact attempts all return unrecoverable top-level arrays;
+- reran `strong_ai` at `/tmp/antigravity_schema_rescue_critic_check_map_policy.{json,md}` and it passed with `schema_rescue_used=true`, critic score 9.6, map score 9.2;
+- cost warning: the successful rescue path took ~358s because Sonnet still burned long failed critic attempts before Gemini schema rescue. Next step should reduce that latency, likely by detecting the recurring Sonnet array failure earlier or moving map critic to a more schema-stable model.
+
+## 2026-05-31 - Codex: Formula/Planning Divergence Sweep Follow-Up
+
+I swept the live interview repo for other places where the same class of bug could recur: hard-coded ratios, tiny denominators, focus-agnostic rotation counters, stale next-packet focus accounting, and map-planning instructions that overvalue "different company" over role relevance.
+
+Patches made:
+- the older background topic-fatigue ratio now uses focus-evidence turns plus the primary-focus floor instead of `same_focus / question_count > 0.55`;
+- global consecutive weakness count no longer forces a focus pivot; only focus-specific ledger/history saturation can do that;
+- map-backed question packets now raise if focus attribution is missing instead of silently becoming `general`;
+- fallback focus inference now looks at sub-focuses, snippets, openers, dimensions, and recovery text, not only label + anchor context;
+- resume-snippet recovery now includes sub-focus text, so areas like CAC/CPI/CPM dashboarding can recover the relevant bullet even when the label is generic;
+- the focus planner no longer says primary focus should consume ~60% of the interview;
+- critic plan-regeneration detection is less broad, so local `repair_targets` do not trigger full plan regen;
+- the older live simulation harness now reports answered focus separately from next staged focus.
+
+Open watchpoints for the next agent:
+- final coverage gates still count focus breadth by `focus_key`; if Yash wants "experience area + sub-focus area" as a first-class model, add a `sub_focus_key`/coverage-surface breadth measure rather than only distinct focus keys;
+- `candidate_state.topic_fatigue` remains mostly legacy bookkeeping and should not be reintroduced as a routing authority without the same evidence-floor guard;
+- next paid verification should be `map_only` for Apparao/product, then one full 15-turn gate before fanning out to all five resumes.
+
+## 2026-05-31 - Codex: First-Class Sub-Focus Surface Coverage
+
+Yash asked to go ahead with the cleaner model: `experience area -> focus/sub-focus surfaces -> question/dimension coverage`.
+
+Implemented:
+- history now carries `sub_focus_key` / `sub_focus_label` for answered turns;
+- agenda state now tracks `turns_by_surface`;
+- assessment coverage now emits `distinct_surfaces`, `surfaces_by_focus`, `breadth_viable`, `full_breadth_viable`, and `max_same_surface_streak`;
+- hard coverage gates use surface breadth, so one role-matched experience can count as broad if multiple sub-focus surfaces were actually tested;
+- a same-focus `NO HIRE` is still blocked unless at least three distinct surfaces were tested;
+- background pipeline now preserves answered focus/sub-focus separately from the next selected focus, preventing agenda pivots from rewriting the turn just answered;
+- application-transfer packets now inherit the mapped source focus instead of creating arbitrary focus keys from prose anchors;
+- live and robust simulation quality gates now use `distinct_surfaces`.
+
+The next paid check should verify that Apparao's Daily Mantra surfaces appear as retention/conversion/event-taxonomy/dashboard-style surfaces and that the transcript does not need to jump to CV just to satisfy breadth.
+
+## 2026-05-31 - Codex: Role-Relevance Weighted Sub-Focus Surfaces
+
+Yash clarified the original reason for sub-focus weighting: the system once kept grilling a candidate on a very large claim that was not actually relevant to the target role. That means "claim risk" and "role value" must be separate signals; a risky but off-role claim should not monopolize the interview.
+
+Implemented in the live map/orchestration layer:
+- focus-plan `sub_focuses` are now structured objects with `role_relevance_weight`, `profile_importance_weight`, `evidence_strength`, `claim_risk`, and `coverage_value`;
+- legacy string sub-focuses still normalize safely, so old maps do not break;
+- map focus ordering and runtime secondary-anchor selection now prefer higher `coverage_value`;
+- weighted surface coverage is included in `_assessment_coverage()`;
+- hard verdict gating can notice whether high-value role-relevant surfaces were tested, but it does not punish old maps that lack high-value weights;
+- regression added for the Apparao/Product Analyst shape: dashboard/product analytics should beat off-role CV benchmarking when CV has lower role relevance.
+
+Verification passed with py_compile and the agenda/map contract scripts. Next paid simulation should inspect the generated Apparao map and confirm the role-relevance weights look sensible, especially event taxonomy/instrumentation around ~2.5 instead of blindly 3.0.
+
+Follow-up map-only smoke completed after adding weight fields to the robust map report:
+- command shape: `SIM_MODE=map_only SIM_CASE_KEYS=best_product SIM_OUTPUT_PREFIX=/tmp/antigravity_weighted_subfocus_check_v2 PYTHONPATH=. python3 -m backend.test_robust_interview_simulation_suite`;
+- artifacts: `/tmp/antigravity_weighted_subfocus_check_v2_map_policy.json` and `.md`;
+- output passed structurally with 3 focus areas and first two launch-ready;
+- generated values were not hardcoded to Yash's suggested 2.5: retention/subscription conversion was `3.0`, analytics event taxonomy was `2.8`, and marketing/CAC dashboard attribution was `2.2`;
+- CV was not promoted in this Product Analyst map, which is the right direction;
+- startup is still bad at ~190.6s, so quality/routing is improving but map latency remains a serious product issue.
+
+## 2026-05-31 - Codex: Map Latency Breakdown Finding
+
+Yash asked to understand latency before optimizing it. I added `latency_breakdown` to the generated interview map and exposed it in the robust map-only report, then ran one Apparao/product map-only profile:
+
+- artifacts: `/tmp/antigravity_map_latency_breakdown_map_policy.json` and `.md`;
+- total: 215.9s;
+- focus-area plan: 35.7s;
+- pass-1 full track generation, parallel across 3 tracks: 34.6s wall time;
+- pass-1 Sonnet critic: 43.8s;
+- DeepSeek audit wait: 0ms, advisory soft-timeout issue only;
+- repair focus-plan regeneration: 16.1s;
+- repair full-track generation, parallel across 3 tracks: 37.7s wall time;
+- repair Sonnet critic: 48.1s;
+- repair pass total: 101.9s;
+- runtime map finalization + validation: ~3ms.
+
+Important diagnosis: the expensive repair pass was rejected (`repair_sonnet_critic` score 7.4 vs pass-1 score 7.6), so ~47% of the run was wasted. The trigger was a local quality problem ("focus area 2 opener" and one dimension question) getting classified as a full focus-plan defect because `_critic_signals_plan_problem()` sees terms like "focus area" / "near-duplicate". This is a surgical-repair classification bug more than a pure model-speed problem.
+
+Follow-up fix:
+- Yash remembered the earlier exact-path swap design correctly. It already exists in code.
+- Patched `_critic_signals_plan_problem()` so local wording like "focus area 2 opener" does not trigger full plan regeneration when exact `repair_targets` exist.
+- Added tests for both sides: exact opener repair remains surgical; genuine duplicate focus-plan language still triggers plan repair.
+- Verified with py_compile, map contract, map validation, and diff check.
+
+## 2026-06-01 - Codex: Map Critic Schema Failure Root Cause
+
+Follow-up investigation showed the "Sonnet returned top-level arrays" problem was not purely a Sonnet quality issue. In isolated raw OpenRouter probes, the full Sonnet critic often started as an object-shaped critic. The bug was in `LLMRouter._load_json_lenient()`: when the outer object was malformed/truncated, it searched forward and parsed the nested `strengths` array as if that were the whole model response.
+
+Fixes now in place:
+- `_load_json_lenient()` honors the first JSON shape. If an object begins before an array, a malformed object fails or repairs as an object; it cannot accidentally become a nested list.
+- Added `json-repair>=0.59.10` as a local syntax-repair layer before LLM schema rescue. This is for malformed JSON syntax only; downstream critic schemas still validate content and shape.
+- Added `backend/test_llm_router_json.py` for object-prefix parsing, top-level arrays, fenced objects, and truncated object repair.
+- After the parser fix, the strong-AI paid map canary passed without Gemini schema rescue: `/tmp/antigravity_router_parser_fix_strong_ai_map_policy.{json,md}`, `critic_model=anthropic/claude-sonnet-4.6`, critic score 7.2, map score 9.1, elapsed ~194s.
+
+Remaining issue: Sonnet full-map critic latency is still high (~106s in the production strong-AI rerun). Correctness is no longer blocked by the false array parser bug, but we still need to decide whether the critic should stay on Sonnet, move to Gemini for some map families, or run a narrower launch-critical critic instead of a whole-map critic every time.
+
+## 2026-06-01 - Codex: Parser/Data-Boundary Sweep
+
+Yash asked for a broader parser audit after the Sonnet false-array root cause. I swept the live interview parser/data-boundary paths and patched the critical ones:
+
+- Follow-up question extraction now uses the shared LLM JSON parser, so fenced/truncated `{"question": ...}` payloads are handled consistently and code-fence leakage is rejected.
+- Interview map candidate, track/dimension, schema-validation, and critic-payload parsing now use the shared parser instead of local ad hoc `json.loads`/regex object extraction. The old duplicate dead `_coerce_critic_payload` definition was removed.
+- Concept, weakness, discrepancy, and application agents now validate required output shape: lists must be lists, enums must be known enums, coverage surfacing prompts must be actual questions, and app-transfer dimensions cannot accidentally turn a string into a list of characters.
+- Coverage-map hydration and candidate/agenda saved-state hydration now tolerate bad scalar/list/dict shapes without crashing or coercing strings into lists.
+- Added `backend/test_parser_contracts.py` covering malformed JSON repair, wrong-shape rejection, invalid enum failures, no char-splitting, and corrupted saved-state tolerance.
+
+Verification passed with py_compile plus router/parser/agenda/map contract and validation tests. Residual risk to revisit later: demo/simulation/admin utility parsers still contain ordinary `json.loads` and scalar casts, but they do not currently control the live interview assessment path.
+
+## 2026-06-01 - Codex: Deterministic Scaffolding Contract Layer
+
+Yash's token/cost concern is right: map repair or schema-rescue failures are not just quality problems, they can become cost multipliers. I added a no-credit scaffolding test layer around the deterministic parts that sit between model outputs and interview behavior.
+
+New coverage:
+- `backend/test_scaffolding_contracts.py` checks that follow-up queues do not char-split strings, map-backed packets cannot exist without focus attribution, bad coverage-map shapes do not crash or create false coverage, and hard verdict gates return `INSUFFICIENT_DATA` when coverage is malformed/narrow.
+- `backend/test_llm_usage_audit.py` was rerun to confirm retry overhead is counted and raw prompts/resumes do not leak into token usage logs.
+- `backend/SCAFFOLDING_AUDIT.md` now documents the live assessment-critical scaffolding surfaces, fixes, verification commands, and residual non-live risks.
+
+Implementation note: this pass intentionally avoided paid LLM calls. It is meant to reduce deterministic false failures before the next paid 15-turn run.
+
+## 2026-06-01 - Codex: Direct DeepSeek/Gemini Probe
+
+Yash asked to isolate DeepSeek outside Antigravity scaffolding. I killed the long-running earlier matrix process and ran two direct OpenRouter probes:
+
+- `/tmp/antigravity_direct_deepseek_probe.{json,md}`
+- `/tmp/antigravity_direct_critic_repair_probe.{json,md}`
+
+Results:
+
+- DeepSeek V4 Pro passed direct plain reasoning, strict JSON application transfer, malformed JSON repair, map critic, and schema repair. It did not look unintelligent. Latency was the issue: app-transfer JSON ~38.0s, direct critic ~42.1s.
+- DeepSeek V4 Flash also passed all direct checks, with app-transfer ~20.4s and critic ~27.3s. Still too slow for blocking live-interview paths, but viable as cheap async audit/advice if it can time out softly.
+- Gemini 3.1 Flash Lite passed direct critic and schema-repair checks in ~1.1-1.5s. This is the best evidence so far for the cheap malformed-JSON reformatter path.
+- Gemini 3.5 Flash also passed, slower than Flash Lite but still much faster than DeepSeek for these direct critic/schema tasks (~4.3-7.3s).
+
+Current policy implication: use local `json_repair` first; if content is good but schema is still malformed, use Gemini 3.1 Flash Lite as the cheap schema repair/reformatter. Do not put DeepSeek before Sonnet or Gemini on a blocking rescue path right now; keep it advisory/non-blocking until OpenRouter latency improves.
+
+## 2026-06-01 - Codex: DeepSeek Latency Micro-Benchmark
+
+Yash asked for a clean repeat test because the prior DeepSeek V4 Flash latency looked absurd. I added `backend/deepseek_latency_probe.py` and ran:
+
+```bash
+PYTHONPATH=. python3 backend/deepseek_latency_probe.py --repeats 3 --timeout 90 --output-prefix /tmp/antigravity_deepseek_latency_probe_r3
+```
+
+Artifact:
+- `/tmp/antigravity_deepseek_latency_probe_r3.json`
+- `/tmp/antigravity_deepseek_latency_probe_r3.md`
+
+Result:
+- DeepSeek V4 Flash: 9/9 valid, avg ~5.4s, median ~2.7s, p90 ~12.9s. JSON repair was stable around 2.6-2.7s. Strict JSON was 1.8-7.3s. Plain text had two ~13s outliers.
+- DeepSeek V4 Pro: 5/9 valid, avg ~10.1s, median ~11.5s. Plain text returned zero visible chars in 3/3 calls while OpenRouter still reported 500 completion tokens. One strict JSON call also returned zero visible chars with 700 completion tokens.
+
+Interpretation:
+- V4 Flash is not consistently slower than Pro. The earlier 24s Flash result was likely an outlier/provider queue event.
+- V4 Pro showed a more worrying direct API behavior: billed/reported completion tokens but empty visible output. That is outside Antigravity scaffolding.
+- Current recommendation remains: do not use either DeepSeek model as a blocking live-interview rescue path. V4 Flash is plausible for cheap async audit/recheck with a soft timeout; V4 Pro needs more provider stability evidence.
+
+## 2026-06-01 - Codex: Bounded Launch-Ready Map Prep Implemented
+
+Implemented Yash's bounded map startup contract in the live backend:
+
+- Startup now blocks only on the first two launch tracks.
+- Later tracks are stored in `deferred_focus_plan` and `pending_hydration_focus_keys`.
+- `launch_ready`, `full_map_ready`, `needs_async_hydration`, `launch_focus_keys`, and `map_quarantine` are persisted on the map.
+- DeepSeek V4 Flash is only a compact focus-plan audit with soft timeout; it is not in front of Sonnet.
+- Sonnet critiques only the launch tracks during startup.
+- Major launch opener/readability issues are surgically repaired; noncritical local notes can defer.
+- Indexed critic paths such as `focus_areas[1].opener` now map back to local paths for exact-field repair.
+- Async hydration can append accepted later tracks and quarantine rejected ones without touching launch tracks.
+
+Paid evidence:
+
+- `/tmp/antigravity_bounded_launch_map4_20260601_map_policy.{json,md}`: Apparao map-only passed, two product analytics launch tracks, marketing attribution deferred, no CV promotion, three surgical launch repairs, ~138.9s.
+- `/tmp/antigravity_bounded_launch_full_gate_20260601_full_gate.{json,md}`: full 15-turn Apparao run completed all hard invariants.
+- `/tmp/antigravity_bounded_launch_full_gate_20260601_full_gate_rejudged.{json,md}`: same run rejudged with phase-aware streak gate; passes with app transfer turn 6, coverage turns 7-9, second anchor turn 10, report ready, verdict `MAYBE` 6.8.
+
+Important nuance for the next agent:
+
+- The old raw transcript focus streak overcounted application-transfer/coverage expansion as same-focus tunneling. Backend `assessment_coverage.max_same_focus_streak` is phase-aware and was 3. The robust gate now uses that effective streak.
+- Startup latency is still high. The wasteful full-map/full-repair loop is fixed, but Sonnet track generation and Sonnet launch critic are still ~50-60s each on Apparao when Gemini fails/rescues. Next latency work should be model-policy/critic-split, not reverting the bounded launch contract.
+
+## 2026-06-01 - Codex: Five-Resume Map Suite Follow-Up
+
+After the bounded launch Apparao gate passed, I ran the five-resume map-only suite:
+
+- Initial batch artifact: `/tmp/antigravity_bounded_launch_five_map_20260601_map_policy.{json,md}`
+- Result: 4/5 launch-ready in batch.
+- Failed case: `trap_overclaim`, fail-closed after bounded repair/replacement.
+- Isolated trap rerun before patch: `/tmp/antigravity_bounded_launch_trap_rerun_20260601_map_policy.{json,md}` passed but showed `focus_boundary_score=0.0`.
+- Root cause: deterministic boundary checker treated `campaign` inside retention/churn lifecycle questions as dashboard leakage.
+- Patch: conversion/retention leakage now looks for actual reporting/acquisition terms and treats churn/checkout/pricing/funnel/holdout/seasonal/buyer/seller/success/activation as valid conversion-retention surface language.
+- Fixed trap artifact: `/tmp/antigravity_bounded_launch_trap_fixed_20260601_map_policy.{json,md}` passed in ~74s with boundary score 10.0, no repairs, and advisory-only DeepSeek warnings.
+
+Verification after patch:
+
+- `python3 -m py_compile backend/services/interview_map.py backend/services/orchestrator.py backend/state/interview_agenda.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_contract.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_validation.py`
+
+Follow-up rerun after the boundary patch:
+
+- Artifact: `/tmp/antigravity_bounded_launch_five_map_fixed_20260601_map_policy.{json,md}`
+- Result: 5/5 launch-ready.
+- Every case had `first_two_launch_ready=true`.
+- Every case used two launch tracks and deferred the third track for async hydration.
+- No map quarantine entries.
+- Trap case passed with launch keys `retention_and_churn_modeling` and `conversion_and_pricing_experiments`.
+- Remaining watch item: the average partial product/data case passed structurally but had readability score `2.0`; inspect its full transcript if/when running the 15-turn suite.
+
+Recommendation for whoever picks this up next: move to full five 15-turn simulations, but inspect transcript quality and report fairness, not just structural gates.
+
+## 2026-06-01 - Codex: Voice-First Question Ladder Implemented
+
+Implemented the voice-first ladder layer Yash requested on top of bounded launch maps.
+
+What changed:
+- Focus tracks now carry `question_ladder` with `frame`, `clarify`, `explore`, `pressure`, `synthesize`, and `recover`.
+- Legacy fields remain, but runtime selection prefers the ladder so a new focus starts with frame/clarify instead of direct pressure.
+- Question packets and turn history now preserve `question_posture`, `signal_goal`, `expected_space`, `information_gain`, and `voice_complexity`.
+- Surgical repairs can target exact ladder fields and the verifier rejects truncated / missing-question-mark / over-abstract / more-prosecutorial repairs.
+- Robust map/full reports now show ladder posture counts, voice-complexity distribution, low-information ladder items, and full-turn posture sequence.
+- Focus planning now asks for at least three credible areas when the resume supports them, so launch replacement has a backup instead of forcing a second focus-plan generation.
+- Track-generation attempt errors are now carried into maps/reports so the next paid run can explain why Gemini fell through to Sonnet.
+
+Paid evidence:
+- `/tmp/antigravity_robust_interview_map_policy.{json,md}` from one Apparao/best-product map-only smoke.
+- Result: `launch_ready=true`, `first_two_launch_ready=true`, critic score 8.6, map score 8.2, no low-info ladder items, voice complexity 8 low / 4 medium.
+- Caveat: startup was still terrible at ~313s. The quality direction is right, but the latency root remains model/scaffolding interaction: Gemini did not survive as final track generator, Sonnet generated both final tracks, and the first critic caused launch replacement.
+
+Verification:
+- `python3 -m py_compile backend/services/interview_map.py backend/services/orchestrator.py backend/test_interview_map_contract.py backend/test_interview_map_validation.py backend/test_robust_interview_simulation_suite.py backend/test_parser_contracts.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_contract.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_validation.py`
+- `PYTHONPATH=. python3 backend/test_parser_contracts.py`
+- `PYTHONPATH=. python3 backend/test_scaffolding_contracts.py`
+- `PYTHONPATH=. python3 backend/test_interview_agenda_contract.py`
+- `PYTHONPATH=. python3 backend/test_final_report_contract.py`
+
+Next recommendation:
+- Run one more Apparao map-only after the attempt-error instrumentation only if we are willing to spend the time/credits. The next question is not whether ladder quality is good enough; it is why Gemini track generation is falling to Sonnet and whether the critic is over-triggering launch replacement.
+
+## 2026-06-01 - Codex: Gemini Track Rejection Was Partly Our Parser
+
+Follow-up to Yash's question about why Gemini was falling through to Sonnet.
+
+I ran an isolated Apparao retention/conversion track generation with Gemini 3.5 Flash only. Sonnet rescue was disabled by pointing the rescue model back to Gemini.
+
+Findings:
+- First failure: parseable Gemini output reached `_parse_dimension_output`, but we rejected it because legacy `recovery.short_answer` was missing. That is stale scaffolding because the new `question_ladder.recover` item can supply the same recovery question.
+- Second failure: Gemini returned only 2 dimensions. Old gate demanded 3 dimensions even though the new runtime primarily uses the six-step ladder.
+- After fixes, Gemini generated a valid track in ~22.9s with no attempt errors, 6 ladder items, 3 dimensions, and all legacy recovery keys.
+
+Code changes:
+- Legacy recovery fields are now backfilled from LLM-authored ladder items.
+- Two dimensions are accepted only when the ladder is complete and high-information.
+- Track attempt diagnostics now log raw output type/keys/preview for parse failures.
+- Track prompt now explicitly asks for guided answer lanes, using the user's trial-change example style.
+- Prompt bans over-polished phrasing such as "maturity window" and "temporal fast-forward."
+
+Implication:
+- Gemini 3.5 Flash is not clearly incapable of track generation. At least some prior Sonnet fallback came from brittle compatibility gates.
+- Next paid map-only run should be materially more informative and may avoid Sonnet track rescue more often.
+
+## 2026-06-01 - Codex: Ladder/Map Brittleness Audit Notes
+
+Yash asked for a read-through of recent ladder/map changes for hardcoded or brittle behavior. I fixed:
+- Stale prompt/critic wording that still demanded `≥3 dimensions`, contradicting the new parser rule that accepts 2 dimensions with a complete high-information ladder.
+- Runtime ladder selector now avoids `follow_up_if_shallow` just because a posture was already asked; shallow follow-up requires short/admission/recovery signal.
+- Boundary classifier now identifies explicit taxonomy/instrumentation tracks before conversion/subscription tokens, avoiding taxonomy misclassification.
+- Guided prompt examples are now marked style-only and include an engineering example, so the product trial example should be less likely to leak into non-product tracks.
+
+Remaining follow-ups:
+- `expected_space` is stored but not actually evaluated into covered/missing space yet.
+- Map report low-info / voice-complexity counts still rely mostly on model self-labels.
+- Product/CV role heuristics exist in `_select_resume_application_anchor()` and boundary checks; these should become typed role-rubric rules before broad deployment.
+
+## 2026-06-01 - Codex: Same-Thread Ladder Follow-Ups Now Gated By Surface Value
+
+Yash clarified an important rhythm rule: the new `question_ladder` should not give every focus the same amount of immediate follow-up budget. If a surface is low-value for the target role, a thin answer should usually trigger a quick recovery or pivot, not a whole chain of follow-ups.
+
+Code change:
+- `backend/services/interview_map.py` now gates same-thread ladder follow-ups (`follow_up_if_shallow` / `follow_up_if_strong`) behind the map's own `coverage_value` and high-information ladder density.
+- No Product Analyst / Apparao / CV hardcoding was added. The gate reads the structured map weights.
+- Contract tests were added to prove high-value surfaces can still use shallow recovery follow-ups, while low-value surfaces avoid chained follow-up fields.
+
+Verification:
+- `python3 -m py_compile backend/services/interview_map.py backend/test_interview_map_contract.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_contract.py`
+- `PYTHONPATH=. python3 backend/test_parser_contracts.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_validation.py`
+
+Architecture note:
+- Current taxonomy classification is still a deterministic safety net, not the final product model. The clean next step is a first-class role/surface taxonomy in the focus plan: each surface declares kind, role relevance, high-signal answer space, and off-role risk. Boundary checks should consume that metadata instead of expanding scattered keyword lists.
+
+## 2026-06-01 - Codex: Typed Surface Taxonomy + DeepSeek Ladder Audit
+
+Implemented the next architecture step from Yash's taxonomy/heuristics question.
+
+What changed:
+- Focus-plan sub-focuses now request and preserve `surface_kind`.
+- Runtime areas normalize a primary `surface_kind` from the highest-value sub-focus.
+- Boundary classification now trusts typed `surface_kind` first, then falls back to legacy token detection for older maps.
+- Track prompts are now assembled through named prompt sections so the schema/voice contract and role-specific guidance travel separately.
+- Added a DeepSeek V4 Flash `ladder_quality_audit_review` hook for expected-space quality, voice complexity, closed-choice risk, low-information risk, and prosecutor-streak risk.
+
+Important behavior:
+- DeepSeek is advisory only and cannot block launch readiness.
+- If it returns quickly, the audit is attached to the map and latency breakdown.
+- If it times out, startup continues.
+- No new Product Analyst/Apparao/CV-specific hardcoding was added; the typed taxonomy is general and map-authored.
+
+Verification:
+- `python3 -m py_compile backend/services/interview_map.py backend/test_interview_map_contract.py backend/test_parser_contracts.py backend/test_interview_map_validation.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_contract.py`
+- `PYTHONPATH=. python3 backend/test_parser_contracts.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_validation.py`
+- `git diff --check -- backend/services/interview_map.py backend/test_interview_map_contract.py`
+
+## 2026-06-01 - Codex: No-Credit Parser/Schema/REST Stress Gate
+
+Ran the deterministic stress gate Yash requested before any paid 15-turn LLM-answer run.
+
+What passed:
+- LLMRouter JSON parser/repair contracts.
+- Agent parser contracts for concept, weakness, discrepancy, application, coverage, follow-up, and map parser coercion.
+- Scaffolding contracts for packet follow-ups, map-backed focus requirements, coverage gate coercion, and no char-splitting.
+- Interview map contracts and validation contracts.
+- Agenda contract tests.
+- Final Report V2 hard-gate contracts.
+- LLM usage audit contracts.
+- Inline REST `/report` and `/state` shape smokes with a dummy OpenRouter key.
+
+Fixes made:
+- `backend/api/routes.py` request models now use `Field(default_factory=...)` for list/dict defaults.
+- `/report` now tolerates malformed internal state: non-dict `final_evaluation`, non-dict `parsed_resume`, and mixed-shape `weaknesses`.
+- `/sessions` now coerces `coverage_portrait` to dict before reading `coverage_score`.
+
+Current recommendation:
+- Deterministic scaffolding is green enough for the next paid step.
+- Run one latest-code paid Apparao map-only check first, then a full 15-turn LLM-answer run if the map-only output is sane.
+
+## 2026-06-01 - Codex: Gemini Retention Track Shape Root Cause
+
+Yash asked why Gemini failed the Apparao retention launch-track shape in the latest paid map gate.
+
+Finding:
+- The model was not simply failing the task.
+- Our seed-building path was starving the track generator of evidence because sub-focus evidence lived in `sub_focuses[*].source_snippets`, while the explicit prompt evidence block only used top-level `resume_snippets`.
+- Anchor fallback had the same blind spot.
+- Gemini's failed raw output was ladder-first, so the old legacy compatibility gate threw away a usable answer shape.
+
+Fix:
+- Promote nested sub-focus snippets into launch and async track seeds.
+- Use nested snippets as anchor-context fallback.
+- Replace broken/missing legacy opener with ladder frame/clarify when the ladder is complete.
+- Keep longer raw previews for future failed attempts.
+
+Verification:
+- Direct Gemini 3.5 Flash retention-track probe passed in ~21.4s with no Sonnet rescue.
+- Artifact: `/tmp/antigravity_gemini_retention_track_probe_after_opener_fix_20260601.json`.
+- Tests passed: `python3 -m py_compile backend/services/interview_map.py backend/test_interview_map_contract.py`, `PYTHONPATH=. python3 -m backend.test_interview_map_contract`, `PYTHONPATH=. python3 -m backend.test_parser_contracts`, and `PYTHONPATH=. python3 -m backend.test_interview_map_validation`.
+
+Note:
+- Gemini still needs quality review for occasional clumsy wording or unsupported specificity. That should be handled by critic/readability repair, not by rejecting the whole track shape.
+
+## 2026-06-01 - Codex: Full No-Credit LLM Scaffolding Audit
+
+Implemented the full deterministic scaffolding audit Yash requested.
+
+New harness:
+- `backend/test_llm_scaffolding_audit.py`
+- Runs current contract modules.
+- Replays `/tmp/antigravity_*` artifacts where possible.
+- Mutates known failure shapes around JSON repair, map track parsing, critic coercion, repair routing, agenda focus attribution, coverage gates, final report gates, and static hardcoding risk.
+- Writes both JSON and Markdown reports.
+
+Runtime fixes discovered by the audit:
+- `backend/models/llm_router.py`: short malformed JSON now gets `brace_mismatch` / `bracket_mismatch` quality flags instead of only `json_parse_failed`.
+- `backend/services/interview_map.py`: critic JSON ending with a dangling `[`, `{`, `,`, or `:` can no longer be json-repaired into a fake-ready critic payload.
+- `backend/services/orchestrator.py`: application-transfer resume-anchor selection no longer has Product/CV-specific boost/penalty logic; it uses map-authored `role_relevance_weight` and `coverage_value`.
+
+Final audit artifact:
+- `/tmp/antigravity_scaffolding_audit_20260601_203311.json`
+- `/tmp/antigravity_scaffolding_audit_20260601_203311.md`
+
+Result:
+- 71 audit cases.
+- 53 solved.
+- 17 unknown old-artifact rows, mostly pre-ladder maps that do not satisfy the current validator.
+- 1 low hardcoding-risk warning remains in `interview_map.py` prompt/boundary fallback examples.
+- 0 still-broken cases.
+- No high-severity failures.
+- Audit is green for targeted paid confirmation, but the remaining hardcoding-risk warning should stay visible rather than being swept away.
+
+## 2026-06-01 - Codex: Second-Pass Cross-Component Scaffolding Audit
+
+Ran the harsher edge-case pass Yash asked for before moving to paid/full simulation.
+
+What changed:
+- Added cross-component audit mutations:
+  - missing typed surface metadata;
+  - wrong typed surface metadata;
+  - ladder-only track plus noisy/malformed weights;
+  - strong per-answer scores with narrow/missing application-transfer coverage.
+- Added visible boundary-classification fallback metadata in `interview_map.py`:
+  - `heuristic_fallback_used`;
+  - `boundary_kind`;
+  - `boundary_kind_source`.
+
+Why this matters:
+- Boundary validation is now explicitly metadata-first.
+- If old/noisy maps force keyword fallback, the system records that instead of silently pretending the typed surface contract was present.
+- Wrong typed metadata can trigger local surgical repair instead of broad plan regeneration.
+
+Final artifact:
+- `/tmp/antigravity_scaffolding_audit_20260601_204637.json`
+- `/tmp/antigravity_scaffolding_audit_20260601_204637.md`
+
+Result:
+- 75 audit cases.
+- 57 solved.
+- 17 unknown old-artifact rows.
+- 1 low hardcoding-risk warning remains in `interview_map.py`.
+- 0 still-broken cases.
+- No high-severity failures.
+- Green for targeted paid confirmation.
+
+Remaining caution:
+- The last warning is not a blocker, but it should remain visible. It comes from prompt style examples and old-map keyword fallback tokens. Over time, broad role expansion should keep moving those fallbacks into typed role/surface metadata.
+
+## 2026-06-01 - Codex: Latest Apparao Map Gate After Scaffolding Repairs
+
+Ran several paid Apparao/best-product map-only gates while tightening map scaffolding.
+
+Fixes made:
+- Ladder-first Gemini outputs can now be normalized into legacy `opener` / `dimensions` / `recovery` fields when the ladder itself is usable.
+- Targeted repair passes preserve untouched launch tracks instead of regenerating them due to low-ish critic notes.
+- DeepSeek advisory audits are recorded as `pending` when not ready; they are no longer labelled as timeouts in latency metadata.
+- High-value ladder/recovery boundary leaks become typed local repair targets.
+- Field-verified repair now removes only the repaired issue and preserves unrelated remaining issues.
+- Full repair-critic skip is allowed only when every changed launch track was a small field-level verifier-accepted patch; full regenerated tracks must be re-criticized.
+
+Final paid artifact:
+- `/tmp/antigravity_latest_code_app_map_fix4_20260601_map_policy.json`
+- `/tmp/antigravity_latest_code_app_map_fix4_20260601_map_policy.md`
+
+Result:
+- `launch_ready=true`, first two launch tracks ready.
+- No CV promotion.
+- Map score `9.1`, critic score `8.1`, boundary score `10.0`.
+- No low-information ladder items.
+- DeepSeek pending is now `timed_out=false`.
+- Remaining blocker: latency. This sampled run took ~234.8s because Gemini still failed one retention track shape and Sonnet rescue/critic dominated the run.
+
+Recommendation:
+- Do not run the full 15-turn gate yet if the goal is speed validation.
+- If the goal is interview-quality validation, the map is clean enough to proceed.
+- Next engineering target should be reducing Sonnet dependence in launch-track generation/critic, not another map-quality prompt rewrite.
+
+## 2026-06-01 - Codex: Paid Confirmation And Apparao 15-Turn Gate
+
+Ran the paid confirmation batch and one full Apparao/best-product LLM-answer gate.
+
+Paid confirmation:
+- Gemini 3.5 Flash direct probes passed 4/4 for application-transfer/focus planning.
+- Gemini 3.1 Flash Lite schema repair passed 1/1.
+- Report V2 matrix passed 4/4 across Sonnet 4.6 and Gemini 3.1 Pro on strong and narrow/tunneled fixtures.
+
+Issues fixed during the gate:
+- `orchestrator.py` had a real async-path `NameError` from stale `current_sub_focus_key` / `current_sub_focus_label` names in the legacy `prepped_turn_analysis` block. Fixed to use `answered_sub_focus_key` / `answered_sub_focus_label`.
+- The full map-prep budget was 300s, but the inner `generate_interview_map()` wrapper still timed out at 240s. Default `MAP_PREP_GENERATE_TIMEOUT_SECONDS` is now 300.
+- The robust simulation harness now logs map prep and per-turn progress so future long runs are not black boxes.
+- The full-gate quality formula now respects the new experience-area -> sub-focus surface model. It no longer fails a run just because several high-value surfaces belong to the same parent experience area; it uses `max_same_surface_streak` when surface breadth is sufficient.
+
+Final artifacts:
+- Raw run: `/tmp/antigravity_paid_confirmation_full_app_rerun3_20260601_full_gate.json`
+- Raw Markdown: `/tmp/antigravity_paid_confirmation_full_app_rerun3_20260601_full_gate.md`
+- Regraded with corrected surface-aware gate: `/tmp/antigravity_paid_confirmation_full_app_rerun3_20260601_full_gate_regraded.json`
+- Regraded Markdown: `/tmp/antigravity_paid_confirmation_full_app_rerun3_20260601_full_gate_regraded.md`
+
+Final result:
+- 15 turns completed.
+- `history_len == question_count == 15`.
+- Application transfer served on turn 5.
+- Coverage evaluated across 5 dimensions.
+- Second anchor reached on turn 11.
+- No late generic sprint opener.
+- Report V2 ready with finalization complete.
+- Final verdict: `MAYBE`, score `5.5`.
+- Corrected quality gate passes.
+
+Remaining product notes:
+- Startup is still slow: map build ~238s, startup ~249s.
+- Coverage questions work structurally but still feel long/complex in places.
+- The report was not over-punitive, which is good, but the simulated answerer missed most coverage dimensions, so `MAYBE 5.5` is reasonable for this synthetic transcript rather than a report failure.
+
+## 2026-06-01 - Codex: Stale Scaffolding Sweep After Full Gate
+
+Yash asked whether the same-focus issue was real tunneling or a bad formula/trace.
+
+Answer:
+- It was not a pure same-weakness tunnel.
+- The run reused the same high-value parent experience area during coverage, but coverage moved across separate test dimensions.
+- The old trace was too coarse: it showed repeated `retention_engagement_experiments` without first-class coverage-dimension surfaces.
+
+Fixes made:
+- Coverage packets/history now carry `coverage_dimension_id` and `coverage_dimension_label`.
+- Surface accounting now treats coverage dimensions as distinct surfaces: `focus::coverage::dimension_id`.
+- Robust and live simulation reports now include surface sequences and surface-aware streaks.
+- The warm opener route is now `warm_open` instead of `sprint_opener`.
+- Map-promoted questions no longer keep stale `sprint_seed` route labels.
+- Final completion copy no longer says "all three sprints."
+- Removed unreachable deterministic fallback bodies from `interview_map.py`.
+- Updated README/AGENTS stale model/map language around Opus, static fallbacks, and old full-map startup.
+
+Interpretation of the paid Apparao run:
+- Parent focus repetition looked high.
+- Objective surface breadth was healthy: 5 distinct surfaces, 3 high-value surfaces tested, max same-surface streak 4.
+- Remaining product issue is question wording/coverage complexity, not "kept drilling the same exact issue."
+
+Verification:
+- `py_compile` on orchestrator/map/agenda/sim harness files.
+- `backend.test_interview_agenda_contract`
+- `backend.test_scaffolding_contracts`
+- `backend.test_parser_contracts`
+- `backend.test_interview_map_contract`
+- `backend.test_interview_map_validation`
+- `git diff --check` on touched files.
+
+## 2026-06-01 - Codex: Signal-Only Policy Checker Agent
+
+Added a deterministic `PolicyCheckerAgent` that runs after the background pipeline selects/stages the next question packet. It is intentionally warning-only right now:
+- It does not call an LLM.
+- It does not override agenda selection.
+- It stores `last_policy_check`, capped `policy_checker_events`, warning counts, staged metadata, and telemetry.
+
+What it watches:
+- true same-surface tunneling;
+- repeated parent focus with too little surface breadth;
+- late generic/stale sprint routes;
+- missing focus on map-backed packets;
+- application transfer late/missing;
+- coverage skipped after application transfer;
+- second anchor late/missing;
+- more than two pressure-posture questions in a row;
+- finalized sessions without reports.
+
+Important nuance: it explicitly distinguishes same parent focus from same surface. A sequence can stay inside one high-value experience area if coverage/sub-focus surfaces are distinct; it warns only when the repetition lacks surface breadth or exceeds same-surface caps.
+
+Verification:
+- `python3 -m py_compile backend/agents/policy_checker_agent.py backend/services/orchestrator.py backend/test_policy_checker_agent.py`
+- `PYTHONPATH=. python3 -m backend.test_policy_checker_agent`
+- `PYTHONPATH=. python3 -m backend.test_interview_agenda_contract`
+- `PYTHONPATH=. python3 -m backend.test_scaffolding_contracts`
+- `PYTHONPATH=. python3 -m backend.test_parser_contracts`
+- `PYTHONPATH=. python3 -m backend.test_interview_map_contract`
+- `PYTHONPATH=. python3 -m backend.test_interview_map_validation`
+
+Next useful move: run one Apparao simulation and inspect `policy_checker_events` alongside route/focus/surface sequence before giving this checker steering power.
+
+## 2026-06-02 - Codex: Policy Checker Multi-Case Sample
+
+Ran a small multi-resume sample instead of a single Apparao-only read:
+- `/tmp/antigravity_policy_checker_three_case_20260601_full_all.{json,md}`
+- `/tmp/antigravity_policy_checker_average_replacement_20260601_full_gate.{json,md}`
+
+Results:
+- `best_product`: completed and passed. 15 turns, application transfer turn 5, coverage turns 6-9, second anchor turn 11, `MAYBE 6.4`.
+- `strong_ai`: completed but failed current timing gate because second anchor arrived at turn 9, one turn early. App transfer/coverage were otherwise structurally present.
+- `trap_overclaim`: failed closed during launch-map repair readiness. Safe behavior, but still a map-prep robustness issue.
+- `average_partial`: replacement full interview completed and passed. 15 turns, application transfer turn 5, coverage turns 6-9, second anchor turn 10, `MAYBE 5.5`.
+
+Main pattern:
+- Application transfer and coverage are now reliable across completed cases.
+- Same parent focus is not the main problem; surface breadth is generally healthy.
+- The new live issue is post-coverage rhythm: `second_anchor` can become a holding pattern, and one product run briefly entered `synthesis_close` before returning to second-anchor/focus questions.
+
+Policy checker change after this run:
+- Added warnings for `synthesis_before_second_anchor`, `second_anchor_streak`, and `second_anchor_overused`.
+- This remains warning-only; it still does not steer.
+
+Next engineering target:
+- Update agenda selection so second-anchor is a bounded phase with a clean exit to synthesis/close, not an unlimited route bucket.
+- Investigate the trap-overclaim launch-map failure with the map artifact/attempt errors before broad full-suite reruns.
+
+## 2026-06-02 - Codex: Map Readiness Debuggability + Second Anchor Bound
+
+Implemented the next scaffolding repair pass.
+
+What changed:
+- Added `MapPreparationError` diagnostics in `backend/services/interview_map.py`.
+- Failed bounded-launch map prep now preserves pass-one map summary, Sonnet review, repair targets, repaired map summary, repaired review, attempt errors, repair provenance, latency steps, and model policy.
+- `backend/services/orchestrator.py` stores these diagnostics in session state as `interview_map_failure_diagnostics`.
+- `backend/test_robust_interview_simulation_suite.py` now emits map failure diagnostics in JSON/Markdown instead of just the final exception.
+- Track generation now tries a cheap Gemini Flash Lite schema-only normalizer before jumping to direct Sonnet rescue when the model output looks useful but violates the local shape.
+- `second_anchor` is now a bounded phase: max three turns total, max two on one secondary focus, then forced synthesis close.
+- Background generic fallback route was renamed from `sprint_seed` to `legacy_agenda_backup`; the initial preseed route is now `seed_first_followup`.
+
+Important interpretation:
+- The latest trap failure looked like critic/readiness instability, not a basic JSON parse failure. Usage logs showed parse success through the relevant LLM calls.
+- The next run should answer whether Sonnet was truly finding launch-blocking defects or over-criticizing, because the artifact will include both reviews and both candidate summaries.
+
+Verification:
+- `python3 -m py_compile backend/services/interview_map.py backend/services/orchestrator.py backend/agents/policy_checker_agent.py backend/test_interview_agenda_contract.py backend/test_robust_interview_simulation_suite.py`
+- `PYTHONPATH=. python3 -m backend.test_interview_agenda_contract`
+- `PYTHONPATH=. python3 -m backend.test_policy_checker_agent`
+- `PYTHONPATH=. python3 -m backend.test_interview_map_contract`
+- `PYTHONPATH=. python3 -m backend.test_parser_contracts`
+- `PYTHONPATH=. python3 -m backend.test_scaffolding_contracts`
+- `PYTHONPATH=. python3 -m backend.test_interview_map_validation`
+
+## 2026-06-02 - Codex: Three-Case Full Diagnostic Run Results
+
+Ran:
+
+`SIM_MODE=full_all SIM_FORCE_ALL=1 SIM_TURNS=15 SIM_CASE_KEYS=best_product,strong_ai,trap_overclaim SIM_ANSWER_MODE=llm SIM_ANSWER_MODEL=google/gemini-3.1-flash-lite SIM_IDLE_TIMEOUT=90 SIM_OUTPUT_PREFIX=/tmp/antigravity_diag_3case_20260602 LLM_QUALITY_AUDIT=1 LLM_QUALITY_CAPTURE_TEXT=1 PYTHONPATH=. python3 -m backend.test_robust_interview_simulation_suite`
+
+Artifacts:
+- `/tmp/antigravity_diag_3case_20260602_full_all.json`
+- `/tmp/antigravity_diag_3case_20260602_full_all.md`
+- `/tmp/antigravity_diag_3case_20260602_full_gate.json`
+- `/tmp/antigravity_diag_3case_20260602_full_gate.md`
+
+Results:
+- `best_product`: failed at map prep. Diagnostics show pass-one critic score 7.6, repaired score 5.2. The repaired monetization track became hollow after schema rescue: placeholder dimensions, empty ladder support, candidate-voice recovery, and bad weights.
+- `strong_ai`: failed at map prep. Pass-one score 5.8, repaired score 7.1 but still not startup-ready because launch-blocking issues remained: generic/under-grounded second track and legacy recovery fields copied from ladder questions.
+- `trap_overclaim`: completed 15 turns. App transfer turn 5, coverage 6-9, second anchor 10-12, synthesis from turn 13, final `INSUFFICIENT_DATA 3.5`. Gate still failed on same-focus streak even though route repetition has `distinct_surfaces=10` and max same-surface streak 2.
+
+Interpretation:
+- Diagnostics are now good enough to explain failure without log archaeology.
+- Sonnet was not merely random/over-critical in these failures; it identified concrete issues. But the failures still trace back to our scaffolding:
+  1. Schema rescue is too permissive and can turn truncated model output into generic placeholder tracks.
+  2. Legacy `recovery` fields are still acting as launch blockers even though `question_ladder` is the runtime source of truth.
+  3. Track repair/regeneration should not keep retrying a weak second launch focus when the focus plan has a better alternative.
+  4. Synthesis needs a one-shot/close budget just like second anchor.
+  5. The robust gate’s same-focus check still needs to use surface-aware metrics consistently.
+
+## 2026-06-02 - Codex: Contract Authority Repair After Diagnostic Failures
+
+Patched the issues from the three-case diagnostic run.
+
+What changed:
+- Schema-only track repair now has a strict quality verifier. It rejects valid-looking JSON if the ladder is incomplete, expected spaces are empty, questions are truncated/too short, dimensions are placeholder phrases like `statistical significance`, signal weights are fake-low, or recovery text is in candidate voice.
+- Legacy `recovery.*` and `candidate_q4_options` fields are now compatibility warnings, not launch blockers, when the runtime `question_ladder` is strong.
+- Track-level launch issues now count as replacement-worthy. If one launch track remains weak after the bounded repair, the system can replace that focus from the existing focus plan instead of retrying the same weak track.
+- Synthesis close now avoids repeating the same late synthesis question; after a late synthesis answer it stages a short graceful final coverage check.
+- Robust simulation quality gate now prefers same-surface streaks when distinct sub-focus/coverage surfaces exist, so same parent experience no longer looks like tunneling when the surface coverage is broad.
+
+Verification:
+- `python3 -m py_compile backend/services/interview_map.py backend/services/orchestrator.py backend/agents/policy_checker_agent.py backend/test_interview_agenda_contract.py backend/test_interview_map_contract.py backend/test_robust_interview_simulation_suite.py`
+- `PYTHONPATH=. python3 -m backend.test_interview_agenda_contract`
+- `PYTHONPATH=. python3 -m backend.test_interview_map_contract`
+- `PYTHONPATH=. python3 -m backend.test_policy_checker_agent`
+- `PYTHONPATH=. python3 -m backend.test_parser_contracts`
+- `PYTHONPATH=. python3 -m backend.test_scaffolding_contracts`
+- `PYTHONPATH=. python3 -m backend.test_interview_map_validation`
+- `PYTHONPATH=. python3 -m backend.test_llm_scaffolding_audit`
+- `git diff --check -- backend/services/interview_map.py backend/services/orchestrator.py backend/test_interview_map_contract.py backend/test_interview_agenda_contract.py backend/test_robust_interview_simulation_suite.py`
+
+Latest no-credit audit:
+- `/tmp/antigravity_scaffolding_audit_20260602_013940.{json,md}`
+- 75 cases, 57 solved, 17 old-artifact unknowns, 1 low hardcoding-risk warning, no high-severity failures, green for paid confirmation.
+
+Next useful move:
+- Re-run the 2-3 case paid diagnostic with the same case set. This should answer whether `best_product` and `strong_ai` now launch, and whether `trap_overclaim` no longer fails the surface-aware gate/close rhythm.
+
+## 2026-06-02 - Codex: Interview Map V2 Ladder Authority Migration
+
+Migrated the map contract one step further so the system is no longer pretending old and new fields are equal.
+
+Decision:
+- `question_ladder` is the authoritative runtime question contract.
+- `dimensions` are assessment/evidence axes, exposed as `assessment_dimensions` in V2.
+- `opener`, `recovery`, and `candidate_q4_options` are legacy compatibility aliases derived from the ladder/dimensions.
+- V2 tracks now carry `map_schema_version=v2_ladder`, `primary_question_contract=question_ladder`, and `legacy_fields_authority=compatibility_only`.
+- A `legacy_compat` object stores the derived old read model for older code paths.
+
+Why this matters:
+- Future code should not treat top-level legacy fields as separate LLM-authored truth.
+- If a legacy alias conflicts with the ladder, the ladder wins.
+- Launch validation no longer requires legacy recovery completeness.
+
+Verification:
+- `python3 -m py_compile backend/services/interview_map.py backend/services/orchestrator.py backend/test_interview_map_contract.py backend/test_interview_map_validation.py backend/test_robust_interview_simulation_suite.py`
+- `PYTHONPATH=. python3 -m backend.test_interview_map_contract`
+- `PYTHONPATH=. python3 -m backend.test_interview_map_validation`
+- `PYTHONPATH=. python3 -m backend.test_parser_contracts`
+- `PYTHONPATH=. python3 -m backend.test_interview_agenda_contract`
+- `PYTHONPATH=. python3 -m backend.test_scaffolding_contracts`
+- `PYTHONPATH=. python3 -m backend.test_policy_checker_agent`
+- `PYTHONPATH=. python3 -m backend.test_final_report_contract`
+- `PYTHONPATH=. python3 -m backend.test_llm_scaffolding_audit`
+
+Latest no-credit audit:
+- `/tmp/antigravity_scaffolding_audit_20260602_015125.{json,md}`
+- Same profile as pre-migration: 75 cases, no high-severity failures, green for paid confirmation.
+
+Next useful move:
+- Run the same 2-3 paid diagnostic cases again. This migration was designed to avoid schema loops, but only the paid map/full run can prove Gemini/Sonnet behavior is now stable under live generation.
+## 2026-06-02 - Codex: Voice/Rhythm + Over-Assumption Fix Pass
+
+Patched the remaining issues from the three-case V2 diagnostic run without doing another broad paid simulation.
+
+What changed:
+- `orchestrator.py`: synthesis is now terminal once started; second anchor is capped at two turns / close floor 12; second-anchor route no longer falls back to generic sprint question generation; selected second-anchor packets are consistently labeled `second_anchor`; `session_ended` telemetry is guarded; application-transfer anchor extraction moved away from "most specific implementation detail" toward grounded work/decision/tradeoff evidence. This was later tightened to `grounded transfer anchor` language in the Silverline pass.
+- `application_agent.py`: application transfer prompt is role-relevant and voice-first; overlong transfer questions trigger a cheap structured question rewrite that preserves intent and avoids new assumptions.
+- `followup_agent.py`: coverage surface/depth prompts now request one short spoken question; depth probes ask what the candidate personally handled when ownership is unclear.
+- `interview_map.py`: track prompt now explicitly forbids hidden internal technical assumptions unless snippets/answers support them; engineering and ML openers establish ownership/scope before mechanism/pressure; removed the "UI-to-latent translation" wording.
+- `final_report.py` / `evaluation_agent.py`: parent-focus dominance is not treated as tunneling when sub-focus/coverage surfaces are broad and same-surface streak is low.
+
+New/regression tests:
+- Parent focus dominance with broad surface coverage is not tunneling.
+- Third second-anchor turn warns as holding pattern.
+- Application-transfer question repair shortens voice-overloaded questions without API calls.
+
+Verification:
+- Compile: `python3 -m py_compile backend/services/orchestrator.py backend/agents/application_agent.py backend/agents/followup_agent.py backend/agents/policy_checker_agent.py backend/agents/evaluation_agent.py backend/models/final_report.py backend/services/interview_map.py backend/test_final_report_contract.py backend/test_policy_checker_agent.py backend/test_parser_contracts.py`
+- Green: `backend/test_final_report_contract.py`, `backend/test_policy_checker_agent.py`, `backend/test_parser_contracts.py`, `backend/test_interview_agenda_contract.py`, `backend/test_interview_map_contract.py`, `backend/test_interview_map_validation.py`, `backend/test_scaffolding_contracts.py`, `backend/test_llm_usage_audit.py`, `backend/test_llm_router_json.py`, `backend/test_llm_scaffolding_audit.py`
+- Latest audit: `/tmp/antigravity_scaffolding_audit_20260602_025618.{json,md}` = 75 cases, 57 solved, 17 historical old-artifact unknowns, 1 low hardcoding-risk warning, 0 high-severity failures, green for paid confirmation.
+
+Next:
+- Run the small paid 3-case confirmation again (`best_product`, `strong_ai`, `trap_overclaim`) and inspect app/coverage question length, second-anchor warnings, close repetition, and strong-AI unsupported internal probes.
+
+## 2026-06-02 - Codex: Incremental App-Transfer Depth + Strong-AI Close Guard
+
+Follow-up to the strong-AI silverline run.
+
+What changed:
+- Application transfer is now breadth-first: 2-3 dimensions, at least two breadth surfaces, normally one depth-eligible dimension, hard max two.
+- `CoverageDimension` now carries `surface_kind` and `depth_eligible`; orchestrator/followup coverage routing only asks depth probes for eligible dimensions.
+- Hidden-internal guards now block unsupported proprietary internals (`engine parameters`, `latent space`, `embeddings`, `diffusion`, etc.) but support technical aliases when resume/focus evidence justifies them (`feature extraction`/`feature extractor`, TinyML/TFLite/INT8/model invocation, SQL schema/foreign key).
+- Closing flow is now terminal in fast-track selection. After synthesis/graceful close starts, map/generic promotion cannot reopen the interview.
+
+Verification:
+- No-credit: compile + parser contracts + agenda contracts + policy checker contracts.
+- Paid artifact: `/tmp/antigravity_silverline_strong_ai_closeguard2_20260602_full_gate.{json,md}`.
+- Result: strong-AI passed structurally with 15 turns, app transfer turn 7, coverage 8-9, second anchor 10, synthesis/close 13-15, report ready complete, MAYBE 5.8.
+
+Remaining notes:
+- Map prep is still slow (~249s in the final strong-AI sample).
+- App-transfer generation can still fail closed once before a valid repaired question lands.
+- Policy checker still warned `second_anchor_overused`; the run did not catastrophically loop, but second-anchor/map-backed turns 10-12 still need quality tuning before the full 6-case silverline suite.
+
+## 2026-06-02 - Codex: Application-Transfer Grounding Arc + Map-Prep Fragility Follow-Up
+
+Implemented the application-transfer grounding mini-arc requested by Yash.
+
+Runtime changes:
+- `coverage_map.AnswerCoverageMap` now carries `grounding_needed`, `grounding_question`, `max_depth_level`, and `depth_allowed_terms`.
+- `ApplicationAgent` asks for a short grounding clarification when an anchor could mean decision/workflow/internals.
+- `orchestrator.py` has a new `application_grounding` route before main app transfer. It is recorded in history but excluded from evidence budget, focus breadth, same-surface streaks, and substantive coverage math.
+- Grounding answers infer capped depth level; coverage depth probes should not introduce L4 internals unless explicitly confirmed.
+- Fast path now promotes coverage immediately after an answered application-transfer turn and clears stale map/generic packets.
+- Harnesses now classify grounding questions and report `application_transfer_arc`.
+
+Paid evidence:
+- `/tmp/antigravity_app_transfer_arc_strong_ai_20260602_full_gate.{json,md}` completed structurally: 15 turns, grounding turn 5, app transfer turn 6, report ready, `MAYBE 5.5`.
+- That run exposed route-quality issues: coverage delayed by one extra map question, second anchor started at turn 9, and graceful close repeated. I patched immediate coverage promotion and moved second-anchor start floor to 10.
+- Rerun `/tmp/antigravity_app_transfer_arc_strong_ai_fix_20260602_full_gate.{json,md}` failed immediately from my local `answered_route_kind` NameError; fixed.
+- Rerun `/tmp/antigravity_app_transfer_arc_strong_ai_fix2_20260602_full_gate.{json,md}` failed before interview start from map-prep timeout/schema repair fragility, not app-transfer routing. Logs showed Gemini/Sonnet track repair looping on only-2-dim/no-complete-ladder plus legacy `recovery.*` shape errors.
+
+Additional parser hardening:
+- `interview_map._pre_normalize_track_schema()` now normalizes recovery fields returned as objects such as `{"question": "..."}` and `candidate_q4_options` object items into strings before Pydantic validation.
+- Added parser contract for recovery-object fields.
+
+Verification:
+- Compile green for orchestrator/application/followup/policy/coverage/agenda/interview_map/harness tests.
+- Green: parser contracts, agenda contracts, policy checker contracts, scaffolding contracts.
+- Latest no-credit audit: `/tmp/antigravity_scaffolding_audit_20260602_145115.{json,md}` = 76 cases, 58 solved, 17 historical unknowns, 1 low hardcoding-risk warning, 0 high-severity failures, green for paid confirmation.
+
+Recommendation:
+- Do not run the full 6-case silverline suite yet. Next best step is one paid map-only or full strong-AI confirmation after the recovery-shape parser fix, specifically watching map-prep stability and the immediate post-app coverage route.
+
+## 2026-06-02 - Codex: Saved-Map Replay + Artifact Observability Fix
+
+Built a no-credit saved-map replay harness after Yash asked whether we could use already successful/failed map data instead of paying for another live map generation.
+
+What changed:
+- Added `backend/test_saved_map_replay_suite.py`.
+- It replays full maps from `backend/data/session_exports/*.json` into the current startup contract without calling LLMs.
+- It injects a prepared map-opener packet before `start_prepared_session()` so the startup seed LLM is not touched.
+- It analyzes recent full-run artifacts for route/coverage/second-anchor/report regressions.
+- It classifies `/tmp/*map_policy.json` as raw-runtime-map replayable vs summary-only.
+- Updated `backend/test_robust_interview_simulation_suite.py` so future map-only artifacts include the raw `interview_trajectory_map`.
+
+Result:
+- Artifact: `/tmp/antigravity_saved_map_replay_20260602_150328.{json,md}`.
+- 8 saved full session exports were all obsolete pre-ladder maps, rejected by today’s validator for missing `question_ladder`. This is not a current map-generator failure.
+- 24 recent `/tmp` map-policy artifacts were summary-only; 7 had ladder summaries but still omitted runtime surface-probe fields, so they could not faithfully replay startup.
+- Historical full-run analysis still shows useful old failures: application-transfer repair failure, second-anchor-too-early, map-prep timeout, and old NameError artifacts.
+
+Recommendation:
+- Do one new map-only run now that the robust harness persists raw maps. After that, the saved-map replay harness can test map startup from the exact runtime object without spending credits.
+
+## 2026-06-02 - Codex: No-Credit Interview Ripper Gate
+
+Added a deterministic ripper suite before the next live simulation.
+
+What changed:
+- Added `backend/test_interview_ripper_contract.py`.
+- Patched `orchestrator._coverage_route_allowed()` so zero-dimension coverage maps are not treated as valid coverage routes.
+
+What the ripper now proves:
+- Turn 1/2 weak answers stay on the primary focus instead of triggering the old premature anti-tunnel/off-role pivot.
+- Repeated weak answers after the primary evidence floor pivot to the next role-relevant anchor.
+- If application transfer is required but not ready by the deadline, the agenda blocks/fails closed instead of escaping into generic questions.
+- If application transfer is ready, it beats high-severity weakness drilling.
+- An answered application-transfer question forces coverage next.
+- If the coverage map is empty/malformed, the conversation can move to second anchor, but the final verdict is forced to `INSUFFICIENT_DATA`.
+- With only two usable anchors, the interview can still pivot to the second anchor and then synthesize after the second-anchor budget.
+- Map-backed bad packets without focus attribution fail construction.
+- Policy checker flags late generic/app-transfer-missing routes, but is still signal-only and does not steer.
+- Narrow/tunneled `NO HIRE` is downgraded by hard coverage gate.
+
+Verification:
+- Green: compile, ripper contracts, agenda contracts, policy checker, parser contracts, scaffolding contracts, map validation, saved-map replay, diff check.
+- Latest replay artifact: `/tmp/antigravity_saved_map_replay_20260602_151109.{json,md}`.
+
+Recommendation:
+- We are clear to do one current map-only paid run next, because future map artifacts now include raw runtime maps. If that map-only run is sane, replay startup no-credit, then run the live simulation.
+
+## 2026-06-02 - Codex: Current Apparao Map Replay + Visible-Turn Agenda Fix
+
+Ran the requested ripple path:
+- Current paid Apparao map-only run passed and persisted raw map:
+  - `/tmp/antigravity_current_map_gate_20260602_map_policy.{json,md}`
+  - `launch_ready=true`, `first_two_launch_ready=true`, two launch tracks, no Sonnet rescue, DeepSeek advisory disagreement only.
+- Exact no-credit startup replay of that raw map passed:
+  - `/tmp/antigravity_current_map_gate_replay_20260602_20260602_151912.{json,md}`
+  - warm opener preserved, prepped packet map-backed, no startup seed LLM needed.
+- Paid full gate before the last fixes failed structurally:
+  - `/tmp/antigravity_current_live_gate_20260602_full_gate.{json,md}`
+  - app transfer turn 5, coverage turns 6-7, report ready, but second anchor at turn 8 and repeated close.
+- Paid reruns exposed the root cause more surgically:
+  - `question_count` is ahead of answered history during background staging, so turn floors must use `len(history)+1`.
+  - Once coverage completed with no secondary focus, the executor closed immediately even before synthesis floor.
+  - Close packets could inherit stale `agenda_phase=second_anchor` metadata even when route kind was graceful close.
+
+Fixes now in code:
+- second-anchor and synthesis floors use visible answered history, not internal counters.
+- once synthesis/graceful close appears in history, close state is sticky.
+- second-anchor counting treats route kind as authoritative.
+- coverage-complete/no-secondary executor path uses a map-grounded continuation before synthesis floor.
+- ripper and agenda contracts encode these invariants.
+
+Verification after the final patch:
+- Green: compile, `test_interview_ripper_contract.py`, `test_interview_agenda_contract.py`, parser contracts, scaffolding contracts, map validation, final report contracts.
+- Latest scaffolding audit: `/tmp/antigravity_scaffolding_audit_20260602_155052.{json,md}` = 67 cases, 59 solved, 7 historical unknowns, 1 low hardcoding-risk warning, 0 high-severity failures, green for paid confirmation.
+
+Recommendation:
+- Do not start the full 6-case silverline suite yet.
+- Next step should be exactly one fresh paid Apparao full gate after the final executor patch. If it passes: app transfer 5-7, coverage after transfer, second anchor 10-13, synthesis 13-15, no stale close metadata, then run the next 1-2 cases.
+
+## 2026-06-02 - Codex: Map-Grounded Reserve Questions + App-Transfer Depth Review
+
+Implemented the small “save the interview without generic fallback” layer Yash asked for.
+
+What changed:
+- Added `_select_reserve_question(...)` in `backend/services/orchestrator.py`.
+- Reserve order is deliberately bounded and map-owned:
+  1. unasked coverage dimensions from the generated coverage map,
+  2. unasked V2 `question_ladder` main questions,
+  3. map-authored candidate Q4 options.
+- Reserve questions refuse repeated exact questions and repeated surfaces where possible.
+- Reserve packets now preserve selected focus/sub-focus/coverage metadata all the way into `prepped_next_packet`.
+- `reserve_map_question` is now treated as map-backed by the policy checker.
+- Added no-credit ripper and policy contracts for the reserve path.
+
+App-transfer depth review:
+- We do not currently have “five app-transfer questions” as a fixed block.
+- The intended arc is: optional grounding clarification, one main transfer question, 2-3 coverage surface questions, and 0-2 earned depth probes.
+- The reason recent Apparao runs had `application_transfer_arc.depth_count=0` is not that depth probes are missing from code. The depth probe only fires when a depth-eligible dimension is answered partially/surface-level. Recent answers were classified as missed, voluntary, or recovered-deep, so no partial-depth recovery was scheduled.
+
+Verification:
+- Green: compile, ripper contracts, policy checker contracts, agenda contracts, scaffolding contracts, parser contracts, final report contracts, diff check on touched files.
+
+Recommendation:
+- Next paid run should inspect whether reserve questions actually appear only when needed and whether `coverage_depth_probe` remains rare but fires on deliberately partial answers. Add one targeted simulated answer that gives a partial answer to a depth-eligible app-transfer dimension so we can test the depth path live.
+
+## 2026-06-02 - Codex: Marketplace Growth Diagnostic Case
+
+Added and ran the new `marketplace_growth` non-Apparao silverline case.
+
+Implemented:
+- `marketplace_growth` fixture + question-aware LLM answer buckets in `backend/test_robust_interview_simulation_suite.py`.
+- Case-specific second-anchor expected-surface gate for dashboard/reporting/ops.
+- Generic analytics focus-plan preservation repair in `backend/services/interview_map.py`: when an analytics-role resume clearly has concrete dashboard/reporting decision-use evidence and the focus plan omits it entirely, regenerate the focus plan once with a typed preservation hint.
+- `orchestrator.end_session()` finalization wait/lock so duplicate callers do not launch duplicate Sonnet final report calls.
+
+Artifacts:
+- Good map-only after preservation repair: `/tmp/antigravity_marketplace_growth_planrepair_20260602_map_policy.{json,md}`.
+- Good exact no-credit replay: `/tmp/antigravity_marketplace_growth_planrepair_replay_20260602_20260602_172018.{json,md}`.
+- Latest full run before finalization-lock patch: `/tmp/antigravity_marketplace_growth_final_planrepair_20260602_full_gate.{json,md}`. It reached 15 visible turns, app transfer turn 5, coverage turns 6-7, coverage depth probe turn 8, but failed because duplicate finalization caused a second report call to fail with `JSONDecodeError` after the first report call had succeeded.
+
+Next recommended paid step:
+- Run exactly one fresh `SIM_MODE=full_gate SIM_CASE_KEYS=marketplace_growth SIM_ANSWER_MODE=llm` after the finalization-lock patch. Do not start the broader 6-case silverline suite until this confirms stable report finalization and visible dashboard/reporting second-anchor behavior.
+
+## 2026-06-02 - Codex: Semantic Second-Anchor Surface Rotation
+
+Implemented the routing fix for the marketplace-growth second-anchor miss.
+
+Changed:
+- `backend/state/interview_agenda.py`
+  - Added `anchor_surface_candidates()` and `next_secondary_surface()`.
+  - Selector ranks typed sub-focus surfaces with existing map weights and usage counts.
+  - Different focus gets a bonus, but high-value same-parent surfaces can still beat weak off-role surfaces.
+- `backend/services/interview_map.py`
+  - `select_from_trajectory_map_detailed()` now accepts `preferred_sub_focus_key` and `preferred_surface_kind`.
+  - Selected ladder/dimension results now preserve `sub_focus_key`, `sub_focus_label`, and `surface_kind`.
+- `backend/services/orchestrator.py`
+  - Second-anchor/focus-pivot decisions now target semantic surfaces.
+  - `surface_kind` is preserved in active packets, current-answer context, staged analysis, and history.
+  - Fast-path dedup recovery for `second_anchor` now reselects from the intended surface instead of clearing the packet and falling into generic trajectory selection.
+- `backend/test_interview_agenda_contract.py`
+  - Added regressions for high-value same-parent dashboard surface beating off-role OCR/CV and for map selector preserving preferred surface metadata.
+
+Verification:
+- `python3 -m py_compile backend/state/interview_agenda.py backend/services/interview_map.py backend/services/orchestrator.py backend/test_interview_agenda_contract.py`
+- `PYTHONPATH=. python3 backend/test_interview_agenda_contract.py`
+- `PYTHONPATH=. python3 backend/test_policy_checker_agent.py`
+- `PYTHONPATH=. python3 backend/test_parser_contracts.py`
+- `PYTHONPATH=. python3 backend/test_scaffolding_contracts.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_contract.py`
+- `PYTHONPATH=. python3 backend/test_interview_map_validation.py`
+
+Next paid step remains one fresh `marketplace_growth` full gate only. Do not fan out the broader silverline suite until this confirms visible dashboard/reporting/ops second-anchor engagement and stable finalization.
+
+## 2026-06-02 - Codex: App-Transfer Breadth/Depth Floor
+
+Implemented the app-transfer floor Yash requested.
+
+Runtime policy now:
+- If an AnswerCoverageMap has two or more dimensions, at least two dimensions must be evaluated before coverage can count as viable.
+- If a depth-eligible dimension has real signal (`voluntary` or `recovered_surface`) and no depth probe has been served, the router can schedule one light `coverage_depth_probe`.
+- If early answers are too vague to form a grounded transfer anchor, the agenda asks one `application_anchor_recovery` question before resume-focus fallback.
+
+Important review point for the next paid full gate:
+- Check app-transfer turns explicitly. We want breadth first, then one light earned depth probe when the answer supports it, then second anchor. We do not want depth probes on missed/incorrect/no-signal answers.
+
+## 2026-06-02 - Codex: SurfacePlanV2 Runtime Wiring + Question Readiness
+
+Implemented the runtime version of the SurfacePlanV2 direction after the GPT-5.4 Mini probes.
+
+What changed:
+- `backend/services/interview_map.py` now calls SurfacePlanV2 before Gemini focus planning and passes the compact plan into `_focus_plan_user_prompt()`.
+- SurfacePlanV2 is first-class planning context, but `recommended_allocation_hint` is explicitly advisory and must not decide question counts.
+- `backend/services/question_quality.py` plus `backend/data/question_quality_guide.json` define deterministic bad-question family checks.
+- `_build_question_packet()` now attaches `question_quality`; `PolicyCheckerAgent` warns on `bad_question_readiness`.
+
+Important nuance:
+- The deterministic checker is not a "good question scorer." It is a rule engine for known bad families: self-rating variants, late SQL/event-property recall, generic framework prompts, unsupported internals, compound overload, and missing escape hatches in guided options.
+- Bad examples like "Which part are you most confident in?" are intentionally present in prompts/tests as negative examples. Do not treat their existence alone as runtime leakage.
+- Runtime labels `legacy_agenda_backup` / `sprint_seed` still exist as compatibility/safety labels and are treated as high-risk by policy checks after turn 5. They should not be revived as desired routes.
+
+Verification:
+- Green no-credit suite: compile, question-quality contracts, surface-plan contracts, policy checker, scaffolding, map, agenda, parser, final report, router JSON, usage audit, voice policy, ripper, saved-map replay, and scaffolding audit.
+- Latest artifacts: `/tmp/antigravity_scaffolding_audit_20260602_202155.{json,md}` and `/tmp/antigravity_saved_map_replay_20260602_202231.{json,md}`.
+
+## 2026-06-02 - Codex: Surface Planner Model Probe
+
+Ran an isolated paid SurfacePlanV2 model probe before changing runtime.
+
+Artifact:
+- `/tmp/antigravity_surface_planner_probe_20260602_190718.{json,md}`
+
+Compared:
+- `openai/gpt-5-mini`
+- `openai/gpt-5.4-mini`
+- `openai/gpt-chat-latest`
+
+Task:
+- high-signal focus areas -> sub-focus areas -> testable surfaces -> demoted off-role/risky surfaces
+- no question generation
+- no direct question-count allocation
+
+Result:
+- `gpt-5.4-mini` is the best default candidate for a pre-map recommendation layer. It produced complete, grounded plans across all six resumes and cost about `$0.062` for six calls in this probe.
+- `gpt-chat-latest` is strong and faster but expensive, about `$0.333` for six calls, so keep it as rescue/baseline rather than default.
+- `gpt-5-mini` is cheap but too thin and slow for this role. It often returned one or two focus areas and missed explicit demotions.
+
+Architectural caution:
+- `recommended_allocation_hint` must remain soft. It can influence ranking and omission checks, but must never directly decide question counts or interview budgets.
+
+## 2026-06-02 - Codex: GPT-5.4 Mini Edge Probe
+
+Ran the requested final edge-only probe for `openai/gpt-5.4-mini`.
+
+Artifact:
+- `/tmp/antigravity_surface_planner_probe_20260602_191323.{json,md}`
+
+Cases:
+- regulated healthcare ops / clinic no-show analytics
+- vendor-AI product engineer with explicit no-model-internals boundary
+- messy multilingual growth resume
+- product-ops / UX research hybrid with ownership ambiguity
+- senior bank-risk hype with thin implementation evidence
+
+Result:
+- 5/5 valid JSON
+- mean score `99`
+- min score `95`
+- mean latency about `15.4s`
+- estimated total cost about `$0.056`
+
+Human read:
+- Strong enough to proceed with GPT-5.4 Mini as the SurfacePlanV2 default.
+- It correctly demoted Kaggle imaging, toy transformer/model-weight claims, OpenCV/Canva noise, Figma/Dribbble portfolio work, OCR, and robotics.
+- Two `review` flags were mostly scorer false positives because off-role terms appeared inside appropriate boundary/demotion language.
+- One validator rule to add during implementation: off-role credibility checks may be warnings/risk checks, but should not become standalone routable focus areas unless role relevance is explicit.
+
+## 2026-06-02 - Codex: GPT Chat Latest Edge Probe
+
+Ran the same five edge resumes on `openai/gpt-chat-latest` only after stopping the mixed probe.
+
+Artifact:
+- `/tmp/antigravity_surface_planner_probe_20260602_191854.{json,md}`
+
+Result:
+- 5/5 valid JSON
+- mean score `99`
+- min score `95`
+- mean latency about `11.4s`
+- estimated total cost about `$0.291`
+
+Comparison to GPT-5.4 Mini on the same edge cases:
+- Chat Latest is faster: `11.4s` vs `15.4s`.
+- Chat Latest is much more expensive: `$0.291` vs `$0.056`.
+- Qualitative output was strong but not clearly superior. Keep GPT-5.4 Mini as default SurfacePlanV2 planner; use Chat Latest as rescue/baseline for high-uncertainty cases.
+## 2026-06-02 - Codex: App-Transfer Floor Replay + Marketplace Paid Gate Status
+
+Yash asked to first simulate the latest app-transfer changes on previous artifacts, then run three paid resumes one at a time. I completed the replay and started the paid sequence, but stopped after the first case because `marketplace_growth` still fails before a valid interview.
+
+Replay:
+- Artifact: `/tmp/antigravity_app_transfer_floor_replay_20260602_224156.{json,md}`
+- 18 historical cases reviewed
+- 13 pass the new app-transfer floor
+- 5 need attention or are old failed artifacts, including old marketplace/strong-AI cases that would now need at least two evaluated coverage dimensions or an earned depth probe
+
+Paid attempts:
+- `/tmp/antigravity_appfloor_marketplace_growth_20260602_full_gate.{json,md}` failed at the app-transfer deadline: generated question rejected as unsupported/unspeakable.
+- `/tmp/antigravity_appfloor_marketplace_growth_fix1_20260602_full_gate.{json,md}` failed in map prep timeout after ladder schema repair failures.
+- `/tmp/antigravity_appfloor_marketplace_growth_fix2_20260602_full_gate.{json,md}` failed because focus planning normalized to only one usable focus area.
+- `/tmp/antigravity_appfloor_marketplace_growth_fix3_20260602_full_gate.{json,md}` planned 4 focus areas, then timed out during launch-track generation/repair after underfilled/truncated track output.
+
+Fixes applied:
+- `ApplicationAgent` validates app-transfer questions against full support context, not just the narrow anchor.
+- Supported BigQuery/dbt/schema language is allowed when resume/domain evidence supports it.
+- Hidden internal assumptions now either repair or fail with explicit `hidden_implementation_assumption` diagnostics.
+- Track parser normalizes object/list text drift in opener, dimensions, ladder follow-ups, and expected-space entries before strict schema validation.
+- Focus planning no longer lets partial Pydantic validation shrink the raw focus-area list before tolerant normalization; failure diagnostics now preserve raw/validated counts and previews.
+
+Current read:
+- App-transfer runtime is cleaner and local contracts are green.
+- The production blocker is now bounded launch-track generation/repair: Gemini/Sonnet can still produce tracks that are valid-ish JSON but underfilled, truncated, or not high-info enough, and repair churn can burn the startup timeout.
+- Recommendation: do not run `best_product` / `strong_ai` paid gates yet. First simplify or split the launch-track contract, or make track repair fail/replace much faster.
+**→ TO: All Agents | FROM: Codex | Date: 2026-06-03**
+- Launch-Ready Map Prep V3 is now implemented and paid-confirmed on the curated non-Apparao `marketplace_growth` case.
+- Runtime startup now uses LaunchTrackLite for the first two launch surfaces, not the full V2 contract. Full V2 richness remains async/deferred. The latest full-gate map policy shows `launch_track_lite_enabled=true`, compact Sonnet critic, GPT-5.4 Mini launch-track repair, and no full-map startup critic.
+- Important deterministic fix: `orchestrator._build_interview_map()` now saves the launch map before scheduling async hydration. The previous ordering could start hydration against an empty session map and silently lose deferred dashboard/ops surfaces.
+- Important routing fix: second-anchor packets now retire when the same surface has already been used, or when focus/total budget is exhausted. The runtime tries semantic re-selection first, then reserve map material, then close. This directly addresses the marketplace run where dbt/dashboard second anchor became a holding pattern.
+- Latest no-credit audit: `/tmp/antigravity_scaffolding_audit_20260603_005746.{json,md}` with 67 cases, 65 solved, 1 old-artifact unknown, 1 low hardcoding-risk warning, 0 high-severity failures.
+- Exact saved-map replay passed for the latest V3 map: `/tmp/antigravity_map_v3_marketplace_growth_fix5_post_anchor_fix_replay_20260603_20260603_005759.{json,md}`.
+- Paid full gate passed: `/tmp/antigravity_map_v3_marketplace_growth_full_anchorfix_20260603_full_gate.{json,md}`. Result: 15 questions, history length 15, `report_ready=true`, `finalization_status=complete`, app transfer turn 6, coverage turns 7-8, earned coverage-depth probe, second anchor turn 11, final `MAYBE 6.5`, confidence `0.72`.
+- Remaining non-blocking cleanup: terminal graceful-close statements are still scored by question-quality as weak/non-question-like, and policy still reports `late_generic_route` / `question_readiness_warning`. This did not fail the full gate, but the close route should eventually become a terminal UI/message state rather than repeated question packets.
+
+**→ TO: All Agents | FROM: Codex | Date: 2026-06-03**
+- Ran the next two V3 full gates one at a time: `best_product` and `strong_ai`.
+- `best_product` artifact: `/tmp/antigravity_v3_best_product_gate_20260603_full_gate.{json,md}`. Passed quality gate: 15 turns, app transfer turn 5, coverage turns 6-7, second anchor turn 11, report ready complete, final `MAYBE 6.8`, confidence `0.72`. Warnings: `late_generic_route`, `question_readiness_warning`, `same_surface_streak`.
+- `strong_ai` artifact: `/tmp/antigravity_v3_strong_ai_gate_20260603_full_gate.{json,md}`. Passed quality gate: 15 turns, app transfer turn 5, coverage turns 6-8, second anchor turn 11, report ready complete, final `MAYBE 5.5`, confidence `0.65`. Warnings: `late_generic_route`, `question_readiness_warning`.
+- Important: do not treat these as "ship everything" green. They prove V3 startup and structural routing are now stable across product and technical cases, but they exposed cleanup before broad silverline: app-transfer voice repair can reject two rewrites and keep an overlong original as speakable; terminal close/complete packets are scored as weak questions; `legacy_agenda_backup` still appears in policy traces even when fast path replaces it before serving.
+- Strong-AI nuance: the interviewer followed candidate-volunteered "latent identifiers/seed state" language. That is fair as a direct follow-up, but production tone should still keep asking "what did your layer actually control?" before sounding like it assumes model-internal ownership.
+
+**→ TO: All Agents | FROM: Codex | Date: 2026-06-03**
+- Completed the bounded V3 pre-integration cleanup from the latest run findings.
+- App-transfer voice repair is now stricter: if both rewrites are rejected and the original is overlong, `ApplicationAgent` fail-closes with explicit diagnostics instead of retaining the original as "speakable enough." This is intentionally stricter and may cause a future run to fail rather than serve a bad transfer question.
+- Async map hydration is now tracked by `Orchestrator`, and the robust full-gate harness waits for hydration to finish. Full-gate artifacts now include the final `interview_trajectory_map`, `full_map_ready`, pending hydration keys, and quarantine state, so full-map quality can be reviewed after a run.
+- The harness no longer ranks warm/open/close/complete terminal packets as best/worst interview questions.
+- Policy checker now demotes grounded `legacy_agenda_backup` labels to low `legacy_route_label` warnings when they carry concrete focus/question metadata; true empty/stale late legacy routes still produce high `late_generic_route`.
+- Verification is green: compile, parser contracts, policy checker, question-quality contracts, agenda, map contracts, map validation, saved-map replay, and scaffolding audit. Latest audit: `/tmp/antigravity_scaffolding_audit_20260603_051433.{json,md}` with 60 cases, 59 solved, 1 low hardcoding-risk/review item, no high-severity failures, green for paid confirmation.
+
+**→ TO: All Agents | FROM: Codex | Date: 2026-06-04**
+- Completed the next marketplace confirmation/fix loop after credits were replenished.
+- App-transfer repair now has a fallback chain: Gemini Flash Lite primary, then configured fallback models defaulting to `openai/gpt-5.4-mini` and `google/gemini-3.1-flash-lite`. The fallback is unit-tested; one marketplace run exercised repair and accepted the primary Gemini repair.
+- `LLMRouter` now retries JSON-format calls after provider/client exceptions such as `JSONDecodeError`. This fixed the failure mode where a completed 15-turn interview died during Sonnet Report V2 finalization because the provider response decoded as empty/malformed before local JSON repair could run.
+- Robust full-gate failures now include traceback/finalization/failed-state summaries, so future one-off failures like the earlier turn-12 `RecursionError` will have useful diagnostics.
+- New map-prep fix: high-value `SurfacePlanV2` focus areas that Gemini compresses away are preserved as deferred async-hydration seeds. This is non-blocking and does not alter the two launch tracks. Contract tests cover both missing dashboard preservation and avoiding duplicate dashboard preservation when Gemini already provides a distinct dashboard focus.
+- Verification: parser contracts, router JSON, policy checker, agenda, question quality, map contracts, map validation, surface-plan contracts, scaffolding contracts, saved-map replay, and scaffolding audit are green. Latest audit: `/tmp/antigravity_scaffolding_audit_20260604_034226.{json,md}`.
+- Final paid marketplace gate: `/tmp/antigravity_surface_preserve_full_marketplace_growth_20260604_full_gate.{json,md}` passed with 15 turns, app transfer turn 5, coverage turns 6-8, earned depth probe, second anchor turn 11, report complete, final `MAYBE 7.2`, no policy warnings, and quality gate passed.
+- Caveat for future work: dashboard/ops signal was mostly exercised through app-transfer/coverage, while one deferred marketplace diagnostics track was quarantined by async hydration for prosecutor/generic wording. Treat current state as V1-stable, not a finished hiring-signal-orchestration system.
+
+**→ TO: All Agents | FROM: Codex | Date: 2026-06-05**
+- Added bounded `third_surface_probe` routing. Treat it as a small V1 stability/coverage improvement, not the future hiring-signal orchestration layer.
+- Contract: one accepted-map third/deferred-surface question by default; a second only when the first answer exposes unresolved signal such as confounding, denominator/guardrail, ownership boundary, SLA/refund/lag, grain/dedup, comparability, or explicit causality uncertainty.
+- It refuses pending/quarantined tracks and rejects bad question families instead of using generic fallback. This means "no third probe" can be correct if hydration produced only weak/prosecutor/generic wording.
+- Green no-credit verification: agenda, ripper, question-quality, policy-checker, compile, and scaffolding audit `/tmp/antigravity_scaffolding_audit_20260605_022602.{json,md}`. Next useful confirmation is a single paid `marketplace_growth` or mixed-map full gate only after Yash wants to spend again.

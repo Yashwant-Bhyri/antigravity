@@ -1,4 +1,55 @@
-from backend.models.llm_router import LLMRouter
+from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
+
+_VALID_WEAKNESS_TYPES = {
+    "missing_step",
+    "vague",
+    "incorrect",
+    "shallow",
+    "overconfidence",
+    "deflection",
+    "ambiguous_but_promising",
+}
+_VALID_SEVERITIES = {"low", "medium", "high"}
+_VALID_PROBE_DIRECTIONS = {
+    "clarification",
+    "implementation_probe",
+    "ownership_probe",
+    "edge_case",
+    "scaling",
+    "contradiction",
+    "step_by_step",
+}
+
+_WEAKNESS_TYPE_ALIASES = {
+    "none": "ambiguous_but_promising",
+    "no_weakness": "ambiguous_but_promising",
+    "no clear weakness": "ambiguous_but_promising",
+    "valid": "ambiguous_but_promising",
+    "strong": "ambiguous_but_promising",
+    "good": "ambiguous_but_promising",
+    "gap": "missing_step",
+    "reasoning_gap": "missing_step",
+    "conceptual_gap": "missing_step",
+    "missing_context": "missing_step",
+    "unsupported": "vague",
+    "unsupported_claim": "vague",
+    "unclear": "vague",
+    "evasive": "deflection",
+    "dodging": "deflection",
+    "partially_answered": "ambiguous_but_promising",
+}
+
+_PROBE_DIRECTION_ALIASES = {
+    "mechanism": "implementation_probe",
+    "implementation": "implementation_probe",
+    "ownership": "ownership_probe",
+    "edge": "edge_case",
+    "counterexample": "edge_case",
+    "causal": "step_by_step",
+    "causality": "step_by_step",
+    "clarify": "clarification",
+    "follow_up": "clarification",
+}
 
 
 PROMPT = """You are a technical interviewer analyzing a candidate's answer for reasoning gaps.
@@ -136,7 +187,31 @@ Question: {question}
 
 Candidate Answer: {answer}"""
 
-        result = await self.llm.call(system=PROMPT, user=user)
+        result = await self.llm.call(system=PROMPT, user=user, response_format=JSON_OBJECT_FORMAT)
         if isinstance(result, dict):
+            weakness_type = str(result.get("type", "")).strip().lower()
+            severity = str(result.get("severity", "")).strip().lower()
+            probe_direction = str(result.get("probe_direction", "")).strip().lower()
+            weakness_type = _WEAKNESS_TYPE_ALIASES.get(weakness_type, weakness_type)
+            probe_direction = _PROBE_DIRECTION_ALIASES.get(probe_direction, probe_direction)
+            if weakness_type == "ambiguous_but_promising" and severity not in _VALID_SEVERITIES:
+                severity = "low"
+            if weakness_type not in _VALID_WEAKNESS_TYPES:
+                result["_normalization_warning"] = f"invalid weakness type normalized: {weakness_type}"
+                weakness_type = "ambiguous_but_promising"
+                severity = severity if severity in _VALID_SEVERITIES else "low"
+                probe_direction = probe_direction if probe_direction in _VALID_PROBE_DIRECTIONS else "clarification"
+            if severity not in _VALID_SEVERITIES:
+                result["_normalization_warning"] = f"invalid severity normalized: {severity}"
+                severity = "medium"
+            if probe_direction not in _VALID_PROBE_DIRECTIONS:
+                result["_normalization_warning"] = f"invalid probe_direction normalized: {probe_direction}"
+                probe_direction = "clarification"
+            result["type"] = weakness_type
+            result["severity"] = severity
+            result["probe_direction"] = probe_direction
+            result["weakness"] = str(result.get("weakness", "") or "").strip()
+            result["continue_probing"] = bool(result.get("continue_probing", True))
+            result["inferred_focus_key"] = str(result.get("inferred_focus_key", "") or "").strip()
             return result
-        return {"weakness": str(result), "type": "vague", "severity": "low", "probe_direction": "clarification", "continue_probing": True}
+        raise RuntimeError("WeaknessAgent returned non-JSON output.")

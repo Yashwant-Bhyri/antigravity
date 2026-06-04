@@ -1,0 +1,135 @@
+{
+  "version": "2026-06-02",
+  "purpose": "Shared guide for interview question shape, voice, and deterministic bad-question detection.",
+  "principles": [
+    "Questions should create information gain, not ask the candidate to self-rate.",
+    "Pressure is useful only after frame and clarify establish context.",
+    "Use plain spoken English suitable for Indian candidates.",
+    "Guide the answer space lightly, then leave an escape hatch such as 'or was there something else?'.",
+    "Prefer evidence questions over confidence questions.",
+    "Do not ask low-level recall late in the interview unless that surface is explicitly being tested."
+  ],
+  "postures": {
+    "frame": {
+      "goal": "Open a claim gently and establish the decision frame.",
+      "good_structures": [
+        "When you changed X, were you mainly trying to improve A, reduce B, test C, or was there something else? Talk me through how you framed that decision.",
+        "When you redesigned X, were you mainly reducing latency, memory use, failure rate, or was another constraint more important? Talk me through how you framed it."
+      ],
+      "bad_structures": [
+        "Was it A, B, or C?",
+        "Prove that you owned X."
+      ]
+    },
+    "clarify": {
+      "goal": "Pin down definition, denominator, ownership, scope, or system boundary.",
+      "good_structures": [
+        "What counted in the denominator for that metric, and what was excluded?",
+        "Which part did you personally own, and which part came from another team or vendor?"
+      ],
+      "bad_structures": [
+        "Did you use indexing?",
+        "What was the exact SQL script name?"
+      ]
+    },
+    "explore": {
+      "goal": "Understand reasoning, behavior change, or mechanism.",
+      "good_structures": [
+        "What user behavior changed after this went live?",
+        "Which split would you check first if two interventions launched together?"
+      ],
+      "bad_structures": [
+        "Explain your framework for attribution.",
+        "Can you elaborate?"
+      ]
+    },
+    "pressure": {
+      "goal": "Ask one sharp challenge after enough context exists.",
+      "good_structures": [
+        "If conversion improved but refunds also increased, what result would make you rethink the change?",
+        "If support calls and KYC UX shipped together, which split would you check first?"
+      ],
+      "bad_structures": [
+        "How did taxonomy isolate causal impact and what properties did you use and how did you validate it?",
+        "What would prove you are not exaggerating?"
+      ]
+    },
+    "synthesize": {
+      "goal": "Turn evidence into a fair conclusion and limit overclaim.",
+      "good_structures": [
+        "What should we carry forward as a fair conclusion from this result, and what should we avoid claiming too strongly?",
+        "If leadership said the checklist caused the whole lift, what part would you accept and what would you push back on?"
+      ],
+      "bad_structures": [
+        "Which part are you most confident in?",
+        "Which component are you most confident with?"
+      ]
+    },
+    "recover": {
+      "goal": "Recover signal from vague, shallow, or honest-gap answers.",
+      "good_structures": [
+        "Which part did you personally handle, even if the rest came from the team?",
+        "What is the one part you can still explain clearly?"
+      ],
+      "bad_structures": [
+        "So you did not really do it?",
+        "Was your resume fake?"
+      ]
+    }
+  },
+  "bad_question_families": {
+    "self_rating": {
+      "description": "Asks the candidate to rate confidence instead of showing evidence.",
+      "examples": [
+        "Which part are you most confident in?",
+        "Which component are you most confident with?",
+        "What is your strongest area here?"
+      ]
+    },
+    "low_signal_implementation_recall": {
+      "description": "Tests tiny implementation memory instead of reasoning or role-relevant depth.",
+      "examples": [
+        "What specific SQL script did you reuse?",
+        "Which event property did you add later?",
+        "What was the file name?"
+      ]
+    },
+    "generic_framework": {
+      "description": "Asks abstract framework language after concrete evidence is needed.",
+      "examples": [
+        "What is your framework for attributing lift?",
+        "How do you generally approach dashboards?"
+      ]
+    },
+    "compound_overload": {
+      "description": "Hides multiple questions in one spoken sentence.",
+      "examples": [
+        "How did taxonomy isolate causal impact and what event properties did you use and how did you validate attribution?"
+      ]
+    },
+    "unsupported_internals": {
+      "description": "Assumes internal model/system ownership not supported by resume or answer.",
+      "examples": [
+        "How did you modify the model weights?",
+        "What latent representation did your UI control?"
+      ]
+    }
+  },
+  "domain_examples": {
+    "product_analytics": [
+      "What denominator was used for the 42% conversion metric?",
+      "If support calls and KYC UX shipped together, which split would you check first?",
+      "If leadership said the checklist caused the whole lift, what part would be incomplete about that interpretation?"
+    ],
+    "dashboard_ops": [
+      "Which dashboard metric caused the most disagreement, and why?",
+      "If you removed every dashboard tile except one, which one would stay?",
+      "Which metric looked healthy while the business was actually getting worse?"
+    ],
+    "technical_systems": [
+      "What part did you personally own, and where did the vendor or platform team take over?",
+      "What breaks first if traffic doubles during a vendor outage?",
+      "Which retry or fallback decision changed the user experience most?"
+    ]
+  }
+}

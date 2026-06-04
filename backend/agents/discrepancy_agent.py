@@ -1,4 +1,7 @@
-from backend.models.llm_router import LLMRouter
+from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
+
+_VALID_CONFLICT_LEVELS = {"none", "suspected", "confirmed"}
+_VALID_SEVERITIES = {"low", "medium", "high"}
 
 
 PROMPT = """Compare:
@@ -42,9 +45,19 @@ class DiscrepancyAgent:
         result = await self.llm.call(
             system=PROMPT,
             user=f"Resume:\n{resume}{memory_section}\n\nCandidate Explanation:\n{answer}",
+            response_format=JSON_OBJECT_FORMAT,
         )
         if isinstance(result, dict):
             if "conflict" in result and "conflict_level" not in result:
                 result["conflict_level"] = "confirmed" if result.get("conflict") else "none"
+            conflict_level = str(result.get("conflict_level", "")).strip().lower()
+            severity = str(result.get("severity", "")).strip().lower()
+            if conflict_level not in _VALID_CONFLICT_LEVELS:
+                raise RuntimeError("DiscrepancyAgent output has invalid conflict_level.")
+            if severity not in _VALID_SEVERITIES:
+                raise RuntimeError("DiscrepancyAgent output has invalid severity.")
+            result["conflict_level"] = conflict_level
+            result["severity"] = severity
+            result["description"] = str(result.get("description", "") or "").strip()
             return result
-        return {"conflict_level": "none", "description": str(result), "severity": "low"}
+        raise RuntimeError("DiscrepancyAgent returned non-JSON output.")

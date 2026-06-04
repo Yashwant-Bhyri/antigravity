@@ -12,6 +12,24 @@ DISENGAGEMENT_INCREMENTS: dict[str, float] = {
 }
 
 
+def _safe_int(value: object, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(value: object, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_dict(value: object) -> dict:
+    return dict(value) if isinstance(value, dict) else {}
+
+
 @dataclass
 class CandidateState:
     disengagement_level: float = 0.0
@@ -51,16 +69,17 @@ class CandidateState:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CandidateState":
+        data = data if isinstance(data, dict) else {}
         return cls(
-            disengagement_level=float(data.get("disengagement_level", 0.0)),
-            consecutive_no_content=int(data.get("consecutive_no_content", 0)),
-            explicit_skip_count=int(data.get("explicit_skip_count", 0)),
-            social_deflection_count=int(data.get("social_deflection_count", 0)),
-            incoherence_count=int(data.get("incoherence_count", 0)),
+            disengagement_level=_safe_float(data.get("disengagement_level", 0.0)),
+            consecutive_no_content=_safe_int(data.get("consecutive_no_content", 0)),
+            explicit_skip_count=_safe_int(data.get("explicit_skip_count", 0)),
+            social_deflection_count=_safe_int(data.get("social_deflection_count", 0)),
+            incoherence_count=_safe_int(data.get("incoherence_count", 0)),
             communication_mode=str(data.get("communication_mode", "normal")),
-            topic_fatigue=dict(data.get("topic_fatigue", {})),
-            topic_question_counts=dict(data.get("topic_question_counts", {})),
-            topic_fatigue_threshold=int(data.get("topic_fatigue_threshold", 4)),
+            topic_fatigue=_safe_dict(data.get("topic_fatigue", {})),
+            topic_question_counts=_safe_dict(data.get("topic_question_counts", {})),
+            topic_fatigue_threshold=_safe_int(data.get("topic_fatigue_threshold", 4), 4),
             forced_exit_triggered=bool(data.get("forced_exit_triggered", False)),
             phase=str(data.get("phase", "orientation")),
             anchor_confidence=data.get("anchor_confidence"),
@@ -77,7 +96,7 @@ def initial_candidate_state() -> dict:
 def update_disengagement(state_dict: dict, signal: str) -> float:
     """Apply a disengagement signal to the orchestrator's 0-5 state model."""
     cs = state_dict.setdefault("candidate_state", {})
-    current = float(cs.get("disengagement_level", 0.0))
+    current = _safe_float(cs.get("disengagement_level", 0.0))
     delta = DISENGAGEMENT_INCREMENTS.get(signal, 0.0)
     new_level = max(0.0, min(5.0, current + delta))
     cs["disengagement_level"] = new_level
@@ -86,17 +105,19 @@ def update_disengagement(state_dict: dict, signal: str) -> float:
 
 def check_topic_fatigue(state_dict: dict, focus_key: str) -> bool:
     cs = state_dict.get("candidate_state", {})
-    threshold = int(cs.get("topic_fatigue_threshold", 4))
-    count = int((cs.get("topic_fatigue") or {}).get(focus_key, 0))
+    threshold = _safe_int(cs.get("topic_fatigue_threshold", 4), 4)
+    fatigue = cs.get("topic_fatigue") if isinstance(cs.get("topic_fatigue"), dict) else {}
+    count = _safe_int(fatigue.get(focus_key, 0))
     return count >= threshold
 
 
 def get_topic_fatigue_ratio(state_dict: dict, focus_key: str) -> float:
-    fatigue = (state_dict.get("candidate_state", {}) or {}).get("topic_fatigue", {}) or {}
-    total = sum(int(v) for v in fatigue.values())
+    raw_fatigue = (state_dict.get("candidate_state", {}) or {}).get("topic_fatigue", {}) or {}
+    fatigue = raw_fatigue if isinstance(raw_fatigue, dict) else {}
+    total = sum(_safe_int(v) for v in fatigue.values())
     if total == 0:
         return 0.0
-    return int(fatigue.get(focus_key, 0)) / total
+    return _safe_int(fatigue.get(focus_key, 0)) / total
 
 
 def detect_communication_mode(turn1_text: str, turn2_text: str) -> str:

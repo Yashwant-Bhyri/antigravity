@@ -1,5 +1,13 @@
 import asyncio
-from backend.models.llm_router import LLMRouter
+import json
+import os
+from typing import Any
+
+from backend.models.final_report import (
+    build_final_evidence_packet,
+    normalize_final_report_v2,
+)
+from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
 
 
 PER_ANSWER_PROMPT = """Evaluate this single interview answer.
@@ -50,58 +58,100 @@ Return JSON:
 }"""
 
 
-FULL_INTERVIEW_PROMPT = """You are evaluating the complete transcript of a technical interview.
+FULL_INTERVIEW_PROMPT = """You are writing Antigravity's final interview report.
 
-You will receive the full Q&A history, detected weaknesses, and a COVERAGE NOTE describing how broad the interview actually was, plus calibration context about the target role and expected experience level.
+You receive a FINAL_EVIDENCE_PACKET. Treat it as the source of truth. The report is recruiter-facing, candidate-safe, and evidence-first.
 
-**Critical instruction:** Read the COVERAGE NOTE carefully. If the interview clustered heavily on one topic, your confidence score must reflect that narrow evidence base — do NOT assign high confidence when few dimensions were actually tested. Separate your claim-level concerns from your overall engineering judgment.
-Score the candidate against the stated role/level, not against an implicit universal senior bar.
+Core philosophy:
+- The report measures tested ability and role fit. It does not try to prove or disprove the resume as the main objective.
+- Resume hype words such as architected, rebuilt, owned, engineered, orchestrated, optimized, launched, or led guide questioning depth, not final punishment.
+- Claim risk is scoped to the specific claim unless broad, role-critical, tested failures support a wider conclusion.
+- Do not average lenses mathematically. Synthesize contextually using role relevance, evidence depth, severity, and interview coverage.
+- Preserve strongest verified and alternate-fit signals even when target-role fit is weak.
+- Treat turn_evidence_trail as a sequence of local observations, not as an averaging machine. Use progression_summary to reason about improvement, decline, recovery after challenge, or repeated breakdown.
+- If coverage_gate.passed is false, the final recommendation must be INSUFFICIENT_DATA and the prose must not sound like candidate-wide rejection.
+- NO HIRE requires broad, tested, role-relevant failure and adequate interviewer quality.
+- Do not call an interview tunneled merely because the same parent experience appears often. Treat it as tunneled only when the same sub-focus/surface or same weakness repeats without meaningful new evidence.
 
-Produce a comprehensive evaluation with:
+Evaluate through these lenses:
+1. claim_integrity_lens: ownership, exaggeration, contradiction, claim substantiation.
+2. role_technical_lens: target-role skill evidence.
+3. reasoning_communication_lens: clarity, structure, adaptability, first-principles reasoning.
+4. human_calibration_lens: honesty, nervousness vs evasion, level calibration, fairness limits.
+5. transferable_strength_lens: where the candidate may genuinely be strong even if target-role fit is weak.
 
-1. Overall score (0-10) — based only on what was actually tested
-2. Per-dimension scores:
-   - reasoning (0-10 | inconclusive): logical thinking, structured problem-solving
-   - technical_depth (0-10 | inconclusive): correctness, specificity, production awareness
-   - communication (0-10 | inconclusive): clarity, conciseness, structured answers
-   - adaptability (0-10 | inconclusive): how they handled being challenged or wrong
-
-3. Failure surface: for each technical domain mentioned, estimate knowledge failure point (0.0=strong, 1.0=completely failed)
-
-4. Hire recommendation: HIRE | MAYBE | NO HIRE | INSUFFICIENT_DATA
-
-5. Summary: 2-3 sentence honest assessment. If coverage was narrow, say so explicitly.
-
-6. Claim credibility risk: separately assess only the specific resume claims that were tested.
-   This is SEPARATE from the overall score — a candidate can have one inflated claim but still be
-   a strong engineer overall. Do not let one bad claim drag down dimensions you didn't test.
-
-7. Risk flags: scoped — distinguish "specific claim not substantiated" from "broad engineering weakness"
-
-8. Strengths: what they demonstrably CAN do
-
-Return JSON:
+Return one complete JSON object with this shape:
 {
+  "hire_recommendation": "HIRE | MAYBE | NO HIRE | INSUFFICIENT_DATA",
   "overall_score": <0-10>,
+  "confidence_score": <0.0-1.0>,
   "breakdown": {
     "reasoning": <0-10 | "inconclusive">,
     "technical_depth": <0-10 | "inconclusive">,
     "communication": <0-10 | "inconclusive">,
     "adaptability": <0-10 | "inconclusive">
   },
-  "failure_surface": {
-    "<domain>": <0.0-1.0>
+  "failure_surface": {"<tested domain>": <0.0-1.0>},
+  "role_fit_profile": {
+    "target_role_fit": "strong | mixed | weak | inconclusive",
+    "best_fit_archetype": "...",
+    "strongest_signal": "...",
+    "largest_unresolved_risk": "...",
+    "alternate_fit_notes": "..."
   },
-  "hire_recommendation": "HIRE | MAYBE | NO HIRE | INSUFFICIENT_DATA",
-  "confidence_score": <0.0-1.0>,
-  "summary": "...",
-  "risk_flags": ["...", "..."],
-  "strengths": ["...", "..."],
-  "claim_credibility_risk": {
-    "level": "low | medium | high | not_tested",
-    "detail": "<one sentence: which claims held up, which didn't>"
+  "ability_profile": {
+    "strongest_verified_signal": "...",
+    "weakest_verified_signal": "...",
+    "alternate_fit_archetypes": ["..."],
+    "target_role_fit": "strong | mixed | weak | inconclusive",
+    "role_fit_explanation": "..."
   },
-  "untested_dimensions": ["..."]
+  "resume_claim_calibration": {
+    "claims_tested": [],
+    "claims_substantiated": [],
+    "claims_partially_substantiated": [],
+    "claims_not_substantiated": [],
+    "claims_untested": [],
+    "impact_on_verdict": "scoped | material | inconclusive"
+  },
+  "lens_findings": {
+    "claim_integrity_lens": {"positive_signals": [], "negative_signals": [], "inconclusive_signals": [], "evidence_refs": [], "confidence": "low | medium | high", "summary": "..."},
+    "role_technical_lens": {"positive_signals": [], "negative_signals": [], "inconclusive_signals": [], "evidence_refs": [], "confidence": "low | medium | high", "summary": "..."},
+    "reasoning_communication_lens": {"positive_signals": [], "negative_signals": [], "inconclusive_signals": [], "evidence_refs": [], "confidence": "low | medium | high", "summary": "..."},
+    "human_calibration_lens": {"positive_signals": [], "negative_signals": [], "inconclusive_signals": [], "evidence_refs": [], "confidence": "low | medium | high", "summary": "..."},
+    "transferable_strength_lens": {"positive_signals": [], "negative_signals": [], "inconclusive_signals": [], "evidence_refs": [], "confidence": "low | medium | high", "summary": "..."}
+  },
+  "tested_strengths": ["..."],
+  "tested_risks": ["..."],
+  "risk_flags": ["..."],
+  "strengths": ["..."],
+  "claim_findings": [{"claim": "...", "status": "substantiated | partially_substantiated | not_substantiated | untested", "evidence_refs": [], "interpretation": "..."}],
+  "claim_credibility_risk": {"level": "low | medium | high | not_tested", "detail": "..."},
+  "untested_dimensions": ["..."],
+  "recommended_followups": ["..."],
+  "candidate_safe_summary": "...",
+  "recruiter_summary": "..."
+}"""
+
+
+REPORT_REVIEW_PROMPT = """You are an independent report fairness reviewer.
+
+You receive a FINAL_EVIDENCE_PACKET and a primary report draft. Do not rewrite the report.
+Return advisory JSON only. Look for:
+- unsupported NO HIRE or score,
+- unfair harshness,
+- broad rejection language from narrow evidence,
+- missed strengths or alternate-fit signals,
+- resume-hype over-punishment,
+- mismatch between verdict, confidence, and prose.
+
+Return JSON:
+{
+  "concerns": ["..."],
+  "score_alignment": "aligned | too_low | too_high | unsupported",
+  "tone_alignment": "fair | too_harsh | too_soft",
+  "missed_strengths": ["..."],
+  "confidence_band_adjustment": "none | widen | lower_point | raise_point"
 }"""
 
 
@@ -165,6 +215,87 @@ def _normalize_llm_hire_recommendation(value: object) -> str:
         "CLAIM_RISK_FLAG": "MAYBE",
     }
     return mapping.get(raw, "INSUFFICIENT_DATA")
+
+
+def _safe_float(value: object, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _substantive_answer_count(history: list[dict]) -> int:
+    weak_phrases = {
+        "i don't know",
+        "not sure",
+        "i do not know",
+        "don't remember",
+        "do not remember",
+    }
+    count = 0
+    for turn in history:
+        answer = str(turn.get("answer") or "").strip()
+        words = answer.split()
+        if len(words) >= 12 and not any(answer.lower() == phrase for phrase in weak_phrases):
+            count += 1
+    return count
+
+
+def _apply_evaluation_sanity_calibration(
+    result: dict,
+    *,
+    history: list[dict],
+    per_answer_scores: list[dict] | None,
+    coverage_verdict_ratio: float,
+    coverage_portrait: dict | None,
+) -> dict:
+    """
+    Guard against model verdict collapse.
+
+    This does not turn weak candidates into hires. It prevents impossible outputs
+    like score=0/NO HIRE after a complete, broad, substantive 15-turn interview.
+    """
+    calibrated = dict(result or {})
+    score = _safe_float(calibrated.get("overall_score"), 0.0)
+    recommendation = _normalize_llm_hire_recommendation(calibrated.get("hire_recommendation"))
+    substantive = _substantive_answer_count(history)
+    avg_answer_score = 0.0
+    if per_answer_scores:
+        vals = [_safe_float(item.get("score"), 0.0) for item in per_answer_scores if isinstance(item, dict)]
+        if vals:
+            avg_answer_score = sum(vals) / len(vals)
+
+    broad_enough = (
+        len(history) >= 12
+        and substantive >= 8
+        and coverage_verdict_ratio >= 0.25
+        and bool(coverage_portrait)
+    )
+    if broad_enough and score < 3.0 and avg_answer_score >= 4.0:
+        score = 4.0
+        calibrated["overall_score"] = score
+        if recommendation == "NO HIRE":
+            calibrated["hire_recommendation"] = "MAYBE"
+            recommendation = "MAYBE"
+        flags = calibrated.get("risk_flags")
+        if not isinstance(flags, list):
+            flags = []
+        flags.append(
+            "Evaluator sanity calibration: broad interview evidence did not justify a near-zero score; unresolved risks remain scoped."
+        )
+        calibrated["risk_flags"] = flags
+
+    if broad_enough and recommendation == "NO HIRE" and score >= 4.0:
+        calibrated["hire_recommendation"] = "MAYBE"
+        flags = calibrated.get("risk_flags")
+        if not isinstance(flags, list):
+            flags = []
+        flags.append(
+            "NO HIRE softened to MAYBE because evidence shows mixed/substantive signal rather than broad tested failure."
+        )
+        calibrated["risk_flags"] = flags
+
+    return calibrated
 
 
 def compute_confidence(
@@ -250,6 +381,11 @@ class EvaluationAgent:
 
     def __init__(self):
         self.llm = LLMRouter(tier="large")  # strongest reasoning tier — accuracy matters here
+        self.review_llm = LLMRouter(
+            tier="small",
+            model_override=os.getenv("OPENROUTER_REPORT_REVIEW_MODEL", "google/gemini-3.1-flash-lite"),
+            timeout_override=float(os.getenv("REPORT_REVIEW_TIMEOUT_SECONDS", "25")),
+        )
 
     async def score_answer(
         self,
@@ -290,6 +426,7 @@ class EvaluationAgent:
         years_experience: str = "",
         parsed_resume: dict | None = None,
         coverage_map: dict | None = None,
+        assessment_coverage: dict | None = None,
         discrepancy_level: str = "none",
         disengagement_level: float = 0.0,
         disengagement_triggered: bool = False,
@@ -299,66 +436,6 @@ class EvaluationAgent:
         Called once at session end. Uses the large reasoning tier for maximum accuracy.
         Incorporates reasoning behavior signals and per-answer scores for richer context.
         """
-        transcript_lines = []
-        for turn in history:
-            sprint = turn.get("sprint", "?")
-            persona = turn.get("persona", "?")
-            transcript_lines.append(
-                f"[Sprint {sprint} | {persona}]\n"
-                f"Q: {turn.get('question', '')}\n"
-                f"A: {turn.get('answer', '')}"
-            )
-        transcript = "\n\n".join(transcript_lines)
-
-        weakness_summary = "\n".join(
-            f"- {w.get('type','?')} ({w.get('severity','?')}): {w.get('weakness','')}"
-            for w in weaknesses
-        ) or "None detected."
-
-        # Reasoning behavior aggregation
-        reasoning_summary = ""
-        if reasoning_signals:
-            structures = [r.get("structure_score", 0) for r in reasoning_signals if r]
-            avg_structure = sum(structures) / len(structures) if structures else 0
-            adaptability_counts: dict[str, int] = {}
-            for r in reasoning_signals:
-                if r:
-                    a = r.get("adaptability", "")
-                    adaptability_counts[a] = adaptability_counts.get(a, 0) + 1
-            dominant_adapt = max(adaptability_counts, key=adaptability_counts.get) if adaptability_counts else "unknown"
-            reasoning_summary = (
-                f"\nREASONING BEHAVIOR ({len(reasoning_signals)} turns):\n"
-                f"- Avg structure score: {avg_structure:.1f}/3\n"
-                f"- Dominant adaptability: {dominant_adapt}\n"
-                f"- Clarification behavior: {reasoning_signals[0].get('clarification_behavior', 'unknown') if reasoning_signals else 'unknown'}"
-            )
-
-        # Per-answer score summary
-        score_summary = ""
-        if per_answer_scores:
-            avg = sum(s.get("score", 0) for s in per_answer_scores) / len(per_answer_scores)
-            score_summary = f"\nPER-ANSWER SCORES ({len(per_answer_scores)} scored): avg {avg:.1f}/10"
-
-        # Coverage note — warns the LLM when evidence is narrow
-        coverage_note = ""
-        if weaknesses and len(history) > 3:
-            unique_types = len({w.get("type") for w in weaknesses if w.get("type")})
-            total = len(weaknesses)
-            computed_ratio = unique_types / max(total, 1)
-            ratio = coverage_ratio if coverage_ratio is not None else computed_ratio
-            if ratio < 0.3:
-                dominant = max(
-                    {w.get("type", ""): weaknesses.count(w) for w in weaknesses},
-                    key=lambda t: sum(1 for w in weaknesses if w.get("type") == t),
-                    default="unknown",
-                )
-                coverage_note = (
-                    f"\n\nCOVERAGE NOTE: {round(ratio * 100)}% of weakness types were unique across {total} detections. "
-                    f"The interview clustered heavily on '{dominant}' failures. "
-                    f"Dimensions NOT fully tested should not be rated low — mark them as inconclusive. "
-                    f"Confidence score must reflect this narrow evidence base (suggest ≤ 0.6)."
-                )
-
         coverage_portrait = None
         verdict_basis = "weakness_aggregation"
         coverage_verdict_ratio = coverage_ratio if coverage_ratio is not None else 0.5
@@ -384,56 +461,46 @@ class EvaluationAgent:
                 }
                 coverage_verdict_ratio = cmap.coverage_score
                 verdict_basis = "llm_contextual_with_coverage"
-                coverage_note += (
-                    f"\n\nCOVERAGE PORTRAIT NOTE: {round(cmap.coverage_score * 100)}% "
-                    "of expected application-transfer dimensions were covered. "
-                    f"Voluntary: {len(voluntary)}; recovered: {len(recovered)}; "
-                    f"missed: {len(missed)}; incorrect: {len(incorrect)}. "
-                    "Use this as important evidence, but make the final verdict from the full transcript context."
-                )
             except Exception:
                 coverage_portrait = None
                 verdict_basis = "weakness_aggregation"
 
-        calibration_context = _build_calibration_context(
+        evidence_packet = build_final_evidence_packet(
+            history=history,
+            resume=resume,
+            weaknesses=weaknesses,
+            reasoning_signals=reasoning_signals,
+            per_answer_scores=per_answer_scores,
+            coverage_map=coverage_map,
+            assessment_coverage=assessment_coverage,
             target_role=target_role,
             years_experience=years_experience,
             parsed_resume=parsed_resume,
+            discrepancy_level=discrepancy_level,
+            disengagement_level=disengagement_level,
+            disengagement_triggered=disengagement_triggered,
         )
 
-        user = f"""RESUME:
-{resume[:1500]}
+        user = "FINAL_EVIDENCE_PACKET:\n" + json.dumps(evidence_packet, ensure_ascii=True, indent=2)
 
-CALIBRATION CONTEXT:
-{calibration_context}
-
-INTERVIEW TRANSCRIPT ({len(history)} turns):
-{transcript}
-
-DETECTED WEAKNESSES:
-{weakness_summary}{reasoning_summary}{score_summary}{coverage_note}
-
-Evaluate the full interview."""
-
-        result = await self.llm.call(system=FULL_INTERVIEW_PROMPT, user=user)
+        result = await self.llm.call(
+            system=FULL_INTERVIEW_PROMPT,
+            user=user,
+            max_tokens=int(os.getenv("REPORT_MAX_TOKENS", "5000")),
+            response_format=JSON_OBJECT_FORMAT,
+            audit_call_name="EvaluationAgent.score_full_interview.report_v2",
+            audit_metadata={
+                "turns": len(history),
+                "coverage_gate_passed": bool((evidence_packet.get("coverage_gate") or {}).get("passed")),
+                "schema_version": "final_report_v2",
+            },
+        )
         if not isinstance(result, dict):
-            return {
-                "overall_score": 0,
-                "breakdown": {},
-                "failure_surface": {},
-                "hire_recommendation": "INSUFFICIENT_DATA",
-                "confidence_score": 0,
-                "summary": "Evaluation failed — LLM did not return valid JSON.",
-                "risk_flags": ["Evaluation pipeline error"],
-                "strengths": [],
-                "claim_credibility_risk": {"level": "not_tested", "detail": "Evaluation pipeline error."},
-                "untested_dimensions": [],
-                "verdict_basis": "error",
-            }
+            raise RuntimeError("EvaluationAgent returned non-JSON output.")
 
         # Coverage produces an advisory verdict only. The final recommendation and
         # confidence remain LLM-contextual because the evaluator sees the full transcript.
-        llm_score = float(result.get("overall_score") or 0)
+        llm_score = _safe_float(result.get("overall_score"), 0.0)
         _weakness_types = [w.get("type", "") for w in weaknesses if w.get("type")]
         coverage_advisory_recommendation = compute_hire_recommendation(
             overall_score=llm_score,
@@ -447,6 +514,13 @@ Evaluate the full interview."""
             questions_asked=len(history),
             disengagement_level=disengagement_level,
             discrepancy_level=discrepancy_level,
+        )
+        result = _apply_evaluation_sanity_calibration(
+            result,
+            history=history,
+            per_answer_scores=per_answer_scores,
+            coverage_verdict_ratio=coverage_verdict_ratio,
+            coverage_portrait=coverage_portrait,
         )
         normalized_recommendation = _normalize_llm_hire_recommendation(result.get("hire_recommendation"))
         if str(result.get("hire_recommendation", "")).strip().upper().replace(" ", "_") == "CLAIM_RISK_FLAG":
@@ -471,7 +545,38 @@ Evaluate the full interview."""
         result["verdict_confidence_basis"] = _build_verdict_explanation(
             coverage_portrait, normalized_recommendation, disengagement_triggered
         )
-        return result
+        advisory_review = await self._advisory_review(evidence_packet, result)
+        return normalize_final_report_v2(result, evidence_packet, advisory_review)
+
+    async def _advisory_review(self, evidence_packet: dict[str, Any], primary_report: dict[str, Any]) -> dict[str, Any]:
+        if str(os.getenv("ENABLE_REPORT_ADVISORY_REVIEW", "1")).lower() in {"0", "false", "no"}:
+            return {"concerns": [], "model": "disabled"}
+        try:
+            payload = {
+                "final_evidence_packet": evidence_packet,
+                "primary_report": {
+                    key: value
+                    for key, value in primary_report.items()
+                    if key not in {"final_evidence_packet"}
+                },
+            }
+            review = await self.review_llm.call(
+                system=REPORT_REVIEW_PROMPT,
+                user=json.dumps(payload, ensure_ascii=True, indent=2),
+                max_tokens=int(os.getenv("REPORT_REVIEW_MAX_TOKENS", "1200")),
+                response_format=JSON_OBJECT_FORMAT,
+                audit_call_name="EvaluationAgent.score_full_interview.advisory_review",
+                audit_metadata={
+                    "schema_version": "report_advisory_review_v1",
+                    "coverage_gate_passed": bool((evidence_packet.get("coverage_gate") or {}).get("passed")),
+                },
+            )
+            if isinstance(review, dict):
+                review["model"] = self.review_llm.model
+                return review
+        except Exception:
+            pass
+        return {"concerns": [], "model": self.review_llm.model, "error": "review_unavailable"}
 
     async def _score_once(
         self,
@@ -495,4 +600,5 @@ Evaluate the full interview."""
                 f"CALIBRATION CONTEXT:\n{calibration_context}\n\n"
                 f"Question: {question}\n\nAnswer: {answer}"
             ),
+            response_format=JSON_OBJECT_FORMAT,
         )

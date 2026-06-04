@@ -1,16 +1,14 @@
-import json
 import re
-from backend.models.llm_router import LLMRouter
+from backend.models.llm_router import LLMRouter, _load_json_lenient
 
 
 def _extract_question_from_serialized_payload(text: str) -> str | None:
     stripped = text.strip()
-    if not stripped or stripped[0] not in "[{":
+    if not stripped:
         return None
 
-    try:
-        payload = json.loads(stripped)
-    except json.JSONDecodeError:
+    payload = _load_json_lenient(stripped)
+    if not isinstance(payload, (dict, list)):
         return None
 
     def _extract_candidate(value: object) -> str | None:
@@ -116,6 +114,8 @@ def _is_viable_question_output(text: str) -> bool:
         return False
     if stripped.startswith("{") or stripped.startswith("["):
         return False
+    if stripped.startswith("```") or stripped.endswith("```"):
+        return False
     if not re.search(r"[A-Za-z]", stripped):
         return False
     if len(stripped) < 12 or len(stripped.split()) < 3:
@@ -131,11 +131,7 @@ def _finalize_question_output(text: str, fallback: str) -> str:
     cleaned = _clean_question_output(text)
     if _is_viable_question_output(cleaned):
         return cleaned
-
-    fallback_cleaned = _clean_question_output(fallback)
-    if _is_viable_question_output(fallback_cleaned):
-        return fallback_cleaned
-    return fallback.strip()
+    raise RuntimeError("FollowUpAgent returned invalid question output; refusing fallback question.")
 
 
 def _normalize_speculative_decision(
@@ -181,7 +177,7 @@ def _normalize_speculative_decision(
 
     if existing:
         return {"action": "keep", "question": existing}
-    return {"action": "replace", "question": _finalize_question_output(fallback, fallback)}
+    raise RuntimeError("Speculative follow-up generation returned no usable decision or question.")
 
 
 def _join_focus_context(
@@ -234,6 +230,14 @@ def _fallback_seed_question() -> str:
 
 def _fallback_discrepancy_question() -> str:
     return "Earlier you described that differently. Can you reconcile the difference for me?"
+
+
+QUESTION_QUALITY_GUARDRAILS = """Question quality guardrails:
+- Keep the final question under 26 words unless this is an opener/transition explicitly asking for narrative.
+- Do not use accusatory wording: avoid "lying", "fake", "caught", "prove", and avoid making "actually" sound like a challenge.
+- If the candidate says they do not remember the denominator, guardrails, attribution logic, or exact metric definition, ask about the denominator/guardrail/ownership directly.
+- Do not build a new story around vague phrases like "campaigns and models"; ask what evidence, denominator, guardrail, or personally-owned artifact they can reconstruct.
+- Ask one question only. No setup paragraph, no double-barreled question."""
 
 
 # ─────────────────────────────────────────────
@@ -456,6 +460,7 @@ Weakness detected:
 Generate ONE follow-up question that executes this probe direction.
 Ground it in something specific from their resume or answer.
 If you are staying on the same project, explicitly signal continuity in the wording.
+{QUESTION_QUALITY_GUARDRAILS}
 Output only the question."""
 
         if communication_mode == "simplified":
@@ -559,7 +564,7 @@ Output only the question."""
         if isinstance(result, dict):
             raw = result.get("question") or result.get("followup") or str(result)
             return _finalize_question_output(raw, fallback)
-        return fallback
+        raise RuntimeError("Clarification generation returned an unsupported response shape.")
 
     async def generate_discrepancy_challenge(
         self,
@@ -598,6 +603,7 @@ Generate ONE question that surfaces this inconsistency — curious and direct, n
 The goal is to give them a chance to explain or clarify, not to catch them in a lie.
 Reference the specific thing from their resume that conflicts.
 If you are staying on the same project, make that continuity explicit in the wording.
+{QUESTION_QUALITY_GUARDRAILS}
 Output only the question."""
 
         result = await self.llm.call(system=system, user=user)
@@ -679,6 +685,7 @@ Generate ONE new interview question that:
 - If this is a pivot, explicitly name the transition in the question itself, e.g. "Switching to your TinyML pipeline..." or "On the systems side of that same Filmora workflow..."
 - Do NOT ask a generic placeholder like "imagine a system serving millions of users" unless that exact scale/system came from their background or the prior exchange
 {"- This is a pivot turn. The question must make the new project / tech context explicit." if pivoting_hint else "- If staying on the same project, explicit continuity phrasing is preferred."}
+{QUESTION_QUALITY_GUARDRAILS}
 
 Output only the question."""
 
@@ -814,6 +821,8 @@ Write ONE transition question that:
 - Is conversational and clear — a senior engineer talking to a peer
 - Avoid vague stock prompts; the question should name a concrete project, concept, technology, or claim from the prior sprint / resume
 - The question itself must explicitly signal the transition, e.g. "Staying with...", "Switching to...", or "On the systems side of..."
+- If the previous answer was vague about metrics, denominator, guardrails, attribution, or ownership, the transition must name that uncertainty rather than inventing a new mechanism.
+{QUESTION_QUALITY_GUARDRAILS}
 
 Output only the question."""
 
@@ -855,7 +864,7 @@ Output only the question."""
             return _finalize_question_output(result, _fallback_seed_question())
         if isinstance(result, dict):
             return _finalize_question_output(result.get("question", str(result)), _fallback_seed_question())
-        return _fallback_seed_question()
+        raise RuntimeError("Seed question generation returned an unsupported response shape.")
 
     async def generate_speculative(
         self,
@@ -891,7 +900,7 @@ Output only the question."""
                 "Generate a curious, exploratory follow-up that rewards their honesty — "
                 "pivot to what they DO know or understand, not what they don't."
             )
-            fallback = "What part of that are you most confident about, even if the rest was handled by the framework?"
+            fallback = "Which part did you personally understand or handle, even if the rest came from the framework?"
         elif new_entities:
             direction = (
                 f"The candidate just introduced: {', '.join(new_entities[:3])}. "
@@ -976,7 +985,7 @@ Rules:
             "- Acknowledges the difficulty without dwelling on it\n"
             "- Redirects to what the candidate knows best from their background\n"
             "- Opens a new avenue rather than repeating the old one\n"
-            "- Pattern: 'Let me try a different angle — [what are you most confident explaining that this role needs?]'\n"
+            "- Pattern: 'Let me try a different angle — [what part of your work best shows the skill this role needs?]'\n"
         )
         if resume_context:
             prompt += f"\nCandidate background:\n{resume_context[:500]}\n"
@@ -985,7 +994,7 @@ Rules:
             system=PERSONA_PROMPTS.get("curious_lead", ""),
             user=prompt,
         )
-        fallback = "Let me switch gears — what's the piece of your work you'd most want a hiring manager to understand about you?"
+        fallback = "Let me switch gears — what part of your work best shows the skill this role needs?"
         raw = result if isinstance(result, str) else (result.get("question", "") if isinstance(result, dict) else "")
         return _finalize_question_output(raw, fallback)
 
@@ -1013,7 +1022,8 @@ Rules:
         user = (
             f"Deliver this coverage surfacing question in your interviewer persona — "
             f"warm and exploratory, not interrogative:\n\n{dim.surfacing_question}\n\n"
-            "Return only the question text, in your persona's voice. One sentence."
+            "Return only the question text, in your persona's voice. One sentence, 18-35 words if possible. "
+            "Keep one clear ask and one question mark. Do not add extra setup or a second hidden question."
         )
         result = await self.llm_fast.call(system=system, user=user)
         raw = result if isinstance(result, str) else (result.get("question", "") if isinstance(result, dict) else "")
@@ -1026,7 +1036,7 @@ Rules:
         candidate_surface_response: str,
         state: dict,
     ) -> str:
-        """One mechanism probe after candidate named a concept without explaining it."""
+        """One light mechanism/tradeoff probe after a coverage surface has real signal."""
         from backend.models.coverage_map import AnswerCoverageMap as _ACM
         dim = next((d for d in coverage_map.dimensions if d.id == dimension_id), None)
         if not dim:
@@ -1039,19 +1049,33 @@ Rules:
                 weakness=None,
             )
             return q
+        if not getattr(dim, "depth_eligible", False):
+            return dim.surfacing_question
         persona = state.get("current_persona", "curious_lead")
         system = PERSONA_PROMPTS.get(persona, PERSONA_PROMPTS["curious_lead"])
         anchor = coverage_map.implementation_anchor
+        arc = state.get("application_transfer_arc") if isinstance(state.get("application_transfer_arc"), dict) else {}
+        depth_level = int(arc.get("confirmed_depth_level") or 2)
+        allowed_terms = [
+            str(item).strip()
+            for item in list(arc.get("depth_allowed_terms") or [])[:8]
+            if str(item).strip()
+        ]
+        allowed_terms_text = ", ".join(allowed_terms) if allowed_terms else "none explicitly confirmed"
         user = (
-            f"The candidate mentioned '{dim.label}' when prompted but couldn't explain the mechanism.\n"
+            f"The candidate gave this answer while discussing '{dim.label}'.\n"
             f"Their specific system: {anchor}\n"
-            f"Their surface response: {candidate_surface_response[:300]}\n\n"
-            "Generate ONE follow-up asking for the mechanism specifically — "
-            "'In [their specific implementation], what did that look like concretely?'\n"
-            "Return only the question. One sentence."
+            f"Their response: {candidate_surface_response[:300]}\n\n"
+            f"Confirmed depth level from grounding: L{depth_level} "
+            "(L1 decision/framing, L2 operating mechanism/tradeoff, L3 failure boundary, L4 specialized internals).\n"
+            f"Specialized terms explicitly allowed by candidate/evidence: {allowed_terms_text}\n\n"
+            "Generate ONE light follow-up that asks for the next mechanism, tradeoff, or boundary — "
+            "but only at the level they have actually shown or claimed. If ownership is unclear, ask what they personally handled. "
+            "Do not introduce L4 specialized internals unless the confirmed depth level is L4 and the term is explicitly allowed.\n"
+            "Return only the question. One sentence, 18-35 words if possible."
         )
         result = await self.llm_fast.call(system=system, user=user)
-        fallback = f"In your specific implementation, what did {dim.label} look like concretely?"
+        fallback = f"What part of {dim.label} did you personally handle, and what did it look like in practice?"
         raw = result if isinstance(result, str) else (result.get("question", "") if isinstance(result, dict) else "")
         return _finalize_question_output(raw, fallback)
 
@@ -1063,8 +1087,7 @@ Rules:
                 "or what you've been building that you wanted to talk about that we didn't get to?"
             )
         return (
-            "Last one — what kind of work are you most excited to be doing in the next role? "
-            "Like what's the thing you really want to get into?"
+            "Thanks, that gives me enough signal for now. We'll wrap here and generate the interview report."
         )
 
     async def prefetch(self, concepts: list[str], state: dict) -> list[str]:
@@ -1089,6 +1112,7 @@ Candidate background:
 The candidate is currently talking about: {', '.join(concepts[:3])}.
 
 Generate 2 short follow-up questions that dig deeper, grounded in their specific background.
+{QUESTION_QUALITY_GUARDRAILS}
 Output JSON: {{"questions": ["...", "..."]}}"""
 
         result = await self.llm.call(system=system, user=user)

@@ -52,6 +52,9 @@ out/
 .vercel
 .env*.local
 tsconfig.tsbuildinfo
+test-results/
+playwright-report/
+simulation-e2e-screenshot.png
 
 # Local knowledge/runtime artifacts
 vault/
