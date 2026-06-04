@@ -35,6 +35,7 @@ from backend.services.interview_map import (
     _track_opener,
     _track_recovery,
     _track_schema_rescue_quality_flags,
+    _async_hydration_acceptance,
     _repair_targets_for_focus,
     _replace_failed_launch_tracks,
     _track_system_prompt_sections,
@@ -508,6 +509,55 @@ Product Analyst, Daily Mantra
     assert _track_opener(stale_alias_area) == parsed_track["question_ladder"][0]["main_question"], stale_alias_area
     assert _track_dimensions(stale_alias_area), stale_alias_area
     assert "denominator" in _track_recovery(stale_alias_area).get("metric_risk", "").lower(), stale_alias_area
+
+    deferred_area = _runtime_area("dashboard_ops", "Dashboard ops signal")
+    deferred_area.update({
+        "track_source": "llm",
+        "track_schema": "v2_ladder",
+        "map_schema_version": "v2_ladder",
+        "primary_question_contract": "question_ladder",
+        "legacy_fields_authority": "compatibility_only",
+        "recovery": {
+            **deferred_area["recovery"],
+            "metric_risk": "When reporting the thirty-one percent reduction in first-",
+        },
+    })
+    accepted, reason = _async_hydration_acceptance(
+        updated_area=deferred_area,
+        review={
+            "ready": False,
+            "overall_score": 7.1,
+            "issues": ["recovery.metric_risk is truncated"],
+            "focus_reviews": [{
+                "focus_key": "dashboard_ops",
+                "score": 7.1,
+                "opener_issue": "minor guided opener style issue",
+                "issues": ["local style issue"],
+            }],
+        },
+        focus_key="dashboard_ops",
+        focus_score=7.1,
+        focus_issue="minor guided opener style issue",
+    )
+    assert accepted and "accepted_deferred_surface" in reason, reason
+    broken_deferred_area = {
+        **deferred_area,
+        "question_ladder": [
+            {
+                **deferred_area["question_ladder"][0],
+                "main_question": "At LoopCart, you instrumented six flows for the payment",
+            },
+            *deferred_area["question_ladder"][1:],
+        ],
+    }
+    broken_accepted, broken_reason = _async_hydration_acceptance(
+        updated_area=broken_deferred_area,
+        review={"ready": True, "overall_score": 8.0, "focus_reviews": [{"focus_key": "dashboard_ops", "score": 8.0}]},
+        focus_key="dashboard_ops",
+        focus_score=8.0,
+        focus_issue="",
+    )
+    assert not broken_accepted and "unsafe" in broken_reason, broken_reason
 
     ladder_only_track = _parse_dimension_output(
         {

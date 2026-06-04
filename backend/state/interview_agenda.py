@@ -513,7 +513,12 @@ def next_secondary_focus(state: dict, avoid_focus: str = "") -> tuple[str, str]:
     return "", ""
 
 
-def next_secondary_surface(state: dict, avoid_focus: str = "", avoid_surface: str = "") -> dict[str, Any]:
+def next_secondary_surface(
+    state: dict,
+    avoid_focus: str = "",
+    avoid_surface: str = "",
+    avoid_surfaces: set[str] | None = None,
+) -> dict[str, Any]:
     """Return the best unspent second-anchor surface, not just a parent focus.
 
     Focus rotation is still preferred when possible, but a resume can contain
@@ -526,12 +531,19 @@ def next_secondary_surface(state: dict, avoid_focus: str = "", avoid_surface: st
     turns_by_focus = dict(agenda.get("turns_by_focus") or {})
     avoid_focus = _clean_focus_key(avoid_focus)
     avoid_surface = str(avoid_surface or "").strip()
+    avoid_surface_set = {
+        str(surface or "").strip()
+        for surface in (avoid_surfaces or set())
+        if str(surface or "").strip()
+    }
+    if avoid_surface:
+        avoid_surface_set.add(avoid_surface)
 
     candidates = [
         candidate for candidate in anchor_surface_candidates(state.get("interview_trajectory_map") or {})
         if candidate.get("surface_key")
         and candidate.get("focus_key") not in exhausted
-        and candidate.get("surface_key") != avoid_surface
+        and candidate.get("surface_key") not in avoid_surface_set
     ]
     if not candidates:
         return {}

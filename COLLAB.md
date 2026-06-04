@@ -21,6 +21,27 @@
 
 ---
 
+### [Codex | 2026-06-05] → To: All — V1 mini-suite green, but quality caveats remain
+
+After commit `f36df20`, I ran the no-credit layer tests and a paid 3-case mini-suite one case at a time.
+
+Important fixes made during the run:
+
+- Second-anchor reselection had a real recursion bug when the intended surface was spent and the agenda kept returning already-tried surfaces. It is now iterative, duplicate-aware, and bounded by attempted surfaces.
+- Async hydration was too strict for deferred tracks: it quarantined high-signal third/fourth surfaces for local style notes and stale legacy compatibility text. Deferred hydration now validates the V2 ladder and blocks semantic/structural failures, but accepts usable deferred surfaces with warnings.
+
+Final paid artifacts:
+
+- `/tmp/antigravity_v1_gate_marketplace_hydrationfix_full_20260605_full_gate.{json,md}` — pass, `MAYBE 7.2`
+- `/tmp/antigravity_v1_gate_best_product_20260605_full_gate.{json,md}` — pass, `MAYBE 6.8`
+- `/tmp/antigravity_v1_gate_strong_ai_20260605_full_gate.{json,md}` — pass, `MAYBE 6.2`
+
+All three reached 15 turns, `history_len=15`, app transfer, coverage, second anchor, report ready, and complete finalization. This is green for V1 structural readiness.
+
+Do not oversell it as interview-quality perfection. Remaining issues are quality/rhythm, not collapse: map prep is still slow and sometimes rescue-heavy, coverage questions can be overlong, `legacy_agenda_backup` remains as warning-label noise, and best/strong still show late second-anchor or same-surface warning patterns. Local Postgres was unavailable during finalization, so persistence/dashboard behavior is still not verified by these runs.
+
+---
+
 ### [Codex | 2026-06-02] → To: All — Silverline Phase 1 stopped on a real strong-AI quality blocker
 
 Implemented the Silverline pre-run scaffolding fixes and ran the paid two-case gate only.

@@ -1200,48 +1200,53 @@ def _reselect_second_anchor_for_surface(
     reselects from the intended focus/sub-focus/surface first, then picks the
     next best secondary surface if that exact target is spent.
     """
+    attempted_surfaces: set[str] = set(_second_anchor_surface_keys(history))
     target = dict(target or {})
-    if not target:
-        target = next_secondary_surface(state, avoid_focus=avoid_focus)
-    if not target:
-        return None
-    target_surface = str(target.get("surface_key") or "").strip()
-    used_surfaces = _second_anchor_surface_keys(history)
-    if target_surface and target_surface in used_surfaces:
-        fallback = next_secondary_surface(
-            state,
-            avoid_focus=avoid_focus,
-            avoid_surface=target_surface,
-        )
-        if fallback and fallback.get("surface_key") != target_surface:
-            return _reselect_second_anchor_for_surface(
+    if target.get("surface_key"):
+        target_queue: list[dict] = [target]
+    else:
+        target_queue = []
+
+    max_attempts = max(3, len(anchor_surface_candidates(state.get("interview_trajectory_map") or {})) + 1)
+    for _ in range(max_attempts):
+        if target_queue:
+            target = dict(target_queue.pop(0) or {})
+        else:
+            target = next_secondary_surface(
                 state,
-                history,
-                sprint=sprint,
-                target=fallback,
                 avoid_focus=avoid_focus,
-                answer=answer,
-                entities=entities or [],
-                admission=admission,
-                has_discrepancy=has_discrepancy,
+                avoid_surfaces=attempted_surfaces,
             )
-        return None
-    focus_key = str(target.get("focus_key") or "").strip()
-    if not focus_key:
-        return None
-    result = select_from_trajectory_map_detailed(
-        state.get("interview_trajectory_map", {}),
-        sprint=sprint,
-        focus_key=focus_key,
-        answer=answer,
-        entities=entities or [],
-        history=history,
-        admission=admission,
-        has_discrepancy=has_discrepancy,
-        preferred_sub_focus_key=str(target.get("sub_focus_key") or "").strip(),
-        preferred_surface_kind=str(target.get("surface_kind") or "").strip(),
-    )
-    if result:
+        if not target:
+            return None
+
+        target_surface = str(target.get("surface_key") or "").strip()
+        if target_surface and target_surface in attempted_surfaces:
+            continue
+        if target_surface:
+            attempted_surfaces.add(target_surface)
+
+        focus_key = str(target.get("focus_key") or "").strip()
+        if not focus_key:
+            continue
+
+        result = select_from_trajectory_map_detailed(
+            state.get("interview_trajectory_map", {}),
+            sprint=sprint,
+            focus_key=focus_key,
+            answer=answer,
+            entities=entities or [],
+            history=history,
+            admission=admission,
+            has_discrepancy=has_discrepancy,
+            preferred_sub_focus_key=str(target.get("sub_focus_key") or "").strip(),
+            preferred_surface_kind=str(target.get("surface_kind") or "").strip(),
+        )
+        if not result:
+            continue
+        question = str(result.get("question") or "").strip()
+        if not question or _question_already_asked(question, history):
+            continue
         result["route_kind"] = "second_anchor"
         result.setdefault("focus_key", focus_key)
         result.setdefault("focus_label", str(target.get("focus_label") or focus_key).strip())
@@ -1250,24 +1255,6 @@ def _reselect_second_anchor_for_surface(
         result.setdefault("surface_kind", str(target.get("surface_kind") or "").strip())
         result["second_anchor_target"] = target
         return result
-
-    fallback = next_secondary_surface(
-        state,
-        avoid_focus=avoid_focus,
-        avoid_surface=str(target.get("surface_key") or "").strip(),
-    )
-    if fallback and fallback.get("surface_key") != target.get("surface_key"):
-        return _reselect_second_anchor_for_surface(
-            state,
-            history,
-            sprint=sprint,
-            target=fallback,
-            avoid_focus=avoid_focus,
-            answer=answer,
-            entities=entities or [],
-            admission=admission,
-            has_discrepancy=has_discrepancy,
-        )
     return None
 
 

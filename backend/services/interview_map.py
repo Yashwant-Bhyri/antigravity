@@ -6512,6 +6512,80 @@ def _focus_review_has_significant_issues(critic_feedback: dict | None, focus_key
     return False
 
 
+def _async_hydration_acceptance(
+    *,
+    updated_area: dict,
+    review: dict,
+    focus_key: str,
+    focus_score: float,
+    focus_issue: str,
+) -> tuple[bool, str]:
+    """Decide whether a deferred track is usable enough to join the live map.
+
+    Async hydration is not startup authority. A deferred third/fourth surface
+    should be quarantined for semantic or structural failures, but not erased
+    because of local style notes or stale legacy compatibility fields.
+    """
+    validation = validate_interview_map(
+        {"focus_areas": [updated_area]},
+        require_all_llm=True,
+        min_focus_areas=1,
+    )
+    if not validation.get("ready"):
+        return False, "; ".join(str(err) for err in (validation.get("errors") or [])[:3])
+
+    for item in updated_area.get("question_ladder") or []:
+        if not isinstance(item, dict):
+            continue
+        question = _clean_track_value(item.get("main_question", ""))
+        safety_flags = set(_question_repair_safety_flags(question))
+        blocking_flags = safety_flags & {"empty", "appears_truncated", "missing_question_mark"}
+        if blocking_flags:
+            return False, f"question_ladder.{item.get('posture') or 'unknown'} unsafe: {', '.join(sorted(blocking_flags))}"
+
+    text_parts: list[str] = []
+    text_parts.extend(str(issue or "") for issue in (review.get("issues") or []))
+    for fr in review.get("focus_reviews") or []:
+        if not isinstance(fr, dict) or _clean_track_value(fr.get("focus_key", "")) != focus_key:
+            continue
+        text_parts.append(str(fr.get("opener_issue") or ""))
+        text_parts.extend(str(issue or "") for issue in (fr.get("issues") or []))
+    for issue in list(review.get("typed_issues") or []) + list(review.get("repair_targets") or []):
+        if not isinstance(issue, dict):
+            continue
+        if _issue_focus_key_from_path(review, issue) != focus_key:
+            continue
+        path_lower = _clean_track_value(issue.get("path", "")).lower()
+        if _is_legacy_compatibility_path(path_lower):
+            continue
+        text_parts.append(str(issue.get("reason") or issue.get("issue") or issue.get("instruction") or ""))
+    review_text = " ".join(text_parts).lower()
+    semantic_blockers = (
+        "wrong focus",
+        "wrong primary",
+        "off-role",
+        "off role",
+        "unsupported implementation assumption",
+        "unsupported implementation detail",
+        "unsupported implementation layer",
+        "not role-relevant to",
+        "not role relevant to",
+        "fabricated claim",
+        "fabricated resume",
+        "fabricated evidence",
+        "not grounded in resume",
+        "missing question_ladder",
+        "unusable track",
+    )
+    if any(marker in review_text for marker in semantic_blockers):
+        return False, "semantic async hydration blocker: " + review_text[:220]
+    if focus_issue and _opener_issue_blocks_launch(focus_issue, focus_score) and focus_score < 6.8:
+        return False, f"blocking opener issue at score {focus_score:.1f}: {focus_issue[:220]}"
+    if focus_score and focus_score < 6.5:
+        return False, f"async hydration score {focus_score:.1f} below usable deferred threshold"
+    return True, "accepted_deferred_surface_with_warnings" if not _review_is_ready(review) else "accepted_deferred_surface"
+
+
 def _track_from_candidate(original_candidate: dict | None, focus_key: str) -> dict | None:
     """Extract the generated track dict for focus_key from a prior candidate result."""
     if not isinstance(original_candidate, dict):
@@ -8299,16 +8373,23 @@ async def hydrate_interview_map_tracks(
                         focus_score = _safe_float(item.get("score", 0), 0.0)
                         focus_issue = str(item.get("opener_issue") or "")
                         break
-                single_ready = _review_is_ready(review) and focus_score >= _MAP_MIN_READY_SCORE and not _opener_issue_blocks_launch(focus_issue, focus_score)
-                if not single_ready:
+                accepted, acceptance_reason = _async_hydration_acceptance(
+                    updated_area=updated,
+                    review=review,
+                    focus_key=focus_key,
+                    focus_score=focus_score,
+                    focus_issue=focus_issue,
+                )
+                if not accepted:
                     return index, {
                         **area,
                         "track_source": "quarantined",
                         "pending_hydration": False,
-                        "map_quarantine_reason": "; ".join((review.get("issues") or [])[:2]) or "async hydration critic did not accept track",
+                        "map_quarantine_reason": acceptance_reason or "; ".join((review.get("issues") or [])[:2]) or "async hydration critic did not accept track",
                         "_hydration_review": review,
                     }
                 updated["_hydration_review"] = review
+                updated["async_hydration_acceptance"] = acceptance_reason
             except Exception as exc:
                 return index, {
                     **area,
