@@ -128,7 +128,7 @@ export default function Home() {
         if (!startRes.ok) {
           throw new Error(startData?.detail || `Server error ${startRes.status}`);
         }
-        router.push(`/interview/${startData.session_id}`);
+        router.push(`/interview-room/${startData.session_id}`);
       } finally {
         clearTimeout(startTimeout);
       }

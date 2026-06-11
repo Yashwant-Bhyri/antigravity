@@ -42,7 +42,7 @@ export default function LaunchPage() {
         }
         setState("redirecting");
         setMessage("Opening the live interview");
-        router.replace(`/interview/${sessionId}`);
+        router.replace(`/interview-room/${sessionId}`);
       } catch (e) {
         if (cancelled) return;
         setState("failed");
