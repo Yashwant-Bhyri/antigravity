@@ -1,0 +1,1332 @@
+{
+  "session_id": "5ce15b7c-a0c1-4731-b0e8-90acab38266c",
+  "current_sprint": 3,
+  "current_persona": "senior_peer",
+  "sprint_name": "System Design",
+  "question_count": 15,
+  "sprint_question_count": 5,
+  "interview_start_time": 1778258165.937948,
+  "interview_started": true,
+  "interview_complete": true,
+  "finalization_status": "complete",
+  "finalization_error": "",
+  "report_ready": true,
+  "resume": "Languages : C++, Golang, SQL, Javascript, HTML, CSS\nFrameworks : React , Node.js, Express.js, React-Native, Expo\nDeveloper Tools : Docker, VS Code, GoLand, Android Studio, Firebase, TablePlus, Postman, GitHub, Bitbucket, Jira\nDatabases/Caching : PostgreSQL, Redis, PgAdmin 4, Medis\nCloud/Devops : AWS(CloudWatch, ElastiCache, ECS, API Gateway), Grafana, BitBucket Pipelines, Mixpanel\nDevelopment Practices : Clean Architecture, SOLID Principles, Interface-Based Design, Dependency Injection,\nTest-Driven Development (TDD), Error Handling & Logging\nExperience\nAppsForBharat | Golang, React, Docker, Postgres, Redis, AWS, Grafana, Mixpanel May 2025 \u2013 Present\nSoftware Developer Bangalore, India\n\u2022 Built and scaled Golang microservices for Puja, Chadhava, Astrology, Wallet, and Temple domains, serving\n10M+ global users; designed RESTful APIs with PostgreSQL, Redis caching, async workers, and clean\narchitecture to ensure high availability and low latency.\n\u2022 Architected and owned a scalable Content Management System (CMS) for pre-order operations,\nimplementing fine-grained RBAC and optimized maker\u2013checker workflows; simplified approval flows, reduced ops\nturnaround time, improved analytics visibility, and integrated LLM automation.\n\u2022 Optimized backend performance and developer productivity by enhancing Redis caching strategies,\nconcurrency-safe shared utilities, and CI/CD pipelines; achieved 40% faster data access, improved\ndeployment reliability, and increased automated test coverage to 90%.\n\u2022 Improved LLM-driven systems by optimizing prompt flows for Dify-based chatbots, reducing response latency\nand improving answer quality; deployed and monitored services using AWS (ECS, AppConfig, CloudWatch)\nand Grafana for metrics, logging, and performance analysis.",
+  "parsed_resume": {
+    "skills": [],
+    "tools": [
+      "Developer Tools : Docker",
+      "VS Code",
+      "GoLand",
+      "Android Studio",
+      "Firebase",
+      "TablePlus",
+      "Postman",
+      "GitHub",
+      "Bitbucket",
+      "Jira",
+      "Cloud",
+      "Devops : AWS(CloudWatch",
+      "ElastiCache",
+      "ECS",
+      "API Gateway)"
+    ],
+    "projects": [],
+    "claims": [
+      {
+        "text": "Built and scaled Golang microservices for Puja, Chadhava, Astrology, Wallet, and Temple domains, serving",
+        "project": "",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Architected and owned a scalable Content Management System (CMS) for pre-order operations,",
+        "project": "",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Optimized backend performance and developer productivity by enhancing Redis caching strategies,",
+        "project": "",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Improved LLM-driven systems by optimizing prompt flows for Dify-based chatbots, reducing response latency",
+        "project": "",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      }
+    ],
+    "experiences": [],
+    "experience": {
+      "ml": 0,
+      "swe": 0,
+      "data_eng": 0
+    },
+    "experience_tier": "junior"
+  },
+  "github_links": [
+    "https://github.com/mahi642/vihari.git"
+  ],
+  "target_role": "backend",
+  "years_experience": "0-1",
+  "prior_assessment_context": {},
+  "prior_assessment_prompt": "",
+  "skills": [],
+  "scores": {
+    "reasoning": 3,
+    "technical_depth": 1,
+    "communication": 2,
+    "adaptability": 2
+  },
+  "weaknesses": [
+    {
+      "weakness": "The candidate gave only a minimal factual intro with no mention of what they've actually built, what technologies they work with, or what their role involves day-to-day.",
+      "type": "shallow",
+      "severity": "low",
+      "probe_direction": "clarification",
+      "continue_probing": true,
+      "inferred_focus_key": ""
+    },
+    {
+      "weakness": "The candidate did not attempt to answer the technical question at all, responding only with 'hello'.",
+      "type": "deflection",
+      "severity": "high",
+      "probe_direction": "clarification",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate gave a two-word non-answer ('access level') that does not name any table, struct, or field \u2014 it is effectively another deflection disguised as a minimal response.",
+      "type": "deflection",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate describes RBAC only at a conceptual level ('everything is predefined') without naming any concrete mechanism \u2014 no table, struct, middleware, or enforcement point that actually gates access at runtime",
+      "type": "vague",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate describes role-based access only in terms of business concepts (who sees what) but never touches any implementation mechanism \u2014 no data model, no enforcement point, no middleware or policy check, no database schema or struct definition for storing role-permission mappings.",
+      "type": "shallow",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate's resume explicitly lists 'Maker-Checker Workflows' as a feature of the CMS they built, but they now claim it was never implemented \u2014 this is a direct contradiction between their resume claims and their answer.",
+      "type": "incorrect",
+      "severity": "medium",
+      "probe_direction": "contradiction",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate describes permission checking only at a vague behavioral level ('backend will check whether his permission exists in the rule') without identifying where the mapping is stored, what data structure encodes it, or what the actual check looks like in code",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate describes the checker approval as a UI-level action ('he will be accepting that') with no mention of any server-side enforcement \u2014 no state machine, no DB field tracking workflow state, no guard preventing the maker from calling the approval endpoint directly.",
+      "type": "missing_step",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate explicitly denies implementing fine-grained access control, directly contradicting their resume which lists RBAC and Maker-Checker Workflows as built features \u2014 they cannot explain the substance behind their own resume claims.",
+      "type": "deflection",
+      "severity": "medium",
+      "probe_direction": "ownership_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate describes using user ID or email from the request itself to determine permissions, but never mentions that the backend must independently verify identity (e.g., via a signed token or session) \u2014 a raw email in a request body can be trivially spoofed, making the entire authorization check bypassable.",
+      "type": "incorrect",
+      "severity": "high",
+      "probe_direction": "edge_case",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate identifies only the human/workflow bottleneck (not enough checkers) but completely ignores any technical/system bottleneck \u2014 database contention, queue depth, API throughput, concurrent writes \u2014 which is the core of a scaling question for a backend role.",
+      "type": "shallow",
+      "severity": "high",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate identifies what to cut (fine-grained/ABAC \u2192 RBAC) but gives no reasoning about what 'solid' actually means \u2014 no mention of which core features must ship, what risks remain with basic RBAC, or how to communicate scope changes to stakeholders.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate asserts the system is bulletproof with a single email+role check, showing no awareness of test scenarios, edge cases, or failure modes (e.g., role elevation, stale session tokens, race conditions in maker-checker, or compromised email values in the request).",
+      "type": "overconfidence",
+      "severity": "high",
+      "probe_direction": "edge_case",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    },
+    {
+      "weakness": "The candidate introduces a new project (AI astrologer chatbot) with no technical substance \u2014 no architecture, stack, failure modes, or interesting engineering decisions mentioned.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+    }
+  ],
+  "history": [
+    {
+      "turn_id": "ba2a2ab9-64b0-420a-aaff-4570d10f1830",
+      "question": "Hey, thanks so much for coming in \u2014 really glad to have you here. Let's start easy. Just give me a quick intro about yourself \u2014 who you are, what you've been up to lately, whatever feels natural.",
+      "answer": "yeah i am mahesh and i studied computer science from triplitis vct and i'm working as software developer at appshell bharat",
+      "weakness": {
+        "weakness": "The candidate gave only a minimal factual intro with no mention of what they've actually built, what technologies they work with, or what their role involves day-to-day.",
+        "type": "shallow",
+        "severity": "low",
+        "probe_direction": "clarification",
+        "continue_probing": true,
+        "inferred_focus_key": ""
+      },
+      "concepts": [
+        "computer science",
+        "software developer"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate states they are working at 'Appshell Bharat', while the resume clearly lists the employer as 'AppsForBharat'. This could be a mispronunciation or nervousness, but it is a notable discrepancy in naming their current employer. Additionally, the candidate did not mention their educational institution on the resume, so 'Triplitis VCT' cannot be verified or contradicted from available information.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "calibrated",
+        "notes": "This appears to be a basic self-introduction with no technical problem-solving or structured reasoning demonstrated. The candidate provided a simple biographical statement without any enumeration of steps, problem decomposition, or structured thinking. No challenge was issued, so adaptability cannot be meaningfully assessed. Confidence calibration appears neutral \u2014 neither overconfident nor underconfident, simply introductory. There is no evidence of clarification-seeking behavior as no question or task was posed. Insufficient data to evaluate meta-cognitive qualities meaningfully."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "2d26e388-6568-4dc2-9b31-f7e4e5e05482",
+      "question": "In your RBAC model for the CMS, how did you represent the relationship between a role and a specific pre-order resource \u2014 was permission stored at the role level, the user level, or somewhere else?",
+      "answer": "hello",
+      "weakness": {
+        "weakness": "The candidate did not attempt to answer the technical question at all, responding only with 'hello'.",
+        "type": "deflection",
+        "severity": "high",
+        "probe_direction": "clarification",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate simply said 'hello' with no substantive claims to evaluate against the resume.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "rigid",
+        "confidence_calibration": "underconfident",
+        "notes": "The candidate provided only a greeting with no substantive content, structure, or engagement with any problem. There is insufficient data to meaningfully evaluate thinking or communication patterns. No steps enumerated, no clarification sought, no technical reasoning demonstrated."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 2,
+      "route_kind": "clarification_fast",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "fc97d6a3-1300-426d-8094-5fe5103c59b7",
+      "question": "You mentioned the CMS RBAC \u2014 name the specific database table or struct that stored a permission entry and one field it contained.",
+      "answer": "access level",
+      "weakness": {
+        "weakness": "The candidate gave a two-word non-answer ('access level') that does not name any table, struct, or field \u2014 it is effectively another deflection disguised as a minimal response.",
+        "type": "deflection",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "access level"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate's answer to a detailed technical question about RBAC role-permission relationships is a single phrase: 'access level.' The resume claims they 'architected and owned a scalable CMS implementing fine-grained RBAC,' which implies deep, hands-on design knowledge. A single vague phrase like 'access level' provides no technical substance \u2014 no mention of tables, join structures, permission scopes, role hierarchies, or enforcement mechanisms. This is consistent with a pattern of deflection/minimal responses and raises suspicion that the RBAC claim may be inflated.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "underconfident",
+        "notes": "The response is too brief to meaningfully evaluate thinking or communication. No structure, no enumeration, no clarification-seeking. When challenged, the candidate offered only a two-word fragment ('access level'), which appears to be a deflection or partial answer rather than genuine engagement with the challenge. No reasoning is visible, no uncertainty is acknowledged, and no attempt is made to elaborate or adapt. This may indicate avoidance or disengagement rather than intellectual flexibility."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "depth_probe",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "7f058097-569b-4f23-9502-b01ab0965ab7",
+      "question": "I want to understand the CMS you built \u2014 when an ops person needed to approve a pre-order, how did your system know what they were allowed to see or change?",
+      "answer": "we have predefined the roles and the properties and they are eligible to edit or they're eligible to see what are the actions they will perform everything is predefined so whatever the ops guys will see that is according to the rules we define already",
+      "weakness": {
+        "weakness": "The candidate describes RBAC only at a conceptual level ('everything is predefined') without naming any concrete mechanism \u2014 no table, struct, middleware, or enforcement point that actually gates access at runtime",
+        "type": "vague",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "roles",
+        "properties",
+        "permissions",
+        "access control",
+        "editing rights",
+        "visibility rules",
+        "actions",
+        "predefined rules",
+        "operations",
+        "authorization"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate describes a static, hardcoded role-permission model ('everything is predefined') which conflicts with the resume claim of 'fine-grained RBAC.' True fine-grained RBAC typically involves dynamic, configurable role-permission mappings stored in a database, not purely predefined rules. The candidate has still not named any concrete database table, struct, or data model that implements this, despite being directly asked twice. The explanation is vague and does not demonstrate ownership of an architected RBAC system.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "rigid",
+        "confidence_calibration": "overconfident",
+        "notes": "When challenged, the candidate repeated the same assertion without engaging with the substance of the challenge. No enumeration of steps or structured reasoning was present. The response was circular \u2014 essentially restating 'it works because we defined the rules' without explaining how, what the rules are, or how edge cases are handled. No attempt to seek clarification on what specifically was being challenged. Overconfident in that they spoke with finality about a predefined system without acknowledging any potential gaps or limitations."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "depth_probe",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "5d0a9f42-43d8-42f8-86b3-384acbe6bb7e",
+      "question": "Imagine your PM comes to you tomorrow and says: 'We need to add role-based access control to the CMS you built for pre-order operations \u2014 content editors should only see drafts, managers should be able to publish, and admins get full access. We need this live in two weeks.' How would you approach designing and shipping this?",
+      "answer": "and basically for the use case i will go with the basic authorization where for certain certain roles will have certain actions based upon their acts based upon their role something like content team can use the only content part of the system where they can edit the content and the or a video editors can video editors and the other team members can only upload the asset upload things and the finance guys will see the whatever the metrics we have related to the finance",
+      "weakness": {
+        "weakness": "The candidate describes role-based access only in terms of business concepts (who sees what) but never touches any implementation mechanism \u2014 no data model, no enforcement point, no middleware or policy check, no database schema or struct definition for storing role-permission mappings.",
+        "type": "shallow",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "authorization",
+        "roles",
+        "actions",
+        "role-based access control",
+        "content team",
+        "content editing",
+        "video editors",
+        "asset upload",
+        "finance metrics",
+        "permissions",
+        "use case"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate continues to describe RBAC only at a high conceptual level (role-based access to sections of the system) without demonstrating any technical implementation details \u2014 no table schemas, no struct definitions, no middleware logic, no permission-checking code. The resume claims they 'architected and owned a scalable CMS with fine-grained RBAC,' but across four probing turns the candidate has not produced a single concrete implementation artifact. The explanation given (content team sees content, finance sees finance metrics) describes coarse-grained, section-level access control, which contradicts the resume's specific claim of 'fine-grained RBAC.' This is not yet a confirmed contradiction but the persistent inability to demonstrate depth on a system they allegedly architected and owned raises a strong suspicion of inflation.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate provides a loosely structured response with role-based examples (content team, video editors, finance) but does not enumerate steps or organize thinking in a clear sequence \u2014 ideas are strung together in a run-on manner. No clarifying questions are asked; the candidate assumes a basic RBAC model fits the use case without probing constraints. When challenged, the response appears to restate and expand the original position rather than genuinely incorporating the challenge \u2014 this reads as defensive rather than adaptive. Confidence is overconfident given the vagueness of the solution and lack of acknowledgment of edge cases, tradeoffs, or limitations of basic authorization for the described scenario."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "2069fce6-ccc6-4c51-930c-17e8933aa0bf",
+      "question": "When an ops person submitted a pre-order change, what actually happened in your system between that submission and the final approval \u2014 like, what were the steps or states that change went through?",
+      "answer": "of now our system does not have any maker checker kind of stuff where maker checker kind of stuff is basically like the person who makes our document or who edits the content will not be eligible to publish that content but the there is another role called checker who is responsible for accepting that and making it publishing the content but we have not implemented that thing",
+      "weakness": {
+        "weakness": "The candidate's resume explicitly lists 'Maker-Checker Workflows' as a feature of the CMS they built, but they now claim it was never implemented \u2014 this is a direct contradiction between their resume claims and their answer.",
+        "type": "incorrect",
+        "severity": "medium",
+        "probe_direction": "contradiction",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "maker checker",
+        "document",
+        "content editing",
+        "publish",
+        "role-based access control",
+        "approval workflow",
+        "content publishing",
+        "checker role"
+      ],
+      "discrepancy": {
+        "conflict_level": "confirmed",
+        "description": "The resume explicitly states the candidate 'Architected and owned a scalable Content Management System (CMS) for pre-order operations, implementing fine-grained RBAC and optimized maker\u2013checker workflows.' The candidate now explicitly states 'our system does not have any maker checker kind of stuff' and 'we have not implemented that thing.' This is a direct contradiction between the resume claim and the candidate's own admission.",
+        "severity": "high"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "admitted_gap",
+        "confidence_calibration": "calibrated",
+        "notes": "The candidate was challenged and responded by honestly acknowledging a gap in the current system \u2014 the absence of a maker-checker workflow. They explained what maker-checker means in context (maker edits, checker publishes), showing conceptual understanding, and openly admitted it hasn't been implemented. This is intellectually honest rather than evasive. However, structure is weak \u2014 the explanation is delivered as a single run-on sentence with no enumeration or clear logical segmentation. There's no clarification-seeking behavior; they assumed the context of the challenge and addressed it directly."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_depth_probe",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "0610c4d0-c2c2-4921-95e5-fe03ad13aab4",
+      "question": "I'm curious \u2014 if you were designing this system, where would you actually encode the fact that an editor can do X but a manager can do Y, and how would your code check that difference when someone tries to take an action?",
+      "answer": "first of all if he is not eligible for if the rule based the rule is for some user x is not to edit or not to view first of all the the content will not be appear for that user x or user y or whenever if some user x has already capable already he's able to if he has permission to write the content so he will obviously able to edit the content or write the content he does not have the content whenever he tries to submit the whenever he tries to submit the content back end will check whether his permission for that user id exists in the rule or not if that user does not have that rule something like editing access so we won't be able we won't give him to edit the content",
+      "weakness": {
+        "weakness": "The candidate describes permission checking only at a vague behavioral level ('backend will check whether his permission exists in the rule') without identifying where the mapping is stored, what data structure encodes it, or what the actual check looks like in code",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "eligibility",
+        "rule-based system",
+        "user permissions",
+        "access control",
+        "edit access",
+        "view access",
+        "content visibility",
+        "permission checking",
+        "user ID",
+        "backend validation",
+        "write permission",
+        "submission",
+        "authorization"
+      ],
+      "discrepancy": {
+        "conflict_level": "confirmed",
+        "description": "The candidate's resume explicitly states they 'implemented fine-grained RBAC and optimized maker\u2013checker workflows' in the CMS. In Turn 6, the candidate directly contradicted this by saying 'our system does not have any maker checker kind of stuff.' Now in this turn, the candidate describes only basic permission checks (show/hide UI, backend permission validation) \u2014 which is generic authorization logic, not the fine-grained RBAC or maker-checker workflows claimed on the resume. The candidate is still unable to describe anything resembling the sophisticated RBAC system they claim to have architected and owned.",
+        "severity": "high"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The answer is highly disorganized with no enumerated steps, no structured flow, and significant verbal repetition ('first of all... first of all'). The candidate jumps between concepts (viewing, editing, submitting, backend validation) without a clear sequence. No clarifying questions were asked before diving in \u2014 the candidate assumed a specific scenario. The response trails off without reaching a clean conclusion. Confidence appears high given the assertive tone, but the communication quality does not support that confidence level \u2014 there is very little signal about whether the candidate actually understands the permission model they are describing."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "discrepancy_challenge",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "6cdfd8c9-9a12-4e00-b345-e8f0fab47b9a",
+      "question": "When you say \"checker\" \u2014 walk me through what actually happens in your code or system when that checker role tries to approve something: what data do you check, where do you store it, and how do you prevent the maker from bypassing that step?",
+      "answer": "checkout basically one who who can approve the content kind of thing we will have some some attribute based where that attribute or that group will have everyone can be in that group can be become checker so once he reviews that check once he reviews the content made by the maker so he will be accepting that and he will be publishing kind of he can activate act to the act to the stores or act to the content based upon his role",
+      "weakness": {
+        "weakness": "The candidate describes the checker approval as a UI-level action ('he will be accepting that') with no mention of any server-side enforcement \u2014 no state machine, no DB field tracking workflow state, no guard preventing the maker from calling the approval endpoint directly.",
+        "type": "missing_step",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "checkout",
+        "content approval",
+        "attribute-based access control",
+        "group-based permissions",
+        "checker role",
+        "content review",
+        "maker role",
+        "content acceptance",
+        "publishing",
+        "activation",
+        "stores",
+        "role-based access control"
+      ],
+      "discrepancy": {
+        "conflict_level": "confirmed",
+        "description": "The resume explicitly states the candidate 'Architected and owned a scalable CMS... implementing fine-grained RBAC and optimized maker-checker workflows.' However, in a prior turn (Turn 6), the candidate directly stated 'our system does not have any maker checker kind of stuff.' Now in this turn, the candidate is describing a maker-checker concept only hypothetically/generically ('one who can approve... he will be accepting that and he will be publishing'). This is a continued contradiction \u2014 the candidate previously denied the existence of maker-checker workflows that the resume claims they personally architected and owned.",
+        "severity": "high"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate provides no structured enumeration of steps or components. The explanation is stream-of-consciousness with significant verbal filler ('kind of thing', 'kind of he can', repetitions like 'once he reviews'). No clarifying questions were asked before launching into the explanation. The candidate assumes the question context without probing constraints. Confidence appears moderate-to-overconfident given the vagueness of the explanation \u2014 they speak as if they are explaining something clearly, but the communication is fragmented and difficult to follow. The core idea (attribute/group-based role for a checker/approver in a maker-checker workflow) is discernible but poorly articulated. No challenge was issued so adaptability cannot be directly assessed."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "0641426e-a52c-408e-9415-7a8bb9320585",
+      "question": "Can you walk me through what \"fine-grained\" actually meant in your system \u2014 like, what made it fine-grained rather than just a basic role check?",
+      "answer": "no i haven't implemented any fine grained access control",
+      "weakness": {
+        "weakness": "The candidate explicitly denies implementing fine-grained access control, directly contradicting their resume which lists RBAC and Maker-Checker Workflows as built features \u2014 they cannot explain the substance behind their own resume claims.",
+        "type": "deflection",
+        "severity": "medium",
+        "probe_direction": "ownership_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "fine-grained access control"
+      ],
+      "discrepancy": {
+        "conflict_level": "confirmed",
+        "description": "The resume explicitly states the candidate 'implementing fine-grained RBAC' in the CMS system. The candidate now directly admits 'I haven't implemented any fine grained access control.' This is a direct contradiction between the resume claim and the candidate's own admission.",
+        "severity": "high"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "admitted_gap",
+        "confidence_calibration": "calibrated",
+        "notes": "When challenged, the candidate gave a direct, honest admission of not having implemented fine-grained access control. No defensive posturing or deflection \u2014 just a straightforward acknowledgment of a gap. No structure evident in the response (single sentence). Confidence is appropriately calibrated in that they don't overstate or fabricate experience."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "85d5ef1a-638c-43e2-bfb4-462b4ebd4f93",
+      "question": "I'm curious \u2014 if someone bypassed your frontend entirely and called the publish API directly, what would stop them from doing something they shouldn't, or how would your system even know what's allowed?",
+      "answer": "based upon the user id and the user email we will have all the required details of that user something like for example user at direct gmail dot com will have attach it to the direct rules like edit or check or edit make whenever he makes a back end request with the email whoever the changed so we will be capturing that user email or user id based upon that i will check whether he is able to he is whether he can create or he have whether he can check or whether he can so i will be basically using user id i will i will find whether he's allowed or not",
+      "weakness": {
+        "weakness": "The candidate describes using user ID or email from the request itself to determine permissions, but never mentions that the backend must independently verify identity (e.g., via a signed token or session) \u2014 a raw email in a request body can be trivially spoofed, making the entire authorization check bypassable.",
+        "type": "incorrect",
+        "severity": "high",
+        "probe_direction": "edge_case",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "user id",
+        "user email",
+        "user details",
+        "backend request",
+        "access control",
+        "permissions",
+        "create operation",
+        "check operation",
+        "edit operation",
+        "authorization",
+        "user authentication",
+        "rules"
+      ],
+      "discrepancy": {
+        "conflict_level": "confirmed",
+        "description": "The resume explicitly claims 'fine-grained RBAC' was architected and owned by the candidate. In a prior turn (Turn 9), the candidate explicitly stated 'I haven't implemented any fine-grained access control.' Now the candidate describes a basic user-ID/email lookup to check permissions \u2014 a flat, coarse-grained approach that contradicts both the resume's 'fine-grained RBAC' claim and the prior denial. The candidate is oscillating between denying the implementation and describing a simplistic version of it, neither of which aligns with architecting a fine-grained RBAC system.",
+        "severity": "high"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate does not enumerate steps or use any structured approach \u2014 the explanation is stream-of-consciousness with heavy repetition ('whether he can... whether he can... whether he can'). No clarifying questions were asked about the system design constraints before diving in. The answer assumes a specific approach (email/user ID lookup against rules) without acknowledging tradeoffs or alternatives. Confidence is overconfident relative to the vagueness of the explanation \u2014 the candidate speaks as if the approach is clear and sufficient, but the actual mechanism (where rules are stored, how they're enforced, what happens on failure) is never articulated. The candidate was not challenged so adaptability cannot be meaningfully assessed."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "dc69a1b8-a046-42bd-9456-6f171e16b99f",
+      "question": "I'm curious: if that CMS suddenly needed to handle, say, 10x the content submission volume \u2014 more makers submitting simultaneously, more approval queue depth \u2014 what's the first bottleneck you'd expect to hit, and where would you start?",
+      "answer": "what's the first bottleneck you'd expect to hit and where would you start so if suddenly you say ten x of the content submission happens the main bottleneck will be checking flow checker flow because whatever the con the number of makers and number of checkers will be very comparatively less as compared to macro macros so if becomes ten times then the number of as number of maker checkers is less so it will take time to publish content to live but anyhow that's a business call where it needs speed or it needs quality because without any quality check or without any qc going any content live is very is not suggestible",
+      "weakness": {
+        "weakness": "The candidate identifies only the human/workflow bottleneck (not enough checkers) but completely ignores any technical/system bottleneck \u2014 database contention, queue depth, API throughput, concurrent writes \u2014 which is the core of a scaling question for a backend role.",
+        "type": "shallow",
+        "severity": "high",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "bottleneck",
+        "content submission",
+        "flow checker",
+        "makers",
+        "checkers",
+        "publish",
+        "quality check",
+        "QC",
+        "scalability",
+        "throughput",
+        "trade-off between speed and quality"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is answering a hypothetical scalability question about their CMS system. Their answer focuses on the business/operational bottleneck (checker capacity vs. maker volume) rather than technical infrastructure. This is a reasonable and coherent answer to the question asked, and does not introduce new contradictions with the resume or prior confirmed facts. It does not address any of the previously flagged technical gaps (RBAC, backend authorization), but it doesn't claim anything new that conflicts either.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "calibrated",
+        "notes": "The candidate identifies a specific bottleneck (maker-checker flow) when challenged about scalability, showing some analytical thinking. However, the response is largely unstructured \u2014 delivered as a stream-of-consciousness without enumeration or clear sequencing. There is a partial acknowledgment of trade-offs (speed vs. quality), which shows some calibrated reasoning rather than overconfidence. The candidate does not ask clarifying questions and jumps straight to an assumption-based answer. Communication is muddled and repetitive ('very is not suggestible'), making it hard to follow the reasoning chain. Adaptability appears flexible in that they engage with the challenge rather than deflecting, but the quality of the engagement is weak."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "803f7b16-3252-4481-9f52-61f8c2cd93bf",
+      "question": "I'm curious how you'd think about this: given two weeks is pretty tight, what would you be comfortable cutting or deferring so we can ship something solid rather than trying to do everything half-baked?",
+      "answer": "yeah if if we feel fine grained fine grained access control or attributes best attributes best access control is very takes time without within if if it won't be completed in two weeks we can just pick authorization kind of thing where based upon their roles we can basically assign the opt in at authorization level only we can basically assign the roles for the any user",
+      "weakness": {
+        "weakness": "The candidate identifies what to cut (fine-grained/ABAC \u2192 RBAC) but gives no reasoning about what 'solid' actually means \u2014 no mention of which core features must ship, what risks remain with basic RBAC, or how to communicate scope changes to stakeholders.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "fine grained access control",
+        "attributes",
+        "access control",
+        "authorization",
+        "roles",
+        "role-based access control",
+        "user roles"
+      ],
+      "discrepancy": {
+        "conflict_level": "confirmed",
+        "description": "The resume explicitly claims the candidate 'implemented fine-grained RBAC' in the CMS. In a prior turn, the candidate already denied implementing fine-grained access control. Now in this turn, the candidate is describing it as something hypothetical or aspirational ('if we feel fine grained access control... takes time... we can just pick authorization kind of thing based upon roles'), further confirming they did not actually build what the resume claims. This is a direct contradiction between the resume's ownership claim and the candidate's own admissions across multiple turns.",
+        "severity": "high"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "underconfident",
+        "notes": "The candidate is attempting to adapt under challenge by suggesting a fallback from fine-grained/attribute-based access control to a simpler role-based authorization model. This shows some flexibility and pragmatism. However, the response is extremely unstructured \u2014 no enumeration, no clear logical flow, and highly fragmented speech with significant repetition ('fine grained fine grained', 'attributes best attributes best'). There is no clarification-seeking behavior; the candidate makes assumptions about constraints (two-week timeline). Confidence appears low and uncertain \u2014 the hedging language ('if we feel', 'we can just') and lack of decisive framing suggest underconfidence rather than a calibrated acknowledgment of tradeoffs. The core idea (role-based as a simpler alternative to ABAC) is reasonable, but communication quality severely undermines the response."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "discrepancy_challenge",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "48b91813-418a-424d-8018-69a5b66950f3",
+      "question": "How would you actually test that your publish permission checks are bulletproof \u2014 what scenarios are you running through to catch the edge cases where someone shouldn't be able to publish but still could?",
+      "answer": "as is this it cannot happen that one where someone should be able to publish still could because we will have a email check at the back end system whenever he tries to make a db entry or whenever we make try to activate anything we will definitely check a email with their role so this won't happen",
+      "weakness": {
+        "weakness": "The candidate asserts the system is bulletproof with a single email+role check, showing no awareness of test scenarios, edge cases, or failure modes (e.g., role elevation, stale session tokens, race conditions in maker-checker, or compromised email values in the request).",
+        "type": "overconfidence",
+        "severity": "high",
+        "probe_direction": "edge_case",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "email check",
+        "backend system",
+        "database entry",
+        "activation",
+        "role-based validation",
+        "email validation",
+        "access control"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate continues to describe authorization as an 'email check' tied to role lookup, which sounds like basic role-based auth rather than the 'fine-grained RBAC' and 'maker-checker workflows' claimed on the resume. The answer is consistent with prior turns but remains vague \u2014 no mention of permission scopes, resource-level checks, or how the maker-checker separation is enforced at the API layer. The claim of 'fine-grained RBAC' on the resume implies more granular control than a simple email-to-role mapping, so the description continues to underdeliver relative to the resume, but there is no direct new contradiction introduced this turn.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "rigid",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate communicates in a single run-on sentence with no enumeration, no logical segmentation, and no clear structure. They assert a solution ('email check at the back end') with high confidence but offer no breakdown of how it works, what edge cases exist, or what the failure modes might be. The phrase 'this won't happen' reflects overconfidence \u2014 no acknowledgment of scenarios where the check might fail or be bypassed. No clarifying questions were asked; the candidate assumed the problem scope and jumped to a conclusion. The explanation is vague and difficult to follow, suggesting the candidate may not have fully thought through the design."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "depth_probe",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "731971c3-2143-4eaf-8389-79ac82d07236",
+      "question": "Alright, we're almost done \u2014 before we finish, is there anything about your work or what you've been building that you wanted to talk about that we didn't get to?",
+      "answer": "yeah i have built a chatbot for communication between ai and any user where ai is astrologer kind of astrologer and yeah a normal user",
+      "weakness": {
+        "weakness": "The candidate introduces a new project (AI astrologer chatbot) with no technical substance \u2014 no architecture, stack, failure modes, or interesting engineering decisions mentioned.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "cms_rbac_llm_automation_gated_and"
+      },
+      "concepts": [
+        "chatbot",
+        "AI",
+        "astrologer",
+        "user communication"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate mentions building a chatbot where AI acts as an astrologer communicating with users. This aligns well with the resume, which explicitly mentions 'Astrology' domain microservices, 'LLM-driven systems,' 'Dify-based chatbots,' and 'prompt flow optimization.' No contradiction detected.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate's response to a challenge is extremely brief and unstructured \u2014 no enumeration of steps, no technical detail, no acknowledgment of the challenge itself. They simply re-describe their project in a vague, run-on sentence without engaging with whatever was being challenged. There is no attempt to clarify what specifically is being questioned, nor any adaptation of their reasoning. The response reads as deflecting rather than genuinely addressing the challenge. Confidence appears overconfident in the sense that they assert having 'built' something without providing any supporting detail or nuance. No clarifying questions were asked."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "362b59e6-f8b0-4c4b-8342-4729f914bd06",
+      "question": "Last one \u2014 what kind of work are you most excited to be doing in the next role? Like what's the thing you really want to get into?",
+      "answer": "role like what's the thing you really want to get into integrating ai with the features available with the company",
+      "weakness": null,
+      "concepts": [],
+      "discrepancy": null,
+      "reasoning_behavior": null,
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "cms_rbac_llm_automation_gated_and",
+      "focus_label": "Rbac-Gated Cms With LLM Automation And Maker-Checker Workflows",
+      "answer_version": 1,
+      "route_kind": "depth_probe",
+      "analysis_status": "pending"
+    }
+  ],
+  "failure_surface": {
+    "rbac_authorization": 1.0,
+    "scaling_backend_systems": 1.0,
+    "security_implementation": 1.0
+  },
+  "final_evaluation": {
+    "overall_score": 2,
+    "breakdown": {
+      "reasoning": 3,
+      "technical_depth": 1,
+      "communication": 2,
+      "adaptability": 2
+    },
+    "failure_surface": {
+      "rbac_authorization": 1.0,
+      "scaling_backend_systems": 1.0,
+      "security_implementation": 1.0
+    },
+    "hire_recommendation": "NO HIRE",
+    "confidence_score": 0.85,
+    "summary": "Candidate demonstrated severe technical gaps in authorization systems \u2013 contradicting resume claims about RBAC implementation and showing critical security oversights. Coverage was narrow (only authorization tested), but failures in this core backend domain are disqualifying for a junior role.",
+    "risk_flags": [
+      "Resume claim 'implemented fine-grained RBAC/maker-checker workflows' directly contradicted in interview",
+      "Fundamental authorization security flaw: proposed trusting client-provided email without verification",
+      "No evidence of production awareness in scaling or testing"
+    ],
+    "strengths": [
+      "Identified business tradeoffs in approval workflows (human bottleneck vs quality)",
+      "Suggested pragmatic scope reduction under time pressure (ABAC \u2192 RBAC)"
+    ],
+    "claim_credibility_risk": {
+      "level": "high",
+      "detail": "CMS/RBAC claims completely refuted (denied implementing fine-grained access/maker-checker); optimization/LLM claims untested but now suspect"
+    },
+    "untested_dimensions": [
+      "Database optimization (Postgres/Redis)",
+      "Microservices architecture",
+      "CI/CD pipelines",
+      "LLM integration",
+      "Caching strategies"
+    ],
+    "coverage_portrait": {
+      "coverage_score": 0.1,
+      "coverage_confidence": 0.3,
+      "primary_domain": {
+        "voluntary_coverage": [],
+        "recovered_coverage": [
+          "Role & Permission Modeling"
+        ],
+        "missed_coverage": [
+          "Impact on Existing CMS",
+          "Where Enforcement Happens",
+          "Scoping to the Deadline",
+          "Testing the Access Rules"
+        ],
+        "incorrect_coverage": [],
+        "domain_score": 0.1
+      }
+    },
+    "verdict_basis": "llm_contextual_with_coverage",
+    "coverage_verdict_advisory": {
+      "hire_recommendation": "INSUFFICIENT_DATA",
+      "confidence_score": 0.2
+    },
+    "verdict_confidence_basis": "LLM verdict informed by coverage portrait: 10% of expected dimensions addressed \u2014 0 demonstrated voluntarily, 4 not addressed when prompted."
+  },
+  "last_question": "For the domain where you measured 40% faster data access \u2014 what specific caching pattern replaced what you had before, and what data was being cached?",
+  "consecutive_high_weakness_count": 0,
+  "last_weakness_type": null,
+  "current_question_followups": [],
+  "current_question_followup_asked": true,
+  "active_question_packet": {
+    "question_text": "For the domain where you measured 40% faster data access \u2014 what specific caching pattern replaced what you had before, and what data was being cached?",
+    "route_kind": "speculative_fast",
+    "sprint": 3,
+    "focus_key": "general",
+    "focus_label": "general background",
+    "followups": [],
+    "asked_followup_count": 0,
+    "max_followups": 0,
+    "pivoting": false,
+    "weakness": null,
+    "discrepancy": null,
+    "source_turn_number": 14
+  },
+  "candidate_model": {
+    "project_map": {},
+    "established_facts": [
+      "The candidate simply said 'hello' with no substantive claims to evaluate against the resume (confirmed Turn 2)",
+      "The candidate is answering a hypothetical scalability question about their CMS system. Their answer focuses on the busin (confirmed Turn 11)",
+      "The candidate mentions building a chatbot where AI acts as an astrologer communicating with users. This aligns well with (confirmed Turn 14)"
+    ],
+    "probed_weaknesses": [
+      "shallow: The candidate describes permission checking only at a vague behavioral level ('b (Turn 7)",
+      "missing_step: The candidate describes the checker approval as a UI-level action ('he will be a (Turn 8)",
+      "deflection: The candidate explicitly denies implementing fine-grained access control, direct (Turn 9)",
+      "incorrect: The candidate describes using user ID or email from the request itself to determ (Turn 10)",
+      "shallow: The candidate identifies only the human/workflow bottleneck (not enough checkers (Turn 11)",
+      "shallow: The candidate identifies what to cut (fine-grained/ABAC \u2192 RBAC) but gives no rea (Turn 12)",
+      "overconfidence: The candidate asserts the system is bulletproof with a single email+role check,  (Turn 13)",
+      "shallow: The candidate introduces a new project (AI astrologer chatbot) with no technical (Turn 14)"
+    ]
+  },
+  "current_answer_turn_id": "362b59e6-f8b0-4c4b-8342-4729f914bd06",
+  "current_answer_question": "Last one \u2014 what kind of work are you most excited to be doing in the next role? Like what's the thing you really want to get into?",
+  "current_answer_response": "For the domain where you measured 40% faster data access \u2014 what specific caching pattern replaced what you had before, and what data was being cached?",
+  "current_answer_context": {
+    "pivoting": false,
+    "route_kind": "sprint_seed",
+    "weakness": null,
+    "discrepancy": null,
+    "answer_version": 1,
+    "packet_focus_key": "general",
+    "packet_focus_label": "general background",
+    "closing_phase": ""
+  },
+  "current_answer_turn_number": 15,
+  "current_answer_version": 1,
+  "interview_trajectory_map": {
+    "focus_areas": [
+      {
+        "label": "Golang Microservices Platform And Redis Caching Optimization",
+        "focus_key": "golang_microservices_caching_platform_and_redis",
+        "anchor_context": "Built and scaled Golang microservices across five domains serving 10M+ users, claiming 40% faster data access via Redis caching strategy changes and 90% automated test coverage.",
+        "sub_focuses": [
+          "Redis caching strategy redesign and concurrency-safe shared utilities",
+          "async worker architecture and RESTful API design decisions per domain",
+          "CI/CD pipeline changes that improved deployment reliability",
+          "measuring 40% data access improvement and attributing it to caching vs other changes",
+          "achieving 90% test coverage in a TDD context on live microservices"
+        ],
+        "resume_snippets": [
+          "enhanced Redis caching strategies, concurrency-safe shared utilities, and CI/CD pipelines; achieved 40% faster data access",
+          "Built and scaled Golang microservices for Puja, Chadhava, Astrology, Wallet, and Temple domains, serving 10M+ global users"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 5,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "redis_caching_strategy_redesign",
+          "concurrency_safe_shared_utilities",
+          "async_worker_architecture",
+          "cicd_pipeline_reliability",
+          "tdd_and_90pct_test_coverage"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Multiple hard-to-defend quantitative claims (40% latency, 90% coverage) across concurrent changes to caching, concurrenc",
+        "opener": "At AppsForBharat, your Redis caching change is credited with 40% faster data access across five domains \u2014 but cache-aside at that scale typically produces inconsistent gains per domain. Which domain saw the least improvement and why?",
+        "dimensions": [
+          {
+            "id": "redis_caching_strategy_redesign",
+            "label": "Redis Caching Strategy and 40% Gain Attribution",
+            "resume_anchor": "enhanced Redis caching strategies; achieved 40% faster data access",
+            "surface": "For the domain where you measured 40% faster data access \u2014 what specific caching pattern replaced what you had before, and what data was being cached?",
+            "mechanism": "The 40% improvement \u2014 how did you isolate that gain as caching-specific rather than attributing it to concurrent changes in query optimization or infra scaling happening at the same time?",
+            "boundary": "Across five domains hitting the same Redis cluster, what was your TTL and eviction strategy for the Wallet domain specifically \u2014 and what cache invalidation failure mode did that create under high write load?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "concurrency_safe_shared_utilities",
+            "label": "Concurrency-Safe Shared Utilities in Golang",
+            "resume_anchor": "concurrency-safe shared utilities",
+            "surface": "In the Wallet domain specifically, name one interface you defined to abstract the PostgreSQL layer and what methods it exposed \u2014 not the pattern, the actual interface.",
+            "mechanism": "When you made a shared utility concurrency-safe, what was the specific race condition it was designed to prevent \u2014 and how did you verify it under concurrent goroutine access rather than just in single-threaded tests?",
+            "boundary": "A shared utility used across Puja and Wallet domains with different transaction semantics \u2014 how did you handle the case where one domain's goroutine held a resource lock that the other domain's async worker was waiting on?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "async_worker_architecture",
+            "label": "Async Worker Architecture Per Domain",
+            "resume_anchor": "async workers; built and scaled Golang microservices for Puja, Chadhava, Astrology, Wallet, and Temple domains",
+            "surface": "In one of the five domains \u2014 pick the one with the most complex async worker \u2014 what event or trigger initiated the worker and what did it write or update downstream?",
+            "mechanism": "When an async worker in the Chadhava or Puja domain fails mid-execution serving 10M+ users \u2014 what is your retry and idempotency mechanism, and what prevents double-processing on retry?",
+            "boundary": "Under a sudden traffic spike \u2014 say a religious event driving 10x normal Puja booking volume \u2014 what breaks first in your async worker queue, and how did you design the system to degrade gracefully rather than drop jobs silently?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "cicd_pipeline_reliability",
+            "label": "CI/CD Pipeline Changes and Deployment Reliability",
+            "resume_anchor": "CI/CD pipelines; improved deployment reliability",
+            "surface": "What specific change did you make to the Bitbucket Pipelines configuration that you would point to as the single biggest improvement to deployment reliability?",
+            "mechanism": "Deployment reliability across five independent microservice domains \u2014 how did you handle the case where a pipeline succeeds for three domains but fails mid-rollout for the fourth, and what was the rollback behavior?",
+            "boundary": "Name a specific Grafana dashboard metric or CloudWatch alarm threshold you personally configured to catch a bad deployment before it reached full traffic \u2014 what was the threshold value and what triggered it?",
+            "signal_weight": 2.0
+          },
+          {
+            "id": "tdd_and_90pct_test_coverage",
+            "label": "TDD and 90% Automated Test Coverage on Live Microservices",
+            "resume_anchor": "increased automated test coverage to 90%",
+            "surface": "In the microservices you own \u2014 what layer has the highest test coverage and what layer has the lowest, and why did you draw that line?",
+            "mechanism": "Reaching 90% coverage on live microservices with Redis and PostgreSQL dependencies \u2014 how did you structure tests to avoid hitting real infrastructure while still validating the caching behavior you claimed improved data access by 40%?",
+            "boundary": "A new domain feature touching async workers, Redis cache writes, and a PostgreSQL transaction in sequence \u2014 what specifically in your test suite would catch a regression where the cache is written before the DB transaction commits?",
+            "signal_weight": 2.5
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned Redis caching across five domains \u2014 pick one specific domain and tell me the exact key structure or TTL value you configured for it.",
+          "honest_gap": "Fair enough \u2014 set that aside. In the parts of the Redis caching work you do own directly, what was the one decision you made that you'd defend to another senior engineer?",
+          "claim_conflict": "Your resume credits Redis caching strategy changes with 40% faster data access, but you just described a change that sounds like it was primarily a query or infrastructure optimization \u2014 help me understand how caching was the driver.",
+          "metric_risk": "That 40% number \u2014 what was the baseline latency value it was measured against, what tool produced the measurement, and was it p50, p95, or an average across all five domains?",
+          "overclaim_risk": "You used the term 'concurrency-safe' \u2014 in your specific implementation, what data structure or synchronization primitive enforces that guarantee, and where exactly does it live in your codebase?",
+          "bridge": "That gives me a solid picture of the microservices and caching platform. Let's shift to the other major system you owned at AppsForBharat \u2014 the Rbac-Gated Cms With LLM Automation And Maker-Checker Workflows. You architected fine-grained RBAC for a maker-checker CMS \u2014 the standard failure mode for fine-grained systems is permission explosion making ops unmanageable. How did your data model avoid that without a dedicated IAM team?"
+        },
+        "candidate_q4_options": [
+          "In the Astrology domain \u2014 which likely has read-heavy access patterns \u2014 what did your Redis key design look like, and what problem did that key structure create at scale?",
+          "You ran five domains off a shared Golang microservices platform \u2014 when two domains needed diverging behavior in a shared utility, how did you resolve that without forking the utility or coupling the domains?",
+          "The 40% faster data access claim \u2014 what was the before measurement, what tool produced it, and over what time window was it sampled?",
+          "ECS task restart mid-transaction on the Wallet domain \u2014 what is the failure state your system lands in, and what mechanism prevents a user's balance from being inconsistent after recovery?"
+        ]
+      },
+      {
+        "label": "Rbac-Gated Cms With LLM Automation And Maker-Checker Workflows",
+        "focus_key": "cms_rbac_llm_automation_gated_and",
+        "anchor_context": "Architected and owned a CMS for pre-order operations with fine-grained RBAC, maker-checker approval flows, and integrated LLM automation via Dify-based chatbots.",
+        "sub_focuses": [
+          "fine-grained RBAC data model and enforcement layer design",
+          "maker-checker workflow state machine and approval logic",
+          "Dify prompt flow optimization and response latency reduction",
+          "LLM integration boundary \u2014 what the model owns vs deterministic backend logic"
+        ],
+        "resume_snippets": [
+          "implementing fine-grained RBAC and optimized maker\u2013checker workflows; simplified approval flows, reduced ops turnaround time",
+          "optimizing prompt flows for Dify-based chatbots, reducing response latency and improving answer quality"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 5,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "rbac_data_model_and_enforcement",
+          "maker_checker_state_machine",
+          "dify_prompt_flow_optimization",
+          "llm_vs_deterministic_boundary",
+          "cms_analytics_and_observability"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Candidate claims full ownership of a CMS with RBAC and LLM integration \u2014 the intersection of access control design, work",
+        "opener": "You architected fine-grained RBAC for a maker-checker CMS at AppsForBharat \u2014 the standard failure mode for fine-grained systems is permission explosion making ops unmanageable. How did your data model avoid that without a dedicated IAM team?",
+        "dimensions": [
+          {
+            "id": "rbac_data_model_and_enforcement",
+            "label": "Fine-Grained RBAC Data Model and Enforcement Layer",
+            "resume_anchor": "implementing fine-grained RBAC and optimized maker\u2013checker workflows; simplified approval flows, reduced ops turnaround time",
+            "surface": "In your RBAC model for the CMS, how did you represent the relationship between a role and a specific pre-order resource \u2014 was permission stored at the role level, the user level, or somewhere else?",
+            "mechanism": "When a request hits your enforcement layer, what happens in the code path between the incoming JWT and the point where a 403 is returned \u2014 where does the permission check actually execute relative to your business logic?",
+            "boundary": "Name one specific permission or role boundary in the CMS that caused an unintended access escalation after you shipped it, and what structural property of your data model allowed that gap to exist.",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "maker_checker_state_machine",
+            "label": "Maker-Checker Workflow State Machine and Approval Logic",
+            "resume_anchor": "implementing fine-grained RBAC and optimized maker\u2013checker workflows; simplified approval flows, reduced ops turnaround time",
+            "surface": "In your maker-checker flow for pre-order operations, what are the named states an entity transitions through from creation to final approval \u2014 what does your state column actually hold?",
+            "mechanism": "When a checker rejects a change and the maker resubmits with edits, how does your state machine ensure the previous rejected version is preserved for audit while the new submission enters the approval queue \u2014 where is that logic encoded?",
+            "boundary": "Describe a specific race condition or double-approval edge case you found in the maker-checker flow during development or testing \u2014 what triggered it and what did you change in the state transition logic to prevent it?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "dify_prompt_flow_optimization",
+            "label": "Dify Prompt Flow Optimization and Response Latency Reduction",
+            "resume_anchor": "optimizing prompt flows for Dify-based chatbots, reducing response latency and improving answer quality",
+            "surface": "In the Dify-based chatbot you optimized, how many nodes were in the flow you touched, and which node type was responsible for the latency you targeted \u2014 was it the LLM call, a retrieval step, or something else?",
+            "mechanism": "When you reduced response latency in that Dify flow, what specifically in the prompt or flow structure was causing the delay \u2014 was it token count, a sequential node dependency, or context retrieval, and how did you confirm that diagnosis?",
+            "boundary": "In the specific Dify flow you optimized, name a prompt change or node restructure you made that improved latency but measurably degraded answer quality on a subset of queries \u2014 how did you detect that regression and what was the tradeoff you accepted?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "llm_vs_deterministic_boundary",
+            "label": "LLM Integration Boundary \u2014 Model vs Deterministic Backend",
+            "resume_anchor": "optimizing prompt flows for Dify-based chatbots, reducing response latency and improving answer quality; integrated LLM automation",
+            "surface": "In the CMS LLM automation, what specific operations did you route through the deterministic backend rather than letting the model handle \u2014 give one concrete example of something the model is explicitly not trusted to do.",
+            "mechanism": "When the LLM produces an output that feeds into a pre-order workflow action in the CMS, what validation layer sits between the model response and any state mutation \u2014 what does that layer check before a write is allowed?",
+            "boundary": "Give an example of a case in your CMS where the LLM output passed your validation layer but produced a semantically wrong workflow outcome \u2014 how did you detect it, and what did that expose about where your boundary was drawn incorrectly?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "cms_analytics_and_observability",
+            "label": "CMS Analytics Visibility and Operational Observability",
+            "resume_anchor": "improved analytics visibility; deployed and monitored services using AWS (ECS, AppConfig, CloudWatch) and Grafana for metrics, logging, and performance analysis",
+            "surface": "For the CMS specifically, what metric did you expose in Grafana or CloudWatch that directly tracked ops turnaround time \u2014 what was the field name or panel label you used?",
+            "mechanism": "When an ECS task running the CMS service restarts mid-approval transaction, what happens to the in-flight maker-checker state \u2014 does the workflow recover automatically, and what in your design makes that possible or prevents corruption?",
+            "boundary": "Name a specific CloudWatch alarm or Grafana alert threshold you personally configured for the CMS service \u2014 what metric, what threshold value, and what triggered you to set it at that number rather than higher or lower?",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned the CMS RBAC \u2014 name the specific database table or struct that stored a permission entry and one field it contained.",
+          "honest_gap": "That's a fair place to draw the line \u2014 what part of the maker-checker or RBAC design are you most confident you could defend in detail right now?",
+          "claim_conflict": "Your resume says you architected and owned this CMS, but your answer describes the design as something you were handed \u2014 which parts of the RBAC model or workflow state machine did you specifically design from scratch versus inherit?",
+          "metric_risk": "You said ops turnaround time improved \u2014 what was the before and after value, how was turnaround time defined and measured, and was that number from Grafana, manual logging, or something else?",
+          "overclaim_risk": "You used the term fine-grained RBAC \u2014 in your specific implementation, what makes it fine-grained rather than role-only? Name the smallest unit of permission your model supports and what resource it was attached to.",
+          "bridge": "That gives me a good read on the CMS architecture. Let's shift to the Golang Microservices Platform And Redis Caching Optimization \u2014 specifically the 40% data access improvement you credited to Redis changes across those five domains."
+        },
+        "candidate_q4_options": [
+          "In your RBAC model, how did you handle permission inheritance or role hierarchy \u2014 did roles compose, and if so, how did your enforcement layer resolve conflicts when a user held multiple roles with overlapping resource access?",
+          "The maker-checker flow you built reduced ops turnaround time \u2014 what was the turnaround time before and after, how did you measure it, and what specific workflow change drove most of that reduction?",
+          "In the Dify flow you optimized, how did you evaluate answer quality improvement \u2014 what was your evaluation method, who judged correctness, and how many queries formed your test set?",
+          "When you integrated LLM automation into the CMS, how did you handle the case where the Dify service was unavailable \u2014 did the CMS degrade gracefully or block, and whose decision was that and why?"
+        ]
+      }
+    ],
+    "generated_at": 1778258163.1408644,
+    "pending_hydration_focus_keys": [],
+    "generation_strategy": "two_pass_full_resume_reasoning",
+    "pass_1_review": {
+      "stage": "pass_1",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.8,
+      "top_two_score": 7.8,
+      "opener_quality_score": 7.0,
+      "dimension_depth_score": 8.2,
+      "strengths": [
+        "Boundary probes throughout both areas require hands-on ownership \u2014 especially the cache-stampede invalidation window question and the ECS mid-transaction restart scenario; these cannot be answered from documentation alone.",
+        "Recovery overlays are complete and well-calibrated: metric_risk probes directly target the 40% and turnaround-time claims with baseline/methodology challenges, and overclaim_risk probes force mechanism-level answers (mutex vs channel vs atomic).",
+        "Signal-weight 3.0 dimensions fire directly on the highest-value resume claims (Redis latency, maker-checker workflow, LLM prompt flow) rather than being distributed uniformly across lower-stakes topics."
+      ],
+      "issues": [
+        "Both openers invite narrative ('what was the hardest scaling problem', 'what was the core problem') rather than forcing an immediate analytical position or hypothesis \u2014 they are anchored but not causal-challenge style, costing points toward 8.5+.",
+        "The clean_architecture_multi_domain dimension surface probe ('how did you structure the layers inside a single service') is answerable from Clean Architecture documentation without any hands-on ownership of this specific codebase.",
+        "The aws_ecs_deployment_and_observability dimension is the weakest in area 2 \u2014 the surface and mechanism probes (AppConfig usage, CloudWatch vs Grafana split) are config-knowledge questions answerable by anyone who read AWS docs, and signal_weight 2.0 reflects this but it still occupies a full dimension slot."
+      ],
+      "repair_instructions": [
+        "Rewrite the golang_microservices_platform opener to force an immediate causal position: 'At AppsForBharat, your Redis caching change is credited with 40% faster data access across five domains \u2014 but cache-aside at that scale typically produces inconsistent gains per domain. Which domain saw the least improvement and why?' This forces the candidate to defend a specific claim analytically rather than narrate.",
+        "Rewrite the cms_rbac_llm_automation opener similarly: 'You architected fine-grained RBAC for a maker-checker CMS \u2014 the standard failure mode for fine-grained systems is permission explosion making ops unmanageable. How did your data model avoid that without a dedicated IAM team?' This anchors to the specific resume risk rather than asking an open problem question.",
+        "Replace the clean_architecture_multi_domain surface probe with: 'In the Wallet domain specifically, name one interface you defined to abstract the PostgreSQL layer and what methods it exposed \u2014 not the pattern, the actual interface.' This makes it unanswerable without direct code ownership.",
+        "Either strengthen the aws_ecs_deployment_and_observability dimension boundary probe or replace the dimension with a higher-signal topic. The current boundary (ECS task restart mid-transaction) is good \u2014 promote it to mechanism level and add a boundary probe targeting a specific Grafana dashboard metric name or CloudWatch alarm threshold the candidate personally configured, forcing artifact-level recall."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "golang_microservices_platform",
+          "label": "Golang Microservices Platform At Scale",
+          "score": 8.0,
+          "issues": [
+            "clean_architecture_multi_domain surface probe is answerable from Clean Architecture literature \u2014 it asks about layering patterns, not this candidate's specific interface definitions or domain boundary decisions.",
+            "cicd_test_coverage dimension is the weakest of the four \u2014 the surface and mechanism probes are process questions; only the boundary probe (pipeline regression cause and specific fix) requires real ownership."
+          ]
+        },
+        {
+          "focus_key": "cms_rbac_llm_automation_gated_and",
+          "label": "Rbac-Gated Cms With LLM Automation And Operational Workflows",
+          "score": 7.6,
+          "issues": [
+            "aws_ecs_deployment_and_observability surface and mechanism probes are config-knowledge questions (AppConfig refresh mechanism, CloudWatch vs Grafana split rationale) answerable without hands-on ownership of this specific deployment.",
+            "llm_prompt_flow_optimization boundary probe asks for a tradeoff case but does not name a specific Dify artifact (flow name, node count, context window size) that would force recall from actual ownership rather than general LLM knowledge."
+          ]
+        }
+      ]
+    },
+    "quality_review": {
+      "stage": "pass_1_repair",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 8.1,
+      "top_two_score": 8.1,
+      "opener_quality_score": 8.5,
+      "dimension_depth_score": 7.8,
+      "strengths": [
+        "Both openers force an immediate analytical/defensive position rather than inviting narrative \u2014 the 'which domain saw the least improvement and why' and 'permission explosion without IAM team' framings are strong hypothesis challenges.",
+        "Signal-weight 3.0 dimensions in both areas are well-grounded: redis_caching_strategy_redesign ties directly to the 40% claim with a causal isolation challenge, and rbac_data_model_and_enforcement demands a specific code-path answer that requires real ownership.",
+        "Recovery overlays are complete and specific \u2014 metric_risk probes name the exact measurement methodology gap (p50 vs p95, tool, window) and overclaim_risk probes demand a specific primitive or table name rather than a generic explanation."
+      ],
+      "issues": [
+        "concurrency_safe_shared_utilities surface probe ('name one interface you defined to abstract the PostgreSQL layer') probes a different technical surface (interface-based design) than the dimension label (concurrency safety) \u2014 the surface should establish the race condition context before escalating to the mechanism probe.",
+        "cicd_pipeline_reliability boundary probe is partially answerable from documentation: asking for a Grafana threshold value is strong, but the mechanism probe about partial-rollout failure across domains doesn't require hands-on ownership of the specific Bitbucket Pipelines config \u2014 a senior engineer who reviewed the setup could answer it.",
+        "dify_prompt_flow_optimization surface probe asks for node count and node type, which are observable from the Dify UI without any optimization ownership \u2014 the surface should instead ask what the latency looked like before any changes and how it was measured, anchoring the candidate to the diagnostic starting point."
+      ],
+      "repair_instructions": [
+        "Fix concurrency_safe_shared_utilities surface: replace the PostgreSQL interface question with 'In the shared utility you made concurrency-safe, what was the exact failure you observed or anticipated \u2014 a data race, a deadlock, or something else \u2014 and what Go primitive did you add to address it?' This keeps the probe on the dimension's actual surface (concurrency) and is unanswerable without real ownership.",
+        "Strengthen cicd_pipeline_reliability mechanism probe: replace the partial-rollout scenario (too generic) with 'When the Bitbucket Pipeline succeeded but the ECS task failed to reach healthy status after deployment \u2014 what did your pipeline do next, and did you write that behavior or configure an existing rollback hook?' This forces the candidate to describe their specific implementation artifact.",
+        "Fix dify_prompt_flow_optimization surface: replace node-count question with 'Before you made any changes to the Dify flow, what was the baseline response latency you measured and how did you measure it \u2014 what tool, what query set, and what percentile?' This anchors the candidate to diagnostic ownership before the mechanism probe asks about the cause.",
+        "Add a candidate_q4 option for the CMS area that challenges the 'reduced ops turnaround time' claim with the same causal rigor as the 40% caching question \u2014 e.g. 'Ops turnaround time improved after your maker-checker changes \u2014 but you also simplified the approval flow at the same time. How do you know the turnaround reduction was from the workflow logic and not just from reducing the number of approval steps?'"
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "golang_microservices_caching_platform_and_redis",
+          "label": "Golang Microservices Platform And Redis Caching Optimization",
+          "score": 8.2,
+          "issues": [
+            "concurrency_safe_shared_utilities surface probe drifts to interface-based design rather than concurrency \u2014 mismatch between surface and dimension label weakens escalation logic.",
+            "async_worker_architecture surface probe ('pick the domain with the most complex async worker') is acceptable but slightly self-directed \u2014 candidate chooses the easiest domain. Consider anchoring to 'the Wallet domain specifically' to prevent evasion.",
+            "tdd_and_90pct_test_coverage boundary probe is the strongest in this area \u2014 the cache-write-before-DB-commit regression test scenario is genuinely unanswerable without ownership. No repair needed here."
+          ]
+        },
+        {
+          "focus_key": "cms_rbac_llm_automation_gated_and",
+          "label": "Rbac-Gated Cms With LLM Automation And Maker-Checker Workflows",
+          "score": 8.0,
+          "issues": [
+            "dify_prompt_flow_optimization surface probe (node count and node type) is answerable by someone who viewed the Dify flow UI without optimizing it \u2014 needs to be anchored to the measurement baseline instead.",
+            "llm_vs_deterministic_boundary boundary probe is strong but the mechanism probe ('what validation layer sits between model response and state mutation') could be partially answered from standard LLM integration patterns \u2014 consider making it artifact-specific: 'what is the Go struct or function that validates LLM output before a write, and what fields does it check?'",
+            "cms_analytics_and_observability is the weakest dimension \u2014 the surface probe about metric field name is good, but the mechanism probe (ECS restart mid-transaction) duplicates a scenario already covered in the microservices area's cicd_pipeline_reliability dimension. Consider replacing the mechanism probe with a question about how Mixpanel analytics events were instrumented for the approval workflow."
+          ]
+        }
+      ]
+    },
+    "generation_notes": ""
+  },
+  "interview_map_status": "ready",
+  "interview_map_error": "",
+  "interview_map_validation": {
+    "ready": true,
+    "errors": [],
+    "warnings": [],
+    "focus_count": 2,
+    "llm_focus_count": 2,
+    "rich_focus_count": 2,
+    "priority_llm_ready_count": 2,
+    "pending_focus_keys": [],
+    "focus_reports": [
+      {
+        "label": "Golang Microservices Platform And Redis Caching Optimization",
+        "focus_key": "golang_microservices_caching_platform_and_redis",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 5,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "Rbac-Gated Cms With LLM Automation And Maker-Checker Workflows",
+        "focus_key": "cms_rbac_llm_automation_gated_and",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 5,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "interview_map_prepared_at": 1778258163.142506,
+  "candidate_state": {
+    "disengagement_level": 0.0,
+    "consecutive_no_content": 0,
+    "explicit_skip_count": 0,
+    "social_deflection_count": 0,
+    "incoherence_count": 0,
+    "communication_mode": "normal",
+    "topic_fatigue": {},
+    "topic_question_counts": {},
+    "forced_exit_triggered": false,
+    "phase": "orientation",
+    "anchor_confidence": "medium",
+    "implementation_anchor": "\"\"\n\nThe response contains no specific implementation details. It only includes background information (name, education, job title, company) without describing anything the candidate personally built, wrote, or figured out.",
+    "second_domain_surfaced": null,
+    "_communication_mode_checked": true
+  },
+  "coverage_map": {
+    "application_question": "Imagine your PM comes to you tomorrow and says: 'We need to add role-based access control to the CMS you built for pre-order operations \u2014 content editors should only see drafts, managers should be able to publish, and admins get full access. We need this live in two weeks.' How would you approach designing and shipping this?",
+    "implementation_anchor": "\"\"\n\nThe response contains no specific implementation details. It only includes background information (name, education, job title, company) without describing anything the candidate personally built, wrote, or figured out.",
+    "coverage_score": 0.0,
+    "coverage_confidence": 0.3,
+    "total_weight": 10.0,
+    "dimensions": [
+      {
+        "id": "role_permission_modeling",
+        "label": "Role & Permission Modeling",
+        "description": "Can the candidate think through how to represent roles and permissions as data structures or middleware, and where that logic should live in the backend?",
+        "expected_approaches": [
+          "Role enum with permission bitmask or permission table in database",
+          "Middleware layer that checks role before hitting handler",
+          "Separate roles table with many-to-many mapping to permissions"
+        ],
+        "surfacing_question": "How would you represent the difference between what an editor can do versus what a manager can do \u2014 where does that live in your system?",
+        "weight": 2.5,
+        "coverage_state": "recovered_surface",
+        "candidate_response": "and basically for the use case i will go with the basic authorization where for certain certain roles will have certain actions based upon their acts based upon their role something like content team can use the only content part of the system where they can edit the content and the or a video editors can video editors and the other team members can only upload the asset upload things and the finance guys will see the whatever the metrics we have related to the finance",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "existing_system_impact",
+        "label": "Impact on Existing CMS",
+        "description": "Does the candidate consider how to add RBAC without breaking existing functionality \u2014 backward compatibility, migration, and not disrupting current users?",
+        "expected_approaches": [
+          "Default all existing users to admin role during migration",
+          "Feature flag to roll out RBAC incrementally",
+          "Audit existing API endpoints to identify which need gating"
+        ],
+        "surfacing_question": "What happens to the users and data already in the CMS when you switch this on?",
+        "weight": 2.0,
+        "coverage_state": "missed",
+        "candidate_response": "and basically for the use case i will go with the basic authorization where for certain certain roles will have certain actions based upon their acts based upon their role something like content team can use the only content part of the system where they can edit the content and the or a video editors can video editors and the other team members can only upload the asset upload things and the finance guys will see the whatever the metrics we have related to the finance",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "enforcement_location",
+        "label": "Where Enforcement Happens",
+        "description": "Does the candidate identify that permission checks need to happen server-side, not just in the UI, and think about which layer owns that responsibility?",
+        "expected_approaches": [
+          "Middleware/interceptor at the API gateway or router level",
+          "Service-layer checks before database writes",
+          "JWT or session token carrying role claims verified on each request"
+        ],
+        "surfacing_question": "If someone tries to call the publish API directly without going through the frontend, how does your system handle that?",
+        "weight": 2.5,
+        "coverage_state": "missed",
+        "candidate_response": "and basically for the use case i will go with the basic authorization where for certain certain roles will have certain actions based upon their acts based upon their role something like content team can use the only content part of the system where they can edit the content and the or a video editors can video editors and the other team members can only upload the asset upload things and the finance guys will see the whatever the metrics we have related to the finance",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "two_week_scoping",
+        "label": "Scoping to the Deadline",
+        "description": "Can the candidate prioritize what to ship first versus what to defer, demonstrating practical delivery instincts under a tight timeline?",
+        "expected_approaches": [
+          "Ship hardcoded three-role model first, defer dynamic role creation",
+          "Identify the highest-risk endpoints (publish, delete) and gate those first",
+          "Time-box design, identify a walking skeleton to validate approach early"
+        ],
+        "surfacing_question": "Two weeks is tight \u2014 what would you cut or defer to make sure the most important parts are solid by the deadline?",
+        "weight": 1.5,
+        "coverage_state": "missed",
+        "candidate_response": "and basically for the use case i will go with the basic authorization where for certain certain roles will have certain actions based upon their acts based upon their role something like content team can use the only content part of the system where they can edit the content and the or a video editors can video editors and the other team members can only upload the asset upload things and the finance guys will see the whatever the metrics we have related to the finance",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "testing_verification",
+        "label": "Testing the Access Rules",
+        "description": "Does the candidate think about how to verify that the permission rules actually work correctly \u2014 particularly that lower roles cannot escalate their access?",
+        "expected_approaches": [
+          "Unit tests per role against each protected endpoint",
+          "Integration test that logs in as each role and attempts forbidden actions",
+          "Manual QA checklist covering each role's allowed and denied actions"
+        ],
+        "surfacing_question": "How would you make sure an editor genuinely cannot publish something \u2014 what does your testing look like for that?",
+        "weight": 1.5,
+        "coverage_state": "missed",
+        "candidate_response": "and basically for the use case i will go with the basic authorization where for certain certain roles will have certain actions based upon their acts based upon their role something like content team can use the only content part of the system where they can edit the content and the or a video editors can video editors and the other team members can only upload the asset upload things and the finance guys will see the whatever the metrics we have related to the finance",
+        "surfacing_attempted": true
+      }
+    ]
+  },
+  "application_question_served": true,
+  "_last_coverage_dim_id": null,
+  "_last_coverage_recovery_depth": null
+}

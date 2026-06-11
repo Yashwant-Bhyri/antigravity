@@ -1,0 +1,1538 @@
+{
+  "session_id": "f35e4aaf-6a39-44a6-bc66-bf186a70801c",
+  "current_sprint": 3,
+  "current_persona": "senior_peer",
+  "sprint_name": "System Design",
+  "question_count": 15,
+  "sprint_question_count": 5,
+  "interview_start_time": 1778232252.411643,
+  "interview_started": true,
+  "interview_complete": true,
+  "finalization_status": "complete",
+  "finalization_error": "",
+  "report_ready": true,
+  "resume": "S V S APPARAO\n+91 6301567773 | apparaosiddapureddy08@gmail.com | LinkedIn | GitHub\nEducation\nIndian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experience\nCGPA: 7.51/10\n2021-2025\nProduct Analyst Dec 2025 \u2013 Present\nDaily Mantra, AppsforBharat SQL, Analytics, Product Optimization\n\u2022 Increased user retention from 25% to 42% through strategic A/B testing and deployment features (Video ,\nToday, AI Guruji), directly driving higher user engagement and repeat sessions.\n\u2022 Optimized trial-to-subscription conversion rate from 27% to 42% by reducing trial period from 7 days to 1\nday, significantly reducing cancellation rates and accelerating user commitment while maintaining premium feature\npositioning.\n\u2022 Increased core \u201cMantra Track End\u201d event completion rate from 27.5% to 55.5% (102% improvement) by\nlaunching Videos and Today experiments, which optimized the user journey from task discovery to mantra\nlistening, driving higher engagement.\n\u2022 Architected and implemented core analytics event tracking for Daily Mantra zero-to-one product, defining\ncritical product events (session flow, user engagement, feature adoption, conversion funnel) enabling real-time\nproduct insights and experimentation; this event infrastructure powered all retention and conversion optimization\nexperiments.\nAssociate Business Analyst May 2025 \u2013 Nov 2025\nAppsforBharat SQL, Analytics, Dashboards\n\u2022 Automated AppsFlyer Marketing Dashboards for 3 product teams (Chadhava, AIG, Mantra), delivering\nday-wise campaign and ad-set level insights (CAC, CPI, CPM, spend), reducing manual reporting time from\n20 minutes to under 5 minutes with on-demand refresh capability.\n\u2022 Created an Executive Business Dashboard integrating impressions, transactions, and conversions, giving daily\nvisibility to business teams and boosting decision speed by 30%.\n\u2022 Automated a Reactivation Dashboard to identify inactive transacting users, enabling targeted reactivation\ncampaigns.\nComputer Vision Intern Jun 2024 \u2013 Aug 2024\nIIT Hyderabad OpenCV, Python, Machine Learning\n\u2022 Processed and analyzed 400+ frames of highway road systems using OpenCV, Python, and Tkinter to evaluate\nroad boundary conditions.\n\u2022 Benchmarked three heuristic methods \u2014 blob tracking, YOLO with SORT, and optical flow \u2014 comparing error\nrates, computational complexity, and suitability for large-scale deployment.\nPublications\n\u2022 \u201cComparative Evaluation of Vehicle Direction and Motion Detection Methods for Multi-layer Contiguous Virtual\nLayer (MCVL)\u201d accepted for oral presentation at the 4th International Conference on Modelling, Simulation and\nOptimization (CoMSO 2024).\nTechnical Skills\nAnalytics & Data Analysis: SQL, Python (Pandas, NumPy), Google BigQuery, Data Cleaning & Transformation\nProduct Analytics & Experimentation: A/B Testing, Event Tracking, Funnel Analysis, Mixpanel, AppsFlyer\nDashboarding & Visualization: Power BI, Google Sheets (Advanced), Excel (Pivot Tables, Advanced Functions)\nDatabases: MySQL, MongoDB, Google BigQuery\nAutomation & Tools: Google Apps Script, Git/GitHub, Jupyter Notebook",
+  "parsed_resume": {
+    "skills": [
+      "Technical Skills",
+      "Analytics & Data Analysis: SQL",
+      "Python (Pandas",
+      "NumPy)",
+      "Google BigQuery",
+      "Data Cleaning & Transformation"
+    ],
+    "tools": [
+      "+91 6301567773",
+      "apparaosiddapureddy08@gmail.com",
+      "LinkedIn",
+      "GitHub",
+      "Increased user retention from 25% to 42% through strategic A",
+      "B testing and deployment features (Video",
+      "rates",
+      "computational complexity",
+      "and suitability for large-scale deployment",
+      "Automation & Tools: Google Apps Script",
+      "Git",
+      "Jupyter Notebook"
+    ],
+    "projects": [
+      {
+        "name": "gmail.com | LinkedIn | GitHub",
+        "description": "+91 6301567773 | apparaosiddapureddy08",
+        "technologies": [],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      },
+      {
+        "name": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "description": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experience",
+        "technologies": [
+          "Increased user retention from 25% to 42% through strategic A",
+          "B testing and deployment features (Video",
+          "Optimized trial-to-subscription conversion rate from 27% to 42% by reducing trial period from 7 days to 1",
+          "Increased core \u201cMantra Track End\u201d event completion rate from 27.5% to 55.5% (102% improvement) by",
+          "Architected and implemented core analytics event tracking for Daily Mantra zero-to-one product",
+          "Automated AppsFlyer Marketing Dashboards for 3 product teams (Chadhava",
+          "AIG",
+          "Mantra)",
+          "Created an Executive Business Dashboard integrating impressions",
+          "Automated a Reactivation Dashboard to identify inactive transacting users"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "built"
+      },
+      {
+        "name": "Computer Vision Intern Jun 2024 \u2013 Aug 2024",
+        "description": "Computer Vision Intern Jun 2024 \u2013 Aug 2024",
+        "technologies": [
+          "Processed and analyzed 400+ frames of highway road systems using OpenCV",
+          "Python",
+          "and Tkinter to evaluate",
+          "Benchmarked three heuristic methods \u2014 blob tracking",
+          "YOLO with SORT",
+          "\u201cComparative Evaluation of Vehicle Direction and Motion Detection Methods for Multi-layer Contiguous Virtual"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      },
+      {
+        "name": "Layer (MCVL)\u201d accepted for oral presentation at the 4th International Conference on Modelling, Simulation and",
+        "description": "Layer (MCVL)\u201d accepted for oral presentation at the 4th International Conference on Modelling, Simulation and",
+        "technologies": [],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      }
+    ],
+    "claims": [
+      {
+        "text": "Increased user retention from 25% to 42% through strategic A/B testing and deployment features (Video ,",
+        "project": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Optimized trial-to-subscription conversion rate from 27% to 42% by reducing trial period from 7 days to 1",
+        "project": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Increased core \u201cMantra Track End\u201d event completion rate from 27.5% to 55.5% (102% improvement) by",
+        "project": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Architected and implemented core analytics event tracking for Daily Mantra zero-to-one product, defining",
+        "project": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Automated AppsFlyer Marketing Dashboards for 3 product teams (Chadhava, AIG, Mantra), delivering",
+        "project": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Created an Executive Business Dashboard integrating impressions, transactions, and conversions, giving daily",
+        "project": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Automated a Reactivation Dashboard to identify inactive transacting users, enabling targeted reactivation",
+        "project": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Processed and analyzed 400+ frames of highway road systems using OpenCV, Python, and Tkinter to evaluate",
+        "project": "Computer Vision Intern Jun 2024 \u2013 Aug 2024",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Benchmarked three heuristic methods \u2014 blob tracking, YOLO with SORT, and optical flow \u2014 comparing error",
+        "project": "Computer Vision Intern Jun 2024 \u2013 Aug 2024",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "\u201cComparative Evaluation of Vehicle Direction and Motion Detection Methods for Multi-layer Contiguous Virtual",
+        "project": "Computer Vision Intern Jun 2024 \u2013 Aug 2024",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      }
+    ],
+    "experiences": [
+      {
+        "title": "+91 6301567773 | apparaosiddapureddy08",
+        "company": "gmail.com | LinkedIn | GitHub",
+        "duration": "",
+        "contribution_type": "contributed"
+      },
+      {
+        "title": "Indian Institute of Information Technology, Sri City Bachelor of Technology in Computer Science and Engineering Experien",
+        "company": "",
+        "duration": "",
+        "contribution_type": "built"
+      },
+      {
+        "title": "Computer Vision Intern Jun 2024 \u2013 Aug 2024",
+        "company": "",
+        "duration": "2024 \u2013 Aug 2024",
+        "contribution_type": "contributed"
+      },
+      {
+        "title": "Layer (MCVL)\u201d accepted for oral presentation at the 4th International Conference on Modelling, Simulation and",
+        "company": "",
+        "duration": "",
+        "contribution_type": "contributed"
+      }
+    ],
+    "experience": {
+      "ml": 0,
+      "swe": 0,
+      "data_eng": 0
+    },
+    "experience_tier": "mid"
+  },
+  "github_links": [
+    "https://github.com/APPARAOsiddapureddy"
+  ],
+  "target_role": "Product",
+  "years_experience": "1-2",
+  "prior_assessment_context": {},
+  "prior_assessment_prompt": "",
+  "skills": [
+    "Technical Skills",
+    "Analytics & Data Analysis: SQL",
+    "Python (Pandas",
+    "NumPy)",
+    "Google BigQuery",
+    "Data Cleaning & Transformation"
+  ],
+  "scores": {
+    "reasoning": 3,
+    "technical_depth": 2,
+    "communication": 2,
+    "adaptability": 4
+  },
+  "weaknesses": [
+    {
+      "weakness": "The candidate jumped directly into product metrics and feature details without providing any coherent personal introduction, and their ownership claim as 'product analyst' is unclear \u2014 it's unknown what they personally built versus observed or reported on.",
+      "type": "ambiguous_but_promising",
+      "severity": "medium",
+      "probe_direction": "clarification",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate only mentions mobile number and 'module' as event properties, with no description of a structured session_start schema \u2014 missing standard funnel properties like session_id, timestamp, user_id, entry_point, experiment variant/flag, or any conversion-relevant context that would make events queryable across a funnel in Mixpanel.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate describes what events they tracked but gives no reasoning for why these specific events were chosen over others \u2014 no mention of any framework (e.g., funnel steps, drop-off analysis, retention goals) or trade-offs considered when deciding what to instrument.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "step_by_step",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate explains the logic for tracking god_id/mantra_id as deduplication, but gives no reasoning for why these dimensions specifically matter for business decisions \u2014 no mention of how they'd actually use mantra-level data to drive product actions, segmentation, or experiment analysis",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate lists properties but provides no mechanism for how 'completion' was defined or detected \u2014 specifically, what condition triggered the 'mantra track end' event (e.g., audio reaching X% of duration, a specific UI interaction, timer-based) which is the core engineering/product decision for this event.",
+      "type": "missing_step",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate describes phone-number modulo bucketing but never explains how they ensured the two cohorts were actually comparable (e.g., randomization validity, selection bias, or any balance check) \u2014 they just assert 'compare the two cohorts' without a mechanism for validity.",
+      "type": "missing_step",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate assumes the last digit of a phone number is always a meaningful random signal across all geographies, but never addresses whether last digits are uniformly distributed or could be biased (e.g., carrier-assigned suffixes, number recycling patterns, or sequential allocation that clusters last digits)",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "edge_case",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate conflates 'having a modulo-4 cohort split' with 'having a baseline' \u2014 but in a zero-to-one market entry, the baseline cohort is also experiencing the product for the first time, so there's no pre-existing conversion rate to anchor on; they never explain how the initial target threshold was set.",
+      "type": "deflection",
+      "severity": "high",
+      "probe_direction": "step_by_step",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate completely sidesteps the technical question about experiment overlap/collision handling and instead gives a generic product-stage justification with no mechanism described",
+      "type": "deflection",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate describes using mantra name/ID to rank mantras by completion rate, but never explains how this property was used as a filter in analysis \u2014 they conflated 'which mantra performed best' with 'what the property was used to filter', avoiding the specific analytical mechanics entirely.",
+      "type": "deflection",
+      "severity": "medium",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate describes using 'modulo 7' as a property value to identify variant users, but never explains how that variant assignment is actually persisted across sessions \u2014 they only described a bucketing rule, not a persistence mechanism.",
+      "type": "missing_step",
+      "severity": "high",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate cannot explain the mechanism by which 'user modulo' gets associated with retention metrics in Mixpanel \u2014 they claim modulo-based segmentation works for retention analysis but cannot describe whether this is a computed property, a filter, a cohort, or how Mixpanel actually groups users across time using this value.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    },
+    {
+      "weakness": "The candidate uses the closing question to make a vague claim about 'putting more effort into the product side' without citing a single concrete example, decision, or artifact that demonstrates product thinking beyond what was already discussed.",
+      "type": "vague",
+      "severity": "medium",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+    }
+  ],
+  "history": [
+    {
+      "turn_id": "699352b9-a512-4e9a-bf25-e8a9599b27f2",
+      "question": "Hey, thanks so much for coming in \u2014 really glad to have you here. Let's start easy. Just give me a quick intro about yourself \u2014 who you are, what you've been up to lately, whatever feels natural.",
+      "answer": "anxiousness or anything and based on their use case we'll suggest one run based on their favorite d t we'll suggest their one time based on their only suggest them in their mantra so this is this is a how the how the the element raise and we'll suggest mantra means be before we'll we'll show the mantra based on with backside as image now we are doing one experiment call with the video which will which will the mantra so we had seen better retention with the plus thirteen point 3pp and good acquisition i mean this is subscription based model before trying to subscription percentage was twenty five percent now it is forty three percent and etcetera so this is how dialy mantra works my role is product analyst",
+      "weakness": {
+        "weakness": "The candidate jumped directly into product metrics and feature details without providing any coherent personal introduction, and their ownership claim as 'product analyst' is unclear \u2014 it's unknown what they personally built versus observed or reported on.",
+        "type": "ambiguous_but_promising",
+        "severity": "medium",
+        "probe_direction": "clarification",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "use case",
+        "retention",
+        "acquisition",
+        "subscription model",
+        "conversion percentage",
+        "A/B testing",
+        "product analytics",
+        "user engagement",
+        "experimentation",
+        "video"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate's explanation is consistent with the resume. They describe the Daily Mantra product, the video experiment, retention improvements, and subscription conversion improvements. The numbers mentioned (25% to ~43% subscription conversion, +13.3pp retention) are broadly aligned with the resume's claims (25% to 42% user retention, 27% to 42% trial-to-subscription conversion). Minor rounding differences are not contradictions. The candidate's role as Product Analyst is confirmed.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate presents information in a loosely structured, stream-of-consciousness manner with minimal enumeration or logical sequencing. Thoughts jump between product features, experiments, and metrics without clear transitions. They do cite specific numbers (+13.3pp retention, subscription rate 25%->43%) which adds some credibility, but the framing around those numbers is unclear and hard to follow. No clarification-seeking behavior is evident \u2014 they assume the listener understands the product context. The candidate was not challenged, so adaptability cannot be meaningfully assessed; marked flexible as default. Confidence appears slightly overconfident given the vague and disorganized delivery \u2014 the metrics are stated as conclusive wins without caveats about methodology or sample size. Communication clarity is notably low."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 2,
+      "route_kind": "clarification_fast",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "dc93a244-ce00-40d3-a696-417ffec5ae39",
+      "question": "For the Daily Mantra event schema, what properties did you attach to a session_start event to make it queryable across the conversion funnel in Mixpanel?",
+      "answer": "and their mobile numbers have to track because in dialing mantra we're running multiple experiments so we're we're tracking the user module means user module means user mobile slash timber so suppose if their user phone numbers ends with five where having a go to j experiment with the users mobile number ends with seven we're having video experiment like that we're running multiple experiments so we have to store mobile number as a property and module as a property module",
+      "weakness": {
+        "weakness": "The candidate only mentions mobile number and 'module' as event properties, with no description of a structured session_start schema \u2014 missing standard funnel properties like session_id, timestamp, user_id, entry_point, experiment variant/flag, or any conversion-relevant context that would make events queryable across a funnel in Mixpanel.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "mobile numbers",
+        "tracking",
+        "experiments",
+        "user module",
+        "user phone numbers",
+        "A/B testing",
+        "properties",
+        "experimentation platform",
+        "user segmentation",
+        "dialing"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is describing the experiment segmentation methodology used at Daily Mantra \u2014 splitting users into experiment groups based on mobile number digits (e.g., ending in 5 vs 7) and tracking module as a property. This is a plausible and fairly standard approach to A/B test assignment without a formal experimentation platform. It is consistent with the resume's claims about A/B testing, event tracking, and running multiple experiments (Video, Today, AI Guruji). Nothing here contradicts the resume or prior confirmed facts.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate provides no structured enumeration of steps or logical breakdown \u2014 the explanation is stream-of-consciousness and hard to follow. They appear to be explaining a system design decision (storing mobile number and module as properties for A/B experiment bucketing) but do so without any clear organization. No clarifying questions are asked; they dive straight into assumptions about the use case. Since there was no challenge issued, adaptability cannot be meaningfully assessed. Confidence calibration leans overconfident \u2014 they assert design decisions (must store mobile number, must store module) without acknowledging tradeoffs, alternatives, or uncertainties. Communication quality is notably poor: fragmented sentences, repetition, and unclear referents ('timber', 'module') make the reasoning difficult to evaluate."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 2,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "ea1fe66b-029b-4db5-a70d-7272ec3385e8",
+      "question": "When you say you \"architected\" the event tracking for Daily Mantra, what specific events did you personally define, and how did you decide which ones mattered most?",
+      "answer": "so the key feature the key feature of daily mantra is mantra listen page the user have to land on mantra listen page and they have to listen the mantra so for the in start i i kept the mantra page impression and after that if a mantra the users write the mantra i the mantra swipe up will trigger if my if this swipe down mantra swipe down will trigger and if they listen the mantra mantra track and it will trigger and if they started a new track mantra track label trigger and we'll have a mantra track as one event there it will it will track the complete i mean up to how much percent did the user listen the month trial it will trigger and for all these things we'll pass the god id god name and mantra id mantra name as the parameters so that while analysis we got to know that which mantra is doing good and which god is doing good like that",
+      "weakness": {
+        "weakness": "The candidate describes what events they tracked but gives no reasoning for why these specific events were chosen over others \u2014 no mention of any framework (e.g., funnel steps, drop-off analysis, retention goals) or trade-offs considered when deciding what to instrument.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "step_by_step",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "daily mantra",
+        "mantra listen page",
+        "page impression",
+        "mantra swipe up",
+        "mantra swipe down",
+        "mantra track",
+        "track event",
+        "listen percentage",
+        "god id",
+        "god name",
+        "mantra id",
+        "mantra name",
+        "parameters",
+        "analysis",
+        "event tracking"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate describes a detailed event schema for the Mantra listening page: mantra_page_impression, mantra_swipe_up, mantra_swipe_down, mantra_track_end, mantra_track_label, and a progress-tracking event, with properties like god_id, god_name, mantra_id, and mantra_name. This is consistent with the resume's mention of 'Mantra Track End' event completion rate improvement and the claim of architecting core analytics event tracking for Daily Mantra. The level of specificity (swipe directionality, god/mantra dimensional properties for analysis) is plausible and aligns with a zero-to-one product analytics setup. No contradictions with prior confirmed facts.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate presents a stream-of-consciousness explanation with minimal structure \u2014 no numbered steps, no clear segmentation between events, and repeated self-corrections mid-sentence ('i i kept', 'i mean'). They do identify a logical flow (page impression \u2192 swipe \u2192 listen \u2192 track completion) but it is buried in verbal noise rather than enumerated clearly. No clarifying questions were asked; they assumed the scope and design requirements upfront. Confidence appears slightly overconfident given the lack of precision \u2014 they speak with assertiveness despite the explanation being difficult to follow. The candidate was not challenged, so adaptability cannot be meaningfully assessed. The core analytical thinking (tracking god_id, mantra_id as parameters for comparative analysis) shows some product instrumentation maturity, but communication structure significantly undermines the quality of the response."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "3019b0e9-3ef1-45f0-aa24-5273957517c9",
+      "question": "You mentioned passing god_id, god_name, mantra_id, mantra_name as parameters\u2014walk me through how you decided those were the right dimensions to track?",
+      "answer": "devotional platform where the users can listen the mantra so every mantra is based on the devotional means devotion so for sure it will be based on one god so that i'm tracking i mean i'm decided to track on god id on god name because if i track only in god name means in there will be multiple tracks with similar god that's why i'm tracking in word id as well so same like that i am tracking both mantra id and mantra name to track which mantra is doing better and which one is doing not better suppose if i feel one mantra is doing better so i will push that mantra to start so that will get good retention and good cancellation metrics",
+      "weakness": {
+        "weakness": "The candidate explains the logic for tracking god_id/mantra_id as deduplication, but gives no reasoning for why these dimensions specifically matter for business decisions \u2014 no mention of how they'd actually use mantra-level data to drive product actions, segmentation, or experiment analysis",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "devotional platform",
+        "mantra",
+        "tracking",
+        "god id",
+        "god name",
+        "mantra id",
+        "mantra name",
+        "retention metrics",
+        "cancellation metrics",
+        "performance optimization"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is elaborating on their event property design choices for the Daily Mantra product \u2014 specifically tracking god_id + god_name and mantra_id + mantra_name to differentiate between similar-named content. This is consistent with their previously confirmed role of architecting event tracking for Daily Mantra and aligns with the resume claim of 'defining critical product events' and driving retention/conversion metrics. No new contradictions introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate presents a stream-of-consciousness explanation without clear enumeration or logical segmentation. There is a loose reasoning thread (tracking god ID + name, mantra ID + name, using performance data to promote content), but it is buried in run-on sentences with no explicit steps or framework. No clarifying questions are asked about platform goals, user segments, or what 'doing better' means before jumping to a tracking solution. The candidate assumes the metric goal (retention, cancellation) without validating. Confidence is slightly overconfident \u2014 they state conclusions ('i'm decided') without acknowledging measurement ambiguity or alternative approaches. No challenge was issued so adaptability cannot be directly assessed."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 2,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "187b0284-2f84-401f-b301-1bfd1ae9555b",
+      "question": "Walk me through how you tracked which mantra a user completed \u2014 what properties did you log on that Mantra Track End event?",
+      "answer": "so suppose if the user completes the whole mantra then mantra tracking event will trigger in that i will have the parameters like mantra id mantra name god id god name and the campaign means which marketing campaign they and they came and what are the landing page and what are the previous page and user user module so so many parameters was there because i have to do analysis on it",
+      "weakness": {
+        "weakness": "The candidate lists properties but provides no mechanism for how 'completion' was defined or detected \u2014 specifically, what condition triggered the 'mantra track end' event (e.g., audio reaching X% of duration, a specific UI interaction, timer-based) which is the core engineering/product decision for this event.",
+        "type": "missing_step",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "mantra tracking event",
+        "mantra id",
+        "mantra name",
+        "god id",
+        "god name",
+        "campaign",
+        "marketing campaign",
+        "landing page",
+        "previous page",
+        "user module",
+        "analysis"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is elaborating on the 'Mantra Track End' event properties \u2014 mantra_id, mantra_name, god_id, god_name, campaign attribution, landing page, previous page, and user module. This is consistent with the resume's claim of a 102% improvement in 'Mantra Track End' event completion rate and the broader event tracking architecture they described in prior turns. No new contradictions introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "calibrated",
+        "notes": "The candidate provides a loosely structured explanation with some enumeration of parameters (mantra id, mantra name, god id, god name, campaign, landing page, previous page, user module) but does not organize them in a clear step-by-step manner. There is no formal structure like numbered steps or organized categories. They appear to be explaining a tracking/analytics implementation in a stream-of-consciousness style, jumping between concepts without clear delineation. No clarification was sought \u2014 they assumed the context and dove into the answer. Confidence seems appropriately calibrated; they acknowledge multiple parameters exist for analysis purposes without overclaiming precision. The repeated filler ('so so many parameters was there') suggests some uncertainty in articulating the full scope but not overconfidence."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 2,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "2637f6be-959b-43d1-9065-b65086636386",
+      "question": "Before we dig into the numbers, help me understand the setup: when you ran one of those A/B tests, how did you decide which users got the new feature and which didn't?",
+      "answer": "so based on their phone number module means last digit of their phone number decide the that particular user have to comes under which which which experiment test so if suppose i said we are running a guruji experiment for five five users five means the user mobile number stands with five so and we're having the base cohort as four so four is a control cohort so here we don't run any experiment to compare the experiment cohort and this control cohort we'll decide that that particular experiment is doing better or not so by using the users last digit of their phone number we'll decide that that particular user will be belongs to which go which experiment means if launch any new experiment suppose yesterday when we were launching a multitrack experiment before there is only mantras in mantras mantras vision page but now we we subcategorized three three tabs three sections one is all tracks one is mantras and third one is versions so based means they can if they can click on if they click on mantras then they will go to mantra only mantras if they click on bajan they'll see only bajan so the for them we decided to keep to the users large numbers and suite zero so now we have to compare that zero users cohort with four users cohort and i have to decide means multi track is performing good or not so if it is performing good i will expand to some other cohorts then also i'm seeing good numbers i will expand to all the numbers",
+      "weakness": {
+        "weakness": "The candidate describes phone-number modulo bucketing but never explains how they ensured the two cohorts were actually comparable (e.g., randomization validity, selection bias, or any balance check) \u2014 they just assert 'compare the two cohorts' without a mechanism for validity.",
+        "type": "missing_step",
+        "severity": "medium",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "phone number module",
+        "last digit",
+        "user cohort",
+        "experiment",
+        "control cohort",
+        "experiment cohort",
+        "A/B testing",
+        "multitrack experiment",
+        "mantras",
+        "versions",
+        "tabs",
+        "sections",
+        "bajan",
+        "user segmentation",
+        "performance comparison",
+        "cohort expansion",
+        "feature rollout"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is elaborating further on the phone number-based experiment segmentation methodology already confirmed in Turn 2. The explanation is consistent with prior confirmed claims \u2014 using the last digit of a user's mobile number to assign cohorts, with digit '4' as the control group and other digits as experiment groups. The new detail about the 'multitrack experiment' (subcategorizing the mantra listening page into tabs: All Tracks, Mantras, Bhajan) is an extension of the same methodology, not a contradiction. No new inconsistencies with the resume or prior confirmed facts.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate does not enumerate steps clearly \u2014 there is no 'first, second, third' scaffolding. The explanation is a single long run-on stream of thought with heavy repetition ('which which which', 'three three tabs three sections') and no logical segmentation. When challenged, the candidate responds by expanding and restating the same idea rather than genuinely engaging with the challenge or reconsidering the framing \u2014 this reads as defensive elaboration rather than flexible adaptation. No clarifying questions are asked before or during the explanation; the candidate assumes the listener shares full context. Confidence is overconfident given the lack of structure and precision \u2014 the candidate presents the concept as settled and clear when the communication itself is quite muddled. The core concept (phone number last-digit bucketing for A/B cohort assignment) is present but buried under disorganized delivery."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "a06a9acd-c533-4679-b9c5-f7b0a00d20fe",
+      "question": "I'm curious\u2014if you were trying to split mobile numbers into groups by their last digit, what do you already know about how phone number lengths might differ between Thailand and Indonesia, and whether that could throw off your grouping?",
+      "answer": "so any country will have a mobile number so if suppose if thailand is having twelve digits as the phone number but the last digit would be the number only so if the large digit number is any number they will go into that particular cohort group so like the the ideology will works",
+      "weakness": {
+        "weakness": "The candidate assumes the last digit of a phone number is always a meaningful random signal across all geographies, but never addresses whether last digits are uniformly distributed or could be biased (e.g., carrier-assigned suffixes, number recycling patterns, or sequential allocation that clusters last digits)",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "edge_case",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "mobile number",
+        "phone number",
+        "digits",
+        "country",
+        "cohort group",
+        "ideology"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is continuing to elaborate on the phone number modulo bucketing methodology already confirmed in prior turns. Their explanation about international phone numbers (e.g., Thailand having 12-digit numbers) still having a numeric last digit is consistent with their previously confirmed segmentation approach. No new contradictions are introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "rigid",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate provides a very loosely structured, stream-of-consciousness explanation with no enumerated steps or clear logical flow. The reasoning is difficult to follow \u2014 they reference Thailand's 12-digit phone number and a 'last digit cohort group' concept without setting up the problem or defining terms. No clarification was sought before diving in. The candidate speaks with apparent confidence ('the ideology will works') despite the explanation being largely incoherent. Since no challenge was issued, adaptability cannot be fully assessed, but the initial answer shows no self-correction or hedging. Confidence is misaligned with the clarity of the answer."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "cf868b33-d459-4b64-a520-90ff9a8e2b52",
+      "question": "I'm curious \u2014 when you're moving into a market where you don't have any baseline to compare against, how would you think about what target conversion rate would actually signal success versus just hoping you picked a good number?",
+      "answer": "we are having module four cohort so the those numbers are the baseline numbers so if we launch any new experimental feature we'll then compare with the the the other means that new experiment so then we'll decide that if it is more numbers comparing to the baseline then it is performing good otherwise it is not performing good",
+      "weakness": {
+        "weakness": "The candidate conflates 'having a modulo-4 cohort split' with 'having a baseline' \u2014 but in a zero-to-one market entry, the baseline cohort is also experiencing the product for the first time, so there's no pre-existing conversion rate to anchor on; they never explain how the initial target threshold was set.",
+        "type": "deflection",
+        "severity": "high",
+        "probe_direction": "step_by_step",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "module four cohort",
+        "baseline numbers",
+        "experimental feature",
+        "comparison",
+        "experiment",
+        "performance evaluation",
+        "metrics"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is describing a modulo-4 bucketing system where one cohort serves as the baseline/control group and the others are experimental groups. This is a standard A/B testing control vs. treatment setup and is consistent with the previously confirmed phone-number modulo bucketing methodology. There is no new contradiction introduced here.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate was not challenged, so adaptability is not meaningfully tested here. The response lacks any structured enumeration \u2014 no steps, no clear logical flow. The explanation is informal and repetitive ('the the the'), suggesting stream-of-consciousness delivery rather than organized thought. The candidate assumes context without seeking clarification on what 'performing good' means or what metrics matter. Confidence calibration leans overconfident because they assert a comparison-based evaluation framework without acknowledging any caveats (e.g., statistical significance, sample size, confounding variables). The core idea (baseline vs. experiment comparison) is reasonable but communicated very loosely."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 2,
+      "route_kind": "depth_probe",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "3cbf3702-4447-46b5-963e-aa1652ec1df6",
+      "question": "I'm curious\u2014when you've got two experiments running at different scopes like that, what do you think actually happens in the system when someone ends up matching the criteria for both?",
+      "answer": "so as of now it is in early stage means zero to one product so just we are trying to run the experiments multiple experiment because we we have to get to know that which are experiment is performing good and which experiment is not performing good so within two months we'll get to know that which are all experiment is performing good and which are not performing good then we'll get one final product and then we'll do some basic very minimal experiments up to that we'll we have to do the means big experiments so after getting to know which experiments means performing good we'll keep those those experiments in the final product",
+      "weakness": {
+        "weakness": "The candidate completely sidesteps the technical question about experiment overlap/collision handling and instead gives a generic product-stage justification with no mechanism described",
+        "type": "deflection",
+        "severity": "medium",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "early stage",
+        "zero to one product",
+        "experiments",
+        "product development",
+        "experimentation",
+        "performance testing",
+        "product iteration",
+        "final product"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is describing the zero-to-one product development philosophy and experimentation strategy, which is consistent with the resume's claim of 'Architected and implemented core analytics event tracking for Daily Mantra zero-to-one product.' The explanation about running multiple experiments to identify what works before settling on a final product is a plausible and coherent description of early-stage product development. There is no contradiction with the resume or any previously confirmed facts.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate does not enumerate steps clearly \u2014 there is a loose narrative arc (early stage \u2192 experiments \u2192 final product) but no deliberate structure like numbered steps or labeled phases. No clarifying questions are asked; the candidate simply explains their current situation. When challenged, the response is repetitive and circular rather than incorporating new information or adjusting the reasoning \u2014 the same idea about experiments is restated multiple times without deeper engagement. Confidence calibration is slightly overconfident in that a two-month timeline and a clear path to 'one final product' are stated with more certainty than the vague experimental stage warrants. Communication is low-clarity with significant repetition and incomplete sentences."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "7668aadf-d7d0-4038-9b87-9dae98cad03e",
+      "question": "Still on the Daily Mantra launch \u2014 walk me through, step by step, how you actually decided what the very first retention number should be before you had any cohort data to compare against.",
+      "answer": "so as it is a devotional app we don't have any platform like a daily mantras we don't have any base number to find the retention and all but in my same company there is one app called stream on there so their retention is around twenty percent d one retention is twenty percent so we thought to cross that twenty percent so we took the twenty percent as a baseline",
+      "weakness": null,
+      "concepts": [],
+      "discrepancy": null,
+      "reasoning_behavior": null,
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "daily_mantra_experimentation_retention_and_conversion",
+      "focus_label": "Retention And Conversion Experimentation On Daily Mantra Zero-To-One Product",
+      "answer_version": 1,
+      "route_kind": "depth_probe",
+      "analysis_status": "pending"
+    },
+    {
+      "turn_id": "b7ead883-50d6-493f-b616-40b7565e54a0",
+      "question": "You mentioned the Mantra Track End event \u2014 name one specific property on that event and tell me what it was used to filter in analysis.",
+      "answer": "i mean storing one property called the mantra id so on mantra name so by using mantra name i will track the users who will listen more mantra tracking means if the suppose mantra one mantra two mantra three mantra and the mantra two got highest percentage of completion for mantra tracking so i'll in final i got the result that mantra two is performing good out of all the mantras so mantra is the best property so that i track inside got to track that which mantra is performing good",
+      "weakness": {
+        "weakness": "The candidate describes using mantra name/ID to rank mantras by completion rate, but never explains how this property was used as a filter in analysis \u2014 they conflated 'which mantra performed best' with 'what the property was used to filter', avoiding the specific analytical mechanics entirely.",
+        "type": "deflection",
+        "severity": "medium",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "property storage",
+        "mantra id",
+        "mantra name",
+        "user tracking",
+        "completion tracking",
+        "completion percentage",
+        "performance metrics",
+        "data analysis",
+        "comparative analysis"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is describing how they tracked mantra completion rates using a mantra ID/name property to identify which mantras had the highest completion percentages. This is consistent with the resume claim about architecting analytics event tracking for Daily Mantra, specifically the 'Mantra Track End' event completion rate metric mentioned on the resume. No new contradictions are introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "rigid",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate presents an idea without any structured enumeration of steps or logical breakdown. The explanation is stream-of-consciousness, repeating the same concept (mantra ID, completion percentage) without building toward a clear design. No clarifying questions were asked about constraints, scale, or requirements \u2014 assumptions were made throughout. Since there was no challenge issued, adaptability cannot be fully assessed, but the delivery shows no self-correction or uncertainty. Confidence is overconfident given the vagueness of the explanation \u2014 the candidate states conclusions ('mantra two is performing good') without explaining the mechanism, data model, or logic that would support it."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 2,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "c3050bc9-b29c-42af-9b6d-72e45337e76e",
+      "question": "What property on the Videos experiment event told Mixpanel which variant a user was in, and how was that variant assignment persisted across sessions?",
+      "answer": "so we'll we'll have use user module as in expand the property to separate the users from video experiment or not video experiment so the module is seven for video experiment users",
+      "weakness": {
+        "weakness": "The candidate describes using 'modulo 7' as a property value to identify variant users, but never explains how that variant assignment is actually persisted across sessions \u2014 they only described a bucketing rule, not a persistence mechanism.",
+        "type": "missing_step",
+        "severity": "high",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "user module",
+        "property expansion",
+        "users separation",
+        "video experiment",
+        "module"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate now describes using a modulo-7 bucketing system for the Video experiment, whereas in prior confirmed turns they described a modulo-4 system (four cohorts, one control and three treatment groups). These two numbers are directly inconsistent with each other. It's possible different experiments used different modulo values, but the candidate has not clarified this \u2014 they are describing the same general A/B testing infrastructure, making this an apparent contradiction in the bucketing methodology they've consistently referenced.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "rigid",
+        "confidence_calibration": "underconfident",
+        "notes": "The answer is highly fragmented and difficult to parse \u2014 no enumerated steps, no logical flow, no clear framing of the problem or solution. The candidate appears to be thinking aloud without structuring their thoughts. There is no evidence of clarification-seeking before diving in, and no hedging or acknowledgment of uncertainty despite the unclear communication. The response reads like an incomplete or mid-thought utterance rather than a coherent answer, making it hard to assess deeper reasoning qualities. Since there was no challenge posed (Challenged: False), adaptability cannot be meaningfully evaluated from this snippet alone."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "depth_probe",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "283c545c-0fbf-491b-b664-524d30f2f849",
+      "question": "When you tracked variant assignment in Mixpanel, did you store it as a user property, event property, or both \u2014 and how did that choice affect your retention analysis?",
+      "answer": "let's wait we don't store any variant assignment in because we're by using this user module we can separate that and that particular user comes in a rich experiment so by using that we'll call it play retention cancellation and acquisition and we'll decide that particular experiment is working good or bad then we'll expand our delete those that particular assignment experiment",
+      "weakness": {
+        "weakness": "The candidate cannot explain the mechanism by which 'user modulo' gets associated with retention metrics in Mixpanel \u2014 they claim modulo-based segmentation works for retention analysis but cannot describe whether this is a computed property, a filter, a cohort, or how Mixpanel actually groups users across time using this value.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "variant assignment",
+        "user module",
+        "separation of concerns",
+        "rich experiment",
+        "retention",
+        "cancellation",
+        "acquisition",
+        "experiment evaluation",
+        "experiment expansion",
+        "experiment deletion"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate now states 'we don't store any variant assignment' as a property, yet earlier claimed they used 'user modulo 7' as a property value in Mixpanel to identify which variant a user was in. These two statements are in tension: if modulo bucketing is the mechanism, some property must be stored or computed to segment users in Mixpanel. The candidate's explanation that they 'use user modulo to separate' users implies a stored or derived property does exist, contradicting the claim that no variant assignment is stored. Additionally, the resume claims sophisticated A/B testing and event tracking infrastructure was 'architected and implemented,' but the candidate cannot clearly articulate how variant assignment was recorded or queried \u2014 suggesting the analytics infrastructure may be less rigorous than the resume implies.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "overconfident",
+        "notes": "The response is highly disorganized and lacks any enumerated steps or logical sequencing. When challenged, the candidate did not engage directly with the challenge \u2014 instead, they restated a vague version of their original idea using loosely connected phrases ('user module,' 'rich experiment,' 'play retention cancellation and acquisition'). There is no acknowledgment of what the challenge was or what might need to change. No clarifying questions were asked before or during the response. The candidate speaks with apparent confidence despite the explanation being largely incoherent, suggesting overconfidence relative to the clarity of their actual understanding. No admitted gap or genuine flexibility was demonstrated."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "0ca34c20-733e-4e2a-9870-a41e65a6e973",
+      "question": "Alright, we're almost done \u2014 before we finish, is there anything about your work or what you've been building that you wanted to talk about that we didn't get to?",
+      "answer": "so actually your questions are very good are you are you took all the points and you're asking very good so from my side not i mean every product release will do so so many things but what was unique about me is i will look more about into product set as well so that in future i'm going to product management side so i have to learn more into product as well so that's why i'm keeping the much of efforts in the product set so that's it",
+      "weakness": {
+        "weakness": "The candidate uses the closing question to make a vague claim about 'putting more effort into the product side' without citing a single concrete example, decision, or artifact that demonstrates product thinking beyond what was already discussed.",
+        "type": "vague",
+        "severity": "medium",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "daily_mantra_experimentation_retention_and_conversion"
+      },
+      "concepts": [
+        "product release",
+        "product set",
+        "product management",
+        "learning"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is giving a general motivational statement about their interest in product management and their approach to learning. This is not making any technical or factual claims that could be verified against the resume or prior answers. There is nothing to flag as contradictory.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "overconfident",
+        "notes": "The response is largely unstructured \u2014 no enumeration, no logical sequencing, no clear argument. The candidate opens with flattery ('your questions are very good'), which suggests deflection rather than substantive engagement. The core message is vague: they claim to focus on 'product set' for future career reasons, but provide no concrete details or examples. No clarifying questions were asked. The candidate was not challenged in this instance, yet the answer still reads as evasive and circular. Confidence appears misplaced \u2014 the candidate speaks as if they've made a strong point, but the content is thin and repetitive. No intellectual depth or self-awareness is demonstrated."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "b01f3115-af83-4c21-96f4-87abe52b4f08",
+      "question": "Last one \u2014 what kind of work are you most excited to be doing in the next role? Like what's the thing you really want to get into?",
+      "answer": "so i'm means i'm planning to switch to product role so there i will get good good challenges comparing to analyst so how to re write prds for the new why i am i have to implement this feature why i i have to implement this property that means i have to think in all the directions so i feel it was good to work so i'm plan means i'm planning to go to product role",
+      "weakness": null,
+      "concepts": [],
+      "discrepancy": null,
+      "reasoning_behavior": null,
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "daily_mantra_experimentation_retention_and_conversion",
+      "focus_label": "Retention And Conversion Experimentation On Daily Mantra Zero-To-One Product",
+      "answer_version": 1,
+      "route_kind": "speculative_fast",
+      "analysis_status": "pending"
+    }
+  ],
+  "failure_surface": {
+    "event_tracking": 0.9,
+    "a_b_testing": 0.95
+  },
+  "final_evaluation": {
+    "overall_score": 2,
+    "breakdown": {
+      "reasoning": 3,
+      "technical_depth": 2,
+      "communication": 2,
+      "adaptability": 4
+    },
+    "failure_surface": {
+      "event_tracking": 0.9,
+      "a_b_testing": 0.95
+    },
+    "hire_recommendation": "NO HIRE",
+    "confidence_score": 0.4,
+    "summary": "Candidate showed enthusiasm but demonstrated shallow technical depth in event tracking and A/B testing design, with critical gaps in schema persistence, cohort validity, and baseline establishment. Coverage was extremely narrow\u2014only event tracking and experimentation were tested\u2014limiting assessment breadth. Communication was consistently disjointed and vague.",
+    "risk_flags": [
+      "Specific claim risk: 'Architected core event tracking' unsubstantiated (no session/linkage design)",
+      "Specific claim risk: 'Optimized conversion via A/B tests' unsupported (flawed bucketing, no baseline validation)",
+      "Broad weakness: Inability to articulate technical trade-offs or analytical mechanics"
+    ],
+    "strengths": [
+      "Basic familiarity with product analytics concepts (e.g., cohort bucketing)",
+      "Adaptable in attempting to answer challenging questions"
+    ],
+    "claim_credibility_risk": {
+      "level": "high",
+      "detail": "Tested claims ('architected event tracking', 'A/B testing optimizations') showed high risk due to shallow implementation reasoning and missing technical steps; untested claims (dashboard automation, SQL) remain unverified."
+    },
+    "untested_dimensions": [
+      "SQL/analytics implementation",
+      "Dashboard automation",
+      "Product strategy/PRD creation",
+      "Cross-functional collaboration",
+      "Broader retention optimization techniques"
+    ],
+    "coverage_portrait": {
+      "coverage_score": 0.0,
+      "coverage_confidence": 0.72,
+      "primary_domain": {
+        "voluntary_coverage": [],
+        "recovered_coverage": [],
+        "missed_coverage": [
+          "Experiment Isolation Across Markets",
+          "Mobile Number as Segment Key \u2014 Validity Assumption",
+          "Defining Success Metrics Per Market",
+          "Preventing Experiment Collisions",
+          "Scaling the Tracking Architecture"
+        ],
+        "incorrect_coverage": [],
+        "domain_score": 0.0
+      }
+    },
+    "verdict_basis": "llm_contextual_with_coverage",
+    "coverage_verdict_advisory": {
+      "hire_recommendation": "INSUFFICIENT_DATA",
+      "confidence_score": 0.1
+    },
+    "verdict_confidence_basis": "LLM verdict informed by coverage portrait: 0% of expected dimensions addressed \u2014 0 demonstrated voluntarily, 5 not addressed when prompted."
+  },
+  "last_question": "When you moved retention from 25% to 42%, how did you define retention \u2014 DAU/MAU, return within 7 days, or something specific to Daily Mantra?",
+  "consecutive_high_weakness_count": 0,
+  "last_weakness_type": null,
+  "current_question_followups": [],
+  "current_question_followup_asked": true,
+  "active_question_packet": {
+    "question_text": "When you moved retention from 25% to 42%, how did you define retention \u2014 DAU/MAU, return within 7 days, or something specific to Daily Mantra?",
+    "route_kind": "speculative_fast",
+    "sprint": 3,
+    "focus_key": "indian_institute_of_information_technology_sri_city_bachelor_of_technology_in_computer_science_and_engineering_experien",
+    "focus_label": "Indian Institute of Information Technology, Sri City Bachelor of Technology in C",
+    "followups": [],
+    "asked_followup_count": 0,
+    "max_followups": 0,
+    "pivoting": false,
+    "weakness": null,
+    "discrepancy": null,
+    "source_turn_number": 14
+  },
+  "candidate_model": {
+    "project_map": {},
+    "established_facts": [
+      "The candidate's explanation is consistent with the resume. They describe the Daily Mantra product, the video experiment, (confirmed Turn 1)",
+      "The candidate is describing the experiment segmentation methodology used at Daily Mantra \u2014 splitting users into experime (confirmed Turn 2)",
+      "The candidate describes a detailed event schema for the Mantra listening page: mantra_page_impression, mantra_swipe_up,  (confirmed Turn 3)",
+      "The candidate is elaborating on their event property design choices for the Daily Mantra product \u2014 specifically tracking (confirmed Turn 4)",
+      "The candidate is elaborating on the 'Mantra Track End' event properties \u2014 mantra_id, mantra_name, god_id, god_name, camp (confirmed Turn 5)",
+      "The candidate is elaborating further on the phone number-based experiment segmentation methodology already confirmed in  (confirmed Turn 6)",
+      "The candidate is continuing to elaborate on the phone number modulo bucketing methodology already confirmed in prior tur (confirmed Turn 7)",
+      "The candidate is describing a modulo-4 bucketing system where one cohort serves as the baseline/control group and the ot (confirmed Turn 8)",
+      "The candidate is describing the zero-to-one product development philosophy and experimentation strategy, which is consis (confirmed Turn 9)",
+      "The candidate is describing how they tracked mantra completion rates using a mantra ID/name property to identify which m (confirmed Turn 11)",
+      "The candidate is giving a general motivational statement about their interest in product management and their approach t (confirmed Turn 14)"
+    ],
+    "probed_weaknesses": [
+      "missing_step: The candidate describes phone-number modulo bucketing but never explains how the (Turn 6)",
+      "shallow: The candidate assumes the last digit of a phone number is always a meaningful ra (Turn 7)",
+      "deflection: The candidate conflates 'having a modulo-4 cohort split' with 'having a baseline (Turn 8)",
+      "deflection: The candidate completely sidesteps the technical question about experiment overl (Turn 9)",
+      "deflection: The candidate describes using mantra name/ID to rank mantras by completion rate, (Turn 11)",
+      "missing_step: The candidate describes using 'modulo 7' as a property value to identify variant (Turn 12)",
+      "shallow: The candidate cannot explain the mechanism by which 'user modulo' gets associate (Turn 13)",
+      "vague: The candidate uses the closing question to make a vague claim about 'putting mor (Turn 14)"
+    ]
+  },
+  "current_answer_turn_id": "b01f3115-af83-4c21-96f4-87abe52b4f08",
+  "current_answer_question": "Last one \u2014 what kind of work are you most excited to be doing in the next role? Like what's the thing you really want to get into?",
+  "current_answer_response": "When you moved retention from 25% to 42%, how did you define retention \u2014 DAU/MAU, return within 7 days, or something specific to Daily Mantra?",
+  "current_answer_context": {
+    "pivoting": false,
+    "route_kind": "sprint_seed",
+    "weakness": null,
+    "discrepancy": null,
+    "answer_version": 1,
+    "packet_focus_key": "indian_institute_of_information_technology_sri_city_bachelor_of_technology_in_computer_science_and_engineering_experien",
+    "packet_focus_label": "Indian Institute of Information Technology, Sri City Bachelor of Technology in C",
+    "closing_phase": ""
+  },
+  "current_answer_turn_number": 15,
+  "current_answer_version": 1,
+  "interview_trajectory_map": {
+    "focus_areas": [
+      {
+        "label": "Retention And Conversion Experimentation On Daily Mantra Zero-To-One Product",
+        "focus_key": "daily_mantra_experimentation_retention_and_conversion",
+        "anchor_context": "Architected event tracking infrastructure and ran A/B experiments (Videos, Today, AI Guruji) that moved retention from 25% to 42% and trial conversion from 27% to 42%.",
+        "sub_focuses": [
+          "event schema design and instrumentation for zero-to-one product",
+          "A/B experiment design for Videos and Today features with causal attribution",
+          "trial period reduction from 7 days to 1 day as a conversion lever",
+          "Mantra Track End funnel analysis and experiment measurement methodology"
+        ],
+        "resume_snippets": [
+          "Architected and implemented core analytics event tracking for Daily Mantra zero-to-one product, defining critical product events (session flow, user engagement, feature adoption, c",
+          "Increased user retention from 25% to 42% through strategic A/B testing and deployment features (Video, Today, AI Guruji)"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "event_schema_design_zero_to_one",
+          "ab_experiment_design_causal_attribution",
+          "trial_period_reduction_conversion_lever",
+          "mantra_track_end_funnel_measurement"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Candidate claims sole authorship of the event infrastructure that powered all experiments on a zero-to-one product, and",
+        "opener": "At Daily Mantra, you ran Videos, Today, and AI Guruji experiments on overlapping user cohorts \u2014 what was your method for preventing those experiments from contaminating each other's retention attribution?",
+        "dimensions": [
+          {
+            "id": "event_schema_design_zero_to_one",
+            "label": "Event Schema Design and Instrumentation",
+            "resume_anchor": "Architected and implemented core analytics event tracking for Daily Mantra zero-to-one product, defining critical product events (session flow, user engagement, feature adoption, conversion funnel)",
+            "surface": "For the Daily Mantra event schema, what properties did you attach to a session_start event to make it queryable across the conversion funnel in Mixpanel?",
+            "mechanism": "The Mantra Track End event moved from 27.5% to 55.5% \u2014 what in your event schema let you distinguish whether a user reached track end via the Videos path versus the Today path, and why did that distinction matter for attribution?",
+            "boundary": "When you defined the conversion funnel events at zero-to-one stage, what did you do about users who triggered mid-funnel events without a corresponding session_start \u2014 how did that gap surface and how did you handle it in analysis?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "ab_experiment_design_causal_attribution",
+            "label": "A/B Experiment Design and Causal Attribution",
+            "resume_anchor": "Increased user retention from 25% to 42% through strategic A/B testing and deployment features (Video, Today, AI Guruji)",
+            "surface": "What property on the Videos experiment event told Mixpanel which variant a user was in, and how was that variant assignment persisted across sessions?",
+            "mechanism": "Retention moved from 25% to 42% across multiple experiments running concurrently \u2014 how did you isolate which experiment drove which portion of that lift, given the overlapping cohorts?",
+            "boundary": "If a user entered the Videos experiment mid-trial and then triggered the Today experiment before their trial ended, how did your analysis treat their retention outcome \u2014 and what assumption does that treatment rest on?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "trial_period_reduction_conversion_lever",
+            "label": "Trial Period Reduction as Conversion Lever",
+            "resume_anchor": "Optimized trial-to-subscription conversion rate from 27% to 42% by reducing trial period from 7 days to 1 day, significantly reducing cancellation rates and accelerating user commitment",
+            "surface": "When you reduced the trial from 7 days to 1 day, what was the denominator for your conversion rate \u2014 users who started a trial, users who reached the paywall, or something else?",
+            "mechanism": "Shortening a trial from 7 days to 1 day reduces the window for users to experience the product \u2014 what data told you that the lost experience time would not hurt downstream retention among converted users?",
+            "boundary": "The 15-point conversion lift from the trial reduction \u2014 how did you separate the effect of the shorter trial from any simultaneous product changes or cohort timing differences that were present during the same rollout window?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "mantra_track_end_funnel_measurement",
+            "label": "Mantra Track End Funnel Analysis and Measurement",
+            "resume_anchor": "Increased core Mantra Track End event completion rate from 27.5% to 55.5% (102% improvement) by launching Videos and Today experiments, which optimized the user journey from task discovery to mantra listening",
+            "surface": "Mantra Track End completion went from 27.5% to 55.5% \u2014 what was the entry point of the funnel you measured, and which user population was in the denominator for that rate?",
+            "mechanism": "Videos and Today experiments both contributed to the Mantra Track End lift \u2014 how did you determine which experiment drove more of the 28-point improvement, and what analysis supported that attribution?",
+            "boundary": "A 102% improvement in a single event completion rate is large \u2014 what alternative explanations did you rule out before attributing the full lift to the Videos and Today experiments, and what evidence ruled each one out?",
+            "signal_weight": 2.5
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned the Mantra Track End event \u2014 name one specific property on that event and tell me what it was used to filter in analysis.",
+          "honest_gap": "Fair enough \u2014 tell me what you do own clearly here: walk me through the one experiment where you are most confident the lift was real and causally attributed to your change.",
+          "claim_conflict": "Your resume says you architected the event tracking infrastructure, but your answer describes consuming data that was already there \u2014 which is accurate, and where exactly did your ownership begin?",
+          "metric_risk": "The 42% retention figure \u2014 what was the observation window, what counted as a retained user, and was the 25% baseline measured over the same window with the same definition?",
+          "overclaim_risk": "You used the term A/B testing \u2014 in your Mixpanel setup, how was variant assignment actually randomized and enforced, and what prevented a user from being re-bucketed on their second session?",
+          "bridge": "That gives me a clear picture of how you built measurement from scratch at Daily Mantra. Let's move to Automation And Executive Dashboard Infrastructure At AppsForBharat \u2014 you cut reporting time from 20 minutes to under 5 for three product teams, and I want to understand what the actual bottleneck was."
+        },
+        "candidate_q4_options": [
+          "At Daily Mantra, you defined events across session flow, feature adoption, and conversion funnel from scratch \u2014 which event definition caused the most downstream measurement disagreement with stakeholders, and what resolved it?",
+          "The AI Guruji feature is listed alongside Videos and Today as a retention driver \u2014 what was different about how you measured AI Guruji's contribution compared to the other two experiments?",
+          "Your retention metric moved from 25% to 42% \u2014 how was retention operationally defined in your event schema: same-day return, 7-day return, or something else, and why was that definition chosen?",
+          "You built the event infrastructure that powered all subsequent experiments \u2014 what decision you made in the schema design at zero-to-one stage later constrained how you could slice experiment results, and would you make that decision differently now?"
+        ]
+      },
+      {
+        "label": "Automation And Executive Dashboard Infrastructure At Appsforbharat",
+        "focus_key": "appsflyer_dashboard_automation_and_executive_infrastructure",
+        "anchor_context": "Automated AppsFlyer marketing dashboards for 3 product teams and built an executive dashboard integrating impressions, transactions, and conversions with on-demand refresh.",
+        "sub_focuses": [
+          "AppsFlyer data pipeline design and refresh mechanism for CAC/CPI/CPM metrics",
+          "executive dashboard data model integrating impressions, transactions, and conversions",
+          "reactivation dashboard logic for identifying inactive transacting users"
+        ],
+        "resume_snippets": [
+          "Automated AppsFlyer Marketing Dashboards for 3 product teams (Chadhava, AIG, Mantra), delivering day-wise campaign and ad-set level insights (CAC, CPI, CPM, spend)",
+          "reducing manual reporting time from 20 minutes to under 5 minutes with on-demand refresh capability"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "appsflyer_pipeline_design_and_refresh",
+          "executive_dashboard_data_model",
+          "reactivation_dashboard_user_segmentation",
+          "automation_tooling_and_implementation"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Three distinct dashboard systems built for production use across multiple teams \u2014 candidate must defend the data pipelin",
+        "opener": "You cut reporting from 20 to under 5 minutes for three product teams at AppsforBharat \u2014 what was the specific bottleneck in the old workflow that your automation actually eliminated?",
+        "dimensions": [
+          {
+            "id": "appsflyer_pipeline_design_and_refresh",
+            "label": "AppsFlyer Data Pipeline and Refresh Mechanism",
+            "resume_anchor": "Automated AppsFlyer Marketing Dashboards for 3 product teams (Chadhava, AIG, Mantra), delivering day-wise campaign and ad-set level insights (CAC, CPI, CPM, spend) with on-demand refresh capability",
+            "surface": "Your dashboard delivered CAC at the ad-set level \u2014 what was the data source AppsFlyer exposed that let you compute CAC per ad-set, and how was spend joined to installs in your pipeline?",
+            "mechanism": "The on-demand refresh reduced reporting to under 5 minutes \u2014 what triggered a refresh, and how did you handle AppsFlyer API rate limits or data latency when a team pulled fresh data mid-day?",
+            "boundary": "Across three product teams, campaign structures in AppsFlyer likely differed \u2014 how did your pipeline normalize ad-set naming or hierarchy inconsistencies between Chadhava, AIG, and Mantra without breaking the CAC calculation?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "executive_dashboard_data_model",
+            "label": "Executive Dashboard Integration of Impressions, Transactions, and Conversions",
+            "resume_anchor": "Created an Executive Business Dashboard integrating impressions, transactions, and conversions, giving daily visibility to business teams and boosting decision speed by 30%",
+            "surface": "The 30% decision speed claim \u2014 was that a direct measurement or a stakeholder estimate, and what would it take to verify it today?",
+            "mechanism": "If it was an estimate, what specific behavioral change in the business team were you using as a proxy for faster decisions?",
+            "boundary": "Impressions, transactions, and conversions typically live in different systems \u2014 when a daily number mismatched between sources, what was your reconciliation logic and who owned resolving the discrepancy?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "reactivation_dashboard_user_segmentation",
+            "label": "Reactivation Dashboard Logic for Inactive Transacting Users",
+            "resume_anchor": "Automated a Reactivation Dashboard to identify inactive transacting users, enabling targeted reactivation campaigns",
+            "surface": "Your reactivation dashboard targeted inactive transacting users \u2014 how did you define the inactivity threshold, and was it a fixed number of days or derived from behavioral data?",
+            "mechanism": "The dashboard identified users for reactivation campaigns \u2014 how did the segment update daily, and what happened to a user who transacted again after being flagged as inactive?",
+            "boundary": "Reactivation lists fed downstream campaign tools \u2014 if the same user appeared inactive across two products simultaneously, how did your logic prevent them from receiving duplicate reactivation pushes from different teams?",
+            "signal_weight": 2.0
+          },
+          {
+            "id": "automation_tooling_and_implementation",
+            "label": "Automation Implementation and Tooling",
+            "resume_anchor": "reducing manual reporting time from 20 minutes to under 5 minutes with on-demand refresh capability",
+            "surface": "The manual process took 20 minutes \u2014 what specific steps in that workflow were you replacing with automation, and what tool did you use to connect AppsFlyer data to the dashboard?",
+            "mechanism": "Your automation used Google Apps Script based on your skills \u2014 how did you authenticate against the AppsFlyer API or data export within that script, and what happened when the token expired mid-refresh?",
+            "boundary": "When the automated pipeline produced a number that conflicted with what a team lead remembered from the previous day's manual pull, how did you determine which was correct and what did that reveal about the old process?",
+            "signal_weight": 2.5
+          }
+        ],
+        "recovery": {
+          "short_answer": "Let's ground this in the AppsFlyer pipeline specifically \u2014 name one column or field from the data export you used to compute CAC at the ad-set level.",
+          "honest_gap": "Fair enough \u2014 tell me what part of the pipeline you did own end-to-end, even if the full automation had pieces others touched.",
+          "claim_conflict": "Your resume says on-demand refresh with under-5-minute turnaround, but you just described a scheduled pull \u2014 which one was actually running in production for the three teams?",
+          "metric_risk": "The 20-to-5-minute reduction \u2014 how was the 20-minute baseline measured, was it timed across all three teams or one, and did the under-5-minute figure include AppsFlyer data fetch time or only dashboard render time?",
+          "overclaim_risk": "You mentioned the pipeline normalized the data \u2014 what does normalize mean in your specific implementation: a SQL transformation, a column rename in the script, or something else?",
+          "bridge": "Let's shift from the dashboard work at AppsforBharat to the earlier technical project \u2014 you did Computer Vision Benchmarking For Highway Vehicle Detection At IIT Hyderabad, where you compared three methods on 400+ frames. I want to get into how that evaluation actually worked."
+        },
+        "candidate_q4_options": [
+          "CPI and CPM require different denominators \u2014 how did your pipeline enforce that distinction at the ad-set level when aggregating across Chadhava, AIG, and Mantra in a single query?",
+          "Your dashboard served three teams with likely different reporting cadences \u2014 how did you handle a scenario where one team's on-demand refresh pulled incomplete data for the current day?",
+          "The executive dashboard showed daily impressions, transactions, and conversions together \u2014 what was the grain of the underlying table, and how did you avoid double-counting transactions that touched multiple campaign touchpoints?",
+          "You defined inactivity for the reactivation dashboard \u2014 what business input shaped that threshold, and did the definition change after the first campaign ran against that segment?"
+        ]
+      },
+      {
+        "label": "Computer Vision Benchmarking For Highway Vehicle Detection At Iit Hyderabad",
+        "focus_key": "vehicle_detection_benchmarking_computer_vision_for",
+        "anchor_context": "Benchmarked blob tracking, YOLO+SORT, and optical flow across 400+ highway frames comparing error rates, computational complexity, and deployment suitability for an MCVL publication.",
+        "sub_focuses": [
+          "comparative methodology and error metric definitions across three heuristic approaches",
+          "YOLO with SORT integration and implementation scope owned by candidate"
+        ],
+        "resume_snippets": [
+          "Benchmarked three heuristic methods \u2014 blob tracking, YOLO with SORT, and optical flow \u2014 comparing error rates, computational complexity, and suitability for large-scale deployment",
+          "Processed and analyzed 400+ frames of highway road systems using OpenCV, Python, and Tkinter to evaluate road boundary conditions"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "comparative_error_metric_definitions",
+          "yolo_sort_integration_scope",
+          "optical_flow_applicability",
+          "road_boundary_evaluation"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Publication forces candidate to defend specific experimental design choices, error metric definitions, and why one metho",
+        "opener": "At IIT Hyderabad, you benchmarked blob tracking, YOLO+SORT, and optical flow on the same 400 highway frames \u2014 blob tracking and YOLO+SORT tend to diverge most on dense traffic frames; was that true in your data, and how did it affect your deployment recommendation?",
+        "dimensions": [
+          {
+            "id": "comparative_error_metric_definitions",
+            "label": "Error Metric Definitions Across Three Methods",
+            "resume_anchor": "Benchmarked three heuristic methods \u2014 blob tracking, YOLO with SORT, and optical flow \u2014 comparing error rates, computational complexity, and suitability for large-scale deployment",
+            "surface": "For each of the three methods you benchmarked, what specific numeric error metric did you record \u2014 and was the same metric used across all three, or did each method get a different one?",
+            "mechanism": "When blob tracking and optical flow produce different error rate numbers on the same frames, what does that difference actually tell you about the method versus the scene conditions \u2014 and how did you separate those two causes in your analysis?",
+            "boundary": "In your 400-frame dataset, what was the frame range or traffic condition where the error rate gap between your best and worst method was largest, and what scene property drove that gap?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "yolo_sort_integration_scope",
+            "label": "YOLO+SORT Integration and Implementation Scope",
+            "resume_anchor": "Benchmarked three heuristic methods \u2014 blob tracking, YOLO with SORT, and optical flow \u2014 comparing error rates, computational complexity, and suitability for large-scale deployment",
+            "surface": "In your YOLO+SORT pipeline, what did SORT specifically contribute that YOLO alone did not \u2014 and at what point in the frame sequence did SORT's output become the input you actually evaluated?",
+            "mechanism": "SORT assigns track IDs using IoU-based Hungarian matching \u2014 on highway frames where two vehicles pass close together, how did that matching behave and what did it do to your tracked-identity continuity metric?",
+            "boundary": "When a vehicle partially exits the frame boundary in your highway footage, SORT's Kalman prediction continues the track briefly \u2014 did that predicted position get counted in your error calculation, and how did you handle that boundary case in your evaluation code?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "optical_flow_applicability",
+            "label": "Optical Flow Configuration and Vehicle Motion Scale",
+            "resume_anchor": "Benchmarked three heuristic methods \u2014 blob tracking, YOLO with SORT, and optical flow \u2014 comparing error rates, computational complexity, and suitability for large-scale deployment",
+            "surface": "On your highway frames, what was the approximate inter-frame pixel displacement of a vehicle traveling at highway speed, and how did that compare to the search window you configured for optical flow?",
+            "mechanism": "Optical flow assigns motion vectors to every pixel \u2014 what was your method for aggregating those per-pixel vectors into a single vehicle-level motion estimate, and how did background road texture affect that aggregation?",
+            "boundary": "On frames where two vehicles had overlapping motion vectors due to proximity, how did your optical flow implementation distinguish their individual trajectories \u2014 and what did that failure mode cost you in your error rate comparison against YOLO+SORT?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "road_boundary_evaluation",
+            "label": "Road Boundary Condition Evaluation With OpenCV",
+            "resume_anchor": "Processed and analyzed 400+ frames of highway road systems using OpenCV, Python, and Tkinter to evaluate road boundary conditions",
+            "surface": "On the 400 highway frames, what was the specific OpenCV operation or parameter threshold you tuned to extract road boundary features \u2014 and how did you validate that threshold held across different lighting conditions in the dataset?",
+            "mechanism": "Road boundary detection feeds into all three benchmarked methods as a constraint \u2014 how did errors in your boundary extraction propagate differently into blob tracking versus optical flow results?",
+            "boundary": "When road boundary markings were occluded or absent in a frame segment, what did your pipeline do \u2014 and how many of your 400 frames had that condition, and did you exclude or handle them differently in the final benchmark comparison?",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned error rates across three methods \u2014 pick one method and tell me exactly what you were counting as an error in a single frame.",
+          "honest_gap": "That's fair \u2014 what part of the benchmark are you most confident you own end-to-end, and walk me through just that piece in concrete terms.",
+          "claim_conflict": "Your resume says you compared error rates across all three methods, but your answer didn't include a number or a defined metric for even one \u2014 what was actually being measured?",
+          "metric_risk": "You cited an error rate \u2014 what was the denominator: total frames, total vehicle detections, or total track-frame pairs, and how did that choice affect which method looked best?",
+          "overclaim_risk": "You used the term SORT in your resume \u2014 in your actual implementation, what did SORT's output look like at the code level, and what did you pass into your evaluation script from it?",
+          "bridge": "That gives me a good picture of the benchmarking work. Let's shift to Daily Mantra \u2014 specifically the Retention And Conversion Experimentation On Daily Mantra Zero-To-One Product, where you took the product from no analytics infrastructure to running live experiments."
+        },
+        "candidate_q4_options": [
+          "Your publication was accepted for oral presentation at CoMSO 2024 \u2014 which of the three methods' results generated the most pushback during review, and what was the specific objection?",
+          "Across your 400-frame benchmark, computational complexity was one comparison axis \u2014 what unit did you use to measure it, and did processing time scale linearly with frame count for all three methods?",
+          "Your deployment suitability conclusion favored one method for large-scale use \u2014 what was the single metric that drove that recommendation over the others, and what would have had to change for a different method to win?",
+          "Tkinter is listed alongside OpenCV in your implementation \u2014 what role did Tkinter play in your analysis pipeline, and what would have broken in your evaluation workflow without it?"
+        ]
+      }
+    ],
+    "generated_at": 1778232250.5271,
+    "pending_hydration_focus_keys": [],
+    "generation_strategy": "two_pass_full_resume_reasoning",
+    "pass_1_review": {
+      "stage": "pass_1",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.2,
+      "top_two_score": 7.6,
+      "opener_quality_score": 5.5,
+      "dimension_depth_score": 7.8,
+      "strengths": [
+        "Boundary probes across all three areas require genuine hands-on ownership \u2014 the contamination risk question (ab_experiment_design_causal_attribution), AppsFlyer discrepancy diagnosis (appsflyer_data_pipeline_design), and SORT trajectory behavior under missed detections (yolo_sort_integration) cannot be answered from documentation alone.",
+        "signal_weight 3.0 dimensions are tightly anchored to specific resume numbers (25%\u219242% retention, 20\u21925 minute reporting, blob vs YOLO error rates) rather than generic topic templates.",
+        "Recovery overlays are complete and cover all five required failure modes across every focus area, with specific artifact references (e.g., 'Mantra Track End' event, CAC denominator)."
+      ],
+      "issues": [
+        "All three openers use 'walk me through' phrasing \u2014 none forces an immediate analytical position or hypothesis. This is the primary reason opener_quality_score is penalized; a single causal challenge framing would push the map above 8.0.",
+        "Focus area 1 surface probes are partially answerable without real ownership: 'what did you define as control and treatment' for Videos/Today can be reconstructed from the resume bullet alone; it needs to name a specific schema property or Mixpanel event parameter to require actual hands-on memory.",
+        "The decision_speed_measurement dimension (signal_weight 2.0) in focus area 2 has a surface probe ('what were you actually measuring') that is unanswerable even by the candidate if the metric was informal \u2014 this is a dead-end probe rather than a depth escalator; it should be restructured as a methodology challenge."
+      ],
+      "repair_instructions": [
+        "Replace all three 'walk me through' openers with causal challenge openers. Example for focus 1: 'At Daily Mantra, you ran Videos, Today, and AI Guruji experiments on overlapping user cohorts \u2014 what was your method for preventing those experiments from contaminating each other's retention attribution?' Example for focus 2: 'You cut reporting from 20 to under 5 minutes for three product teams \u2014 what was the specific bottleneck in the old workflow that your automation actually eliminated?' Example for focus 3: 'You benchmarked three methods on the same 400 frames \u2014 blob tracking and YOLO+SORT tend to diverge most on dense traffic frames; was that true in your data, and how did it affect your deployment recommendation?'",
+        "In focus area 1, ab_experiment_design_causal_attribution surface probe: add specificity by naming a schema artifact \u2014 'What property on the Videos experiment event told Mixpanel which variant a user was in, and how was that assignment persisted across sessions?' This requires actual implementation memory, not resume reading.",
+        "In focus area 2, restructure decision_speed_measurement: replace the surface probe with 'The 30% decision speed claim \u2014 was that a direct measurement or a stakeholder estimate, and what would it take to verify it today?' and elevate the mechanism to 'If it was an estimate, what behavioral change in the business team were you using as a proxy?' This converts a dead-end probe into a methodology integrity challenge.",
+        "In focus area 3, optical_flow_applicability boundary probe is strong but the surface probe ('how did you restrict it to vehicle motion') is answerable from any OpenCV optical flow tutorial. Replace with: 'On your highway frames, what was the approximate inter-frame displacement of a vehicle traveling at highway speed, and how did that compare to the search window you configured for optical flow?'"
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "daily_mantra_experimentation_and_analytics_retention",
+          "label": "Retention And Conversion Experimentation Via A/B Testing And Event Infrastructure",
+          "score": 7.5,
+          "issues": [
+            "Surface probe on ab_experiment_design_causal_attribution ('what did you define as control and treatment') is reconstructable from the resume bullet without hands-on ownership.",
+            "event_schema_design_zero_to_one mechanism probe is strong, but the boundary probe on schema versioning would benefit from naming a specific event property change to make it unanswerable without real ownership."
+          ]
+        },
+        {
+          "focus_key": "appsflyer_dashboard_automation_dashboards_and_automated",
+          "label": "Dashboards And Automated Reporting Infrastructure",
+          "score": 7.2,
+          "issues": [
+            "decision_speed_measurement surface probe is a dead-end: if the 30% was informal, the candidate cannot answer it and the probe collapses. Needs restructuring as a methodology integrity challenge.",
+            "reactivation_dashboard_targeting_logic (signal_weight 1.5) is the weakest dimension \u2014 boundary probe is specific but the overall dimension adds limited signal about the candidate's analytical depth given the low-complexity nature of the task."
+          ]
+        },
+        {
+          "focus_key": "vehicle_detection_benchmarking_computer_vision_for",
+          "label": "Computer Vision Benchmarking For Vehicle Motion Detection On Highway Footage",
+          "score": 6.8,
+          "issues": [
+            "optical_flow_applicability surface probe ('how did you restrict it to vehicle motion') is answerable from OpenCV documentation without any hands-on experience.",
+            "road_boundary_evaluation dimension (signal_weight 2.0) boundary probe is the strongest in the dimension but the surface probe ('what visual features were you extracting') is answerable from any lane detection tutorial \u2014 needs a specific frame count or parameter from the actual dataset."
+          ]
+        }
+      ]
+    },
+    "quality_review": {
+      "stage": "pass_1_repair",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.8,
+      "top_two_score": 8.1,
+      "opener_quality_score": 8.2,
+      "dimension_depth_score": 7.4,
+      "strengths": [
+        "All three openers force an immediate analytical position rather than inviting narrative \u2014 the contamination question, the bottleneck question, and the dense-traffic divergence hypothesis are genuinely hypothesis-style anchors tied to specific resume claims.",
+        "Signal-weight 3.0 dimensions in areas 1 and 2 have boundary probes that require artifact-level knowledge (mid-funnel orphan events, ad-set normalization across three campaign structures) that cannot be answered from documentation alone.",
+        "Recovery overlays are complete across all five probe types in every focus area, with concrete resume-anchored short-answer prompts that would immediately surface a candidate who is padding."
+      ],
+      "issues": [
+        "Area 2 dimension 'executive_dashboard_data_model': the mechanism probe ('If it was an estimate, what specific behavioral change...') is a dangling follow-up that presupposes the surface answer \u2014 it reads as a continuation fragment, not a standalone probe, and will confuse the interviewer mid-session.",
+        "Area 3 dimension 'road_boundary_evaluation' (signal_weight 2.0): the boundary probe conflates two separate questions (how many frames had occlusion AND how did you handle them) \u2014 a candidate can sidestep the harder half by answering only the count, and the probe is partially answerable from the paper's methods section if published.",
+        "Area 1 dimension 'trial_period_reduction_conversion_lever': the boundary probe asks about separating confounds from simultaneous product changes, which is valid, but the surface probe ('what was the denominator') is answerable by anyone who has read a basic conversion-rate primer \u2014 it does not require any ownership of this specific rollout."
+      ],
+      "repair_instructions": [
+        "Area 2 'executive_dashboard_data_model' \u2014 collapse surface and mechanism into one coherent sequence: surface should ask the data model grain directly ('what was the row-level grain of the underlying table the executive dashboard read from, and how did you join impressions to transactions given they come from different systems?'), then mechanism asks about reconciliation when numbers conflicted, then boundary asks who owned resolution and what that revealed about source-of-truth gaps between teams. Remove the dangling 'If it was an estimate' fragment entirely.",
+        "Area 3 'road_boundary_evaluation' \u2014 split the boundary probe into a single sharp question: 'In your 400-frame set, how many frames had occluded or absent road markings, and for those frames specifically, did you include or exclude them from the final benchmark table in the paper \u2014 and what would have changed in your method ranking if you'd done the opposite?' This forces the candidate to defend a specific methodological choice rather than just report a count.",
+        "Area 1 'trial_period_reduction_conversion_lever' surface probe \u2014 replace 'what was the denominator' with: 'When you set up the trial-reduction experiment in Mixpanel, which event marked the start of the conversion window for the 1-day cohort versus the 7-day cohort, and were those events the same event name or different ones?' This requires hands-on schema knowledge rather than general analytics literacy.",
+        "Area 2 'reactivation_dashboard_user_segmentation' boundary probe is the strongest in that dimension but signal_weight is only 2.0 \u2014 consider elevating it to 2.5 and adding a mechanism probe that asks: 'After the first reactivation campaign ran, how did you measure whether the dashboard's segment had actually identified genuinely churned users versus users who were simply in a low-activity window \u2014 and did the campaign results cause you to revise the inactivity threshold?' This grounds the mechanism probe in a specific post-deployment feedback loop only an owner would know."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "daily_mantra_experimentation_retention_and_conversion",
+          "label": "Retention And Conversion Experimentation On Daily Mantra Zero-To-One Product",
+          "score": 8.2,
+          "issues": [
+            "Surface probe on 'trial_period_reduction_conversion_lever' (denominator question) is answerable from any conversion-rate tutorial without owning this rollout \u2014 replace with a Mixpanel event-name question as noted in repair instructions.",
+            "candidate_q4_options include a retention-definition question that partially duplicates the metric_risk recovery probe \u2014 consider replacing with a question about how the AI Guruji experiment differed instrumentally from Videos and Today, since it is named on the resume but absent from the dimensions."
+          ]
+        },
+        {
+          "focus_key": "appsflyer_dashboard_automation_and_executive_infrastructure",
+          "label": "Automation And Executive Dashboard Infrastructure At Appsforbharat",
+          "score": 7.4,
+          "issues": [
+            "'executive_dashboard_data_model' mechanism probe is a dangling fragment \u2014 must be repaired per repair instruction 1.",
+            "The 30% decision-speed claim is surfaced in the dimension but the mechanism probe redirects immediately to behavioral proxy rather than first establishing whether the candidate can even define what was measured \u2014 the surface probe should do that work before the mechanism probe speculates about proxies."
+          ]
+        },
+        {
+          "focus_key": "vehicle_detection_benchmarking_computer_vision_for",
+          "label": "Computer Vision Benchmarking For Highway Vehicle Detection At Iit Hyderabad",
+          "score": 7.6,
+          "issues": [
+            "'road_boundary_evaluation' boundary probe is split across two questions allowing selective answering \u2014 repair per instruction 2.",
+            "The Tkinter candidate_q4_option is the strongest lateral probe in this area and should be promoted to a dimension surface probe, since Tkinter in a CV pipeline is unusual and its role (annotation UI? playback?) is a genuine ownership signal that no dimension currently covers."
+          ]
+        }
+      ]
+    },
+    "generation_notes": ""
+  },
+  "interview_map_status": "ready",
+  "interview_map_error": "",
+  "interview_map_validation": {
+    "ready": true,
+    "errors": [],
+    "warnings": [],
+    "focus_count": 3,
+    "llm_focus_count": 3,
+    "rich_focus_count": 3,
+    "priority_llm_ready_count": 3,
+    "pending_focus_keys": [],
+    "focus_reports": [
+      {
+        "label": "Retention And Conversion Experimentation On Daily Mantra Zero-To-One Product",
+        "focus_key": "daily_mantra_experimentation_retention_and_conversion",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "Automation And Executive Dashboard Infrastructure At Appsforbharat",
+        "focus_key": "appsflyer_dashboard_automation_and_executive_infrastructure",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "Computer Vision Benchmarking For Highway Vehicle Detection At Iit Hyderabad",
+        "focus_key": "vehicle_detection_benchmarking_computer_vision_for",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "interview_map_prepared_at": 1778232250.541516,
+  "candidate_state": {
+    "disengagement_level": 0.0,
+    "consecutive_no_content": 0,
+    "explicit_skip_count": 0,
+    "social_deflection_count": 0,
+    "incoherence_count": 0,
+    "communication_mode": "simplified",
+    "topic_fatigue": {},
+    "topic_question_counts": {},
+    "forced_exit_triggered": false,
+    "phase": "orientation",
+    "anchor_confidence": "medium",
+    "implementation_anchor": "They stored user mobile numbers and module types as properties in their tracking system to segment users into different experiments (e.g., users ending in 5 got one experiment variant, users ending in 7 got another).",
+    "second_domain_surfaced": null,
+    "_communication_mode_checked": true
+  },
+  "coverage_map": {
+    "application_question": "Imagine your PM comes to you tomorrow and says: 'We're launching Daily Mantra in Southeast Asia \u2014 same app, but now we have users across Indonesia, Thailand, and the Philippines, and our growth team wants to run experiments simultaneously across all three markets. The method you built where you segmented users by mobile number ending digits worked well for a single market, but we're worried it might not hold up here.' How would you redesign the experiment assignment system to support multi-market experimentation without the segments bleeding into each other?",
+    "implementation_anchor": "They stored user mobile numbers and module types as properties in their tracking system to segment users into different experiments (e.g., users ending in 5 got one experiment variant, users ending in 7 got another).",
+    "coverage_score": 0.0,
+    "coverage_confidence": 0.72,
+    "total_weight": 11.0,
+    "dimensions": [
+      {
+        "id": "segment_isolation",
+        "label": "Experiment Isolation Across Markets",
+        "description": "Tests whether the candidate understands that the same digit-based bucketing applied globally could cause users from different markets to land in the same bucket, contaminating experiment results \u2014 and how to structurally prevent this.",
+        "expected_approaches": [
+          "Add market/country as a compound key alongside the digit bucket (e.g., segment = country + last digit)",
+          "Assign each market its own independent experiment namespace or flag in the tracking system",
+          "Use a centralized experiment config layer that maps market + user property to a variant, keeping market logic separate"
+        ],
+        "surfacing_question": "If Indonesia and the Philippines are both running different experiments at the same time using the same digit-based logic, what could go wrong with your results?",
+        "weight": 3.0,
+        "coverage_state": "not_evaluated",
+        "candidate_response": "so based on their phone number module means last digit of their phone number decide the that particular user have to comes under which which which experiment test so if suppose i said we are running a guruji experiment for five five users five means the user mobile number stands with five so and we're having the base cohort as four so four is a control cohort so here we don't run any experiment to compare the experiment cohort and this control cohort we'll decide that that particular experiment ",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "mobile_number_reliability",
+        "label": "Mobile Number as Segment Key \u2014 Validity Assumption",
+        "description": "Tests whether the candidate recognizes that mobile number formats, country codes, and digit distributions may differ across Southeast Asian markets, making last-digit bucketing uneven or unreliable as a splitting mechanism.",
+        "expected_approaches": [
+          "Use a hashed user ID instead of mobile number for more uniform random distribution",
+          "Validate digit distribution per market before using it as a bucketing signal",
+          "Switch to a purpose-built experiment assignment system (e.g., a feature flag tool) that handles randomization properly"
+        ],
+        "surfacing_question": "Mobile numbers in different countries can have different formats and length conventions \u2014 how confident are you that the last-digit split would give you equally sized groups in Thailand vs. Indonesia?",
+        "weight": 2.5,
+        "coverage_state": "not_evaluated",
+        "candidate_response": "so based on their phone number module means last digit of their phone number decide the that particular user have to comes under which which which experiment test so if suppose i said we are running a guruji experiment for five five users five means the user mobile number stands with five so and we're having the base cohort as four so four is a control cohort so here we don't run any experiment to compare the experiment cohort and this control cohort we'll decide that that particular experiment ",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "metric_localization",
+        "label": "Defining Success Metrics Per Market",
+        "description": "Tests whether the candidate understands that the metrics they optimized domestically (Mantra Track End, trial-to-subscription conversion) may need to be re-evaluated or re-baselined per market given different user behaviors and monetization norms.",
+        "expected_approaches": [
+          "Establish market-specific baselines before running experiments rather than applying the global 27%\u219242% benchmark",
+          "Identify if the same core events (e.g., Mantra Track End) are meaningful proxies in new markets or if new events need to be defined",
+          "Work with the PM to define a primary metric per market experiment before launch"
+        ],
+        "surfacing_question": "The conversion rate you improved domestically went from 27% to 42% \u2014 how would you decide what a 'good' result looks like when you have no historical data for a new market?",
+        "weight": 2.0,
+        "coverage_state": "missed",
+        "candidate_response": "so based on their phone number module means last digit of their phone number decide the that particular user have to comes under which which which experiment test so if suppose i said we are running a guruji experiment for five five users five means the user mobile number stands with five so and we're having the base cohort as four so four is a control cohort so here we don't run any experiment to compare the experiment cohort and this control cohort we'll decide that that particular experiment ",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "experiment_governance",
+        "label": "Preventing Experiment Collisions",
+        "description": "Tests whether the candidate can reason about what happens when multiple experiments run simultaneously \u2014 across markets or within a single market \u2014 and how to ensure a user isn't in conflicting variants at the same time.",
+        "expected_approaches": [
+          "Maintain an experiment registry or log that shows which user properties are in use per active experiment",
+          "Define mutual exclusion rules so a user can only be enrolled in one experiment at a time per feature area",
+          "Introduce experiment priority tiers so market-level experiments don't override product-level experiments silently"
+        ],
+        "surfacing_question": "If your growth team runs a pricing experiment in Indonesia at the same time your product team runs a content experiment globally, what happens to a user who qualifies for both?",
+        "weight": 2.0,
+        "coverage_state": "missed",
+        "candidate_response": "so based on their phone number module means last digit of their phone number decide the that particular user have to comes under which which which experiment test so if suppose i said we are running a guruji experiment for five five users five means the user mobile number stands with five so and we're having the base cohort as four so four is a control cohort so here we don't run any experiment to compare the experiment cohort and this control cohort we'll decide that that particular experiment ",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "tracking_system_scalability",
+        "label": "Scaling the Tracking Architecture",
+        "description": "Tests whether the candidate can connect their hands-on experience defining analytics event tracking to what would need to change in the tracking schema to support multi-market attribution \u2014 e.g., adding market as a dimension, ensuring AppsFlyer dashboards segment correctly.",
+        "expected_approaches": [
+          "Add a 'market' or 'region' property to all core events in the tracking schema so every event is attributable to a market",
+          "Extend the AppsFlyer dashboard automation they built to include market-level filters and breakdowns",
+          "Ensure experiment variant assignment is captured as an event property so post-hoc analysis can slice by market \u00d7 variant"
+        ],
+        "surfacing_question": "When you look at your analytics dashboard three weeks after launch, how would you tell apart whether a drop in Mantra Track End completions is happening in Indonesia specifically versus across all markets?",
+        "weight": 1.5,
+        "coverage_state": "missed",
+        "candidate_response": "so based on their phone number module means last digit of their phone number decide the that particular user have to comes under which which which experiment test so if suppose i said we are running a guruji experiment for five five users five means the user mobile number stands with five so and we're having the base cohort as four so four is a control cohort so here we don't run any experiment to compare the experiment cohort and this control cohort we'll decide that that particular experiment ",
+        "surfacing_attempted": true
+      }
+    ]
+  },
+  "application_question_served": true,
+  "_last_coverage_dim_id": null,
+  "_last_coverage_recovery_depth": null
+}

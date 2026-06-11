@@ -110,6 +110,7 @@ export class InterviewSession {
   private recentAiTextNorm = "";
   private recentAiEndedAt: number | null = null;
   private activeTurnId = "";
+  private inputFrozen = false;
 
   // Barge-in VAD duration tracking
   private bargeInVadStart: number | null = null;
@@ -128,9 +129,13 @@ export class InterviewSession {
   onFinal: (
     text: string,
     entities: string[],
-    metadata?: { reason: "utterance_end" | "safety_timeout"; forced: boolean },
+    metadata?: {
+      reason: "utterance_end" | "safety_timeout";
+      forced: boolean;
+      floorBeforeFlush?: FloorState;
+    },
   ) => void = () => {};
-  onBargeIn: () => void = () => {};
+  onBargeIn: (initialText?: string) => void = () => {};
   onSilence: () => void = () => {};
   onFloorChange: (state: FloorState) => void = () => {};
   onError: (err: string) => void = () => {};
@@ -145,6 +150,18 @@ export class InterviewSession {
 
   public getActiveTurnId(): string {
     return this.activeTurnId;
+  }
+
+  public setInputFrozen(frozen: boolean) {
+    this.inputFrozen = frozen;
+    if (!frozen) return;
+    this.bargeInVadStart = null;
+    this.utteranceBuffer = [];
+    this.entityBuffer.clear();
+    if (this.utteranceFlushTimer) {
+      clearTimeout(this.utteranceFlushTimer);
+      this.utteranceFlushTimer = null;
+    }
   }
 
   public transition(newState: FloorState) {
@@ -211,6 +228,11 @@ export class InterviewSession {
     this.dgConnection.on(LiveTranscriptionEvents.Transcript, async (data) => {
       const text = data?.channel?.alternatives?.[0]?.transcript ?? "";
 
+      if (this.inputFrozen) {
+        this.bargeInVadStart = null;
+        return;
+      }
+
       if (text && this.isLikelyAiEcho(text)) {
         this.bargeInVadStart = null;
         return;
@@ -250,7 +272,7 @@ export class InterviewSession {
             this.currentAbortController?.abort();
             this.currentAbortController = null;
             this.transition(FloorState.USER_SPEAKING);
-            this.onBargeIn();
+            this.onBargeIn(text);
             return;
           }
         } else {
@@ -416,6 +438,7 @@ export class InterviewSession {
   private _flushUtterance(reason: "utterance_end" | "safety_timeout", forced = false) {
     const fullText = this.utteranceBuffer.join(" ").trim();
     const entities = [...this.entityBuffer];
+    const floorBeforeFlush = this.floor;
     this.utteranceBuffer = [];
     this.entityBuffer.clear();
 
@@ -431,7 +454,7 @@ export class InterviewSession {
         entities_count: entities.length,
       });
       this.transition(FloorState.AI_THINKING);
-      this.onFinal(fullText, entities, { reason, forced });
+      this.onFinal(fullText, entities, { reason, forced, floorBeforeFlush });
     } else if (this.floor === FloorState.USER_SPEAKING || this.floor === FloorState.AI_THINKING) {
       // Empty buffer on UtteranceEnd: candidate is confirmed done.
       // USER_SPEAKING → genuine silence nudge path.
@@ -500,6 +523,12 @@ export class InterviewSession {
     this.currentAbortController = ac;
   }
 
+  public abortActivePlayback() {
+    this.currentAbortController?.abort();
+    this.currentAbortController = null;
+    this.setActivePlaybackText(null);
+  }
+
   private sendPartialTranscript(transcript: string, entities: string[], isFinal: boolean) {
     const cleaned = transcript.trim();
     if (!cleaned) return;
@@ -544,6 +573,10 @@ export async function processTurn(
   transcript: string,
   entities: string[] = [],
   turnId = "",
+  options: {
+    revisionOfTurnId?: string;
+    revisionQuestion?: string;
+  } = {},
 ) {
   const startedAt = performance.now();
   const res = await fetchWithTimeout(`${API}/process_turn`, {
@@ -554,6 +587,8 @@ export async function processTurn(
       transcript,
       entities,
       turn_id: turnId,
+      revision_of_turn_id: options.revisionOfTurnId || "",
+      revision_question: options.revisionQuestion || "",
     }),
   }, PROCESS_TURN_TIMEOUT_MS);
   if (!res.ok) {
@@ -658,9 +693,11 @@ export async function playAudioUrl(
   url: string | null,
   text: string,
   signal?: AbortSignal,
+  options: { revokeObjectUrl?: boolean } = {},
 ): Promise<void> {
   if (!url) return speakWithBrowser(text, signal);
 
+  const shouldRevokeObjectUrl = options.revokeObjectUrl ?? true;
   const audio = new Audio(url);
   audio.preload = "auto";
   const startedAt = performance.now();
@@ -668,7 +705,7 @@ export async function playAudioUrl(
   return new Promise((resolve) => {
     let started = false;
     const onEnded = () => {
-      URL.revokeObjectURL(url);
+      if (shouldRevokeObjectUrl) URL.revokeObjectURL(url);
       signal?.removeEventListener("abort", onAbort);
       trackInterviewEvent("system", "frontend_audio_playback_done", {
         text_chars: text.length,
@@ -701,7 +738,7 @@ export async function playAudioUrl(
 
       audio.play().catch((err) => {
         console.warn("[Audio] Provider playback failed, falling back to browser TTS:", err);
-        if (url) URL.revokeObjectURL(url);
+        if (url && shouldRevokeObjectUrl) URL.revokeObjectURL(url);
         signal?.removeEventListener("abort", onAbort);
         trackInterviewEvent("system", "frontend_audio_playback_fallback", {
           text_chars: text.length,

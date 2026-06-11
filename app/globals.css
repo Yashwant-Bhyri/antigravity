@@ -19,6 +19,9 @@
   --ag-red: oklch(0.66 0.21 24);
   --ag-shadow: 0 20px 80px oklch(0.02 0.01 260 / 0.45);
   --ag-mono: var(--font-geist-mono), "SFMono-Regular", ui-monospace, monospace;
+  --ag-phase-primary: var(--ag-blue);
+  --ag-phase-secondary: oklch(0.74 0.22 196);
+  --ag-phase-tertiary: oklch(0.72 0.24 292);
 }
 
 @theme inline {
@@ -85,6 +88,7 @@ select {
 .ag-shell {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .ag-shell::after {
@@ -95,6 +99,257 @@ select {
   background:
     linear-gradient(120deg, transparent 0%, oklch(0.95 0 0 / 0.015) 20%, transparent 35%),
     linear-gradient(180deg, transparent 0%, oklch(0 0 0 / 0.12) 100%);
+}
+
+.ag-neural-shell {
+  --ag-phase-primary: oklch(0.58 0.18 258);
+  --ag-phase-secondary: oklch(0.68 0.2 204);
+  --ag-phase-tertiary: oklch(0.65 0.22 292);
+}
+
+.ag-neural-shell[data-phase="listening"] {
+  --ag-phase-primary: oklch(0.82 0.2 196);
+  --ag-phase-secondary: oklch(0.65 0.22 226);
+  --ag-phase-tertiary: oklch(0.74 0.2 178);
+}
+
+.ag-neural-shell[data-phase="thinking"] {
+  --ag-phase-primary: oklch(0.82 0.18 68);
+  --ag-phase-secondary: oklch(0.6 0.22 292);
+  --ag-phase-tertiary: oklch(0.52 0.2 252);
+}
+
+.ag-neural-shell[data-phase="speaking"] {
+  --ag-phase-primary: oklch(0.7 0.28 258);
+  --ag-phase-secondary: oklch(0.78 0.26 326);
+  --ag-phase-tertiary: oklch(0.84 0.2 196);
+}
+
+.ag-neural-field {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ag-neural-blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(74px) saturate(145%);
+  opacity: 0.56;
+  transform: translateZ(0);
+  transition: opacity 900ms ease, background 900ms ease, filter 900ms ease;
+  will-change: transform, opacity;
+}
+
+.ag-neural-blob-a {
+  width: 58vw;
+  height: 58vw;
+  left: -18vw;
+  top: -22vw;
+  background: radial-gradient(circle, color-mix(in oklch, var(--ag-phase-primary) 68%, transparent), transparent 62%);
+  animation: agAuroraDriftA 22s ease-in-out infinite alternate;
+}
+
+.ag-neural-blob-b {
+  width: 56vw;
+  height: 56vw;
+  right: -20vw;
+  bottom: -24vw;
+  background: radial-gradient(circle, color-mix(in oklch, var(--ag-phase-secondary) 58%, transparent), transparent 64%);
+  animation: agAuroraDriftB 27s ease-in-out infinite alternate;
+}
+
+.ag-neural-blob-c {
+  width: 42vw;
+  height: 42vw;
+  left: 28vw;
+  top: 8vh;
+  opacity: 0.36;
+  background: radial-gradient(circle, color-mix(in oklch, var(--ag-phase-tertiary) 52%, transparent), transparent 66%);
+  animation: agAuroraDriftC 19s ease-in-out infinite alternate;
+}
+
+.ag-neural-shell[data-phase="listening"] .ag-neural-blob,
+.ag-neural-shell[data-phase="speaking"] .ag-neural-blob {
+  opacity: 0.72;
+  filter: blur(88px) saturate(165%);
+}
+
+.ag-neural-shell[data-phase="thinking"] .ag-neural-blob {
+  opacity: 0.62;
+}
+
+.ag-edge-aura {
+  position: absolute;
+  inset: 0;
+  opacity: 0.46;
+  mix-blend-mode: screen;
+  transition: opacity 700ms ease;
+}
+
+.ag-edge-aura::before,
+.ag-edge-aura::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.ag-edge-aura::before {
+  background:
+    linear-gradient(to bottom, color-mix(in oklch, var(--ag-phase-primary) 34%, transparent), transparent 24%),
+    linear-gradient(to top, color-mix(in oklch, var(--ag-phase-secondary) 24%, transparent), transparent 24%);
+}
+
+.ag-edge-aura::after {
+  background:
+    linear-gradient(to right, color-mix(in oklch, var(--ag-phase-tertiary) 20%, transparent), transparent 24%),
+    linear-gradient(to left, color-mix(in oklch, var(--ag-phase-primary) 20%, transparent), transparent 24%);
+}
+
+.ag-neural-shell[data-phase="speaking"] .ag-edge-aura {
+  opacity: 0.72;
+  animation: agGlowFast 1.3s ease-in-out infinite;
+}
+
+.ag-neural-shell[data-phase="listening"] .ag-edge-aura {
+  opacity: 0.58;
+  animation: agGlowBreathe 2.8s ease-in-out infinite;
+}
+
+.ag-gemini-paths {
+  position: absolute;
+  inset: 0;
+  opacity: 0.78;
+  mix-blend-mode: screen;
+}
+
+.ag-gemini-guide,
+.ag-gemini-comet {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.ag-gemini-guide {
+  stroke: color-mix(in oklch, var(--ag-phase-primary) 36%, transparent);
+  stroke-width: 1;
+  opacity: 0.18;
+}
+
+.ag-gemini-comet {
+  stroke: url("#agCometGradient");
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 90 1320;
+  opacity: 0;
+}
+
+.ag-neural-shell[data-phase="listening"] .ag-gemini-comet {
+  opacity: 0.95;
+  animation: agPathIn 3.8s ease-in-out infinite;
+}
+
+.ag-neural-shell[data-phase="speaking"] .ag-gemini-comet {
+  opacity: 0.95;
+  animation: agPathOut 2.45s ease-in-out infinite;
+}
+
+.ag-neural-shell[data-phase="thinking"] .ag-gemini-comet {
+  opacity: 0.4;
+  stroke-dasharray: 56 1360;
+  animation: agPathIn 7s ease-in-out infinite;
+}
+
+.ag-gemini-comet:nth-of-type(8) { animation-delay: 0.45s; }
+.ag-gemini-comet:nth-of-type(9) { animation-delay: 0.9s; }
+.ag-gemini-comet:nth-of-type(10) { animation-delay: 1.35s; }
+.ag-gemini-comet:nth-of-type(11) { animation-delay: 1.8s; }
+.ag-gemini-comet:nth-of-type(12) { animation-delay: 2.25s; }
+
+.ag-interface-layer {
+  position: relative;
+  z-index: 2;
+}
+
+.ag-orb-stage {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.ag-orb-stage::before {
+  content: "";
+  position: absolute;
+  inset: -28%;
+  z-index: 0;
+  background:
+    radial-gradient(24rem 18rem at 50% 48%, color-mix(in oklch, var(--ag-phase-primary) 28%, transparent), transparent 62%),
+    radial-gradient(18rem 12rem at 72% 22%, color-mix(in oklch, var(--ag-phase-secondary) 18%, transparent), transparent 65%);
+  filter: blur(18px);
+  opacity: 0.78;
+  transition: opacity 700ms ease, background 700ms ease;
+}
+
+.ag-orb-stage::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: 0;
+  background:
+    linear-gradient(112deg, transparent 22%, color-mix(in oklch, var(--ag-phase-primary) 24%, transparent) 42%, transparent 62%);
+  opacity: 0;
+  transform: translateX(-18%);
+}
+
+.ag-orb-stage[data-phase="thinking"]::after {
+  opacity: 0.8;
+  animation: agThinkSweep 2.8s ease-in-out infinite;
+}
+
+.ag-active-turn {
+  position: relative;
+  overflow: hidden;
+}
+
+.ag-active-turn::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    color-mix(in oklch, var(--ag-phase-primary) 68%, transparent) 24%,
+    color-mix(in oklch, var(--ag-phase-secondary) 62%, transparent) 46%,
+    transparent 72%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: agBorderBeam 3.6s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ag-active-turn::after {
+  content: "";
+  position: absolute;
+  inset: -30% auto auto -16%;
+  width: 18rem;
+  height: 12rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklch, var(--ag-phase-primary) 22%, transparent), transparent 66%);
+  filter: blur(24px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ag-phase-text {
+  color: var(--ag-phase-primary);
+  text-shadow: 0 0 28px color-mix(in oklch, var(--ag-phase-primary) 40%, transparent);
 }
 
 .ag-card {
@@ -123,6 +378,51 @@ select {
   100% {
     height: 36px;
   }
+}
+
+@keyframes agAuroraDriftA {
+  from { transform: translate3d(-2%, 1%, 0) scale(1); }
+  to { transform: translate3d(5%, -3%, 0) scale(1.08); }
+}
+
+@keyframes agAuroraDriftB {
+  from { transform: translate3d(3%, -1%, 0) scale(1); }
+  to { transform: translate3d(-4%, 4%, 0) scale(1.07); }
+}
+
+@keyframes agAuroraDriftC {
+  from { transform: translate3d(0, 0, 0) scale(0.96); }
+  to { transform: translate3d(-3%, -5%, 0) scale(1.12); }
+}
+
+@keyframes agGlowBreathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.72; }
+}
+
+@keyframes agGlowFast {
+  0%, 100% { opacity: 0.58; }
+  50% { opacity: 0.86; }
+}
+
+@keyframes agPathIn {
+  from { stroke-dashoffset: 1320; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes agPathOut {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -1320; }
+}
+
+@keyframes agThinkSweep {
+  0%, 100% { transform: translateX(-16%) rotate(-3deg); opacity: 0.48; }
+  50% { transform: translateX(16%) rotate(3deg); opacity: 0.92; }
+}
+
+@keyframes agBorderBeam {
+  from { transform: translateX(-60%); }
+  to { transform: translateX(60%); }
 }
 
 @keyframes agBounce {
@@ -165,5 +465,16 @@ select {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-neural-blob,
+  .ag-edge-aura,
+  .ag-gemini-comet,
+  .ag-orb-stage::after,
+  .ag-active-turn::before,
+  .ag-active-turn::after {
+    animation: none !important;
   }
 }

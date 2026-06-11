@@ -1,0 +1,431 @@
+{
+  "session_id": "405b4943-f4cd-4370-88dc-b2722d630b55",
+  "current_sprint": 1,
+  "current_persona": "curious_lead",
+  "sprint_name": "Project Defense",
+  "question_count": 0,
+  "sprint_question_count": 0,
+  "interview_start_time": null,
+  "interview_started": false,
+  "interview_complete": false,
+  "finalization_status": "idle",
+  "finalization_error": "",
+  "report_ready": false,
+  "resume": "Languages : C++, Golang, SQL, Javascript, HTML, CSS\nFrameworks : React , Node.js, Express.js, React-Native, Expo\nDeveloper Tools : Docker, VS Code, GoLand, Android Studio, Firebase, TablePlus, Postman, GitHub, Bitbucket, Jira\nDatabases/Caching : PostgreSQL, Redis, PgAdmin 4, Medis\nCloud/Devops : AWS(CloudWatch, ElastiCache, ECS, API Gateway), Grafana, BitBucket Pipelines, Mixpanel\nDevelopment Practices : Clean Architecture, SOLID Principles, Interface-Based Design, Dependency Injection,\nTest-Driven Development (TDD), Error Handling & Logging\nExperience\nAppsForBharat | Golang, React, Docker, Postgres, Redis, AWS, Grafana, Mixpanel May 2025 \u2013 Present\nSoftware Developer Bangalore, India\n\u2022 Built and scaled Golang microservices for Puja, Chadhava, Astrology, Wallet, and Temple domains, serving\n10M+ global users; designed RESTful APIs with PostgreSQL, Redis caching, async workers, and clean\narchitecture to ensure high availability and low latency.\n\u2022 Architected and owned a scalable Content Management System (CMS) for pre-order operations,\nimplementing fine-grained RBAC and optimized maker\u2013checker workflows; simplified approval flows, reduced ops\nturnaround time, improved analytics visibility, and integrated LLM automation.\n\u2022 Optimized backend performance and developer productivity by enhancing Redis caching strategies,\nconcurrency-safe shared utilities, and CI/CD pipelines; achieved 40% faster data access, improved\ndeployment reliability, and increased automated test coverage to 90%.\n\u2022 Improved LLM-driven systems by optimizing prompt flows for Dify-based chatbots, reducing response latency\nand improving answer quality; deployed and monitored services using AWS (ECS, AppConfig, CloudWatch)\nand Grafana for metrics, logging, and performance analysis.",
+  "parsed_resume": {
+    "skills": [],
+    "tools": [
+      "Developer Tools : Docker",
+      "VS Code",
+      "GoLand",
+      "Android Studio",
+      "Firebase",
+      "TablePlus",
+      "Postman",
+      "GitHub",
+      "Bitbucket",
+      "Jira",
+      "Cloud",
+      "Devops : AWS(CloudWatch",
+      "ElastiCache",
+      "ECS",
+      "API Gateway)"
+    ],
+    "projects": [],
+    "claims": [
+      {
+        "text": "Built and scaled Golang microservices for Puja, Chadhava, Astrology, Wallet, and Temple domains, serving",
+        "project": "",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Architected and owned a scalable Content Management System (CMS) for pre-order operations,",
+        "project": "",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Optimized backend performance and developer productivity by enhancing Redis caching strategies,",
+        "project": "",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Improved LLM-driven systems by optimizing prompt flows for Dify-based chatbots, reducing response latency",
+        "project": "",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      }
+    ],
+    "experiences": [],
+    "experience": {
+      "ml": 0,
+      "swe": 0,
+      "data_eng": 0
+    },
+    "experience_tier": "junior"
+  },
+  "github_links": [],
+  "target_role": "Backend",
+  "years_experience": "0-1",
+  "prior_assessment_context": {},
+  "prior_assessment_prompt": "",
+  "skills": [],
+  "scores": {},
+  "weaknesses": [],
+  "history": [],
+  "failure_surface": {},
+  "final_evaluation": null,
+  "last_question": "Hey, thanks so much for coming in \u2014 really glad to have you here. Let's start easy. Just give me a quick intro about yourself \u2014 who you are, what you've been up to lately, whatever feels natural.",
+  "consecutive_high_weakness_count": 0,
+  "last_weakness_type": null,
+  "current_question_followups": [],
+  "current_question_followup_asked": false,
+  "active_question_packet": {
+    "question_text": "Hey, thanks so much for coming in \u2014 really glad to have you here. Let's start easy. Just give me a quick intro about yourself \u2014 who you are, what you've been up to lately, whatever feels natural.",
+    "route_kind": "sprint_opener",
+    "sprint": 1,
+    "focus_key": "general",
+    "focus_label": "general background",
+    "followups": [],
+    "asked_followup_count": 0,
+    "max_followups": 0,
+    "pivoting": false,
+    "weakness": null,
+    "discrepancy": null,
+    "source_turn_number": 0
+  },
+  "prepped_next_packet": {},
+  "candidate_model": {
+    "project_map": {},
+    "established_facts": [],
+    "probed_weaknesses": []
+  },
+  "prepped_next_question": null,
+  "prepped_next_question_turn_number": 0,
+  "prepped_next_context": {},
+  "prepped_turn_queue": [],
+  "speculative_cache": {},
+  "current_answer_turn_id": "",
+  "current_answer_question": "",
+  "current_answer_response": "",
+  "current_answer_context": {},
+  "current_answer_turn_number": 0,
+  "current_answer_version": 0,
+  "latest_turn_versions": {},
+  "interview_trajectory_map": {
+    "focus_areas": [
+      {
+        "label": "Golang Microservices Platform At Scale",
+        "focus_key": "golang_microservices_platform",
+        "anchor_context": "Built and scaled Golang microservices across Puja, Chadhava, Astrology, Wallet, and Temple domains serving 10M+ global users with Redis caching and async workers.",
+        "sub_focuses": [
+          "Redis caching strategy and 40% latency improvement claim",
+          "async worker architecture and concurrency-safe utilities",
+          "CI/CD pipeline changes and 90% test coverage achievement",
+          "RBAC and maker-checker workflow design in CMS"
+        ],
+        "resume_snippets": [
+          "designed RESTful APIs with PostgreSQL, Redis caching, async workers, and clean architecture to ensure high availability and low latency",
+          "achieved 40% faster data access, improved deployment reliability, and increased automated test coverage to 90%"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "redis_caching_latency_claim",
+          "async_worker_concurrency_safety",
+          "cicd_test_coverage_achievement",
+          "rbac_maker_checker_workflow"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Multiple concrete metrics (10M users, 40% latency, 90% coverage) across a complex multi-domain system \u2014 every claim has",
+        "opener": "Your Redis caching change produced 40% faster data access across domains serving 10M users at AppsForBharat \u2014 what was your p95 latency on the slowest domain before that change, and what was your target?",
+        "dimensions": [
+          {
+            "id": "redis_caching_latency_claim",
+            "label": "Redis Caching Strategy and 40% Latency Claim",
+            "resume_anchor": "achieved 40% faster data access; designed RESTful APIs with PostgreSQL, Redis caching",
+            "surface": "Name the specific Redis key pattern you used for one of the five domains \u2014 Puja, Chadhava, Astrology, Wallet, or Temple \u2014 and tell me what the TTL was on that key.",
+            "mechanism": "The 40% improvement is a relative number \u2014 what was the baseline p95 before your caching changes, how did you measure it, and which domain showed the least improvement and why?",
+            "boundary": "If a cache miss on the Wallet domain happens mid-transaction under concurrent writes \u2014 what does your code do to prevent a stale read from reaching the client, and where specifically did you implement that guard?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "async_worker_concurrency_safety",
+            "label": "Async Worker Architecture and Concurrency-Safe Utilities",
+            "resume_anchor": "async workers and clean architecture to ensure high availability and low latency; concurrency-safe shared utilities",
+            "surface": "For one of your async workers \u2014 which domain was it in, and what triggered it: a queue message, a cron, or a webhook?",
+            "mechanism": "What specific shared utility did you make concurrency-safe, what was the race condition it had before, and how did you verify the fix didn't introduce a deadlock?",
+            "boundary": "If your async worker for one domain falls behind and the queue depth grows \u2014 at what point does that backpressure affect the synchronous API path, and what did you build to detect or limit that?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "cicd_test_coverage_achievement",
+            "label": "CI/CD Pipeline Changes and 90% Test Coverage",
+            "resume_anchor": "achieved 40% faster data access, improved deployment reliability, and increased automated test coverage to 90%; CI/CD pipelines",
+            "surface": "What specifically did you change in Bitbucket Pipelines to improve deployment reliability \u2014 name the stage or config you modified and what it did before versus after.",
+            "mechanism": "90% test coverage is the outcome \u2014 what was the baseline percentage before your changes, why was 90% the target and not 80% or 95%, and what category of tests drove the largest increase?",
+            "boundary": "At 90% coverage across microservices for five domains \u2014 which domain was hardest to cover and what did you leave deliberately uncovered, and what was your justification for not covering it?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "rbac_maker_checker_workflow",
+            "label": "RBAC and Maker-Checker Workflow Design in CMS",
+            "resume_anchor": "implementing fine-grained RBAC and optimized maker-checker workflows; simplified approval flows, reduced ops turnaround time",
+            "surface": "In your CMS RBAC model \u2014 how many distinct roles did you implement, and what was the permission boundary between the maker role and the checker role at the data level?",
+            "mechanism": "Fine-grained RBAC across pre-order operations \u2014 when two users share overlapping permissions and one submits for approval, what enforces that the checker cannot be the same user, and where does that constraint live in your code?",
+            "boundary": "If the approval workflow needs to be extended to a three-step chain \u2014 maker, checker, approver \u2014 what breaks in your current schema and what would you have to migrate?",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "Let's anchor to the Wallet domain specifically \u2014 name one Redis key it writes and tell me its TTL.",
+          "honest_gap": "Fair enough \u2014 tell me which part of this system you do own end-to-end, and give me the most technically complex decision you made inside it.",
+          "claim_conflict": "Your resume says you achieved 40% faster data access, but you can't give me the before latency number \u2014 help me understand what you're measuring 40% against.",
+          "metric_risk": "40% faster is the output \u2014 what tool produced that number, what was the denominator, and was it measured in production traffic or a load test?",
+          "overclaim_risk": "You used the term concurrency-safe \u2014 in your specific implementation, what does that protect against, and what Go primitive or pattern did you use to enforce it?",
+          "bridge": "That gives me enough signal on the microservices platform. Let's move to LLM Integration And Dify-Based Chatbot Optimization \u2014 you claimed reduced response latency through prompt flow optimization, and I want to understand what the actual bottleneck was."
+        },
+        "candidate_q4_options": [
+          "Across five domains serving 10M users, you used a single PostgreSQL instance or multiple \u2014 and what determined the sharding or isolation boundary between the Wallet domain and the others?",
+          "Your clean architecture claim means your domain logic is decoupled from infrastructure \u2014 give me one concrete example of a place where that boundary leaked under delivery pressure and what you did about it.",
+          "The Wallet domain is latency-sensitive and consistency-sensitive \u2014 what was your cache invalidation strategy there specifically, and what did you accept as a known inconsistency window?",
+          "You measured improved deployment reliability after CI/CD changes \u2014 what was the specific metric you used to define reliability, and what was the number before and after?"
+        ]
+      },
+      {
+        "label": "LLM Integration And Dify-Based Chatbot Optimization",
+        "focus_key": "llm_dify_chatbot_optimization_integration_and",
+        "anchor_context": "Optimized prompt flows for Dify-based chatbots to reduce response latency and improve answer quality, with deployment via AWS ECS and monitoring via CloudWatch and Grafana.",
+        "sub_focuses": [
+          "Dify prompt flow design and latency reduction",
+          "LLM automation integration into CMS pre-order ops",
+          "AWS ECS and AppConfig deployment ownership"
+        ],
+        "resume_snippets": [
+          "optimizing prompt flows for Dify-based chatbots, reducing response latency and improving answer quality",
+          "integrated LLM automation"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "dify_prompt_flow_latency",
+          "llm_answer_quality_measurement",
+          "llm_cms_integration",
+          "aws_ecs_appconfig_deployment"
+        ],
+        "fallback_branches": [],
+        "why_priority": "LLM prompt engineering combined with production deployment is a distinct technical territory \u2014 defensible claims about w",
+        "opener": "At AppsForBharat, you optimized Dify-based prompt flows to reduce response latency \u2014 was the bottleneck in the prompt context size, the number of nodes in the flow, or the LLM inference call itself, and how do you know?",
+        "dimensions": [
+          {
+            "id": "dify_prompt_flow_latency",
+            "label": "Dify prompt flow design and latency reduction",
+            "resume_anchor": "optimizing prompt flows for Dify-based chatbots, reducing response latency and improving answer quality",
+            "surface": "In your Dify flow, what was the trigger condition that initiated the prompt and what was the exact data format passed into the first LLM node?",
+            "mechanism": "You reduced response latency in the Dify flow \u2014 which specific change in the prompt structure or node configuration produced the largest drop, and what made you confident it wasn't a confounding factor?",
+            "boundary": "In your Dify flow, when the LLM node returned a malformed or out-of-schema response mid-flow, what did the downstream node actually receive and how did you handle that without surfacing a raw error to the user?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "llm_answer_quality_measurement",
+            "label": "Answer quality measurement and signal definition",
+            "resume_anchor": "optimizing prompt flows for Dify-based chatbots, reducing response latency and improving answer quality",
+            "surface": "You claimed improved answer quality \u2014 what was the concrete signal you used to measure quality, and how was that signal collected?",
+            "mechanism": "Answer quality is subjective unless operationalized \u2014 what specific property of the LLM output did you define as a quality metric, and how did you separate a quality regression from a latency regression in your data?",
+            "boundary": "If the LLM output passed your quality check at evaluation time but users still escalated or abandoned the chatbot flow, what instrumentation would have caught that gap, and did you have it?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "llm_cms_integration",
+            "label": "LLM automation integration into CMS pre-order ops",
+            "resume_anchor": "integrated LLM automation",
+            "surface": "In the CMS pre-order workflow, what was the exact trigger condition that handed off a task to the LLM, and what was the data format of the output the LLM returned into the maker-checker flow?",
+            "mechanism": "You integrated LLM automation into a maker-checker workflow \u2014 how did you design the LLM's output to be verifiable by the checker without the checker needing to re-derive the LLM's reasoning from scratch?",
+            "boundary": "When the LLM produced a confident but incorrect output inside the pre-order CMS flow, what was the blast radius \u2014 how many downstream records or ops steps were affected before the checker caught it, and what guardrail did you build after seeing that happen?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "aws_ecs_appconfig_deployment",
+            "label": "AWS ECS and AppConfig deployment ownership",
+            "resume_anchor": "deployed and monitored services using AWS (ECS, AppConfig, CloudWatch)",
+            "surface": "For the Dify-based chatbot service on ECS, what did you configure at the task definition level to control how the container behaved when the LLM upstream was slow or unresponsive?",
+            "mechanism": "You used AppConfig alongside ECS for this service \u2014 what specifically did you store in AppConfig versus hardcode in the container, and what was the operational reason for that split?",
+            "boundary": "What is the exact CloudWatch metric name or log filter pattern you used to detect LLM response quality degradation \u2014 not latency, quality \u2014 and how did you define the threshold that triggered an alert?",
+            "signal_weight": 2.5
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned the Dify flow specifically \u2014 name one node in that flow and tell me what input it received and what it passed forward.",
+          "honest_gap": "That's fair \u2014 set aside the Dify internals for a moment. Tell me what you do own end-to-end in this integration: what's the one piece you could debug at 2am without looking anything up?",
+          "claim_conflict": "Your resume says you reduced response latency and improved answer quality \u2014 but you haven't been able to name the specific change that drove either. Help me understand what you actually changed versus what a teammate owned.",
+          "metric_risk": "You said latency was reduced \u2014 what was the p50 or p95 before the change, what was it after, and how was that measured: synthetic tests, production traces, or something else?",
+          "overclaim_risk": "You used the term 'prompt flow optimization' \u2014 in your specific Dify implementation, what does a flow node actually execute and what did you change inside one to affect latency?",
+          "bridge": "Let's move to the infrastructure side of your work. You built Golang microservices at AppsForBharat serving 10M+ users across Puja, Chadhava, and other domains \u2014 I want to get into the Golang Microservices Platform At Scale and specifically the Redis caching and concurrency decisions you made there."
+        },
+        "candidate_q4_options": [
+          "In your Dify flow, what was the maximum prompt context size you allowed before it started degrading latency meaningfully, and how did you determine that threshold?",
+          "The LLM automation you integrated into the CMS was handling pre-order operations \u2014 what happened to in-flight maker-checker tasks during an LLM service outage, and how did you design for that?",
+          "You deployed the chatbot service on ECS \u2014 when you pushed a prompt flow change, what was the rollout mechanism and how did you detect a regression before it hit the full user base?",
+          "Between reducing response latency and improving answer quality in the Dify flow, which required more iteration and why \u2014 what made one harder to move than the other?"
+        ]
+      }
+    ],
+    "generated_at": 1778257792.317017,
+    "pending_hydration_focus_keys": [],
+    "generation_strategy": "two_pass_full_resume_reasoning",
+    "pass_1_review": {
+      "stage": "pass_1",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.2,
+      "top_two_score": 7.2,
+      "opener_quality_score": 6.5,
+      "dimension_depth_score": 7.8,
+      "strengths": [
+        "Dimension boundary probes are genuinely ownership-gating \u2014 the race condition in Wallet balances, the mid-execution worker crash, and the AppConfig blast-radius question all require hands-on experience to answer credibly.",
+        "Recovery overlay is complete and well-differentiated: metric_risk probes force methodology disclosure (p50/p95, tool, baseline), overclaim_risk probes force precise Go primitive or Dify node naming, and short_answer forces a single concrete artifact.",
+        "signal_weight 3.0 assignments are correctly placed on the highest-evidence claims (Redis 40% metric, Dify prompt flow latency), ensuring the interview front-loads the hardest verification work."
+      ],
+      "issues": [
+        "Both openers invite narrative ('what was the hardest problem', 'what was the core problem and what made it hard') rather than forcing an immediate analytical position \u2014 neither enters causal_validity or metric_definition as the first move, which drops opener_quality below threshold for a score above 8.",
+        "golang_microservices_platform surface probe for redis_caching_latency_claim ('For which of the five domains did the change have the largest impact') is answerable from documentation or a prepared talking point \u2014 it doesn't require ownership because any team member who heard the post-mortem could answer it.",
+        "llm_dify_chatbot_optimization dimension cloudwatch_grafana_observability is the weakest by signal_weight (2.0) and its surface probe ('what metrics in Grafana vs CloudWatch and why') is answerable by anyone who read the Grafana/CloudWatch docs \u2014 it adds little verification value and risks burning interview time on generic observability discussion."
+      ],
+      "repair_instructions": [
+        "golang_microservices_platform opener: Replace with a causal challenge that forces an immediate position \u2014 e.g., 'Your Redis caching change produced 40% faster data access across domains serving 10M users \u2014 before you explain how you got there, tell me what your p95 latency was on the slowest domain before the change and what your target was.' This anchors to the metric claim and forces the candidate to either state a real number or reveal they don't own it.",
+        "llm_dify_chatbot_optimization opener: Replace with a hypothesis-forcing opener \u2014 e.g., 'You say you reduced response latency by optimizing prompt flows in Dify \u2014 was the bottleneck in the prompt context size, the number of nodes in the flow, or the LLM inference call itself, and how do you know?' This forces an analytical position in the first sentence rather than inviting a story.",
+        "redis_caching_latency_claim surface probe: Change from 'which domain had the largest impact' to 'Name the specific Redis key pattern you used for one domain and tell me what the TTL was \u2014 not the general strategy, the actual key and TTL.' This is unanswerable without having written the code.",
+        "cloudwatch_grafana_observability: Either elevate this dimension by making the boundary probe name a specific Grafana panel or CloudWatch metric name the candidate would only know if they built it ('What was the exact metric name you emitted to CloudWatch for LLM response quality \u2014 not latency, quality \u2014 and how did you define it?'), or replace the dimension entirely with a dimension on answer quality measurement, which the candidate_q4_options already identify as a higher-signal gap ('how did you measure answer quality as a concrete signal')."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "golang_microservices_platform",
+          "label": "Golang Microservices Platform At Scale",
+          "score": 7.4,
+          "issues": [
+            "redis_caching_latency_claim surface probe is answerable from a team standup or post-mortem attendance \u2014 asking 'which domain' doesn't require code ownership.",
+            "cicd_test_coverage surface probe ('what did you specifically change in Bitbucket Pipelines') is the right instinct but mechanism probe should push harder on why 90% was chosen as the target and what the baseline was \u2014 without that, the candidate can describe any plausible pipeline change without being verified."
+          ]
+        },
+        {
+          "focus_key": "llm_dify_chatbot_optimization_integration_and",
+          "label": "LLM Integration And Dify-Based Chatbot Optimization",
+          "score": 7.0,
+          "issues": [
+            "cloudwatch_grafana_observability surface and mechanism probes are answerable from AWS/Grafana documentation \u2014 they test tool knowledge rather than ownership of this specific service's instrumentation.",
+            "llm_cms_integration mechanism probe ('how did you design the LLM output to be verifiable for a checker') is strong but the surface probe ('what specific task did the LLM take over') could be made harder by asking for the exact trigger condition and the data format of the LLM's output, not just the task category."
+          ]
+        }
+      ]
+    },
+    "quality_review": {
+      "stage": "pass_1_repair",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.8,
+      "top_two_score": 7.8,
+      "opener_quality_score": 8.2,
+      "dimension_depth_score": 7.4,
+      "strengths": [
+        "Both openers force an immediate analytical position \u2014 the Redis opener demands a specific p95 number and target, the Dify opener forces a causal diagnosis of the bottleneck \u2014 neither is a narrative invite.",
+        "signal_weight 3.0 dimensions are grounded in specific resume artifacts (40% latency, Dify nodes, LLM-CMS handoff) and boundary probes consistently require hands-on ownership to answer.",
+        "Recovery overlays are complete and well-differentiated \u2014 metric_risk, overclaim_risk, and claim_conflict probes are distinct and operationally useful."
+      ],
+      "issues": [
+        "Area 1 dimension 'cicd_test_coverage_achievement' (signal_weight 2.5): the surface probe ('name the stage or config you modified') is answerable by anyone who has read Bitbucket Pipelines documentation \u2014 it does not require ownership of this specific pipeline.",
+        "Area 2 dimension 'aws_ecs_appconfig_deployment' boundary probe asks for a CloudWatch metric name or log filter pattern for LLM quality degradation \u2014 this is strong, but the surface probe ('what did you configure at the task definition level') is generic ECS knowledge, not anchored to this specific service's observable behavior.",
+        "Area 2 dimension 'llm_answer_quality_measurement' mechanism probe ('what specific property of the LLM output did you define as a quality metric') is the right question but lacks a forcing constraint \u2014 a candidate can give a plausible-sounding answer without having actually operationalized it; needs a sharper falsifiability hook."
+      ],
+      "repair_instructions": [
+        "Area 1 / cicd_test_coverage_achievement / surface: Replace 'name the stage or config you modified' with 'In your Bitbucket Pipeline for the Wallet or Puja service \u2014 name the specific job that was failing or flaky before your changes and what the failure rate was' \u2014 this forces recall of a specific artifact, not generic pipeline knowledge.",
+        "Area 2 / aws_ecs_appconfig_deployment / surface: Replace the generic task-definition question with 'For the ECS task running the Dify chatbot \u2014 what was the health-check command and what timeout did you set, and what made you choose that value over the default?' \u2014 this is observable only if the candidate configured it personally.",
+        "Area 2 / llm_answer_quality_measurement / mechanism: Add a falsifiability constraint \u2014 'You defined a quality metric: give me the exact value or threshold that would have triggered a rollback, and name the first time in production that threshold was actually crossed and what you did.' This prevents a candidate from describing a plausible measurement framework they never actually ran.",
+        "Area 2 bridge (recovery): The current bridge loops back to Area 1 (Golang microservices), which works if Area 2 is explored first \u2014 but the map runs Area 1 first. Swap the bridge in Area 1's recovery to point forward to LLM Integration, and update Area 2's bridge to close cleanly rather than loop backward."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "golang_microservices_platform",
+          "label": "Golang Microservices Platform At Scale",
+          "score": 8.0,
+          "issues": [
+            "cicd_test_coverage_achievement surface probe is answerable from documentation \u2014 see repair instruction.",
+            "rbac_maker_checker_workflow boundary probe (three-step chain migration) is strong but slightly disconnected from the mechanism probe above it \u2014 the dimension would flow more cleanly if the mechanism asked about the current schema structure before the boundary asks what breaks when it changes."
+          ]
+        },
+        {
+          "focus_key": "llm_dify_chatbot_optimization_integration_and",
+          "label": "LLM Integration And Dify-Based Chatbot Optimization",
+          "score": 7.5,
+          "issues": [
+            "llm_answer_quality_measurement mechanism lacks a falsifiability anchor \u2014 candidate can answer plausibly without having operationalized the metric in production.",
+            "aws_ecs_appconfig_deployment surface probe is generic ECS knowledge \u2014 see repair instruction.",
+            "Recovery bridge points backward to Area 1 which has already been covered \u2014 needs to close the interview, not loop."
+          ]
+        }
+      ]
+    },
+    "generation_notes": ""
+  },
+  "interview_map_status": "ready",
+  "interview_map_error": "",
+  "interview_map_validation": {
+    "ready": true,
+    "errors": [],
+    "warnings": [],
+    "focus_count": 2,
+    "llm_focus_count": 2,
+    "rich_focus_count": 2,
+    "priority_llm_ready_count": 2,
+    "pending_focus_keys": [],
+    "focus_reports": [
+      {
+        "label": "Golang Microservices Platform At Scale",
+        "focus_key": "golang_microservices_platform",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "LLM Integration And Dify-Based Chatbot Optimization",
+        "focus_key": "llm_dify_chatbot_optimization_integration_and",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "interview_map_prepared_at": 1778257792.3190365,
+  "candidate_state": {
+    "disengagement_level": 0.0,
+    "consecutive_no_content": 0,
+    "explicit_skip_count": 0,
+    "social_deflection_count": 0,
+    "incoherence_count": 0,
+    "communication_mode": "normal",
+    "topic_fatigue": {},
+    "topic_question_counts": {},
+    "forced_exit_triggered": false,
+    "phase": "orientation",
+    "anchor_confidence": null,
+    "implementation_anchor": null,
+    "second_domain_surfaced": null
+  }
+}

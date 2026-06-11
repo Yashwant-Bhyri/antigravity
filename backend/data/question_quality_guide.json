@@ -91,7 +91,18 @@
       "examples": [
         "What specific SQL script did you reuse?",
         "Which event property did you add later?",
+        "Which specific debugger or tool did you run?",
+        "What was the main tool you used most for this work?",
+        "What file format did your telemetry use to store that payload?",
         "What was the file name?"
+      ]
+    },
+    "low_signal_ownership_recall": {
+      "description": "Asks for org-chart, tool, or deployment ownership recall instead of the candidate's boundary, reasoning, or consequence.",
+      "examples": [
+        "Which team owned production dbt deployments?",
+        "Who managed the Metabase deployment?",
+        "Which platform team handled this?"
       ]
     },
     "generic_framework": {

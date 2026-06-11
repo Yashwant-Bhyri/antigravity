@@ -622,6 +622,18 @@ def _is_close_route(route_kind: object) -> bool:
     return str(route_kind or "") in {"synthesis_close", "graceful_exit", "complete"}
 
 
+def _application_transfer_served(state: dict | None) -> bool:
+    if not isinstance(state, dict):
+        return False
+    if bool(state.get("application_question_served")):
+        return True
+    for turn in state.get("history", []) or []:
+        route = str(turn.get("route_kind") or turn.get("answered_route_kind") or "").strip()
+        if route == "application_transfer":
+            return True
+    return False
+
+
 def _question_already_asked(candidate: str, history: list[dict], window: int = 15) -> bool:
     """
     Returns True if this exact question text was already served in this session.
@@ -1037,6 +1049,7 @@ def _third_surface_question_is_usable(result: dict, history: list[dict], *, turn
         "self_rating_certainty",
         "bad_synthesis_self_rating",
         "low_signal_implementation_recall",
+        "low_signal_ownership_recall",
         "low_signal_event_property_recall",
         "generic_framework_abstraction",
         "generic_low_context_prompt",
@@ -1461,7 +1474,7 @@ def _application_grounding_needed(state: dict) -> bool:
 
 def _application_grounding_ready(state: dict) -> bool:
     return (
-        not state.get("application_question_served")
+        not _application_transfer_served(state)
         and bool(state.get("prepped_application_question"))
         and bool((state.get("candidate_state") or {}).get("implementation_anchor"))
         and _evidence_question_count(state) >= 3
@@ -1471,7 +1484,7 @@ def _application_grounding_ready(state: dict) -> bool:
 
 def _application_anchor_recovery_ready(state: dict) -> bool:
     return (
-        not state.get("application_question_served")
+        not _application_transfer_served(state)
         and not bool((state.get("candidate_state") or {}).get("implementation_anchor"))
         and _evidence_question_count(state) >= 5
         and not bool(state.get("application_anchor_recovery_served"))
@@ -1514,7 +1527,7 @@ def _counts_toward_evidence_budget(route_kind: object) -> bool:
 
 
 def _application_transfer_ready(state: dict) -> bool:
-    if state.get("application_question_served") or not state.get("prepped_application_question"):
+    if _application_transfer_served(state) or not state.get("prepped_application_question"):
         return False
     candidate_state = state.get("candidate_state") or {}
     if not candidate_state.get("implementation_anchor"):
@@ -1525,7 +1538,7 @@ def _application_transfer_ready(state: dict) -> bool:
 
 
 def _should_prepare_application_transfer(state: dict) -> bool:
-    if state.get("application_question_served") or state.get("prepped_application_question"):
+    if _application_transfer_served(state) or state.get("prepped_application_question"):
         return False
     candidate_state = state.get("candidate_state") or {}
     if candidate_state.get("implementation_anchor"):
@@ -1635,6 +1648,9 @@ def _mark_coverage_depth_probe(state: dict, coverage_map_obj: object, dimension:
 
 def _assessment_coverage(state: dict) -> dict:
     history = state.get("history", []) or []
+    interview_map = state.get("interview_trajectory_map") or {}
+    pending_hydration = list(interview_map.get("pending_hydration_focus_keys") or []) if isinstance(interview_map, dict) else []
+    map_quarantine = list(interview_map.get("map_quarantine") or []) if isinstance(interview_map, dict) else []
     coverage = _coverage_map_progress(state.get("coverage_map"))
     distinct_focuses = distinct_substantive_focus_count(history)
     distinct_surfaces = distinct_substantive_surface_count(history)
@@ -1643,7 +1659,7 @@ def _assessment_coverage(state: dict) -> dict:
     max_streak = max_same_focus_streak(history)
     max_surface_streak = max_same_surface_streak(history)
     focus_ratio = dominant_focus_ratio(history)
-    application_served = bool(state.get("application_question_served"))
+    application_served = _application_transfer_served(state)
     application_arc = _ensure_application_transfer_arc(state)
     min_application_coverage = _minimum_application_coverage_dimensions(state.get("coverage_map"))
     depth_candidate_available = _select_earned_coverage_depth_dimension(state.get("coverage_map"), state) is not None
@@ -1696,6 +1712,12 @@ def _assessment_coverage(state: dict) -> dict:
         "max_same_focus_streak": max_streak,
         "max_same_surface_streak": max_surface_streak,
         "dominant_focus_ratio": focus_ratio,
+        "map_launch_ready": bool(interview_map.get("launch_ready")) if isinstance(interview_map, dict) else False,
+        "full_map_ready": bool(interview_map.get("full_map_ready")) if isinstance(interview_map, dict) else False,
+        "needs_async_hydration": bool(interview_map.get("needs_async_hydration")) if isinstance(interview_map, dict) else False,
+        "pending_hydration_focus_count": len(pending_hydration),
+        "pending_hydration_focus_keys": pending_hydration[:8],
+        "map_quarantine_count": len(map_quarantine),
         "minimum_viable_completion": minimum_viable,
         "full_completion_eligible": full_eligible,
         "history_len": len(history),
@@ -1818,7 +1840,7 @@ def _should_force_focus_ratio_rotation(state: dict, history: list[dict], current
 
 
 def _coverage_route_allowed(state: dict, *, current_focus_key: str = "", current_focus_label: str = "") -> bool:
-    if not state.get("application_question_served") or not isinstance(state.get("coverage_map"), dict):
+    if not _application_transfer_served(state) or not isinstance(state.get("coverage_map"), dict):
         return False
     progress = _coverage_map_progress(state.get("coverage_map"))
     if progress["dimensions"] <= 0:
@@ -2001,7 +2023,7 @@ def _select_agenda_decision(
             "allow_same_focus_probe": False,
         }
 
-    if state.get("application_question_served"):
+    if _application_transfer_served(state):
         if _second_anchor_budget_exhausted(history, ecount):
             if next_visible_turn >= SYNTHESIS_START_FLOOR:
                 return {
@@ -2711,7 +2733,7 @@ class Orchestrator:
             state["assessment_coverage"] = _assessment_coverage(state)
             coverage_ratio = float(state["assessment_coverage"].get("coverage_score") or 0.0)
             if coverage_ratio <= 0:
-                coverage_ratio = 0.25 if state.get("application_question_served") else 0.0
+                coverage_ratio = 0.25 if _application_transfer_served(state) else 0.0
 
             # Aggregate discrepancy_level from history — "confirmed" if any turn had a confirmed conflict
             _has_confirmed_discrepancy = any(
@@ -3210,6 +3232,14 @@ class Orchestrator:
                 anchor_source=anchor_source,
             )
             fresh_state = await self.session_manager.get_state(session_id)
+            if _application_transfer_served(fresh_state):
+                await self._trace(
+                    session_id,
+                    "application_transfer_generation_discarded_after_served",
+                    anchor_source=anchor_source,
+                    dims=len(coverage_map.dimensions),
+                )
+                return
             if not fresh_state.get("interview_complete"):
                 if anchor_source == "resume_focus_fallback":
                     fresh_state.setdefault("candidate_state", {})["implementation_anchor"] = anchor
@@ -3540,7 +3570,7 @@ class Orchestrator:
 
         if (
             state.get("application_transfer_error")
-            and not state.get("application_question_served")
+            and not _application_transfer_served(state)
             and _evidence_question_count(state) >= 5
         ):
             if _application_anchor_recovery_ready(state):
@@ -3563,6 +3593,28 @@ class Orchestrator:
                     "Application transfer failed before the agenda deadline: "
                     f"{str(state.get('application_transfer_error'))[:300]}"
                 )
+        if (
+            not _application_transfer_served(state)
+            and not state.get("prepped_application_question")
+            and _evidence_question_count(state) >= 5
+            and not state.get("application_transfer_floor_recovery_attempted")
+        ):
+            state["application_transfer_floor_recovery_attempted"] = True
+            await self.session_manager.save_state(session_id, state)
+            agenda = ensure_interview_agenda(state)
+            await self._trace(
+                session_id,
+                "application_transfer_floor_recovery_started",
+                evidence_question_count=_evidence_question_count(state),
+                current_focus_key=str(agenda.get("current_focus_key") or ""),
+            )
+            await self._generate_application_transfer(
+                session_id,
+                state,
+                allow_resume_anchor_fallback=True,
+                current_focus_key=str(agenda.get("current_focus_key") or ""),
+            )
+            state = await self.session_manager.get_state(session_id)
         is_turn_revision = bool(turn_id and turn_id == state.get("current_answer_turn_id"))
         current_answer_version = (
             state.get("current_answer_version", 0) + 1
@@ -3808,6 +3860,15 @@ class Orchestrator:
             prepped_context = state.get("prepped_next_context", {})
             prepped_packet = _clone_question_packet(state.get("prepped_next_packet"))
             seed_turn_number = state.get("prepped_next_question_turn_number")
+            application_already_served = _application_transfer_served(state)
+            if str(prepped_context.get("route_kind") or "").strip() == "application_transfer" and application_already_served:
+                prepped_q = None
+                prepped_context = {}
+                prepped_packet = {}
+                state.pop("prepped_next_question", None)
+                state.pop("prepped_next_question_turn_number", None)
+                state.pop("prepped_next_context", None)
+                state.pop("prepped_next_packet", None)
             application_anchor_recovery_q = ""
             if _application_anchor_recovery_ready(state):
                 application_anchor_recovery_q = _application_anchor_recovery_question(current_focus_label)
@@ -3819,7 +3880,7 @@ class Orchestrator:
                 ).strip()
             if (
                 state.get("prepped_application_question")
-                and not state.get("application_question_served")
+                and not application_already_served
                 and _application_transfer_ready(state)
             ):
                 application_q = str(state.get("prepped_application_question") or "").strip()
@@ -3828,7 +3889,7 @@ class Orchestrator:
             coverage_packet_kwargs: dict = {}
             if (
                 answered_route_kind_for_count == "application_transfer"
-                and state.get("application_question_served")
+                and _application_transfer_served(state)
                 and isinstance(state.get("coverage_map"), dict)
                 and _coverage_route_allowed(
                     state,
@@ -4696,9 +4757,35 @@ class Orchestrator:
                         )
                         print(f"[FastTrack] Trajectory map served ({served_route_kind}) for {session_id}")
                     else:
-                        raise RuntimeError(
-                            "No prepared or trajectory-map question available; refusing generic sprint fallback."
-                        )
+                        completion_coverage = _assessment_coverage(state)
+                        history_now = state.get("history", []) or []
+                        if completion_coverage.get("minimum_viable_completion") and len(history_now) >= SECOND_ANCHOR_START_FLOOR:
+                            close_count = _synthesis_close_count(history_now)
+                            fast_response = await self.followup_agent.generate_graceful_close(state, close_count)
+                            served_route_kind = "graceful_exit" if close_count else "synthesis_close"
+                            active_packet = _build_question_packet(
+                                question_text=fast_response,
+                                sprint=sprint,
+                                route_kind=served_route_kind,
+                                parsed_resume=parsed_resume,
+                                resume=resume,
+                                followups=[],
+                                pivoting=True,
+                                source_turn_number=state.get("question_count", 0),
+                            )
+                            await self._trace(
+                                session_id,
+                                "map_exhausted_closed_without_generic_fallback",
+                                turn_id=turn_id,
+                                route_kind=served_route_kind,
+                                history_len=len(history_now),
+                                coverage=completion_coverage,
+                            )
+                            print(f"[FastTrack] Map exhausted; closing without generic fallback for {session_id}")
+                        else:
+                            raise RuntimeError(
+                                "No prepared or trajectory-map question available; refusing generic sprint fallback."
+                            )
 
                     served_weakness = None
                     served_discrepancy = None
@@ -5510,7 +5597,7 @@ class Orchestrator:
                 deep_probe = False
             if agenda_route == "application_transfer_blocked":
                 latest_app_state = await self.session_manager.get_state(session_id)
-                if latest_app_state.get("application_question_served") or latest_app_state.get("interview_complete"):
+                if _application_transfer_served(latest_app_state) or latest_app_state.get("interview_complete"):
                     return
                 if _application_transfer_ready(latest_app_state):
                     state = latest_app_state
@@ -5599,7 +5686,7 @@ class Orchestrator:
             _coverage_question: str | None = None
             _coverage_route_kind: str | None = None
             if (
-                state.get("application_question_served")
+                _application_transfer_served(state)
                 and state.get("coverage_map")
                 and not state.get("_next_route_hint")
                 and agenda_route == "coverage"
@@ -6248,7 +6335,7 @@ class Orchestrator:
             # after the fast path has already served it. Do not let stale work
             # re-stage the same application question; move directly into coverage
             # when an answer coverage map exists.
-            if route_kind == "application_transfer" and state.get("application_question_served"):
+            if route_kind == "application_transfer" and _application_transfer_served(state):
                 if isinstance(state.get("coverage_map"), dict):
                     from backend.models.coverage_map import AnswerCoverageMap as _ACMap
 

@@ -1,0 +1,517 @@
+{
+  "session_id": "a3a1e7b5-c931-437a-a9c8-77b14294856a",
+  "current_sprint": 1,
+  "current_persona": "curious_lead",
+  "sprint_name": "Project Defense",
+  "question_count": 0,
+  "sprint_question_count": 0,
+  "interview_start_time": 1778244222.4921575,
+  "interview_started": true,
+  "interview_complete": true,
+  "finalization_status": "complete",
+  "finalization_error": "",
+  "report_ready": false,
+  "resume": "Muzammil Ali\n+91 6300634181 | muzammilali.cse@gmail.com | linkedin.com/in/muzammil2006 | https://github.com/Muzammil363\nProfessional Summary\nComputer Science candidate at IIIT Sri City (8.62 CGPA) with a 1600+ LeetCode rating. Proficient in Data\nStructures, Algorithms, and Object-Oriented Programming. Experienced in architecting scalable full-stack\nsystems using the MERN stack and WebSockets. Passionate about Diving Deep into complex backend\noptimizations and delivering high-impact solutions as an SDE Intern.\nEducation\nIndian Institute of Information Technology Sri City, Andhra Pradesh\nBachelor of Technology in Computer Science CGPA: 8.62 | Aug. 2023 \u2013 Present\nSri Chaitanya Junior College Narasaraopet, Andhra Pradesh\nIntermediate Percentage: 98.2 | Jun. 2021 \u2013 May 2023\nTechnical Skills\nProgramming Languages: Java, Python, C++, JavaScript (ES6+).\nWeb & Frameworks: Node.js, Express.js, ReactJS, Redux, REST APIs, WebSockets, Redis, BullMQ.\nTools: PostgreSQL, MySQL, MongoDB, Git & GitHub,Postman , Docker, AWS S3\nCS Fundamentals: Data Structures Algorithms (DSA), Operating Systems, DBMS, Computer Networks.\nProjects\nChatApp | ReactJS, Express.js, MongoDB, Node.js\n\u2022 Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency\ncommunication between users.\n\u2022 Optimized message retrieval by implementing cursor-based pagination, reducing server load and improving\nscalability for large datasets.\n\u2022 Architected scalable RESTful APIs with Node.js and JWT authentication to manage secure user sessions and\nprivate data interactions.\n\u2022 Developed a responsive UI in ReactJS, utilizing a modular component architecture for seamless real-time message\nupdates and state management.\nVideoPlayer | ReactJS, Node.js, Redis, BullMQ, AWS S3\n\u2022 Engineered a video streaming platform, integrating Redis and BullMQ job queues to offload CPU-intensive video\ntranscoding to dedicated worker nodes, significantly reducing API latency.\n\u2022 Leveraged HLS for adaptive video streaming, configuring FFmpeg to transcode uploads into multi-bitrate manifest\nfiles (.m3u8) to enable low-latency seeking and dynamic quality switching.\n\u2022 Integrated AWS S3 for scalable video storage and optimized media delivery through chunk-based fetching,\nminimizing initial buffering and ensuring smooth playback for high-resolution content.\nAdVantage | ReactJS,Express.js,MongoDB, Node.js\n\u2022 Architected a full-stack e-commerce platform with Node.js and React, supporting dynamic product listings and\nsecure RESTful APIs.\n\u2022 Developed a seller analytics dashboard to visualize sales and rental trends, utilizing React hooks for efficient state\nmanagement.\nAchievements\nLeetCode: Achieved 1600+ Contest Rating; solved 460+ Data Structures and Algorithms\nproblems.\nAcademics: Secured 98.2 percentile in JEE Mains 2023\nLeadership Activities\nCore Member in Gradient Club IIIT Sri City, Andhra Pradesh\nGradient - Official programming club of IIIT Sri City promoting coding and innovation.",
+  "parsed_resume": {
+    "skills": [
+      "Technical Skills",
+      "Programming Languages: Java",
+      "Python",
+      "C++",
+      "JavaScript (ES6+)"
+    ],
+    "tools": [
+      "+91 6300634181",
+      "muzammilali.cse@gmail.com",
+      "linkedin.com",
+      "in",
+      "muzammil2006",
+      "https",
+      "github.com",
+      "Muzammil363",
+      "Tools: PostgreSQL",
+      "MySQL",
+      "MongoDB",
+      "Git & GitHub",
+      "Postman",
+      "Docker",
+      "AWS S3"
+    ],
+    "projects": [
+      {
+        "name": "gmail.com | linkedin.com/in/muzammil2006 | https://github.com/Muzammil363",
+        "description": "+91 6300634181 | muzammilali.cse",
+        "technologies": [],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      },
+      {
+        "name": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "description": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "technologies": [
+          "Implemented real-time messaging using WebSockets and end-to-end encryption",
+          "Optimized message retrieval by implementing cursor-based pagination",
+          "Architected scalable RESTful APIs with Node.js and JWT authentication to manage secure user sessions and",
+          "Developed a responsive UI in ReactJS",
+          "Engineered a video streaming platform",
+          "integrating Redis and BullMQ job queues to offload CPU-intensive video",
+          "Leveraged HLS for adaptive video streaming",
+          "configuring FFmpeg to transcode uploads into multi-bitrate manifest",
+          "Integrated AWS S3 for scalable video storage and optimized media delivery through chunk-based fetching",
+          "Architected a full-stack e-commerce platform with Node.js and React",
+          "Developed a seller analytics dashboard to visualize sales and rental trends",
+          "utilizing React hooks for efficient state"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      }
+    ],
+    "claims": [
+      {
+        "text": "Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Optimized message retrieval by implementing cursor-based pagination, reducing server load and improving",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Architected scalable RESTful APIs with Node.js and JWT authentication to manage secure user sessions and",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Developed a responsive UI in ReactJS, utilizing a modular component architecture for seamless real-time message",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Engineered a video streaming platform, integrating Redis and BullMQ job queues to offload CPU-intensive video",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Leveraged HLS for adaptive video streaming, configuring FFmpeg to transcode uploads into multi-bitrate manifest",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Integrated AWS S3 for scalable video storage and optimized media delivery through chunk-based fetching,",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Architected a full-stack e-commerce platform with Node.js and React, supporting dynamic product listings and",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Developed a seller analytics dashboard to visualize sales and rental trends, utilizing React hooks for efficient state",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      }
+    ],
+    "experiences": [
+      {
+        "title": "+91 6300634181 | muzammilali.cse",
+        "company": "gmail.com | linkedin.com/in/muzammil2006 | https://github.com/Muzammil363",
+        "duration": "2006 | https://github.com/Muzammil363",
+        "contribution_type": "contributed"
+      },
+      {
+        "title": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "company": "",
+        "duration": "",
+        "contribution_type": "contributed"
+      }
+    ],
+    "experience": {
+      "ml": 0,
+      "swe": 0,
+      "data_eng": 0
+    },
+    "experience_tier": "junior"
+  },
+  "github_links": [
+    "https://github.com/Muzammil363/chatApp"
+  ],
+  "target_role": "Software developer",
+  "years_experience": "0-1",
+  "prior_assessment_context": {},
+  "prior_assessment_prompt": "",
+  "skills": [
+    "Technical Skills",
+    "Programming Languages: Java",
+    "Python",
+    "C++",
+    "JavaScript (ES6+)"
+  ],
+  "scores": {},
+  "weaknesses": [],
+  "history": [],
+  "failure_surface": {},
+  "final_evaluation": null,
+  "last_question": "Hey, thanks so much for coming in \u2014 really glad to have you here. Let's start easy. Just give me a quick intro about yourself \u2014 who you are, what you've been up to lately, whatever feels natural.",
+  "consecutive_high_weakness_count": 0,
+  "last_weakness_type": null,
+  "current_question_followups": [],
+  "current_question_followup_asked": false,
+  "active_question_packet": {
+    "question_text": "Hey, thanks so much for coming in \u2014 really glad to have you here. Let's start easy. Just give me a quick intro about yourself \u2014 who you are, what you've been up to lately, whatever feels natural.",
+    "route_kind": "sprint_opener",
+    "sprint": 1,
+    "focus_key": "general",
+    "focus_label": "general background",
+    "followups": [],
+    "asked_followup_count": 0,
+    "max_followups": 0,
+    "pivoting": false,
+    "weakness": null,
+    "discrepancy": null,
+    "source_turn_number": 0
+  },
+  "candidate_model": {
+    "project_map": {},
+    "established_facts": [],
+    "probed_weaknesses": []
+  },
+  "current_answer_turn_id": "",
+  "current_answer_question": "",
+  "current_answer_response": "",
+  "current_answer_context": {},
+  "current_answer_turn_number": 0,
+  "current_answer_version": 0,
+  "interview_trajectory_map": {
+    "focus_areas": [
+      {
+        "label": "Async Video Transcoding Pipeline With Bullmq And Hls Adaptive Streaming",
+        "focus_key": "video_transcoding_pipeline_async_bullmq_and",
+        "anchor_context": "Engineered a video streaming platform using Redis, BullMQ job queues, FFmpeg, and AWS S3 to offload CPU-intensive transcoding and enable adaptive HLS playback.",
+        "sub_focuses": [
+          "BullMQ job queue architecture and worker node isolation",
+          "FFmpeg multi-bitrate HLS manifest generation",
+          "AWS S3 chunk-based media delivery and buffering tradeoffs"
+        ],
+        "resume_snippets": [
+          "integrating Redis and BullMQ job queues to offload CPU-intensive video transcoding to dedicated worker nodes, significantly reducing API latency",
+          "configuring FFmpeg to transcode uploads into multi-bitrate manifest files (.m3u8) to enable low-latency seeking and dynamic quality switching"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "bullmq_worker_isolation",
+          "ffmpeg_hls_manifest_generation",
+          "s3_chunk_delivery_buffering",
+          "redis_queue_state_durability"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Covers three distinct defensible engineering surfaces \u2014 queue-based async architecture, FFmpeg HLS configuration, and S3",
+        "opener": "In VideoPlayer, you said BullMQ significantly reduced API latency \u2014 before I accept that claim, tell me: what was the latency bottleneck you were solving, and why was moving to a queue the right fix rather than just streaming the FFmpeg process inline?",
+        "dimensions": [
+          {
+            "id": "bullmq_worker_isolation",
+            "label": "BullMQ job queue architecture and worker node isolation",
+            "resume_anchor": "integrating Redis and BullMQ job queues to offload CPU-intensive video transcoding to dedicated worker nodes, significantly reducing API latency",
+            "surface": "When a video upload hits your API, what does the BullMQ job payload look like \u2014 what data does the worker actually receive to start the FFmpeg transcode?",
+            "mechanism": "Your worker node pulls a job from BullMQ and FFmpeg crashes mid-transcode \u2014 what state does BullMQ hold at that moment, and what happens to the job on the next poll?",
+            "boundary": "If two uploads arrive simultaneously and both workers start FFmpeg processes, what limits the number of concurrent transcode jobs, and what breaks first if that limit is not set correctly on your hardware?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "ffmpeg_hls_manifest_generation",
+            "label": "FFmpeg multi-bitrate HLS manifest generation",
+            "resume_anchor": "configuring FFmpeg to transcode uploads into multi-bitrate manifest files (.m3u8) to enable low-latency seeking and dynamic quality switching",
+            "surface": "Your FFmpeg command produces multi-bitrate .m3u8 files \u2014 how many bitrate renditions did you configure, and what resolution and bitrate did you assign to each?",
+            "mechanism": "The master .m3u8 manifest references variant playlists at each bitrate \u2014 tell me exactly what a variant playlist entry looks like and what field the HLS client reads to decide which rendition to switch to next.",
+            "boundary": "A user seeks to the 8-minute mark of a video that was just uploaded and transcoded \u2014 describe what your .m3u8 segment structure looks like at that timestamp and what happens if the segment at that offset is missing from S3.",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "s3_chunk_delivery_buffering",
+            "label": "AWS S3 chunk-based media delivery and buffering tradeoffs",
+            "resume_anchor": "Integrated AWS S3 for scalable video storage and optimized media delivery through chunk-based fetching, minimizing initial buffering and ensuring smooth playback for high-resolution content",
+            "surface": "When a browser requests a video segment from S3, what HTTP mechanism are you using to fetch a chunk rather than the full file, and what does the request header look like?",
+            "mechanism": "You said chunk-based fetching minimizes initial buffering \u2014 what determines the chunk size you chose, and what is the tradeoff between a smaller versus larger chunk size for a user on a fluctuating mobile connection?",
+            "boundary": "Your S3 bucket is private \u2014 walk me through exactly how a browser gets an authorized URL for a .ts segment that was just requested by the HLS player, and what happens if that URL expires while the player is mid-stream.",
+            "signal_weight": 2.0
+          },
+          {
+            "id": "redis_queue_state_durability",
+            "label": "Redis as BullMQ backing store \u2014 durability and failure modes",
+            "resume_anchor": "integrating Redis and BullMQ job queues to offload CPU-intensive video transcoding to dedicated worker nodes, significantly reducing API latency",
+            "surface": "BullMQ uses Redis to persist job state \u2014 tell me what Redis data structure BullMQ writes to when a job is added, and what key it uses to distinguish waiting jobs from completed ones.",
+            "mechanism": "Redis restarts while three transcode jobs are in the active state \u2014 what does BullMQ do with those jobs when Redis comes back up, and what data must be in Redis for that recovery to work correctly?",
+            "boundary": "Your Redis instance runs out of memory while a job is mid-flight \u2014 describe exactly what your application observes at the API layer, at the worker layer, and what the user sees, and what you would change in the configuration to prevent silent job loss.",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned the BullMQ job payload \u2014 give me one specific field name that payload contains and tell me what the worker does with it when it starts FFmpeg.",
+          "honest_gap": "That is fair \u2014 tell me the part of the transcode pipeline you do own end-to-end: what did you personally write versus configure versus wire together?",
+          "claim_conflict": "Your resume says BullMQ significantly reduced API latency, but what you just described sounds like FFmpeg still runs synchronously inside the worker \u2014 if the worker blocks, where exactly does the latency reduction happen for the user uploading the file?",
+          "metric_risk": "You said API latency was significantly reduced \u2014 what was the latency before BullMQ, what was it after, and how did you measure it given the transcode job completes asynchronously?",
+          "overclaim_risk": "You used the term adaptive bitrate \u2014 in your specific .m3u8 setup, what field in which file does the client read to execute a quality switch, and where did you write that field during the FFmpeg step?",
+          "bridge": "Let us move to your ChatApp project \u2014 that work covers Real-Time Encrypted Messaging With Websockets And Cursor-Based Pagination, and I want to dig into how you handled encryption boundaries when messages are persisted in MongoDB."
+        },
+        "candidate_q4_options": [
+          "Your BullMQ worker finishes a transcode and writes the .m3u8 files to S3 \u2014 how does the API know the job is done and the video is safe to serve to the user?",
+          "FFmpeg transcoding is CPU-bound \u2014 tell me how you sized or constrained the worker process so it did not starve the Node.js API process on the same machine.",
+          "Your .m3u8 manifest enables dynamic quality switching \u2014 what signal does the HLS client use to decide to downgrade from the 1080p rendition to the 480p rendition mid-stream?",
+          "You chose BullMQ over a direct child_process FFmpeg call in the API handler \u2014 tell me the specific failure scenario that architecture change protects against."
+        ]
+      },
+      {
+        "label": "Real-Time Encrypted Messaging With Websockets And Cursor-Based Pagination",
+        "focus_key": "realtime_chat_real_time_encrypted_messaging",
+        "anchor_context": "Built a chat application with WebSocket-based real-time messaging, end-to-end encryption, JWT authentication, and cursor-based pagination for scalable message retrieval.",
+        "sub_focuses": [
+          "WebSocket session management and encryption implementation",
+          "Cursor-based pagination design for message retrieval scalability",
+          "JWT authentication and secure session architecture"
+        ],
+        "resume_snippets": [
+          "Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency communication between users",
+          "Optimized message retrieval by implementing cursor-based pagination, reducing server load and improving scalability for large datasets"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "websocket_session_management",
+          "cursor_based_pagination_design",
+          "jwt_authentication_architecture",
+          "e2e_encryption_forward_secrecy"
+        ],
+        "fallback_branches": [],
+        "why_priority": "E2E encryption in a browser-based chat and cursor pagination both require precise implementation decisions the candidate",
+        "opener": "Your ChatApp resume claims end-to-end encryption with messages stored in MongoDB \u2014 tell me exactly what a stored message document looks like and why that is or isn't a security boundary.",
+        "dimensions": [
+          {
+            "id": "websocket_session_management",
+            "label": "WebSocket Session Lifecycle and Encryption Key Exchange",
+            "resume_anchor": "Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency communication between users",
+            "surface": "When a user opens ChatApp and a WebSocket connection is established, what data structure on your server tracks that connection and maps it to a specific user identity?",
+            "mechanism": "Your encryption happens on the client \u2014 how does the recipient's browser get the decryption key for a message that was sent while they were offline, and what in your design prevents the server from reading that message?",
+            "boundary": "If two users are connected through the same WebSocket server instance and one disconnects mid-message-send, what state is now inconsistent on your server and how does your implementation handle that partial delivery?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "cursor_based_pagination_design",
+            "label": "Cursor-Based Pagination for Message Scalability",
+            "resume_anchor": "Optimized message retrieval by implementing cursor-based pagination, reducing server load and improving scalability for large datasets",
+            "surface": "In your cursor-based pagination for ChatApp, what field from a message document did you use as the cursor value, and what MongoDB query operator drives the next-page fetch?",
+            "mechanism": "Cursor-based pagination requires a stable, monotonic field to avoid duplicates across pages \u2014 what property of your message documents guarantees that stability, and what breaks if two messages are inserted with the same cursor value?",
+            "boundary": "A user opens a chat window, loads page one of messages, and a new message arrives via WebSocket before they scroll to load page two \u2014 how does your cursor value account for that insertion, and what does the user actually see?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "jwt_authentication_architecture",
+            "label": "JWT Authentication and Secure Session Architecture",
+            "resume_anchor": "Architected scalable RESTful APIs with Node.js and JWT authentication to manage secure user sessions and private data interactions",
+            "surface": "In ChatApp, where does your server validate the JWT on an incoming WebSocket upgrade request \u2014 at connection time, on every message frame, or somewhere else?",
+            "mechanism": "JWTs are stateless by design, but your ChatApp needs to invalidate a session when a user logs out \u2014 what mechanism in your implementation enforces that invalidation given the token itself hasn't expired?",
+            "boundary": "A JWT your server issued is stolen from a client. Your server has no token blacklist. Walk me through exactly what an attacker can do with that token and what the concrete bound on the damage window is in your current implementation.",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "e2e_encryption_forward_secrecy",
+            "label": "End-to-End Encryption Correctness and Forward Secrecy",
+            "resume_anchor": "Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency communication between users",
+            "surface": "What cryptographic primitive or library did you use in ChatApp to encrypt message content on the sender's client before it hits the WebSocket connection?",
+            "mechanism": "If your server is compromised today and an attacker gets every stored MongoDB message document plus the server's private key, what guarantees \u2014 if any \u2014 does your encryption design give that past messages remain unreadable?",
+            "boundary": "Your end-to-end encryption means the server cannot read message content \u2014 describe what your MongoDB message document's encrypted field looks like, how a new device a user adds later decrypts historical messages, and where that decryption key lives.",
+            "signal_weight": 3.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "You said encryption \u2014 point me to one specific thing: what does the MongoDB document look like for a stored message, and is the content field ciphertext or plaintext?",
+          "honest_gap": "That's fair \u2014 set aside the encryption specifics. Tell me instead how your WebSocket server maps an incoming connection to a logged-in user identity, since that's the foundation everything else rests on.",
+          "claim_conflict": "Your resume says end-to-end encryption, but you just described the server handling message content directly \u2014 those two things are in tension. Which one is actually true in your implementation?",
+          "metric_risk": "You said cursor-based pagination reduced server load \u2014 what was the baseline query time before pagination, how did you measure the improvement, and on what dataset size did you observe that difference?",
+          "overclaim_risk": "You used the term end-to-end encryption \u2014 in your specific ChatApp implementation, tell me precisely where encryption happens, where decryption happens, and whether the server at any point has access to plaintext message content.",
+          "bridge": "Let's move to a different system you built \u2014 your VideoPlayer project. You claimed BullMQ and Redis significantly reduced API latency in your Async Video Transcoding Pipeline With Bullmq And Hls Adaptive Streaming. Tell me what the latency bottleneck actually was before you introduced the queue."
+        },
+        "candidate_q4_options": [
+          "Your ChatApp uses MongoDB for message storage \u2014 what index did you put on the messages collection and which field is the sort key that makes your cursor pagination query fast?",
+          "In ChatApp, your WebSocket server receives a message from User A intended for User B \u2014 trace exactly how that message moves from receipt on the server to delivery on User B's client, naming every data structure touched.",
+          "You claimed cursor-based pagination reduces server load \u2014 what specific query does page two of a conversation fire against MongoDB, and what would that same query look like with offset pagination on a 1-million-message collection?",
+          "Your JWT implementation manages private data interactions \u2014 what payload fields does your token carry, and how does your Node.js middleware decide whether a given API route requires token validation before touching the database?"
+        ]
+      }
+    ],
+    "generated_at": 1778244220.1720915,
+    "pending_hydration_focus_keys": [],
+    "generation_strategy": "two_pass_full_resume_reasoning",
+    "pass_1_review": {
+      "stage": "pass_1",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.2,
+      "top_two_score": 7.8,
+      "opener_quality_score": 6.0,
+      "dimension_depth_score": 7.8,
+      "strengths": [
+        "Boundary probes are consistently strong across all three areas \u2014 crash-mid-transcoding, JWT-expiry-mid-socket, and 50k-transaction render are all unanswerable without hands-on ownership.",
+        "Recovery overlays are complete and well-calibrated: every required scenario (short answer, honest gap, claim conflict, metric risk, overclaim) is present and specific.",
+        "signal_weight 3.0 dimensions are correctly targeted at the highest-risk claims \u2014 BullMQ/FFmpeg architecture, E2E encryption design, and cursor pagination each directly test ownership of the headline resume bullet."
+      ],
+      "issues": [
+        "All three openers use 'walk me through' framing, which invites narrative rather than forcing an immediate analytical position \u2014 this is the single largest scoring drag and must be fixed to break 8.0.",
+        "Focus area 3 (AdVantage) is the weakest: the opener asks about a product decision ('how you decided what data the dashboard needed') rather than a causal or tradeoff challenge, and the anchor_context is thin. The analytics_data_aggregation dimension surface probe ('are those computed client-side or server-side?') is answerable by anyone who read the resume carefully.",
+        "E2E encryption mechanism probe has a logical dependency issue: it asks how cursor pagination works when messages are encrypted server-side, but that question presupposes a specific (incorrect) architecture \u2014 if the candidate correctly says encryption is client-side, the mechanism probe collapses and the interviewer has no follow-up path."
+      ],
+      "repair_instructions": [
+        "OPENER FIX (all three areas): Replace 'walk me through' with a hypothesis or causal challenge. VideoPlayer example: 'You said BullMQ significantly reduced API latency \u2014 before I accept that claim, tell me: what was the latency bottleneck you were solving, and why was moving to a queue the right fix rather than just streaming the FFmpeg process?' ChatApp example: 'Your resume claims end-to-end encryption \u2014 if your server stores messages in MongoDB, tell me exactly what a stored document looks like and why that is or isn't a security boundary.' AdVantage example: 'The analytics dashboard reads from the same MongoDB instance as your transaction API \u2014 tell me what query the rental trend chart runs and whether that's safe to fire on every page load.'",
+        "E2E ENCRYPTION MECHANISM PROBE FIX: Decouple the mechanism probe from the assumed architecture. Replace current mechanism with: 'Your encryption happens on the client \u2014 walk me through how the recipient's browser gets the decryption key for a message sent while they were offline, and what guarantees forward secrecy in that design.' This fires regardless of whether their implementation is correct or naive.",
+        "ADVANTGE SURFACE PROBE FIX (analytics_data_aggregation): Replace 'are those computed on the client or backend?' with: 'Show me the shape of a single rental event document in your MongoDB collection \u2014 what fields does it have and which field drives the trend aggregation?' This requires actual schema ownership, not documentation reading.",
+        "ADVANTGE OPENER ANCHOR FIX: The AdVantage opener should anchor on the most verifiable specific claim. Rewrite to: 'In AdVantage, your seller analytics dashboard queries rental trends from MongoDB \u2014 tell me what index you put on that collection and why you chose that field as the sort key.' This immediately forces schema and index knowledge rather than a product framing discussion."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "video_transcoding_streaming_pipeline_async_and",
+          "label": "Async Video Transcoding And Adaptive Streaming Pipeline",
+          "score": 7.8,
+          "issues": [
+            "Opener is the only material weakness \u2014 dimensions and boundary probes are strong.",
+            "worker_concurrency_and_backpressure boundary probe ('what mechanism prevents Redis memory from becoming the bottleneck') is slightly documentation-answerable \u2014 add specificity by asking what the maxJobsPerWorker or Redis memory config value was in their actual deployment."
+          ]
+        },
+        {
+          "focus_key": "realtime_chat_real_time_encrypted_cursor",
+          "label": "Real-Time Encrypted Chat System With Cursor Pagination",
+          "score": 7.6,
+          "issues": [
+            "E2E encryption mechanism probe collapses if candidate correctly states client-side encryption \u2014 needs a follow-up path for the forward-secrecy and key-distribution case.",
+            "jwt_session_security surface probe ('where do you store the token on the client') is answerable from any JWT tutorial \u2014 replace with 'what does your middleware actually check on an incoming socket upgrade request and how is that different from an HTTP request?'"
+          ]
+        },
+        {
+          "focus_key": "ecommerce_seller_analytics_commerce_platform_dashboard",
+          "label": "E-Commerce Platform With Seller Analytics Dashboard",
+          "score": 6.2,
+          "issues": [
+            "analytics_data_aggregation surface probe is documentation-answerable \u2014 any developer who read the resume bullet could guess 'backend aggregation'.",
+            "secure_api_auth_sessions boundary probe repeats the JWT-stolen scenario already covered in ChatApp's jwt_session_security dimension \u2014 this is a cross-area redundancy that wastes interview time on the third focus area.",
+            "The focus area has only two meaningful sub_focuses vs three in other areas \u2014 the API security sub-focus is redundant with ChatApp and should be replaced with a MongoDB data modeling dimension targeting the rental vs sales schema distinction."
+          ]
+        }
+      ]
+    },
+    "quality_review": {
+      "stage": "pass_1_repair",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.8,
+      "top_two_score": 7.8,
+      "opener_quality_score": 8.2,
+      "dimension_depth_score": 7.4,
+      "strengths": [
+        "Both openers force an immediate analytical position anchored to a specific resume claim \u2014 VideoPlayer opener challenges the latency-reduction claim causally, ChatApp opener forces the candidate to define their security boundary before any narrative begins.",
+        "signal_weight 3.0 dimensions in both areas are genuinely grounded: BullMQ worker isolation and E2E encryption correctness both require hands-on ownership to answer the boundary probes, not documentation reading.",
+        "Recovery overlays are complete and well-differentiated \u2014 short_answer, metric_risk, overclaim_risk, honest_gap, and claim_conflict all cover distinct failure modes with resume-specific language."
+      ],
+      "issues": [
+        "S3 chunk delivery dimension (s3_chunk_delivery_buffering, signal_weight 2.0): the surface probe about HTTP Range headers is answerable from AWS documentation without any implementation experience \u2014 it needs a specific artifact from the candidate's own code (e.g., how the presigned URL TTL was chosen relative to segment duration).",
+        "E2E encryption forward secrecy boundary probe asks about 'server private key' but ChatApp is described as browser-based \u2014 if the candidate used a symmetric library like CryptoJS or Web Crypto API, the server may never have a private key, making the probe potentially unanswerable for the wrong reason. The probe should explicitly fork: 'if you used symmetric encryption, describe the key distribution problem instead.'",
+        "Cursor-based pagination mechanism probe ('what property guarantees stability') is answerable by anyone who has read MongoDB ObjectId documentation \u2014 it needs to be grounded in the candidate's specific collection structure or a concrete failure they observed during testing."
+      ],
+      "repair_instructions": [
+        "s3_chunk_delivery_buffering surface probe: replace 'what does the request header look like' with 'your S3 objects are private \u2014 what TTL did you set on presigned URLs for .ts segments, and how did you pick that number relative to your HLS segment duration?' This forces an ownership decision, not a documentation recitation.",
+        "e2e_encryption_forward_secrecy boundary probe: add a fork clause \u2014 'if you used asymmetric encryption, tell me where the server private key lives and what an attacker gains from it; if you used symmetric encryption, tell me how the shared secret reaches a recipient who was offline when the message was sent and what that implies for forward secrecy.' This prevents the probe from misfiring on symmetric implementations.",
+        "cursor_based_pagination_design mechanism probe: replace the generic 'what property guarantees stability' with 'you used [cursor field] as your pagination anchor \u2014 show me what the MongoDB find() query looks like for page two of a conversation between two users, including the sort direction and the index that makes it fast on a 500k-message collection.' This requires the candidate to produce a specific query, not recall a concept.",
+        "Add one candidate_q4_option to the ChatApp track that stress-tests the WebSocket scaling boundary: 'Your ChatApp runs on a single Node.js process \u2014 if 500 users are connected simultaneously and User A sends a message to User B, how does your server locate User B's socket handle without iterating every active connection, and what breaks when you add a second server process?' This closes a gap between single-instance implementation and the 'scalable' claim in the resume summary."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "video_transcoding_pipeline_async_bullmq_and",
+          "label": "Async Video Transcoding Pipeline With Bullmq And Hls Adaptive Streaming",
+          "score": 7.9,
+          "issues": [
+            "s3_chunk_delivery_buffering surface probe is answerable from AWS documentation \u2014 needs an ownership-specific artifact (presigned URL TTL decision relative to HLS segment duration).",
+            "redis_queue_state_durability boundary probe is solid but could name a specific Redis key pattern (e.g., 'bull:{queue}:active') to force the candidate to confirm they inspected Redis state directly rather than reading BullMQ source."
+          ]
+        },
+        {
+          "focus_key": "realtime_chat_real_time_encrypted_messaging",
+          "label": "Real-Time Encrypted Messaging With Websockets And Cursor-Based Pagination",
+          "score": 7.6,
+          "issues": [
+            "e2e_encryption_forward_secrecy boundary probe assumes asymmetric encryption; will misfire if candidate used CryptoJS or Web Crypto symmetric approach \u2014 needs a fork clause.",
+            "cursor_based_pagination_design mechanism probe is answerable from MongoDB ObjectId documentation without hands-on experience \u2014 needs to demand the candidate produce their specific query."
+          ]
+        }
+      ]
+    },
+    "generation_notes": ""
+  },
+  "interview_map_status": "ready",
+  "interview_map_error": "",
+  "interview_map_validation": {
+    "ready": true,
+    "errors": [],
+    "warnings": [],
+    "focus_count": 2,
+    "llm_focus_count": 2,
+    "rich_focus_count": 2,
+    "priority_llm_ready_count": 2,
+    "pending_focus_keys": [],
+    "focus_reports": [
+      {
+        "label": "Async Video Transcoding Pipeline With Bullmq And Hls Adaptive Streaming",
+        "focus_key": "video_transcoding_pipeline_async_bullmq_and",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "Real-Time Encrypted Messaging With Websockets And Cursor-Based Pagination",
+        "focus_key": "realtime_chat_real_time_encrypted_messaging",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "interview_map_prepared_at": 1778244220.1745157,
+  "candidate_state": {
+    "disengagement_level": 0.0,
+    "consecutive_no_content": 0,
+    "explicit_skip_count": 0,
+    "social_deflection_count": 0,
+    "incoherence_count": 0,
+    "communication_mode": "normal",
+    "topic_fatigue": {},
+    "topic_question_counts": {},
+    "forced_exit_triggered": false,
+    "phase": "orientation",
+    "anchor_confidence": null,
+    "implementation_anchor": null,
+    "second_domain_surfaced": null
+  }
+}

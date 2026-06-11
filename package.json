@@ -5,16 +5,30 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:simulation:e2e": "playwright test simulation.e2e.spec.ts",
+    "test:replay-room": "playwright test tests/interview-room-replay.e2e.spec.ts",
+    "test:replay-voice": "REPLAY_VOICE_QA=1 playwright test tests/interview-room-replay-voice.e2e.spec.ts",
+    "replay:wav": "node scripts/generate-replay-wav.mjs"
   },
   "dependencies": {
     "@deepgram/sdk": "^3.4.0",
+    "@google/genai": "^2.3.0",
+    "@livekit/components-react": "^2.9.21",
     "@mediapipe/tasks-vision": "^0.10.34",
+    "@monaco-editor/react": "^4.7.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "livekit-client": "^2.19.0",
+    "monaco-editor": "^0.55.1",
+    "motion": "^12.40.0",
     "next": "16.2.1",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

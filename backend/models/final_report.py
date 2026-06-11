@@ -209,6 +209,12 @@ def build_interview_quality(assessment_coverage: dict | None) -> dict[str, Any]:
     ):
         score -= 0.15
         reasons.append("no_high_value_role_relevant_surface_tested")
+    if bool(coverage.get("map_launch_ready")) and not bool(coverage.get("full_map_ready")):
+        score -= 0.05
+        reasons.append("map_hydration_incomplete")
+    if int(coverage.get("map_quarantine_count") or 0) > 0:
+        score -= 0.04
+        reasons.append("map_quarantine_present")
 
     score = round(clamp(score, 0.05, 1.0), 2)
     if score >= 0.82:
@@ -225,6 +231,13 @@ def build_interview_quality(assessment_coverage: dict | None) -> dict[str, Any]:
         "map_adherence": "not_measured",
         "role_relevance": "limited" if "no_high_value_role_relevant_surface_tested" in reasons else "usable",
         "coverage_breadth": "usable" if coverage.get("breadth_viable") else "limited",
+        "map_readiness": (
+            "full"
+            if coverage.get("full_map_ready")
+            else "launch_only"
+            if coverage.get("map_launch_ready")
+            else "unknown"
+        ),
         "tunneling_detected": any(
             reason in reasons for reason in ("dominant_focus_ratio_high", "same_surface_streak_high")
         ),
@@ -595,6 +608,10 @@ def build_final_evidence_packet(
             "do_not_punish_resume_hype_beyond_scoped_claim_risk": True,
             "preserve_alternate_fit_signal": True,
             "narrow_coverage_requires_insufficient_data": not coverage_gate["passed"],
+            "map_hydration_incomplete_is_confidence_limit_not_candidate_risk": bool(
+                (assessment_coverage or {}).get("map_launch_ready")
+                and not (assessment_coverage or {}).get("full_map_ready")
+            ),
         },
     }
 
@@ -684,6 +701,16 @@ def _scoped_risk_flag(flag: Any, *, gate_passed: bool) -> str:
     text = short_text(flag, 420)
     if not text:
         return ""
+    lower = text.lower()
+    compact = re.sub(r"[^a-z0-9]+", "_", lower).strip("_")
+    if (
+        "zero honest admissions" in lower
+        or "zero_honest_admissions" in compact
+        or "no knowledge boundary acknowledged" in lower
+        or "no_knowledge_boundary_acknowledged" in compact
+        or "no acknowledgment of uncertainty or gaps" in lower
+    ):
+        return ""
     if gate_passed:
         return text
     if _contains_punitive_candidate_wide_language(text):
@@ -751,6 +778,13 @@ def normalize_final_report_v2(
     ]
     if not gate_passed and "Assessment coverage was too narrow for a definitive hire/no-hire verdict." not in risk_flags:
         risk_flags.append("Assessment coverage was too narrow for a definitive hire/no-hire verdict.")
+    if (
+        (evidence_packet.get("coverage_summary") or {}).get("map_launch_ready")
+        and not (evidence_packet.get("coverage_summary") or {}).get("full_map_ready")
+    ):
+        limit_note = "Interview map hydration was launch-safe but incomplete; treat untested surfaces as report confidence limits, not candidate weaknesses."
+        if limit_note not in risk_flags:
+            risk_flags.append(limit_note)
 
     strengths = normalized.get("strengths")
     if not isinstance(strengths, list):

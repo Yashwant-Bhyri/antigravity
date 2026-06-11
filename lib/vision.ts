@@ -6,41 +6,69 @@ export interface VisionPrediction {
   headStillness: number;  // 0=moving, 1=still
 }
 
+const SUPPRESSED_VISION_PATTERNS = [
+  "Created TensorFlow Lite XNNPACK delegate for CPU",
+  "Feedback manager requires a model with a single signature inference",
+  "Sets FaceBlendshapesGraph acceleration to xnnpack by default",
+  "OpenGL error checking is disabled",
+  "TfLiteRuntime",
+  "XNNPACK",
+  "vulkan",
+  "metal",
+  "coreml",
+  "DirectX",
+];
+
+declare global {
+  interface Window {
+    __antigravityVisionConsoleFilterInstalled?: boolean;
+  }
+}
+
+function shouldSuppressVisionLog(args: unknown[]) {
+  return args.some((arg) => {
+    const text = typeof arg === "string" ? arg : String(arg ?? "");
+    return SUPPRESSED_VISION_PATTERNS.some((pattern) => text.includes(pattern));
+  });
+}
+
+function installVisionConsoleFilter() {
+  if (typeof window === "undefined" || window.__antigravityVisionConsoleFilterInstalled) return;
+  window.__antigravityVisionConsoleFilterInstalled = true;
+  const originalError = console.error.bind(console);
+  const originalWarn = console.warn.bind(console);
+
+  console.error = (...args: unknown[]) => {
+    if (shouldSuppressVisionLog(args)) return;
+    originalError(...args);
+  };
+
+  console.warn = (...args: unknown[]) => {
+    if (shouldSuppressVisionLog(args)) return;
+    originalWarn(...args);
+  };
+}
+
 export class CVSensor {
   private faceLandmarker: FaceLandmarker | null = null;
   private initState: "idle" | "loading" | "ready" | "failed" = "idle";
   private lastTimestampMs = 0;
-    private readonly suppressedVisionPatterns = [
-    "Created TensorFlow Lite XNNPACK delegate for CPU",
-    "Feedback manager requires a model with a single signature inference",
-    "Sets FaceBlendshapesGraph acceleration to xnnpack by default",
-    "OpenGL error checking is disabled",
-    "TfLiteRuntime",
-    "XNNPACK",
-    "vulkan",
-    "metal",
-    "coreml",
-    "DirectX",
-    "INFO: ",
-  ];
+
+  constructor() {
+    installVisionConsoleFilter();
+  }
 
   private withSuppressedVisionLogs<T>(fn: () => T): T {
     const originalError = console.error;
     const originalWarn = console.warn;
 
-    const shouldSuppress = (args: unknown[]) =>
-      args.some((arg) =>
-        typeof arg === "string" &&
-        this.suppressedVisionPatterns.some((pattern) => arg.includes(pattern))
-      );
-
     console.error = (...args: unknown[]) => {
-      if (shouldSuppress(args)) return;
+      if (shouldSuppressVisionLog(args)) return;
       originalError(...args);
     };
 
     console.warn = (...args: unknown[]) => {
-      if (shouldSuppress(args)) return;
+      if (shouldSuppressVisionLog(args)) return;
       originalWarn(...args);
     };
 

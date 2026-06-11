@@ -60,4 +60,6 @@ simulation-e2e-screenshot.png
 vault/
 backend/runtime/interview_traces/
 backend/runtime/simulation_reports/
+backend/runtime/llm_usage/
+backend/runtime/llm_quality/
 backend/runtime/*.json

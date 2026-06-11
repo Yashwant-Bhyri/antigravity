@@ -124,6 +124,35 @@ def test_parent_focus_dominance_with_surface_breadth_is_not_tunneling():
     assert "dominant_parent_focus_with_broad_surface_coverage" in quality["fairness_warnings"], quality
 
 
+def test_incomplete_map_hydration_is_confidence_limit_not_candidate_risk():
+    packet = build_final_evidence_packet(
+        history=_history(),
+        resume="Messy resume with seller activation, dashboards, checkout notes, and side projects.",
+        weaknesses=[],
+        assessment_coverage=_coverage(
+            map_launch_ready=True,
+            full_map_ready=False,
+            needs_async_hydration=True,
+            pending_hydration_focus_count=2,
+            pending_hydration_focus_keys=["checkout_failure_funnel", "experiment_attribution"],
+        ),
+        target_role="Product Analytics Engineer",
+    )
+    result = normalize_final_report_v2(
+        {
+            "hire_recommendation": "MAYBE",
+            "overall_score": 6.5,
+            "confidence_score": 0.65,
+            "summary": "The candidate gave usable product analytics evidence, with some untested areas.",
+        },
+        packet,
+    )
+    assert result["coverage_gate"]["passed"] is True, result
+    assert result["interview_quality"]["map_readiness"] == "launch_only", result
+    assert "map_hydration_incomplete" in result["interview_quality"]["fairness_warnings"], result
+    assert any("confidence limits" in flag for flag in result["risk_flags"]), result
+
+
 def test_alternate_fit_signal_is_preserved():
     packet = build_final_evidence_packet(
         history=_history(),
@@ -296,6 +325,31 @@ def test_honest_correction_survives_missing_human_lens():
     assert "clarif" in human_text or "honest" in human_text or "narrow" in human_text, result
 
 
+def test_absence_of_honest_admission_is_not_standalone_risk():
+    packet = build_final_evidence_packet(
+        history=_history(),
+        resume="Strong product analytics resume.",
+        weaknesses=[],
+        assessment_coverage=_coverage(distinct_surfaces=3),
+        target_role="Product Analyst",
+    )
+    result = normalize_final_report_v2(
+        {
+            "hire_recommendation": "MAYBE",
+            "overall_score": 6.8,
+            "confidence_score": 0.7,
+            "risk_flags": [
+                "MEDIUM: Zero honest admissions across 15 turns — no knowledge boundary acknowledged.",
+                "MEDIUM: Guardrail thresholds need follow-up.",
+            ],
+        },
+        packet,
+    )
+    joined = " ".join(result["risk_flags"]).lower()
+    assert "zero honest admissions" not in joined, result
+    assert "guardrail thresholds" in joined, result
+
+
 def test_report_v2_keeps_legacy_fields():
     packet = build_final_evidence_packet(
         history=_history(),
@@ -403,12 +457,14 @@ def main():
     test_narrow_coverage_blocks_no_hire_and_harsh_language()
     test_resume_hype_is_scoped_claim_calibration_not_global_punishment()
     test_parent_focus_dominance_with_surface_breadth_is_not_tunneling()
+    test_incomplete_map_hydration_is_confidence_limit_not_candidate_risk()
     test_alternate_fit_signal_is_preserved()
     test_no_hire_with_high_score_and_alternate_fit_is_softened()
     test_incomplete_summary_gets_evidence_fallback()
     test_poor_interviewer_quality_caps_no_hire()
     test_honest_correction_is_recorded_as_calibration_signal()
     test_honest_correction_survives_missing_human_lens()
+    test_absence_of_honest_admission_is_not_standalone_risk()
     test_report_v2_keeps_legacy_fields()
     test_turn_evidence_trail_models_progression_not_average_only()
     test_score_full_interview_uses_report_v2_and_explicit_token_budget()

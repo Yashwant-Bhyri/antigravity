@@ -1,0 +1,2189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Antigravity Neural Visualizer Preview</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg: oklch(0.07 0.014 265);
+      --surface: oklch(0.105 0.016 265 / 0.72);
+      --surface-strong: oklch(0.13 0.02 265 / 0.78);
+      --border: oklch(0.32 0.03 265 / 0.62);
+      --border-hot: oklch(0.68 0.18 255 / 0.46);
+      --text: oklch(0.96 0.004 260);
+      --muted: oklch(0.66 0.012 260);
+      --dim: oklch(0.46 0.014 260);
+      --blue: oklch(0.7 0.27 255);
+      --cyan: oklch(0.84 0.21 196);
+      --violet: oklch(0.64 0.26 292);
+      --pink: oklch(0.76 0.25 326);
+      --amber: oklch(0.82 0.18 68);
+      --green: oklch(0.76 0.16 154);
+      --red: oklch(0.66 0.21 24);
+      --phase-a: var(--blue);
+      --phase-b: var(--cyan);
+      --phase-c: var(--violet);
+      --phase-soft: oklch(0.7 0.24 255 / 0.2);
+      --voice-energy: 0.62;
+      --voice-glow: 0.28;
+    }
+
+    [data-phase="idle"] {
+      --phase-a: oklch(0.55 0.16 258);
+      --phase-b: oklch(0.66 0.16 202);
+      --phase-c: oklch(0.58 0.2 292);
+      --phase-soft: oklch(0.58 0.18 258 / 0.18);
+    }
+
+    [data-phase="listening"] {
+      --phase-a: var(--cyan);
+      --phase-b: oklch(0.74 0.24 222);
+      --phase-c: oklch(0.75 0.2 172);
+      --phase-soft: oklch(0.84 0.2 196 / 0.25);
+    }
+
+    [data-phase="thinking"] {
+      --phase-a: var(--amber);
+      --phase-b: var(--violet);
+      --phase-c: oklch(0.54 0.21 248);
+      --phase-soft: oklch(0.82 0.18 68 / 0.24);
+    }
+
+    [data-phase="speaking"] {
+      --phase-a: var(--blue);
+      --phase-b: var(--pink);
+      --phase-c: var(--cyan);
+      --phase-soft: oklch(0.74 0.28 276 / 0.26);
+    }
+
+    [data-phase="closing"] {
+      --phase-a: oklch(0.92 0.11 94);
+      --phase-b: oklch(0.74 0.19 154);
+      --phase-c: oklch(0.62 0.18 255);
+      --phase-soft: oklch(0.86 0.12 94 / 0.24);
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: auto;
+    }
+
+    body {
+      min-height: 100vh;
+      position: relative;
+      isolation: isolate;
+      letter-spacing: 0;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .neural-field,
+    .edge-aura,
+    .path-layer,
+    .voice-reactor,
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .neural-field {
+      z-index: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(80rem 45rem at 50% 110%, oklch(0.58 0.2 255 / 0.18), transparent 62%),
+        linear-gradient(180deg, oklch(0.095 0.018 265), oklch(0.055 0.014 268));
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(88px) saturate(160%);
+      opacity: 0.58;
+      transition: opacity 700ms ease, background 700ms ease, filter 700ms ease;
+      will-change: transform, opacity;
+    }
+
+    .b1 {
+      width: 70vw;
+      height: 70vw;
+      left: -24vw;
+      top: -26vw;
+      background: radial-gradient(circle, color-mix(in oklch, var(--phase-a) 68%, transparent), transparent 62%);
+      animation: drift-a 24s ease-in-out infinite alternate;
+    }
+
+    .b2 {
+      width: 66vw;
+      height: 66vw;
+      right: -24vw;
+      bottom: -28vw;
+      background: radial-gradient(circle, color-mix(in oklch, var(--phase-b) 62%, transparent), transparent 64%);
+      animation: drift-b 28s ease-in-out infinite alternate;
+    }
+
+    .b3 {
+      width: 48vw;
+      height: 48vw;
+      left: 28vw;
+      top: 7vh;
+      opacity: 0.42;
+      background: radial-gradient(circle, color-mix(in oklch, var(--phase-c) 56%, transparent), transparent 66%);
+      animation: drift-c 19s ease-in-out infinite alternate;
+    }
+
+    .b4 {
+      width: 44vw;
+      height: 44vw;
+      right: 10vw;
+      top: -20vw;
+      opacity: 0.35;
+      background: radial-gradient(circle, color-mix(in oklch, var(--phase-a) 44%, transparent), transparent 68%);
+      animation: drift-d 21s ease-in-out infinite alternate;
+    }
+
+    [data-phase="listening"] .blob,
+    [data-phase="speaking"] .blob {
+      opacity: 0.82;
+      filter: blur(98px) saturate(180%);
+    }
+
+    [data-phase="thinking"] .blob {
+      opacity: 0.72;
+      filter: blur(92px) saturate(170%);
+    }
+
+    .edge-aura {
+      z-index: 1;
+      opacity: 0.62;
+      mix-blend-mode: screen;
+      background:
+        linear-gradient(to bottom, color-mix(in oklch, var(--phase-a) 34%, transparent), transparent 24%),
+        linear-gradient(to top, color-mix(in oklch, var(--phase-b) 27%, transparent), transparent 25%),
+        linear-gradient(to right, color-mix(in oklch, var(--phase-c) 22%, transparent), transparent 24%),
+        linear-gradient(to left, color-mix(in oklch, var(--phase-a) 22%, transparent), transparent 24%);
+      transition: opacity 700ms ease, background 700ms ease;
+    }
+
+    [data-phase="listening"] .edge-aura {
+      opacity: 0.82;
+      animation: glow-breathe 2.8s ease-in-out infinite;
+    }
+
+    [data-phase="speaking"] .edge-aura {
+      opacity: 1;
+      animation: glow-fast 1.25s ease-in-out infinite;
+    }
+
+    .voice-reactor {
+      z-index: 1;
+      opacity: calc(0.1 + var(--voice-energy) * 0.42);
+      mix-blend-mode: screen;
+      background:
+        radial-gradient(32rem 22rem at 18% 72%, color-mix(in oklch, var(--phase-a) calc(14% + var(--voice-energy) * 30%), transparent), transparent 68%),
+        radial-gradient(26rem 18rem at 84% 28%, color-mix(in oklch, var(--phase-b) calc(10% + var(--voice-energy) * 24%), transparent), transparent 70%);
+      filter: blur(calc(10px + var(--voice-energy) * 18px));
+      transition: opacity 120ms linear, filter 120ms linear;
+    }
+
+    .path-layer {
+      z-index: 2;
+      mix-blend-mode: screen;
+      opacity: 0.78;
+    }
+
+    .path-layer svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .guide,
+    .comet {
+      fill: none;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .guide {
+      stroke: color-mix(in oklch, var(--phase-a) 36%, transparent);
+      stroke-width: 1;
+      opacity: 0.16;
+    }
+
+    .comet {
+      stroke: url("#cometGradient");
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-dasharray: 92 1380;
+      opacity: 0;
+    }
+
+    [data-phase="listening"] .comet {
+      opacity: 0.96;
+      animation: path-in 3.8s ease-in-out infinite;
+    }
+
+    [data-phase="thinking"] .comet {
+      opacity: 0.5;
+      stroke-dasharray: 62 1400;
+      animation: path-in 6.8s ease-in-out infinite;
+    }
+
+    [data-phase="speaking"] .comet {
+      opacity: 1;
+      animation: path-out calc(3s - var(--voice-energy) * 0.9s) ease-in-out infinite;
+    }
+
+    [data-phase="closing"] .comet {
+      opacity: 0.75;
+      stroke-dasharray: 120 1360;
+      animation: path-in 8s ease-in-out infinite;
+    }
+
+    [data-phase="closing"] .blob {
+      opacity: 0.68;
+      filter: blur(110px) saturate(135%);
+    }
+
+    [data-phase="closing"] .edge-aura {
+      opacity: 0.78;
+    }
+    }
+
+    .comet.c2 { animation-delay: 0.45s; }
+    .comet.c3 { animation-delay: 0.9s; }
+    .comet.c4 { animation-delay: 1.35s; }
+    .comet.c5 { animation-delay: 1.8s; }
+    .comet.c6 { animation-delay: 2.25s; }
+
+    .grain {
+      z-index: 3;
+      opacity: 0.16;
+      background-image: radial-gradient(circle, oklch(1 0 0 / 0.18) 1px, transparent 1px);
+      background-size: 23px 23px;
+      mask-image: linear-gradient(180deg, black, transparent 92%);
+    }
+
+    .app {
+      position: relative;
+      z-index: 4;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+      padding: 18px 18px 106px;
+    }
+
+    .shell {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .header,
+    .panel,
+    .footer,
+    .drawer,
+    .stage-card {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, oklch(0.12 0.018 265 / 0.68), oklch(0.07 0.014 265 / 0.76));
+      box-shadow: 0 28px 90px oklch(0.02 0.01 260 / 0.42);
+      backdrop-filter: blur(26px) saturate(145%);
+    }
+
+    .header {
+      min-height: 76px;
+      border-radius: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 20px;
+    }
+
+    .brand,
+    .header-right,
+    .phase-pill,
+    .rail-row,
+    .toolbar,
+    .phase-buttons,
+    .mic-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border-hot);
+      background: color-mix(in oklch, var(--phase-a) 12%, transparent);
+      color: var(--phase-a);
+      box-shadow: 0 0 34px color-mix(in oklch, var(--phase-a) 28%, transparent);
+      font-weight: 800;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 720;
+    }
+
+    .chip,
+    .phase-pill,
+    .btn,
+    .phase-button {
+      border: 1px solid var(--border);
+      background: oklch(0.12 0.018 265 / 0.68);
+      color: var(--muted);
+      border-radius: 13px;
+      padding: 9px 12px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .phase-pill {
+      color: var(--phase-a);
+      border-color: color-mix(in oklch, var(--phase-a) 56%, transparent);
+      background: color-mix(in oklch, var(--phase-a) 13%, transparent);
+      box-shadow: 0 0 28px color-mix(in oklch, var(--phase-a) 22%, transparent);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--phase-a);
+      box-shadow: 0 0 13px var(--phase-a);
+      animation: dot-pulse 1.7s ease-in-out infinite;
+    }
+
+    .timer {
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      color: var(--dim);
+      letter-spacing: 0.18em;
+    }
+
+    .panel {
+      min-height: 0;
+      border-radius: 26px;
+      overflow: hidden;
+    }
+
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 18px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      font-size: 10px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .orb-stage {
+      position: relative;
+      min-height: 268px;
+      border-radius: 28px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      isolation: isolate;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, oklch(0.11 0.018 265 / 0.72), oklch(0.06 0.014 265 / 0.82));
+    }
+
+    .orb-stage::before {
+      content: "";
+      position: absolute;
+      inset: -28%;
+      background:
+        radial-gradient(26rem 18rem at 52% 48%, color-mix(in oklch, var(--phase-a) 36%, transparent), transparent 62%),
+        radial-gradient(17rem 12rem at 72% 25%, color-mix(in oklch, var(--phase-b) 24%, transparent), transparent 65%);
+      filter: blur(18px);
+      opacity: 0.95;
+    }
+
+    .orb-stage::after {
+      content: "";
+      position: absolute;
+      inset: -20%;
+      background: linear-gradient(112deg, transparent 22%, color-mix(in oklch, var(--phase-a) 28%, transparent) 42%, transparent 63%);
+      opacity: 0;
+    }
+
+    [data-phase="thinking"] .orb-stage::after {
+      opacity: 0.9;
+      animation: think-sweep 2.6s ease-in-out infinite;
+    }
+
+    .visualizer-stage {
+      position: relative;
+      min-height: 336px;
+      border-radius: 28px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      isolation: isolate;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(28rem 18rem at 52% 48%, color-mix(in oklch, var(--phase-a) 18%, transparent), transparent 62%),
+        radial-gradient(20rem 14rem at 72% 22%, color-mix(in oklch, var(--phase-b) 14%, transparent), transparent 68%),
+        linear-gradient(180deg, oklch(0.095 0.018 265 / 0.86), oklch(0.045 0.014 265 / 0.94));
+    }
+
+    .visualizer-stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at center, oklch(0.98 0 0 / 0.13) 0 1px, transparent 1.3px),
+        linear-gradient(112deg, transparent 20%, color-mix(in oklch, var(--phase-a) 12%, transparent) 44%, transparent 70%);
+      background-size: 9px 9px, 100% 100%;
+      opacity: 0.32;
+      mask-image: radial-gradient(circle at center, black 0 56%, transparent 78%);
+    }
+
+    .visualizer-stage::after {
+      content: "";
+      position: absolute;
+      inset: -20%;
+      background: conic-gradient(
+        from 120deg,
+        transparent,
+        color-mix(in oklch, var(--phase-c) 16%, transparent),
+        transparent,
+        color-mix(in oklch, var(--phase-a) 18%, transparent),
+        transparent
+      );
+      filter: blur(24px);
+      opacity: calc(0.28 + var(--voice-glow, 0.2));
+      animation: viz-atmosphere 11s linear infinite;
+      z-index: -1;
+    }
+
+    .visualizer-canvas {
+      width: min(100%, 520px);
+      height: 336px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+
+    .visualizer-overlay {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .visualizer-overlay .meta-label {
+      margin: 0 0 3px;
+      color: oklch(0.86 0.05 245 / 0.72);
+    }
+
+    .visualizer-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 14px;
+      border: 1px solid oklch(1 0 0 / 0.09);
+      background: oklch(0.06 0.012 265 / 0.74);
+      backdrop-filter: blur(16px);
+      pointer-events: auto;
+    }
+
+    .visualizer-tab {
+      height: 30px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 10px;
+      color: var(--dim);
+      background: transparent;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
+    .visualizer-tab.active {
+      color: oklch(0.9 0.15 220);
+      background: color-mix(in oklch, var(--phase-a) 18%, oklch(0.08 0.014 265 / 0.8));
+      box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--phase-a) 34%, transparent);
+    }
+
+    @keyframes viz-atmosphere {
+      to { transform: rotate(360deg); }
+    }
+
+    .orb {
+      position: relative;
+      width: 176px;
+      height: 176px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in oklch, var(--phase-a) 72%, transparent);
+      background:
+        radial-gradient(circle at 30% 24%, oklch(0.98 0.01 250) 0 6%, var(--phase-c) 18%, var(--phase-a) 42%, oklch(0.11 0.024 265) 100%);
+      box-shadow:
+        0 0 42px color-mix(in oklch, var(--phase-a) 34%, transparent),
+        0 0 120px color-mix(in oklch, var(--phase-b) 18%, transparent),
+        inset 0 1px 24px oklch(1 0 0 / 0.16);
+      overflow: hidden;
+      z-index: 2;
+      transition: background 500ms ease, box-shadow 500ms ease, border-color 500ms ease;
+    }
+
+    .orb::before {
+      content: "";
+      position: absolute;
+      left: 15%;
+      top: 10%;
+      width: 40%;
+      height: 24%;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, oklch(1 0 0 / 0.24), transparent 78%);
+    }
+
+    .orb::after {
+      content: "";
+      position: absolute;
+      inset: -30%;
+      opacity: 0;
+      background: radial-gradient(ellipse, oklch(1 0 0 / 0.18), transparent 58%);
+    }
+
+    [data-phase="speaking"] .orb::after {
+      opacity: 1;
+      animation: glow-fast 1s ease-in-out infinite;
+    }
+
+    .ring {
+      position: absolute;
+      inset: -18px;
+      border-radius: 50%;
+      border: 1px solid color-mix(in oklch, var(--phase-a) 42%, transparent);
+      animation: ring-pulse 1.7s ease-out infinite;
+      opacity: 0;
+    }
+
+    .ring.r2 {
+      inset: -34px;
+      animation-delay: 0.45s;
+    }
+
+    .ring.r3 {
+      inset: -50px;
+      animation-delay: 0.9s;
+    }
+
+    [data-phase="listening"] .ring,
+    [data-phase="speaking"] .ring {
+      opacity: 1;
+    }
+
+    [data-phase="closing"] .ring {
+      opacity: 0.62;
+      animation-duration: 2.8s;
+    }
+
+    .orb-core {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      min-width: 54px;
+      gap: 5px;
+    }
+
+    .mini-bar {
+      width: 4px;
+      border-radius: 999px;
+      background: oklch(0.98 0.004 260);
+      transform-origin: bottom;
+      animation: mini-wave 600ms ease-in-out infinite alternate;
+    }
+
+    .mini-bar:nth-child(2) { animation-delay: 80ms; }
+    .mini-bar:nth-child(3) { animation-delay: 160ms; }
+    .mini-bar:nth-child(4) { animation-delay: 240ms; }
+    .mini-bar:nth-child(5) { animation-delay: 320ms; }
+
+    .thinking-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--amber);
+      animation: bounce 900ms ease-in-out infinite;
+    }
+
+    .thinking-dot:nth-child(2) { animation-delay: 160ms; }
+    .thinking-dot:nth-child(3) { animation-delay: 320ms; }
+
+    .rail-card {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: oklch(0.08 0.014 265 / 0.62);
+      padding: 15px;
+    }
+
+    .rail-row {
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid oklch(0.26 0.02 265 / 0.45);
+    }
+
+    .rail-row:last-child {
+      border-bottom: 0;
+    }
+
+    .value {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .conversation {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 0;
+    }
+
+    .conversation-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .conversation-title {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .stage {
+      min-height: 0;
+      display: grid;
+      align-content: center;
+      padding: 22px;
+      overflow: auto;
+    }
+
+    .stage-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 34px;
+      padding: clamp(22px, 3vw, 36px);
+      isolation: isolate;
+      background:
+        radial-gradient(48rem 24rem at 18% 0%, color-mix(in oklch, var(--phase-a) 18%, transparent), transparent 60%),
+        linear-gradient(135deg, oklch(0.15 0.024 265 / 0.76), oklch(0.06 0.014 265 / 0.86));
+    }
+
+    .stage-card::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(
+        115deg,
+        transparent 0%,
+        color-mix(in oklch, var(--phase-a) 72%, transparent) 24%,
+        color-mix(in oklch, var(--phase-b) 70%, transparent) 45%,
+        transparent 74%
+      );
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: border-beam 3.3s linear infinite;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .stage-card::after {
+      content: "";
+      position: absolute;
+      inset: -34% auto auto -12%;
+      width: 28rem;
+      height: 17rem;
+      border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in oklch, var(--phase-a) 27%, transparent), transparent 68%);
+      filter: blur(26px);
+      mix-blend-mode: screen;
+      z-index: 0;
+    }
+
+    .stage-card.ripple::before {
+      animation: border-beam 1.2s linear infinite;
+    }
+
+    .evidence-ripple,
+    .shockwave {
+      position: absolute;
+      inset: 50% auto auto 50%;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(0.1);
+      z-index: 5;
+    }
+
+    .evidence-ripple {
+      border: 1px solid color-mix(in oklch, var(--phase-a) 74%, transparent);
+      box-shadow:
+        0 0 32px color-mix(in oklch, var(--phase-a) 46%, transparent),
+        inset 0 0 28px color-mix(in oklch, var(--phase-b) 28%, transparent);
+      animation: evidence-ripple 900ms ease-out forwards;
+    }
+
+    .shockwave {
+      border: 1px solid oklch(0.98 0.01 260 / 0.82);
+      box-shadow:
+        0 0 42px oklch(0.84 0.22 196 / 0.62),
+        0 0 90px oklch(0.74 0.26 255 / 0.32);
+      animation: shockwave 760ms cubic-bezier(.18,.9,.25,1) forwards;
+    }
+
+    .stage-inner {
+      position: relative;
+      z-index: 3;
+    }
+
+    .stage-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .meta-label {
+      margin: 0;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .stage-copy {
+      max-width: 980px;
+      margin: 0;
+      font-size: clamp(28px, 3.65vw, 52px);
+      line-height: 1.06;
+      letter-spacing: -0.055em;
+      font-weight: 760;
+    }
+
+    [data-phase="thinking"] .stage-copy {
+      background: linear-gradient(100deg, var(--text) 0%, var(--amber) 35%, oklch(1 0 0) 48%, var(--amber) 60%, var(--text) 100%);
+      background-size: 260% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: text-shine 3s ease-in-out infinite;
+    }
+
+    .live-answer {
+      margin-top: 20px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: oklch(0.06 0.012 265 / 0.52);
+      padding: 15px;
+    }
+
+    .live-answer p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: 14px;
+    }
+
+    .waveform {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      margin-top: 20px;
+    }
+
+    .wv {
+      width: 3px;
+      min-height: 4px;
+      border-radius: 999px;
+      background: var(--phase-a);
+      box-shadow: 0 0 12px color-mix(in oklch, var(--phase-a) 42%, transparent);
+      transition: background 350ms ease, height 80ms linear, opacity 250ms ease;
+    }
+
+    .conversation-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-top: 1px solid var(--border);
+      padding: 16px 24px;
+    }
+
+    .thought-strip {
+      display: none;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    [data-phase="thinking"] .thought-strip,
+    [data-phase="closing"] .thought-strip {
+      display: grid;
+    }
+
+    .thought {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: oklch(0.07 0.012 265 / 0.58);
+      padding: 12px;
+      min-height: 68px;
+      animation: fade-up 350ms ease both;
+    }
+
+    .thought:nth-child(2) { animation-delay: 120ms; }
+    .thought:nth-child(3) { animation-delay: 240ms; }
+
+    .thought strong {
+      display: block;
+      color: var(--phase-a);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .thought span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .focus-halo {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .focus-token {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 11px;
+      color: var(--dim);
+      background: oklch(0.06 0.012 265 / 0.46);
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      transition: color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+    }
+
+    .focus-token.active {
+      color: var(--phase-a);
+      border-color: color-mix(in oklch, var(--phase-a) 58%, transparent);
+      box-shadow: 0 0 26px color-mix(in oklch, var(--phase-a) 20%, transparent);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .drawer {
+      position: fixed;
+      z-index: 6;
+      right: 18px;
+      top: 110px;
+      width: min(380px, calc(100vw - 36px));
+      max-height: calc(100vh - 190px);
+      border-radius: 24px;
+      overflow: hidden;
+      transform: translateX(0);
+      transition: transform 350ms ease, opacity 350ms ease;
+    }
+
+    .drawer.hidden {
+      transform: translateX(calc(100% + 24px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .drawer-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .drawer-body {
+      padding: 16px;
+      overflow: auto;
+      max-height: calc(100vh - 250px);
+      display: grid;
+      gap: 14px;
+    }
+
+    .turn {
+      display: grid;
+      gap: 5px;
+      animation: fade-up 260ms ease both;
+    }
+
+    .turn-label {
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .bubble {
+      border: 1px solid var(--border);
+      border-radius: 17px;
+      padding: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+      background: oklch(0.08 0.014 265 / 0.66);
+    }
+
+    .turn.ai.active .bubble {
+      color: var(--text);
+      border-color: color-mix(in oklch, var(--phase-a) 58%, transparent);
+      box-shadow: 0 0 30px color-mix(in oklch, var(--phase-a) 20%, transparent);
+    }
+
+    .footer {
+      position: fixed;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      z-index: 7;
+      min-height: 78px;
+      border-radius: 24px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .sim-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn.primary {
+      color: oklch(0.08 0.012 265);
+      border-color: oklch(0.96 0.004 260 / 0.72);
+      background: oklch(0.96 0.004 260);
+      box-shadow: 0 0 38px oklch(0.88 0.1 196 / 0.18);
+    }
+
+    .btn.hot {
+      color: var(--phase-a);
+      border-color: color-mix(in oklch, var(--phase-a) 64%, transparent);
+      background: color-mix(in oklch, var(--phase-a) 13%, transparent);
+      box-shadow: 0 0 28px color-mix(in oklch, var(--phase-a) 24%, transparent);
+    }
+
+    .finale {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      background:
+        radial-gradient(52rem 30rem at 50% 48%, color-mix(in oklch, var(--phase-a) 26%, transparent), transparent 62%),
+        linear-gradient(180deg, oklch(0.06 0.014 265 / 0.74), oklch(0.03 0.01 268 / 0.9));
+      backdrop-filter: blur(22px) saturate(145%);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 500ms ease;
+    }
+
+    .finale.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .finale-card {
+      position: relative;
+      width: min(920px, 100%);
+      overflow: hidden;
+      border: 1px solid color-mix(in oklch, var(--phase-a) 48%, transparent);
+      border-radius: 38px;
+      background:
+        radial-gradient(46rem 24rem at 10% 0%, color-mix(in oklch, var(--phase-a) 22%, transparent), transparent 62%),
+        linear-gradient(135deg, oklch(0.14 0.024 265 / 0.86), oklch(0.055 0.012 265 / 0.92));
+      box-shadow: 0 42px 150px oklch(0.02 0.01 260 / 0.62);
+      padding: clamp(28px, 5vw, 54px);
+      animation: finale-rise 700ms cubic-bezier(.18,.9,.25,1) both;
+    }
+
+    .finale-card::before {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      border-radius: inherit;
+      padding: 2px;
+      background: conic-gradient(from 0deg, var(--phase-a), var(--phase-b), var(--phase-c), var(--phase-a));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: finale-spin 5s linear infinite;
+      pointer-events: none;
+    }
+
+    .finale-kicker {
+      margin: 0;
+      color: var(--phase-a);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+    }
+
+    .finale-title {
+      margin: 18px 0 0;
+      font-size: clamp(40px, 7vw, 86px);
+      line-height: 0.94;
+      letter-spacing: -0.065em;
+    }
+
+    .finale-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .finale-metric {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 16px;
+      background: oklch(0.06 0.012 265 / 0.52);
+    }
+
+    .finale-metric span {
+      display: block;
+      color: var(--dim);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    .finale-metric strong {
+      display: block;
+      margin-top: 10px;
+      font-size: 24px;
+      color: var(--text);
+    }
+
+    .finale-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .btn,
+    .phase-button {
+      cursor: pointer;
+      transition: transform 170ms ease, border-color 170ms ease, color 170ms ease, background 170ms ease;
+    }
+
+    .btn:hover,
+    .phase-button:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in oklch, var(--phase-a) 62%, transparent);
+      color: var(--text);
+    }
+
+    .phase-button.active {
+      color: var(--phase-a);
+      border-color: color-mix(in oklch, var(--phase-a) 62%, transparent);
+      background: color-mix(in oklch, var(--phase-a) 14%, transparent);
+      box-shadow: 0 0 24px color-mix(in oklch, var(--phase-a) 22%, transparent);
+    }
+
+    .mic-control {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    input[type="range"] {
+      width: 170px;
+      accent-color: var(--phase-a);
+    }
+
+    .close {
+      width: 32px;
+      height: 32px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+
+    @keyframes drift-a {
+      from { transform: translate3d(-2%, 1%, 0) scale(1); }
+      to { transform: translate3d(6%, -4%, 0) scale(1.08); }
+    }
+
+    @keyframes drift-b {
+      from { transform: translate3d(2%, -1%, 0) scale(1); }
+      to { transform: translate3d(-5%, 4%, 0) scale(1.07); }
+    }
+
+    @keyframes drift-c {
+      from { transform: translate3d(0, 0, 0) scale(0.96); }
+      to { transform: translate3d(-4%, -5%, 0) scale(1.12); }
+    }
+
+    @keyframes drift-d {
+      from { transform: translate3d(2%, 0, 0) scale(0.98); }
+      to { transform: translate3d(-4%, 5%, 0) scale(1.1); }
+    }
+
+    @keyframes glow-breathe {
+      0%, 100% { opacity: 0.68; }
+      50% { opacity: 0.95; }
+    }
+
+    @keyframes glow-fast {
+      0%, 100% { opacity: 0.62; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes path-in {
+      from { stroke-dashoffset: 1380; }
+      to { stroke-dashoffset: 0; }
+    }
+
+    @keyframes path-out {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: -1380; }
+    }
+
+    @keyframes think-sweep {
+      0%, 100% { transform: translateX(-16%) rotate(-3deg); opacity: 0.42; }
+      50% { transform: translateX(16%) rotate(3deg); opacity: 0.92; }
+    }
+
+    @keyframes border-beam {
+      from { transform: translateX(-60%); }
+      to { transform: translateX(60%); }
+    }
+
+    @keyframes ring-pulse {
+      0% { transform: scale(0.88); opacity: 0.68; }
+      85% { opacity: 0; }
+      100% { transform: scale(1.16); opacity: 0; }
+    }
+
+    @keyframes mini-wave {
+      from { height: 10px; }
+      to { height: 38px; }
+    }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+      40% { transform: translateY(-7px); opacity: 1; }
+    }
+
+    @keyframes dot-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.62; }
+      50% { transform: scale(1.35); opacity: 1; }
+    }
+
+    @keyframes text-shine {
+      0%, 100% { background-position: -160% 0; }
+      50% { background-position: 160% 0; }
+    }
+
+    @keyframes evidence-ripple {
+      0% { transform: translate(-50%, -50%) scale(0.12); opacity: 0.96; }
+      100% { transform: translate(-50%, -50%) scale(32); opacity: 0; }
+    }
+
+    @keyframes shockwave {
+      0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0.95; }
+      100% { transform: translate(-50%, -50%) scale(46); opacity: 0; }
+    }
+
+    @keyframes finale-rise {
+      from { opacity: 0; transform: translateY(18px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes finale-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 980px) {
+      html,
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        min-height: auto;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-copy {
+        font-size: clamp(28px, 10vw, 48px);
+      }
+
+      .footer,
+      .header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .phase-buttons,
+      .sim-controls,
+      .toolbar,
+      .header-right {
+        flex-wrap: wrap;
+      }
+
+      .visualizer-stage {
+        min-height: 300px;
+      }
+
+      .visualizer-canvas {
+        height: 300px;
+      }
+
+      .visualizer-overlay {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .visualizer-tabs {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .thought-strip,
+      .finale-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body data-phase="listening">
+  <div class="neural-field" aria-hidden="true">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+    <div class="blob b4"></div>
+  </div>
+  <div class="edge-aura" aria-hidden="true"></div>
+  <div class="voice-reactor" aria-hidden="true"></div>
+  <div class="path-layer" aria-hidden="true">
+    <svg viewBox="0 0 1440 820" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="cometGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="transparent" />
+          <stop offset="28%" stop-color="var(--phase-a)" stop-opacity="0.08" />
+          <stop offset="58%" stop-color="var(--phase-b)" stop-opacity="0.86" />
+          <stop offset="76%" stop-color="white" stop-opacity="0.94" />
+          <stop offset="100%" stop-color="transparent" />
+        </linearGradient>
+      </defs>
+      <path class="guide" d="M-40 190 C180 70 300 92 445 232 C600 382 742 414 1012 310 C1194 240 1320 252 1488 352" />
+      <path class="guide" d="M-60 560 C160 450 342 466 498 578 C670 702 820 700 1010 568 C1190 442 1318 430 1490 548" />
+      <path class="guide" d="M120 -40 C222 160 362 228 548 210 C760 190 850 332 954 480 C1058 628 1220 684 1480 612" />
+      <path class="guide" d="M1480 110 C1270 188 1150 304 1040 444 C916 600 750 630 548 520 C360 418 202 430 -60 610" />
+      <path class="guide" d="M260 800 C350 620 470 520 620 494 C810 460 914 330 1030 170 C1120 48 1268 -18 1488 22" />
+      <path class="guide" d="M-30 332 C186 270 330 312 472 438 C636 584 826 570 982 430 C1148 282 1290 224 1488 250" />
+      <path class="comet c1" d="M-40 190 C180 70 300 92 445 232 C600 382 742 414 1012 310 C1194 240 1320 252 1488 352" />
+      <path class="comet c2" d="M-60 560 C160 450 342 466 498 578 C670 702 820 700 1010 568 C1190 442 1318 430 1490 548" />
+      <path class="comet c3" d="M120 -40 C222 160 362 228 548 210 C760 190 850 332 954 480 C1058 628 1220 684 1480 612" />
+      <path class="comet c4" d="M1480 110 C1270 188 1150 304 1040 444 C916 600 750 630 548 520 C360 418 202 430 -60 610" />
+      <path class="comet c5" d="M260 800 C350 620 470 520 620 494 C810 460 914 330 1030 170 C1120 48 1268 -18 1488 22" />
+      <path class="comet c6" d="M-30 332 C186 270 330 312 472 438 C636 584 826 570 982 430 C1148 282 1290 224 1488 250" />
+    </svg>
+  </div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <main class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="logo">A</div>
+        <div>
+          <div class="brand-title">Antigravity</div>
+          <div class="chip" style="margin-top: 5px; display: inline-flex;">Visualizer Test Preview</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="phase-pill">
+          <span class="dot"></span>
+          <span id="phaseLabel">Listening</span>
+        </div>
+        <div class="timer" id="timer">18:42</div>
+        <button class="btn" id="drawerToggle">Transcript</button>
+      </div>
+    </header>
+
+    <section class="shell">
+      <aside class="panel left-panel">
+        <div>
+          <p class="eyebrow">Live Interrogator</p>
+          <p class="desc">A cloned test surface for replacing the orb with an audio visualizer personality: aura, wave, radial, grid, and bar modes driven by the same interview phases.</p>
+        </div>
+
+        <div class="visualizer-stage" data-visualizer="aura">
+          <canvas id="agentVisualizer" class="visualizer-canvas" width="520" height="336" aria-hidden="true"></canvas>
+          <div class="visualizer-overlay">
+            <div>
+              <p class="meta-label">Agent Visualizer</p>
+              <div class="chip">Aura mode</div>
+            </div>
+            <div class="visualizer-tabs" aria-label="Visualizer style">
+              <button class="visualizer-tab active" data-visualizer-button="aura" type="button">Aura</button>
+              <button class="visualizer-tab" data-visualizer-button="wave" type="button">Wave</button>
+              <button class="visualizer-tab" data-visualizer-button="radial" type="button">Radial</button>
+              <button class="visualizer-tab" data-visualizer-button="grid" type="button">Grid</button>
+              <button class="visualizer-tab" data-visualizer-button="bar" type="button">Bar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-row"><span>Persona</span><span class="value">Senior peer</span></div>
+          <div class="rail-row"><span>Sprint</span><span class="value">S2 / Systems</span></div>
+          <div class="rail-row"><span>Route</span><span class="value" id="routeValue">Listening field</span></div>
+          <div class="rail-row"><span>Signal</span><span class="value" id="signalValue">Live capture</span></div>
+        </div>
+      </aside>
+
+      <section class="panel conversation">
+        <div class="conversation-head">
+          <div>
+            <p class="eyebrow">Conversation Field</p>
+            <p class="conversation-title">The active probe is the main artifact. Transcript memory stays available, but it no longer owns the whole screen.</p>
+          </div>
+          <div class="toolbar">
+            <span class="chip">Open mic</span>
+            <span class="chip">Turn 07</span>
+          </div>
+        </div>
+
+        <div class="stage">
+          <article class="stage-card">
+            <div class="stage-inner">
+              <div class="stage-meta">
+                <p class="meta-label" id="stageLabel">Active Probe</p>
+                <p class="meta-label" id="stageState">Awaiting evidence</p>
+              </div>
+              <h1 class="stage-copy" id="stageCopy">That's a useful starting point. Now make it concrete: how would leader election survive a multi-region partition without creating two writers?</h1>
+              <div class="live-answer">
+                <p class="meta-label">Live candidate signal</p>
+                <p id="candidateText">I would start with a single-writer invariant, then use quorum-based leader election with fencing tokens so stale leaders cannot keep committing writes after a partition heals...</p>
+              </div>
+              <div class="thought-strip" id="thoughtStrip">
+                <div class="thought"><strong>Claim</strong><span id="thoughtClaim">Single-writer invariant with quorum election.</span></div>
+                <div class="thought"><strong>Gap</strong><span id="thoughtGap">Stale leader rejection point is not specified.</span></div>
+                <div class="thought"><strong>Next</strong><span id="thoughtNext">Force a concrete enforcement layer.</span></div>
+              </div>
+              <div class="focus-halo">
+                <span class="focus-token active" id="focusA">Ownership</span>
+                <span class="focus-token" id="focusB">Failure Mode</span>
+                <span class="focus-token" id="focusC">Systems Boundary</span>
+              </div>
+              <div class="waveform" id="waveform" aria-hidden="true"></div>
+            </div>
+          </article>
+        </div>
+
+        <div class="conversation-foot">
+          <p class="hint" id="footerHint">Use the phase controls to preview how the neural graphics respond to the interview floor state.</p>
+          <div class="sim-controls">
+            <button class="btn primary" id="runSimButton">Run Conversation</button>
+            <button class="btn hot" id="bargeButton">Barge In</button>
+            <button class="btn" id="finaleButton">End Sequence</button>
+            <button class="btn" id="autoButton">Auto Cycle</button>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <footer class="footer">
+      <div class="phase-buttons">
+        <button class="phase-button" data-phase-button="idle">Idle</button>
+        <button class="phase-button active" data-phase-button="listening">Listening</button>
+        <button class="phase-button" data-phase-button="thinking">Thinking</button>
+        <button class="phase-button" data-phase-button="speaking">Speaking</button>
+        <button class="phase-button" data-phase-button="closing">Closing</button>
+      </div>
+      <label class="mic-control">
+        Voice energy
+        <input id="mic" type="range" min="0" max="100" value="62" />
+      </label>
+    </footer>
+  </main>
+
+  <aside class="drawer hidden" id="drawer">
+    <div class="drawer-head">
+      <span class="meta-label">Transcript Memory</span>
+      <button class="btn close" id="drawerClose">x</button>
+    </div>
+    <div class="drawer-body">
+      <div class="turn ai">
+        <span class="turn-label">Antigravity AI</span>
+        <div class="bubble">Walk me through the queue architecture you owned. Where does ordering actually live?</div>
+      </div>
+      <div class="turn human">
+        <span class="turn-label">Candidate</span>
+        <div class="bubble">Ordering was scoped per partition. We used an append-only offset log and a consumer group assignment model.</div>
+      </div>
+      <div class="turn ai">
+        <span class="turn-label">Antigravity AI</span>
+        <div class="bubble">Good. What breaks first if one partition becomes hot while the rest stay flat?</div>
+      </div>
+      <div class="turn human">
+        <span class="turn-label">Candidate</span>
+        <div class="bubble">The single hot partition caps throughput, so I would split by key-space only after checking if ordering constraints allow it.</div>
+      </div>
+      <div class="turn ai active">
+        <span class="turn-label">Antigravity AI</span>
+        <div class="bubble">Now make it concrete: how would leader election survive a multi-region partition without creating two writers?</div>
+      </div>
+    </div>
+  </aside>
+
+  <section class="finale" id="finale" aria-hidden="true">
+    <div class="finale-card">
+      <p class="finale-kicker">Interview Closed</p>
+      <h2 class="finale-title">Signal captured. Report forming.</h2>
+      <div class="finale-grid">
+        <div class="finale-metric"><span>Evidence turns</span><strong>12</strong></div>
+        <div class="finale-metric"><span>Focus areas</span><strong>3</strong></div>
+        <div class="finale-metric"><span>Boundary checks</span><strong>7</strong></div>
+      </div>
+      <div class="thought-strip" style="display:grid;">
+        <div class="thought"><strong>Strong signal</strong><span>Candidate handled ownership and ordering constraints with concrete mechanisms.</span></div>
+        <div class="thought"><strong>Open risk</strong><span>Recovery semantics under delayed retries still need evidence.</span></div>
+        <div class="thought"><strong>Report</strong><span>Final evaluation is compiling the reasoning trace and coverage map.</span></div>
+      </div>
+      <div class="finale-actions">
+        <button class="btn primary" id="replayButton">Replay Simulation</button>
+        <button class="btn" id="closeFinaleButton">Return to Field</button>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const phaseData = {
+      idle: {
+        label: "Ready",
+        route: "Ready state",
+        signal: "No floor owner",
+        stage: "Ready",
+        state: "Waiting to begin",
+        copy: "Ready to begin. When the candidate speaks, the field wakes and pulls signal inward.",
+        candidate: "No candidate audio is being captured yet.",
+        hint: "Idle keeps the field alive but quiet."
+      },
+      listening: {
+        label: "Listening",
+        route: "Listening field",
+        signal: "Live capture",
+        stage: "Active Probe",
+        state: "Awaiting evidence",
+        copy: "That's a useful starting point. Now make it concrete: how would leader election survive a multi-region partition without creating two writers?",
+        candidate: "I would start with a single-writer invariant, then use quorum-based leader election with fencing tokens so stale leaders cannot keep committing writes after a partition heals...",
+        hint: "Listening pulls motion inward and lets the voice bars carry the energy."
+      },
+      thinking: {
+        label: "Thinking...",
+        route: "Synthesis sweep",
+        signal: "Agent planning",
+        stage: "Synthesizing",
+        state: "Finding the next boundary",
+        copy: "The answer gives a mechanism, but the untested edge is stale-leader fencing during delayed retries.",
+        candidate: "Captured claim: quorum election plus fencing tokens. Missing detail: where the token is checked and what rejects the stale writer.",
+        hint: "Thinking shifts to amber, slows the paths, and sweeps the active card."
+      },
+      speaking: {
+        label: "Speaking",
+        route: "Outbound probe",
+        signal: "AI floor",
+        stage: "Follow-up",
+        state: "Outbound question",
+        copy: "Where exactly is the fencing token enforced: at the client, the write service, or the storage layer? Pick one and defend the failure mode.",
+        candidate: "The mic is gated while the AI speaks. The waveform becomes output energy instead of input capture.",
+        hint: "Speaking pushes motion outward and gives the card a stronger beam."
+      },
+      closing: {
+        label: "Closing",
+        route: "Final synthesis",
+        signal: "Report handoff",
+        stage: "Closing Sequence",
+        state: "Evidence sealed",
+        copy: "That gives me enough signal. I am closing the loop and turning the conversation into an evidence report.",
+        candidate: "The interview field desaturates into a report handoff. Motion slows, evidence locks, and the finale is ready.",
+        hint: "Closing slows the system down and prepares the final UI play."
+      }
+    };
+
+    const body = document.body;
+    const stageCard = document.querySelector(".stage-card");
+    const phaseLabel = document.getElementById("phaseLabel");
+    const routeValue = document.getElementById("routeValue");
+    const signalValue = document.getElementById("signalValue");
+    const stageLabel = document.getElementById("stageLabel");
+    const stageState = document.getElementById("stageState");
+    const stageCopy = document.getElementById("stageCopy");
+    const candidateText = document.getElementById("candidateText");
+    const footerHint = document.getElementById("footerHint");
+    const orbCore = document.getElementById("orbCore");
+    const visualizerCanvas = document.getElementById("agentVisualizer");
+    const visualizerCtx = visualizerCanvas ? visualizerCanvas.getContext("2d") : null;
+    const visualizerStage = document.querySelector(".visualizer-stage");
+    const visualizerButtons = Array.from(document.querySelectorAll("[data-visualizer-button]"));
+    const waveform = document.getElementById("waveform");
+    const mic = document.getElementById("mic");
+    const autoButton = document.getElementById("autoButton");
+    const runSimButton = document.getElementById("runSimButton");
+    const bargeButton = document.getElementById("bargeButton");
+    const finaleButton = document.getElementById("finaleButton");
+    const finale = document.getElementById("finale");
+    const closeFinaleButton = document.getElementById("closeFinaleButton");
+    const replayButton = document.getElementById("replayButton");
+    const thoughtClaim = document.getElementById("thoughtClaim");
+    const thoughtGap = document.getElementById("thoughtGap");
+    const thoughtNext = document.getElementById("thoughtNext");
+    const focusTokens = [
+      document.getElementById("focusA"),
+      document.getElementById("focusB"),
+      document.getElementById("focusC"),
+    ];
+    const drawerBody = document.querySelector(".drawer-body");
+    const phaseButtons = Array.from(document.querySelectorAll("[data-phase-button]"));
+    let phase = "listening";
+    let micLevel = Number(mic.value) / 100;
+    let autoTimer = null;
+    let simTimer = null;
+    let simStep = 0;
+    let elapsed = 18 * 60 + 42;
+    let visualizerMode = "aura";
+
+    function renderOrbCore(nextPhase) {
+      if (!orbCore) return;
+
+      if (nextPhase === "thinking") {
+        orbCore.innerHTML = '<span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span>';
+        return;
+      }
+
+      if (nextPhase === "idle") {
+        orbCore.innerHTML = '<svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="6" fill="none" stroke="oklch(0.82 0.18 255 / 0.8)" stroke-width="1.5"/><circle cx="24" cy="24" r="16" fill="none" stroke="oklch(0.72 0.2 255 / 0.28)" stroke-width="1" stroke-dasharray="3 5"/><circle cx="24" cy="24" r="2.5" fill="oklch(0.82 0.18 255)"/></svg>';
+        return;
+      }
+
+      if (nextPhase === "closing") {
+        orbCore.innerHTML = '<svg width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><path d="M16 28.5 23.5 36 39 18" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="27" r="21" fill="none" stroke="oklch(0.92 0.11 94 / 0.42)" stroke-width="1.5"/></svg>';
+        return;
+      }
+
+      orbCore.innerHTML = Array.from({ length: 7 }).map((_, i) => '<span class="mini-bar" style="animation-delay:' + (i * 70) + 'ms"></span>').join("");
+    }
+
+    function cssColor(name, fallback) {
+      return getComputedStyle(body).getPropertyValue(name).trim() || fallback;
+    }
+
+    function canvasGradient(ctx, x1, y1, x2, y2) {
+      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+      gradient.addColorStop(0, cssColor("--phase-c", "#f6fbff"));
+      gradient.addColorStop(0.26, "#69f7ba");
+      gradient.addColorStop(0.48, cssColor("--phase-a", "#45d9ff"));
+      gradient.addColorStop(0.68, "#735cff");
+      gradient.addColorStop(0.86, cssColor("--phase-b", "#ff4fd8"));
+      gradient.addColorStop(1, "#ff6969");
+      return gradient;
+    }
+
+    function drawDotField(ctx, width, height, time, energy) {
+      ctx.save();
+      ctx.fillStyle = "rgba(255,255,255,0.05)";
+      const step = 9;
+      for (let y = 7; y < height; y += step) {
+        for (let x = 7; x < width; x += step) {
+          const dx = x - width * 0.5;
+          const dy = y - height * 0.5;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const pulse = Math.sin(distance * 0.042 - time * 1.25) * 0.5 + 0.5;
+          const alpha = Math.max(0.018, (1 - distance / (width * 0.72)) * (0.045 + pulse * energy * 0.045));
+          ctx.globalAlpha = alpha;
+          ctx.fillRect(x, y, 1.1, 1.1);
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawAura(ctx, width, height, time, energy) {
+      const cx = width * 0.5;
+      const cy = height * 0.48;
+      const points = 240;
+      const base = Math.min(width, height) * (0.285 + energy * 0.016);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+
+      const outerHalo = ctx.createRadialGradient(cx, cy, base * 0.7, cx, cy, base * 1.55);
+      outerHalo.addColorStop(0, "rgba(255,255,255,0)");
+      outerHalo.addColorStop(0.55, "rgba(80,220,255,0.055)");
+      outerHalo.addColorStop(1, "rgba(255,92,215,0)");
+      ctx.fillStyle = outerHalo;
+      ctx.globalAlpha = 0.55 + energy * 0.18;
+      ctx.fillRect(0, 0, width, height);
+
+      for (let layer = 0; layer < 5; layer += 1) {
+        ctx.beginPath();
+        for (let i = 0; i <= points; i += 1) {
+          const a = (i / points) * Math.PI * 2;
+          const wobble =
+            Math.sin(a * 5 + time * (0.72 + layer * 0.05)) * (3.4 + energy * 4.8) +
+            Math.sin(a * 8 - time * (0.92 + layer * 0.04)) * (1.8 + energy * 3.2);
+          const radius = base + wobble + (layer - 2) * 2.2;
+          const x = cx + Math.cos(a) * radius;
+          const y = cy + Math.sin(a) * (radius * 0.83);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.lineWidth = [12, 8, 5, 3, 1.4][layer];
+        ctx.strokeStyle = canvasGradient(ctx, cx - base, cy - base, cx + base, cy + base);
+        ctx.shadowBlur = 12 + energy * 18;
+        ctx.shadowColor = layer % 2 ? cssColor("--phase-b", "#ff4fd8") : cssColor("--phase-a", "#45d9ff");
+        ctx.globalAlpha = [0.12, 0.19, 0.46, 0.68, 0.92][layer];
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, base * 0.98, base * 0.82, 0, 0, Math.PI * 2);
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = "rgba(255,255,255,0.72)";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawWave(ctx, width, height, time, energy) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (let layer = 0; layer < 4; layer += 1) {
+        ctx.beginPath();
+        const yBase = height * (0.48 + (layer - 1.5) * 0.045);
+        for (let x = 34; x <= width - 34; x += 5) {
+          const progress = x / width;
+          const amp = (8 + layer * 4) * (0.5 + energy * 0.95);
+          const y =
+            yBase +
+            Math.sin(progress * Math.PI * (3.6 + layer * 0.34) + time * (0.95 + layer * 0.12)) * amp +
+            Math.sin(progress * Math.PI * 8.5 - time * 0.82) * amp * 0.16;
+          if (x === 34) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.lineWidth = 2.4 + layer * 1.8;
+        ctx.strokeStyle = canvasGradient(ctx, 0, 0, width, 0);
+        ctx.shadowBlur = 10 + energy * 18;
+        ctx.shadowColor = layer % 2 ? cssColor("--phase-b", "#ff4fd8") : cssColor("--phase-a", "#45d9ff");
+        ctx.globalAlpha = 0.18 + layer * 0.14;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawRadial(ctx, width, height, time, energy) {
+      const cx = width * 0.5;
+      const cy = height * 0.48;
+      const count = 72;
+      const base = Math.min(width, height) * 0.24;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = 0; i < count; i += 1) {
+        const a = (i / count) * Math.PI * 2;
+        const pulse = Math.abs(Math.sin(time * 1.05 + i * 0.28));
+        const len = 8 + pulse * (10 + energy * 28);
+        const inner = base + Math.sin(time * 0.7 + i * 0.17) * 2.5;
+        const outer = inner + len;
+        const x1 = cx + Math.cos(a) * inner;
+        const y1 = cy + Math.sin(a) * inner * 0.86;
+        const x2 = cx + Math.cos(a) * outer;
+        const y2 = cy + Math.sin(a) * outer * 0.86;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineWidth = 1.4 + pulse * 1.4;
+        ctx.strokeStyle = canvasGradient(ctx, x1, y1, x2, y2);
+        ctx.globalAlpha = 0.2 + pulse * 0.48;
+        ctx.shadowBlur = 8 + energy * 14;
+        ctx.shadowColor = i % 2 ? cssColor("--phase-b", "#ff4fd8") : cssColor("--phase-a", "#45d9ff");
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, base * 0.68 + energy * 2, (base * 0.68 + energy * 2) * 0.86, 0, 0, Math.PI * 2);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(255,255,255,0.28)";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGrid(ctx, width, height, time, energy) {
+      ctx.save();
+      const cols = 34;
+      const rows = 19;
+      const gapX = width / (cols + 1);
+      const gapY = height / (rows + 1);
+      ctx.globalCompositeOperation = "lighter";
+      for (let y = 1; y <= rows; y += 1) {
+        for (let x = 1; x <= cols; x += 1) {
+          const px = x * gapX;
+          const py = y * gapY;
+          const dx = px - width * 0.5;
+          const dy = py - height * 0.48;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          const ring = Math.exp(-Math.pow((d - 88 - Math.sin(time * 0.8) * 10) / 36, 2));
+          const shimmer = Math.sin(d * 0.04 - time * 1.4) * 0.5 + 0.5;
+          const gate = ring * (0.22 + energy * 0.85) + shimmer * 0.08;
+          const size = 1.15 + gate * 3.4;
+          ctx.globalAlpha = 0.06 + gate * 0.48;
+          ctx.fillStyle = x % 3 === 0 ? cssColor("--phase-b", "#ff4fd8") : cssColor("--phase-a", "#45d9ff");
+          ctx.fillRect(px - size * 0.5, py - size * 0.5, size, size);
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawBar(ctx, width, height, time, energy) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const count = 44;
+      const maxH = height * 0.42;
+      const barW = Math.max(4, width / 92);
+      const center = width * 0.5;
+      for (let i = 0; i < count; i += 1) {
+        const offset = i - count / 2;
+        const x = center + offset * (barW + 5);
+        const falloff = 1 - Math.min(1, Math.abs(offset) / (count / 2));
+        const pulse =
+          Math.abs(Math.sin(time * 1.1 + i * 0.36)) * 0.64 +
+          Math.abs(Math.sin(time * 1.7 - i * 0.17)) * 0.36;
+        const h = 8 + maxH * (0.1 + energy * 0.72) * (0.3 + falloff * 0.7) * pulse;
+        const y = height * 0.5 - h * 0.5;
+        ctx.fillStyle = canvasGradient(ctx, x, y, x, y + h);
+        ctx.shadowBlur = 8 + energy * 16;
+        ctx.shadowColor = i % 2 ? cssColor("--phase-b", "#ff4fd8") : cssColor("--phase-a", "#45d9ff");
+        ctx.globalAlpha = 0.38 + falloff * 0.46;
+        ctx.beginPath();
+        ctx.roundRect(x, y, barW, h, 8);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawVisualizer(time) {
+      if (!visualizerCtx || !visualizerCanvas) return;
+      const ctx = visualizerCtx;
+      const width = visualizerCanvas.width;
+      const height = visualizerCanvas.height;
+      const phaseAmp = { idle: 0.16, listening: 0.72, thinking: 0.46, speaking: 0.86, closing: 0.28 }[phase] || 0.4;
+      const energy = Math.min(0.9, Math.max(0.06, micLevel * phaseAmp));
+
+      ctx.clearRect(0, 0, width, height);
+      const bg = ctx.createRadialGradient(width * 0.5, height * 0.5, 20, width * 0.5, height * 0.5, width * 0.62);
+      bg.addColorStop(0, "rgba(255,255,255,0.018)");
+      bg.addColorStop(0.48, "rgba(42,198,255,0.022)");
+      bg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+      drawDotField(ctx, width, height, time, energy);
+
+      if (visualizerMode === "wave") drawWave(ctx, width, height, time, energy);
+      else if (visualizerMode === "radial") drawRadial(ctx, width, height, time, energy);
+      else if (visualizerMode === "grid") drawGrid(ctx, width, height, time, energy);
+      else if (visualizerMode === "bar") drawBar(ctx, width, height, time, energy);
+      else drawAura(ctx, width, height, time, energy);
+    }
+
+    function setPhase(nextPhase) {
+      phase = nextPhase;
+      const data = phaseData[nextPhase];
+      body.dataset.phase = nextPhase;
+      phaseLabel.textContent = data.label;
+      routeValue.textContent = data.route;
+      signalValue.textContent = data.signal;
+      stageLabel.textContent = data.stage;
+      stageState.textContent = data.state;
+      stageCopy.textContent = data.copy;
+      candidateText.textContent = data.candidate;
+      footerHint.textContent = data.hint;
+      renderOrbCore(nextPhase);
+      updateThoughts(nextPhase);
+      updateFocus(nextPhase);
+      phaseButtons.forEach((button) => {
+        button.classList.toggle("active", button.dataset.phaseButton === nextPhase);
+      });
+    }
+
+    function updateThoughts(nextPhase) {
+      const thoughts = {
+        idle: ["Ready", "No evidence yet.", "Wake the field with speech."],
+        listening: ["Claim", "Single-writer invariant with quorum election.", "Capture mechanism and missing edge."],
+        thinking: ["Claim isolated", "Fencing is named, enforcement layer is missing.", "Ask where stale writers are rejected."],
+        speaking: ["Question served", "Candidate must pick an enforcement boundary.", "Listen for concrete failure semantics."],
+        closing: ["Evidence sealed", "Coverage has enough signal for report handoff.", "Transition into final assessment UI."]
+      };
+      const [claim, gap, next] = thoughts[nextPhase] || thoughts.idle;
+      thoughtClaim.textContent = claim;
+      thoughtGap.textContent = gap;
+      thoughtNext.textContent = next;
+    }
+
+    function updateFocus(nextPhase) {
+      const activeIndex = { idle: 0, listening: 0, thinking: 1, speaking: 2, closing: 2 }[nextPhase] || 0;
+      focusTokens.forEach((token, index) => token.classList.toggle("active", index === activeIndex));
+    }
+
+    function triggerEvidenceRipple() {
+      stageCard.classList.add("ripple");
+      const ripple = document.createElement("span");
+      ripple.className = "evidence-ripple";
+      stageCard.appendChild(ripple);
+      setTimeout(() => {
+        ripple.remove();
+        stageCard.classList.remove("ripple");
+      }, 950);
+    }
+
+    function triggerShockwave() {
+      const wave = document.createElement("span");
+      wave.className = "shockwave";
+      stageCard.appendChild(wave);
+      setPhase("listening");
+      footerHint.textContent = "Barge-in: the outbound aura snaps inward and the user regains the floor.";
+      setTimeout(() => wave.remove(), 820);
+    }
+
+    function addTranscriptTurn(role, text, active = false) {
+      drawerBody.querySelectorAll(".turn.ai.active").forEach((el) => el.classList.remove("active"));
+      const turn = document.createElement("div");
+      turn.className = "turn " + (role === "ai" ? "ai" : "human") + (active && role === "ai" ? " active" : "");
+      turn.innerHTML = '<span class="turn-label">' + (role === "ai" ? "Antigravity AI" : "Candidate") + '</span><div class="bubble"></div>';
+      turn.querySelector(".bubble").textContent = text;
+      drawerBody.appendChild(turn);
+      drawerBody.scrollTop = drawerBody.scrollHeight;
+    }
+
+    function showFinale() {
+      setPhase("closing");
+      triggerEvidenceRipple();
+      setTimeout(() => {
+        finale.classList.add("show");
+        finale.setAttribute("aria-hidden", "false");
+      }, 650);
+    }
+
+    function hideFinale() {
+      finale.classList.remove("show");
+      finale.setAttribute("aria-hidden", "true");
+    }
+
+    phaseButtons.forEach((button) => {
+      button.addEventListener("click", () => setPhase(button.dataset.phaseButton));
+    });
+
+    visualizerButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        visualizerMode = button.dataset.visualizerButton;
+        if (visualizerStage) visualizerStage.dataset.visualizer = visualizerMode;
+        visualizerButtons.forEach((item) => item.classList.toggle("active", item === button));
+        const label = visualizerStage && visualizerStage.querySelector(".chip");
+        if (label) label.textContent = visualizerMode.charAt(0).toUpperCase() + visualizerMode.slice(1) + " mode";
+      });
+    });
+
+    mic.addEventListener("input", () => {
+      micLevel = Number(mic.value) / 100;
+      body.style.setProperty("--voice-energy", micLevel.toFixed(2));
+      body.style.setProperty("--voice-glow", Math.max(0.12, micLevel * 0.5).toFixed(2));
+    });
+
+    const bars = [];
+    for (let i = 0; i < 96; i += 1) {
+      const bar = document.createElement("div");
+      bar.className = "wv";
+      waveform.appendChild(bar);
+      bars.push(bar);
+    }
+
+    const ampByPhase = { idle: 0.08, listening: 1, thinking: 0.22, speaking: 0.9 };
+    let t = 0;
+    function tick() {
+      t += 0.045;
+      const amp = (ampByPhase[phase] || 0.08) * micLevel;
+      const mid = bars.length / 2;
+      bars.forEach((bar, index) => {
+        const dist = Math.abs(index - mid) / mid;
+        const wave =
+          (Math.abs(Math.sin(t + index * 0.48)) * 0.58 +
+           Math.abs(Math.sin(t * 1.4 + index * 0.73)) * 0.42) * amp * 72;
+        bar.style.height = Math.max(4, Math.round(4 + wave * (1 - dist * 0.18))) + "px";
+        bar.style.opacity = String(0.38 + amp * 0.62);
+      });
+      drawVisualizer(t);
+      requestAnimationFrame(tick);
+    }
+
+    autoButton.addEventListener("click", () => {
+      if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+        autoButton.textContent = "Auto Cycle";
+        return;
+      }
+      const phases = ["idle", "listening", "thinking", "speaking", "closing"];
+      let index = phases.indexOf(phase);
+      autoButton.textContent = "Stop Cycle";
+      autoTimer = setInterval(() => {
+        index = (index + 1) % phases.length;
+        if (phases[index] === "thinking") triggerEvidenceRipple();
+        setPhase(phases[index]);
+      }, 2600);
+    });
+
+    const conversationScript = [
+      {
+        phase: "speaking",
+        delay: 2400,
+        copy: "Walk me through the queue architecture you owned. Where does ordering actually live?",
+        candidate: "AI has the floor. Candidate microphone is gated.",
+        role: "ai",
+        transcript: "Walk me through the queue architecture you owned. Where does ordering actually live?"
+      },
+      {
+        phase: "listening",
+        delay: 3000,
+        copy: "Walk me through the queue architecture you owned. Where does ordering actually live?",
+        candidate: "Ordering was scoped per partition. We used an append-only offset log and a consumer group assignment model.",
+        role: "human",
+        transcript: "Ordering was scoped per partition. We used an append-only offset log and a consumer group assignment model."
+      },
+      {
+        phase: "thinking",
+        delay: 2200,
+        copy: "The answer gives partition ownership, but the hot-partition failure path is still untested.",
+        candidate: "Captured: partition-scoped ordering. Missing: what happens when one key-space dominates throughput.",
+        ripple: true
+      },
+      {
+        phase: "speaking",
+        delay: 3000,
+        copy: "Good. What breaks first if one partition becomes hot while the rest stay flat?",
+        candidate: "AI is forcing the candidate to defend the first real operational boundary.",
+        role: "ai",
+        transcript: "Good. What breaks first if one partition becomes hot while the rest stay flat?"
+      },
+      {
+        phase: "listening",
+        delay: 3000,
+        copy: "Good. What breaks first if one partition becomes hot while the rest stay flat?",
+        candidate: "The single hot partition caps throughput, so I would split by key-space only after checking if ordering constraints allow it.",
+        role: "human",
+        transcript: "The single hot partition caps throughput, so I would split by key-space only after checking if ordering constraints allow it."
+      },
+      {
+        phase: "thinking",
+        delay: 2200,
+        copy: "The candidate understands the bottleneck. Next probe should test safety, not throughput.",
+        candidate: "Captured: throughput cap and ordering constraint. Gap: leader safety during partition.",
+        ripple: true
+      },
+      {
+        phase: "speaking",
+        delay: 2600,
+        copy: "Now make it concrete: how would leader election survive a multi-region partition without creating two writers?",
+        candidate: "Outbound probe: move from scaling to correctness under partition.",
+        role: "ai",
+        transcript: "Now make it concrete: how would leader election survive a multi-region partition without creating two writers?"
+      },
+      {
+        phase: "listening",
+        delay: 2400,
+        copy: "Now make it concrete: how would leader election survive a multi-region partition without creating two writers?",
+        candidate: "I would use quorum election plus fencing tokens so stale leaders cannot keep committing writes after the partition heals.",
+        role: "human",
+        transcript: "I would use quorum election plus fencing tokens so stale leaders cannot keep committing writes after the partition heals."
+      },
+      {
+        phase: "thinking",
+        delay: 2200,
+        copy: "The answer names the right mechanism, but enforcement is still abstract.",
+        candidate: "Captured: quorum + fencing. Missing: exact layer that rejects stale writers.",
+        ripple: true
+      },
+      {
+        phase: "speaking",
+        delay: 2600,
+        copy: "Where exactly is the fencing token enforced: at the client, the write service, or the storage layer? Pick one and defend the failure mode.",
+        candidate: "This is the deepest boundary check in the sequence.",
+        role: "ai",
+        transcript: "Where exactly is the fencing token enforced: at the client, the write service, or the storage layer? Pick one and defend the failure mode."
+      },
+      {
+        phase: "closing",
+        delay: 2200,
+        copy: "That gives me enough signal. I am closing the loop and turning the conversation into an evidence report.",
+        candidate: "The interview field slows down. Evidence is sealed.",
+        ripple: true
+      },
+      {
+        phase: "closing",
+        delay: 1400,
+        finale: true
+      }
+    ];
+
+    function stopSimulation() {
+      if (simTimer) clearTimeout(simTimer);
+      simTimer = null;
+      simStep = 0;
+      runSimButton.textContent = "Run Conversation";
+    }
+
+    function applyScriptStep(step) {
+      if (step.phase) setPhase(step.phase);
+      if (step.copy) stageCopy.textContent = step.copy;
+      if (step.candidate) candidateText.textContent = step.candidate;
+      if (step.ripple) triggerEvidenceRipple();
+      if (step.role && step.transcript) addTranscriptTurn(step.role, step.transcript, step.role === "ai");
+      if (step.finale) showFinale();
+    }
+
+    function runSimulation() {
+      hideFinale();
+      if (simTimer) {
+        stopSimulation();
+        return;
+      }
+      runSimButton.textContent = "Stop Simulation";
+      simStep = 0;
+      const playNext = () => {
+        const step = conversationScript[simStep];
+        if (!step) {
+          stopSimulation();
+          return;
+        }
+        applyScriptStep(step);
+        simStep += 1;
+        simTimer = setTimeout(playNext, step.delay);
+      };
+      playNext();
+    }
+
+    runSimButton.addEventListener("click", runSimulation);
+    bargeButton.addEventListener("click", triggerShockwave);
+    finaleButton.addEventListener("click", showFinale);
+    closeFinaleButton.addEventListener("click", hideFinale);
+    replayButton.addEventListener("click", () => {
+      hideFinale();
+      stopSimulation();
+      runSimulation();
+    });
+
+    const drawer = document.getElementById("drawer");
+    document.getElementById("drawerToggle").addEventListener("click", () => drawer.classList.toggle("hidden"));
+    document.getElementById("drawerClose").addEventListener("click", () => drawer.classList.add("hidden"));
+
+    setInterval(() => {
+      elapsed += 1;
+      const min = String(Math.floor(elapsed / 60)).padStart(2, "0");
+      const sec = String(elapsed % 60).padStart(2, "0");
+      document.getElementById("timer").textContent = min + ":" + sec;
+    }, 1000);
+
+    body.style.setProperty("--voice-energy", micLevel.toFixed(2));
+    body.style.setProperty("--voice-glow", Math.max(0.12, micLevel * 0.5).toFixed(2));
+    setPhase("listening");
+    tick();
+  </script>
+</body>
+</html>

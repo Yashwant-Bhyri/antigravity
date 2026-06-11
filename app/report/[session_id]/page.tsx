@@ -21,9 +21,11 @@ type Report = {
   target_role: string;
   years_experience: string;
   total_questions: number;
+  schema_version?: string;
   overall_score: number | null;
   hire_recommendation: string | null;
   confidence_score: number | null;
+  confidence_band?: { low: number; point: number; high: number } | null;
   summary: string | null;
   strengths: string[];
   risk_flags: string[];
@@ -34,6 +36,50 @@ type Report = {
   raw_weaknesses: { type: string; severity: string; weakness: string; probe_direction: string }[];
   claim_credibility_risk: { level: string; detail: string } | null;
   coverage_portrait?: CoveragePortrait | null;
+  coverage_gate?: { passed: boolean; reasons: string[]; assessment_coverage?: Record<string, any> } | null;
+  interview_quality?: {
+    score: number;
+    band: string;
+    role_relevance?: string;
+    coverage_breadth?: string;
+    tunneling_detected?: boolean;
+    fairness_warnings?: string[];
+  } | null;
+  role_fit_profile?: {
+    target_role_fit?: string;
+    best_fit_archetype?: string;
+    strongest_signal?: string;
+    largest_unresolved_risk?: string;
+    alternate_fit_notes?: string;
+  } | null;
+  ability_profile?: {
+    strongest_verified_signal?: string;
+    weakest_verified_signal?: string;
+    alternate_fit_archetypes?: string[];
+    target_role_fit?: string;
+    role_fit_explanation?: string;
+  } | null;
+  resume_claim_calibration?: {
+    claims_tested?: { claim?: string; hype_level?: string; evidence_strength?: string; claim_risk?: string }[];
+    claims_substantiated?: any[];
+    claims_partially_substantiated?: any[];
+    claims_not_substantiated?: any[];
+    claims_untested?: { claim?: string; hype_level?: string }[];
+    impact_on_verdict?: string;
+    principle?: string;
+  } | null;
+  tested_strengths?: string[];
+  tested_risks?: string[];
+  claim_findings?: { claim?: string; status?: string; interpretation?: string; evidence_refs?: any[] }[];
+  recommended_followups?: string[];
+  candidate_safe_summary?: string | null;
+  recruiter_summary?: string | null;
+  review_reconciliation?: {
+    reviewer_concerns?: string[];
+    accepted_changes?: string[];
+    rejected_changes?: string[];
+    review_model?: string;
+  } | null;
   verdict_basis?: string;
   verdict_confidence_basis?: string;
 };
@@ -55,6 +101,16 @@ function metricEmphasis(value: number | null | undefined) {
   return "red" as const;
 }
 
+function titleize(value: string | null | undefined) {
+  return String(value ?? "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function compactList<T>(items: T[] | undefined | null, limit = 4): T[] {
+  return Array.isArray(items) ? items.slice(0, limit) : [];
+}
+
 export default async function ReportPage({
   params,
 }: {
@@ -66,6 +122,10 @@ export default async function ReportPage({
   const failureEntries = Object.entries(report.failure_surface ?? {});
   const weaknessSummaryEntries = Object.entries(report.weakness_summary ?? {});
   const highSeverityCount = report.raw_weaknesses.filter((item) => item.severity === "high").length;
+  const reportSummary = report.candidate_safe_summary || report.recruiter_summary || report.summary;
+  const v2Report = report.schema_version === "final_report_v2";
+  const testedStrengths = report.tested_strengths?.length ? report.tested_strengths : report.strengths;
+  const testedRisks = report.tested_risks?.length ? report.tested_risks : report.risk_flags;
 
   return (
     <main className="ag-shell min-h-screen px-6 py-8 md:px-10">
@@ -102,6 +162,11 @@ export default async function ReportPage({
                 {Math.round(report.confidence_score * 100)}% confidence
               </p>
             )}
+            {report.confidence_band && (
+              <p className="text-xs text-[var(--ag-text-3)]">
+                Score band {report.confidence_band.low.toFixed(1)}-{report.confidence_band.high.toFixed(1)}
+              </p>
+            )}
           </AGSurface>
         </div>
 
@@ -115,7 +180,7 @@ export default async function ReportPage({
           <AGMetricCard
             label="High Severity"
             value={highSeverityCount}
-            subtext="pressure points judged materially weak"
+            subtext={v2Report ? "raw probes; interpreted through evidence gates" : "pressure points judged materially weak"}
             emphasis={highSeverityCount > 0 ? "red" : "green"}
           />
           <AGMetricCard
@@ -126,10 +191,156 @@ export default async function ReportPage({
           />
         </div>
 
-        {report.summary && (
+        {report.coverage_gate && !report.coverage_gate.passed && (
+          <AGSurface className="border-[oklch(0.8_0.16_72_/_0.22)] px-6 py-5">
+            <AGSectionLabel>Assessment Limits</AGSectionLabel>
+            <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--ag-text-1)]">
+              This report is constrained by interview coverage. Treat the verdict as an evidence boundary, not a candidate-wide rejection.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {compactList(report.coverage_gate.reasons, 8).map((reason) => (
+                <span key={reason} className="rounded-lg border border-[oklch(0.8_0.16_72_/_0.28)] bg-[oklch(0.8_0.16_72_/_0.08)] px-3 py-1 text-xs text-[var(--ag-amber)]">
+                  {titleize(reason)}
+                </span>
+              ))}
+            </div>
+          </AGSurface>
+        )}
+
+        {reportSummary && (
           <AGSurface className="px-6 py-6">
             <AGSectionLabel>Assessment Summary</AGSectionLabel>
-            <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--ag-text-1)]">{report.summary}</p>
+            <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--ag-text-1)]">{reportSummary}</p>
+          </AGSurface>
+        )}
+
+        {(report.role_fit_profile || report.ability_profile || report.interview_quality) && (
+          <div className="grid gap-4 lg:grid-cols-3">
+            {report.role_fit_profile && (
+              <AGSurface className="px-5 py-5">
+                <AGSectionLabel>Role Fit</AGSectionLabel>
+                <p className="mt-4 text-2xl font-semibold text-[var(--ag-text-0)]">
+                  {titleize(report.role_fit_profile.target_role_fit || report.ability_profile?.target_role_fit || "inconclusive")}
+                </p>
+                {report.role_fit_profile.strongest_signal && (
+                  <p className="mt-3 text-sm leading-6 text-[var(--ag-text-1)]">{report.role_fit_profile.strongest_signal}</p>
+                )}
+                {report.role_fit_profile.largest_unresolved_risk && (
+                  <p className="mt-3 text-xs leading-6 text-[var(--ag-text-3)]">{report.role_fit_profile.largest_unresolved_risk}</p>
+                )}
+              </AGSurface>
+            )}
+
+            {report.ability_profile && (
+              <AGSurface className="px-5 py-5">
+                <AGSectionLabel>Strongest Signal</AGSectionLabel>
+                <p className="mt-4 text-sm leading-7 text-[var(--ag-text-1)]">
+                  {report.ability_profile.strongest_verified_signal || "No strong verified signal was isolated."}
+                </p>
+                {compactList(report.ability_profile.alternate_fit_archetypes, 3).length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {compactList(report.ability_profile.alternate_fit_archetypes, 3).map((fit) => (
+                      <span key={fit} className="rounded-lg border border-[var(--ag-border)] px-3 py-1 text-xs text-[var(--ag-text-2)]">{fit}</span>
+                    ))}
+                  </div>
+                )}
+              </AGSurface>
+            )}
+
+            {report.interview_quality && (
+              <AGSurface className="px-5 py-5">
+                <AGSectionLabel>Interview Quality</AGSectionLabel>
+                <p className="mt-4 text-2xl font-semibold text-[var(--ag-text-0)]">
+                  {Math.round(report.interview_quality.score * 100)}%
+                </p>
+                <p className="mt-2 text-sm text-[var(--ag-text-2)]">{titleize(report.interview_quality.band)}</p>
+                {compactList(report.interview_quality.fairness_warnings, 3).length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {compactList(report.interview_quality.fairness_warnings, 3).map((warning) => (
+                      <p key={warning} className="text-xs leading-5 text-[var(--ag-text-3)]">{titleize(warning)}</p>
+                    ))}
+                  </div>
+                )}
+              </AGSurface>
+            )}
+          </div>
+        )}
+
+        {v2Report && (testedStrengths.length > 0 || testedRisks.length > 0) && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            {testedStrengths.length > 0 && (
+              <AGSurface className="px-6 py-6">
+                <AGSectionLabel>Tested Strengths</AGSectionLabel>
+                <ul className="mt-5 space-y-3 text-sm leading-7 text-[var(--ag-text-1)]">
+                  {compactList(testedStrengths, 5).map((strength, index) => (
+                    <li key={`${strength}-${index}`} className="rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-4">
+                      {strength}
+                    </li>
+                  ))}
+                </ul>
+              </AGSurface>
+            )}
+
+            {testedRisks.length > 0 && (
+              <AGSurface className="px-6 py-6">
+                <AGSectionLabel>Scoped Tested Risks</AGSectionLabel>
+                <ul className="mt-5 space-y-3 text-sm leading-7 text-[var(--ag-text-1)]">
+                  {compactList(testedRisks, 5).map((risk, index) => (
+                    <li key={`${risk}-${index}`} className="rounded-xl border border-[oklch(0.8_0.16_72_/_0.22)] bg-[oklch(0.8_0.16_72_/_0.07)] px-4 py-4">
+                      {risk}
+                    </li>
+                  ))}
+                </ul>
+              </AGSurface>
+            )}
+          </div>
+        )}
+
+        {report.resume_claim_calibration && (
+          <AGSurface className="px-6 py-6">
+            <AGSectionLabel>Resume Claim Calibration</AGSectionLabel>
+            <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--ag-text-1)]">
+              {report.resume_claim_calibration.principle || "Resume language guides questioning depth; final judgment comes from tested evidence."}
+            </p>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {compactList(report.resume_claim_calibration.claims_tested, 4).length > 0 && (
+                <div>
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">Tested Claims</p>
+                  <ul className="space-y-2">
+                    {compactList(report.resume_claim_calibration.claims_tested, 4).map((claim, index) => (
+                      <li key={`${claim.claim}-${index}`} className="rounded-lg border border-[var(--ag-border)] px-3 py-3 text-xs leading-5 text-[var(--ag-text-1)]">
+                        {claim.claim}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {compactList(report.resume_claim_calibration.claims_untested, 4).length > 0 && (
+                <div>
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--ag-text-3)]">Untested Claims</p>
+                  <ul className="space-y-2">
+                    {compactList(report.resume_claim_calibration.claims_untested, 4).map((claim, index) => (
+                      <li key={`${claim.claim}-${index}`} className="rounded-lg border border-[var(--ag-border)] px-3 py-3 text-xs leading-5 text-[var(--ag-text-1)]">
+                        {claim.claim}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </AGSurface>
+        )}
+
+        {report.recommended_followups && report.recommended_followups.length > 0 && (
+          <AGSurface className="px-6 py-6">
+            <AGSectionLabel>Recommended Follow-Ups</AGSectionLabel>
+            <ul className="mt-5 grid gap-3 md:grid-cols-2">
+              {compactList(report.recommended_followups, 6).map((item, index) => (
+                <li key={`${item}-${index}`} className="rounded-xl border border-[var(--ag-border)] bg-[var(--ag-surface-0)] px-4 py-4 text-sm leading-7 text-[var(--ag-text-1)]">
+                  {item}
+                </li>
+              ))}
+            </ul>
           </AGSurface>
         )}
 
@@ -283,7 +494,7 @@ export default async function ReportPage({
           </div>
 
           <div className="space-y-6">
-            {report.strengths.length > 0 && (
+            {!v2Report && report.strengths.length > 0 && (
               <AGSurface className="px-6 py-6">
                 <AGSectionLabel>Strengths</AGSectionLabel>
                 <ul className="mt-5 space-y-3 text-sm leading-7 text-[var(--ag-text-1)]">
@@ -296,7 +507,7 @@ export default async function ReportPage({
               </AGSurface>
             )}
 
-            {report.risk_flags.length > 0 && (
+            {!v2Report && report.risk_flags.length > 0 && (
               <AGSurface className="px-6 py-6">
                 <AGSectionLabel>Risk Flags</AGSectionLabel>
                 <ul className="mt-5 space-y-3 text-sm leading-7 text-[var(--ag-text-1)]">

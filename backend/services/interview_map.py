@@ -580,12 +580,13 @@ Hard rules:
 - question_ladder must have exactly one item each for frame, clarify, explore, pressure, synthesize, recover
 - frame and clarify must be plain, guided, and not prosecutor-like
 - pressure must not appear before the pressure ladder item
-- synthesize must be plain language and evidence-seeking, not self-rating. Ask what conclusion is fair to carry forward, what should not be overclaimed, or what concrete check would decide the uncertainty.
+- synthesize must be plain language and evidence-seeking, not self-rating. Ask what evidence supports a fair conclusion, what limitation should be stated, or what concrete check would decide the uncertainty.
 - opener must be anchored to a specific claim, number, or decision from the resume snippets — follow the role-specific opener rules in the system prompt exactly
 - opener must include company/experience context from the resume snippets
 - 2–5 dimensions, every dimension must have a real resume_anchor from the snippets above. Prefer 3+, but do not pad a track with low-signal dimensions when the question_ladder already covers the missing surface.
 - every surface/mechanism/boundary question must follow the pattern: [specific element from their claim] + [consequence, challenge, or probe]
 - NO memory questions: never "what was the first X", never "what did you try first"
+- NO isolated tool/team/format recall: never ask "which team owned production dbt deployments", "what was the main tool", "which debugger did you run", or "what file format did the payload use" unless the question directly ties that fact to a decision, risk, metric validity, or analytical consequence.
 - NO existence checks: never "did you consider X" — never name the solution you are looking for
 - boundary probes must be unanswerable by someone who only read documentation
 - signal_weight: 3.0 for dimensions that directly test the core claim; 1.5 default; 1.0 for peripheral context
@@ -619,6 +620,7 @@ Rules:
 - pressure must be one challenge only, not a compound prosecutor question.
 - Keep normal questions 18-35 words where possible; never exceed 45 words.
 - If answer lanes are useful, include an escape hatch like "or something else?"
+- Do not ask isolated tool/team/deployment/format recall such as "what was the main tool", "which team owned deployment", or "what file format did the payload use". Ask for the consequence of a boundary or decision instead.
 - Do not ask hidden internals unless the snippets explicitly support that layer.
 - Analyst roles: prefer metric definition, denominator, attribution, decision, and guardrail surfaces.
 - Engineering roles: establish ownership and operating level before implementation depth.

@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Antigravity UI Research Assignment</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #05090b;
+        --panel: rgba(8, 16, 19, 0.8);
+        --panel-soft: rgba(255, 255, 255, 0.045);
+        --line: rgba(255, 255, 255, 0.11);
+        --text: rgba(255, 255, 255, 0.91);
+        --muted: rgba(255, 255, 255, 0.64);
+        --faint: rgba(255, 255, 255, 0.42);
+        --cyan: #67e8ff;
+        --rose: #ff5f7f;
+        --amber: #ffc15f;
+        --green: #78ffb0;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(860px 440px at 4% 100%, rgba(36, 213, 178, 0.16), transparent 70%),
+          radial-gradient(800px 420px at 96% 0%, rgba(88, 164, 255, 0.15), transparent 70%),
+          repeating-linear-gradient(38deg, transparent 0 48px, rgba(111, 228, 255, 0.032) 58px 64px, transparent 78px 138px),
+          linear-gradient(180deg, #071216, #030607 78%);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.6;
+      }
+
+      a { color: var(--cyan); }
+
+      .shell {
+        width: min(1200px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 64px;
+      }
+
+      .hero,
+      .card {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36), inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+        backdrop-filter: blur(18px);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: clamp(26px, 5vw, 56px);
+      }
+
+      .hero:after {
+        content: "";
+        position: absolute;
+        inset: auto -12% -48% 12%;
+        height: 280px;
+        background: radial-gradient(ellipse, rgba(103, 232, 255, 0.18), transparent 72%);
+        filter: blur(18px);
+        pointer-events: none;
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--cyan);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+      }
+
+      h1, h2, h3 { letter-spacing: 0; line-height: 1.08; }
+      h1 { max-width: 900px; margin: 0; font-size: clamp(38px, 7vw, 76px); }
+      h2 { margin: 0 0 16px; font-size: clamp(25px, 4vw, 40px); }
+      h3 { margin: 26px 0 10px; font-size: 20px; }
+      p { margin: 0 0 14px; }
+
+      .lede {
+        max-width: 900px;
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: 20px;
+      }
+
+      .meta, .toc, .grid { display: grid; gap: 12px; }
+      .meta { grid-template-columns: repeat(auto-fit, minmax(180px, max-content)); margin-top: 28px; }
+      .toc { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-top: 22px; }
+      .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+      .pill, .toc a {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.055);
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      .pill { padding: 8px 12px; font-size: 13px; }
+      .toc a { border-radius: 14px; padding: 11px 13px; }
+
+      section { margin-top: 22px; scroll-margin-top: 18px; }
+
+      .card {
+        border-radius: 22px;
+        padding: 24px;
+      }
+
+      .callout {
+        margin: 18px 0;
+        border-left: 3px solid var(--cyan);
+        border-radius: 14px;
+        padding: 16px 18px;
+        background: rgba(103, 232, 255, 0.075);
+      }
+
+      .callout.warn {
+        border-left-color: var(--rose);
+        background: rgba(255, 95, 127, 0.075);
+      }
+
+      table {
+        width: 100%;
+        margin: 16px 0;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+
+      th, td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: rgba(255, 255, 255, 0.07);
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      td { color: var(--muted); }
+      tr:last-child td { border-bottom: 0; }
+
+      ul, ol { color: var(--muted); padding-left: 22px; }
+      li { margin: 6px 0; }
+
+      code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+      code {
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 7px;
+        padding: 2px 6px;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      pre {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.38);
+        color: rgba(255, 255, 255, 0.78);
+      }
+
+      .question-list {
+        columns: 2;
+        column-gap: 34px;
+      }
+
+      .footer { margin-top: 24px; color: var(--faint); font-size: 13px; }
+
+      @media (max-width: 820px) {
+        .grid.two, .grid.three { grid-template-columns: 1fr; }
+        .question-list { columns: 1; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">Antigravity UI Research Assignment</p>
+        <h1>Context for designing the live AI interview room</h1>
+        <p class="lede">
+          This is not a design solution. It is a context dossier for a UI research engineer to make
+          independent, research-backed decisions about how Antigravity's live interview UI should work.
+        </p>
+        <div class="meta">
+          <span class="pill">Date: 2026-05-30</span>
+          <span class="pill">Product: live voice interview</span>
+          <span class="pill">Main prototype: /visualizer-livekit-candidate</span>
+          <span class="pill">Goal: decide UI architecture</span>
+        </div>
+      </header>
+
+      <nav class="toc" aria-label="Contents">
+        <a href="#first">Read this first</a>
+        <a href="#product">Product context</a>
+        <a href="#decisions">Decisions to make</a>
+        <a href="#prototypes">Prototype inventory</a>
+        <a href="#capabilities">System capabilities</a>
+        <a href="#inventory">Candidate-facing inventory</a>
+        <a href="#visibility">Visibility matrix</a>
+        <a href="#scenarios">Scenarios</a>
+        <a href="#tensions">Design tensions</a>
+        <a href="#research">Research asks</a>
+        <a href="#deliverables">Deliverables</a>
+      </nav>
+
+      <section id="first" class="card">
+        <p class="eyebrow">0. Read This First</p>
+        <h2>This brief is meant to make you think, not to make you comply</h2>
+        <p>
+          The current UI prototypes are explorations. Please do not treat them as final. Your task is
+          to understand the product, apply research and design judgment, and decide what the interface
+          should become.
+        </p>
+        <div class="callout">
+          Decide how to segment the page, what to show, what to hide, where transcript belongs,
+          how turn-taking is communicated, how the AI presence should behave, and how candidate trust
+          is built.
+        </div>
+      </section>
+
+      <section id="product" class="card">
+        <p class="eyebrow">1. Product Context</p>
+        <h2>What Antigravity is</h2>
+        <p>
+          Antigravity is an AI-observed technical assessment platform. It evaluates engineering candidates
+          through live reasoning under pressure, not through static quiz questions.
+        </p>
+        <p>The live interview works like this:</p>
+        <ol>
+          <li>Candidate provides resume and role context.</li>
+          <li>Backend prepares a resume-grounded interview plan.</li>
+          <li>AI asks a spoken question.</li>
+          <li>Candidate answers by speaking.</li>
+          <li>System transcribes and analyzes the answer.</li>
+          <li>AI asks an immediate, relevant follow-up.</li>
+          <li>The cycle repeats until a report is generated.</li>
+        </ol>
+        <div class="callout warn">
+          The core UI problem: how do we make a live AI interview feel clear, intimate,
+          trustworthy, and serious when there is no human interviewer physically present?
+        </div>
+      </section>
+
+      <section id="decisions" class="grid two">
+        <article class="card">
+          <p class="eyebrow">2. Decisions To Make</p>
+          <h2>Page architecture</h2>
+          <ul>
+            <li>Should this be a chat, cockpit, stage, room, console, or another model?</li>
+            <li>Which region owns attention during each state?</li>
+            <li>Where should AI presence live?</li>
+            <li>Where should candidate metadata live?</li>
+            <li>Where should conversation memory live?</li>
+          </ul>
+        </article>
+        <article class="card">
+          <p class="eyebrow">Decision Areas</p>
+          <h2>Interaction policy</h2>
+          <ul>
+            <li>Transcript strategy</li>
+            <li>Turn-taking language and motion</li>
+            <li>AI presence behavior</li>
+            <li>Candidate controls</li>
+            <li>Error recovery</li>
+            <li>Ending and report handoff</li>
+          </ul>
+        </article>
+      </section>
+
+      <section id="prototypes" class="card">
+        <p class="eyebrow">3. Current Prototype Inventory</p>
+        <h2>Inspect these, but challenge them</h2>
+        <table>
+          <thead>
+            <tr><th>Surface</th><th>Purpose</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>/interview/[session_id]</code></td><td>Real production route</td><td>Real mic, ASR, TTS, transcript, backend flow.</td></tr>
+            <tr><td><code>/visualizer-livekit-candidate</code></td><td>Candidate-facing visual exploration</td><td>LiveKit Aura, candidate header, current question, mic test, state simulation.</td></tr>
+            <tr><td><code>/visualizer-livekit-neural</code></td><td>Fuller experimental UI</td><td>Stronger neural field, voice commands, palette/ripple experiments.</td></tr>
+            <tr><td><code>antigravity-neural-interview-preview.html</code></td><td>Standalone cinematic mock</td><td>Backend-free interaction and finale exploration.</td></tr>
+            <tr><td><code>antigravity-neural-visualizer-preview.html</code></td><td>Visualizer alternatives</td><td>Aura, wave, radial, grid, bar experiments.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="capabilities" class="card">
+        <p class="eyebrow">4. System Capabilities</p>
+        <h2>What the UI can potentially use</h2>
+        <div class="grid three">
+          <div>
+            <h3>Audio / speech</h3>
+            <ul>
+              <li>Browser microphone capture</li>
+              <li>Deepgram interim transcript</li>
+              <li>Deepgram final transcript</li>
+              <li>Named entities</li>
+              <li>Mic energy</li>
+              <li>Barge-in detection</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Turn state</h3>
+            <ul>
+              <li><code>IDLE</code></li>
+              <li><code>USER_SPEAKING</code></li>
+              <li><code>AI_THINKING</code></li>
+              <li><code>AI_SPEAKING</code></li>
+              <li>Closing/report prep</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Backend intelligence</h3>
+            <ul>
+              <li>Resume-grounded map</li>
+              <li>Speculative follow-up prep</li>
+              <li>Weakness/discrepancy analysis</li>
+              <li>Short-answer rescue</li>
+              <li>Application transfer</li>
+              <li>Coverage and final report</li>
+            </ul>
+          </div>
+        </div>
+        <pre><code>Candidate speaks
+  -> partial transcript informs speculative prep
+  -> final transcript commits the turn
+  -> backend returns next question
+  -> TTS speaks
+  -> UI must show who owns the floor</code></pre>
+      </section>
+
+      <section id="inventory" class="card">
+        <p class="eyebrow">5. Candidate-Facing Inventory</p>
+        <h2>Possible things to show, hide, or transform</h2>
+        <table>
+          <thead>
+            <tr><th>Category</th><th>Possible elements</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Identity/setup</td><td>candidate name, role, experience, resume summary, readiness, mic/camera permission, privacy notice</td></tr>
+            <tr><td>AI presence</td><td>Aura, waveform, state label, listening/thinking/speaking animation, state hue, transition ripple</td></tr>
+            <tr><td>Current question</td><td>question text, repeat action, question count, prior-answer anchor, current focus, why-this-question explanation</td></tr>
+            <tr><td>Candidate speech</td><td>live transcript, provisional text, committed answer, mic energy, silence indicator, answer received, correction affordance</td></tr>
+            <tr><td>Memory</td><td>last turns, full transcript, timeline, expandable details, search/export after interview</td></tr>
+            <tr><td>Assessment-derived</td><td>claim, gap, next probe, weakness, discrepancy, application transfer, focus area, coverage, questions remaining</td></tr>
+            <tr><td>Controls</td><td>pause, repeat, need a moment, skip/rephrase, fix transcript, mute, camera, end interview, reduced motion</td></tr>
+            <tr><td>Errors</td><td>mic unavailable, disconnected ASR, unclear transcript, backend delay, TTS failure, report still generating</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="visibility" class="card">
+        <p class="eyebrow">6. Visibility Matrix</p>
+        <h2>Please evaluate what belongs where</h2>
+        <table>
+          <thead>
+            <tr><th>Information</th><th>Candidate live</th><th>Candidate post</th><th>Recruiter</th><th>Internal</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Current question</td><td>?</td><td>?</td><td>?</td><td>yes</td></tr>
+            <tr><td>Live transcript</td><td>?</td><td>?</td><td>?</td><td>yes</td></tr>
+            <tr><td>Committed transcript</td><td>?</td><td>?</td><td>?</td><td>yes</td></tr>
+            <tr><td>Weakness severity</td><td>?</td><td>?</td><td>?</td><td>yes</td></tr>
+            <tr><td>Discrepancy</td><td>?</td><td>?</td><td>?</td><td>yes</td></tr>
+            <tr><td>Claim/gap/next probe</td><td>?</td><td>?</td><td>?</td><td>yes</td></tr>
+            <tr><td>Route kind / model state</td><td>probably no</td><td>probably no</td><td>?</td><td>yes</td></tr>
+            <tr><td>Final score</td><td>no live</td><td>?</td><td>?</td><td>yes</td></tr>
+          </tbody>
+        </table>
+        <p>This table is deliberately unresolved. Please decide the policy.</p>
+      </section>
+
+      <section id="scenarios" class="card">
+        <p class="eyebrow">7. Interaction Scenarios</p>
+        <h2>The final UI must handle these</h2>
+        <div class="grid two">
+          <div>
+            <h3>Normal fluent candidate</h3>
+            <p>AI asks, candidate answers well, answer commits, follow-up appears connected to prior answer.</p>
+            <h3>Terse candidate</h3>
+            <p>Candidate gives a very short answer; backend rescues with grounded follow-up.</p>
+            <h3>Candidate interrupts AI</h3>
+            <p>AI speech stops, candidate regains the floor, UI makes barge-in feel natural.</p>
+          </div>
+          <div>
+            <h3>ASR error</h3>
+            <p>Technical jargon is misheard; candidate may need correction affordance.</p>
+            <h3>Backend latency</h3>
+            <p>Next question is delayed; UI must make wait feel safe and intentional.</p>
+            <h3>Closing</h3>
+            <p>Final turn ends, report generation starts, room transitions gracefully.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="tensions" class="card">
+        <p class="eyebrow">8. Design Tensions</p>
+        <h2>Think hard about these tradeoffs</h2>
+        <ul class="question-list">
+          <li>Transcript transparency vs surveillance feeling</li>
+          <li>Immersion vs seriousness</li>
+          <li>Challenge vs psychological safety</li>
+          <li>AI transparency vs candidate anxiety</li>
+          <li>Human-like warmth vs honest machine identity</li>
+          <li>Current turn focus vs interview memory</li>
+          <li>Premium motion vs distraction</li>
+          <li>Progress visibility vs gamification</li>
+          <li>Candidate control vs assessment integrity</li>
+          <li>Simple UI vs enough recovery affordances</li>
+        </ul>
+      </section>
+
+      <section id="research" class="card">
+        <p class="eyebrow">9. Research Areas</p>
+        <h2>Use external research and your own judgment</h2>
+        <ul>
+          <li>conversation design and voice UI turn-taking</li>
+          <li>human-AI interaction guidelines</li>
+          <li>trust and explainability in AI systems</li>
+          <li>cognitive load in high-pressure tasks</li>
+          <li>caption/transcript UX</li>
+          <li>assessment and interview UX</li>
+          <li>motion design for state feedback</li>
+          <li>accessibility for voice-first interfaces</li>
+        </ul>
+        <p>Starting references:</p>
+        <ul>
+          <li><a href="https://developers.google.com/assistant/conversation-design/learn-about-conversation">Google Conversation Design</a></li>
+          <li><a href="https://www.microsoft.com/en-us/research/blog/guidelines-for-human-ai-interaction-design/">Microsoft Human-AI Interaction Guidelines</a></li>
+          <li><a href="https://www.nngroup.com/articles/ten-usability-heuristics/">Nielsen Norman Group Usability Heuristics</a></li>
+          <li><a href="https://developer.apple.com/design/human-interface-guidelines/feedback">Apple HIG: Feedback</a></li>
+          <li><a href="https://developer.apple.com/design/human-interface-guidelines/siri/">Apple HIG: Siri</a></li>
+        </ul>
+      </section>
+
+      <section id="deliverables" class="card">
+        <p class="eyebrow">10. Requested Deliverables</p>
+        <h2>What we need back from you</h2>
+        <ol>
+          <li>Recommended page segmentation.</li>
+          <li>Desktop and mobile layout.</li>
+          <li>Candidate-facing information hierarchy.</li>
+          <li>Transcript strategy.</li>
+          <li>Turn-taking model.</li>
+          <li>AI presence / Aura behavior model.</li>
+          <li>Motion and color policy.</li>
+          <li>Candidate controls policy.</li>
+          <li>Error and recovery UI policy.</li>
+          <li>Ending / report handoff experience.</li>
+          <li>Live vs post-interview vs recruiter-only visibility policy.</li>
+          <li>Copy and terminology guidelines.</li>
+          <li>Risks and anti-patterns.</li>
+          <li>Prototype recommendations.</li>
+          <li>Open questions that need user testing.</li>
+        </ol>
+        <div class="callout">
+          Please challenge the current prototypes. If the layout is wrong, say so. If the transcript
+          should move or collapse, say so. If the Aura should not be central, say so.
+        </div>
+      </section>
+
+      <section class="card">
+        <p class="eyebrow">11. Output Format</p>
+        <h2>Suggested response structure</h2>
+        <ol>
+          <li>Summary recommendation.</li>
+          <li>Key principles.</li>
+          <li>Proposed information architecture.</li>
+          <li>State-by-state UI behavior.</li>
+          <li>Transcript strategy.</li>
+          <li>Visual/motion strategy.</li>
+          <li>Candidate controls.</li>
+          <li>Candidate trust and safety.</li>
+          <li>Recruiter/internal separation.</li>
+          <li>Prototype plan.</li>
+          <li>Risks and mitigations.</li>
+          <li>Open research questions.</li>
+        </ol>
+      </section>
+
+      <p class="footer">
+        Companion Markdown file: <code>ANTIGRAVITY_UI_RESEARCH_PRD.md</code>.
+      </p>
+    </main>
+  </body>
+</html>

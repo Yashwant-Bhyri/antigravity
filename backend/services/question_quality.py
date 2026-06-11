@@ -49,8 +49,20 @@ def _pattern_flags(question: str) -> list[dict[str, Any]]:
     if re.search(r"\b(most confident|strongest area|weakest area|rate yourself|how confident are you)\b", lowered):
         add("self_rating_certainty", "high", "Uses confidence/self-rating language with low evidence value.")
 
-    if re.search(r"\b(specific|exact)\s+(sql\s+)?(script|query|file|property|column|variable|method name)\b", lowered):
+    if re.search(r"\b(specific|exact)\s+(sql\s+)?(script|query|file|property|column|variable|method name|debugger|tool)\b", lowered):
         add("low_signal_implementation_recall", "high", "Asks for tiny implementation recall instead of reasoning.")
+    if re.search(r"\b(which|what)\s+(specific\s+|exact\s+)?(debugger|tool)\b.{0,80}\b(run|ran|use|used|reuse|reused)\b", lowered):
+        add("low_signal_implementation_recall", "high", "Asks for tool/debugger recall instead of reasoning or consequence.")
+    if re.search(r"\bwhat\s+(was\s+the\s+)?(main|primary|specific|exact)?\s*tools?\b.{0,80}\b(use|used|most|mainly|pull|validate|debug|run|ran)\b", lowered):
+        add("low_signal_implementation_recall", "high", "Asks for tool recall without a decision or analytical consequence.")
+    if re.search(r"\bwhat\s+tools?\s+did\s+you\s+(use|run|try)\b", lowered):
+        add("low_signal_implementation_recall", "high", "Asks for tool recall instead of reasoning or consequence.")
+    if re.search(r"\bwhat\s+(file|payload|serialization|storage)\s+format\b", lowered):
+        add("low_signal_implementation_recall", "high", "Asks for low-level format recall instead of reasoning or consequence.")
+    if re.search(r"\b(which|what)\s+team\b.{0,80}\b(owned|handled|managed|responsible|deployed|deployment|deployments)\b", lowered):
+        add("low_signal_ownership_recall", "high", "Asks for org-chart ownership recall instead of the candidate's boundary or reasoning.")
+    if re.search(r"\b(production\s+)?(dbt|airflow|looker|metabase|mixpanel|segment)\s+deployments?\b", lowered) and not re.search(r"\b(impact|risk|decision|trade[- ]?off|changed|broke|trust|accuracy|denominator|guardrail)\b", lowered):
+        add("low_signal_ownership_recall", "high", "Deployment ownership recall is low signal unless tied to a consequence.")
     if re.search(r"\b(which|what)\s+event\s+propert(y|ies)\b", lowered):
         add("low_signal_event_property_recall", "medium", "Event-property recall is often low signal unless tied to analytical consequence.")
 
@@ -133,7 +145,7 @@ def check_question_readiness(
         if any(flag["code"] == "self_rating_certainty" for flag in flags):
             add("bad_synthesis_self_rating", "high", "Synthesis should ask for fair conclusion/evidence, not confidence performance.")
     if turn_number >= 10:
-        if any(flag["code"] in {"low_signal_implementation_recall", "low_signal_event_property_recall"} for flag in flags):
+        if any(flag["code"] in {"low_signal_implementation_recall", "low_signal_event_property_recall", "low_signal_ownership_recall"} for flag in flags):
             add("late_low_level_probe", "high", "Late interview turns should not introduce low-level definition/recall probes.")
     if not expected_space and route_kind in {"coverage_surface", "coverage_depth_probe", "application_transfer", "second_anchor", "reserve_map_question", "third_surface_probe"}:
         add("missing_expected_space", "low", "Map-backed questions should carry expected-space metadata when possible.")

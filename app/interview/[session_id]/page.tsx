@@ -74,6 +74,43 @@ const API = getApiBaseUrl();
 const ANSWER_SETTLE_MS = 700;
 const TTS_HOLD_CAP_MS = 2500;
 
+function NeuralField() {
+  const paths = [
+    "M-40 190 C180 70 300 92 445 232 C600 382 742 414 1012 310 C1194 240 1320 252 1488 352",
+    "M-60 560 C160 450 342 466 498 578 C670 702 820 700 1010 568 C1190 442 1318 430 1490 548",
+    "M120 -40 C222 160 362 228 548 210 C760 190 850 332 954 480 C1058 628 1220 684 1480 612",
+    "M1480 110 C1270 188 1150 304 1040 444 C916 600 750 630 548 520 C360 418 202 430 -60 610",
+    "M260 800 C350 620 470 520 620 494 C810 460 914 330 1030 170 C1120 48 1268 -18 1488 22",
+    "M-30 332 C186 270 330 312 472 438 C636 584 826 570 982 430 C1148 282 1290 224 1488 250",
+  ];
+
+  return (
+    <div className="ag-neural-field" aria-hidden="true">
+      <div className="ag-neural-blob ag-neural-blob-a" />
+      <div className="ag-neural-blob ag-neural-blob-b" />
+      <div className="ag-neural-blob ag-neural-blob-c" />
+      <div className="ag-edge-aura" />
+      <svg className="ag-gemini-paths" viewBox="0 0 1440 820" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="agCometGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="transparent" />
+            <stop offset="28%" stopColor="var(--ag-phase-primary)" stopOpacity="0.08" />
+            <stop offset="58%" stopColor="var(--ag-phase-secondary)" stopOpacity="0.86" />
+            <stop offset="76%" stopColor="white" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="transparent" />
+          </linearGradient>
+        </defs>
+        {paths.map((path, index) => (
+          <path key={`guide-${index}`} className="ag-gemini-guide" d={path} />
+        ))}
+        {paths.map((path, index) => (
+          <path key={`comet-${index}`} className="ag-gemini-comet" d={path} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function buildMessagesFromHistory(history: SessionHistoryEntry[] = []): Message[] {
   const restored: Message[] = [];
   let lastSprint = 1;
@@ -885,11 +922,22 @@ export default function InterviewPage() {
       : phase === "speaking"
       ? "bg-[var(--ag-blue)] shadow-[0_0_12px_var(--ag-blue)]"
       : "bg-[var(--ag-text-3)]";
+  const activeAiMessageIndex = messages.reduce(
+    (latest, msg, index) => (
+      msg.role === "ai" && !msg.isSprintMarker && !msg.isPivotMarker ? index : latest
+    ),
+    -1,
+  );
+  const activeAiText = activeAiMessageIndex >= 0 ? messages[activeAiMessageIndex]?.text ?? "" : "";
 
   return (
-    <div className="ag-shell min-h-screen select-none px-4 py-4 text-[var(--ag-text-0)] md:px-6 xl:h-screen xl:overflow-hidden">
-      <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4 xl:h-[calc(100vh-2rem)] xl:min-h-0">
-        <header className="flex flex-col gap-4 rounded-2xl border border-[var(--ag-border)] bg-[oklch(0.1_0.014_265_/_0.82)] px-5 py-4 backdrop-blur-xl md:flex-row md:items-center md:justify-between xl:shrink-0">
+    <div
+      className="ag-shell ag-neural-shell min-h-screen select-none px-4 py-4 text-[var(--ag-text-0)] md:px-6 xl:h-screen xl:overflow-hidden"
+      data-phase={phase}
+    >
+      <NeuralField />
+      <div className="ag-interface-layer flex min-h-[calc(100vh-2rem)] flex-col gap-4 xl:h-[calc(100vh-2rem)] xl:min-h-0">
+        <header className="flex flex-col gap-4 rounded-2xl border border-[var(--ag-border)] bg-[oklch(0.1_0.014_265_/_0.72)] px-5 py-4 shadow-[0_18px_70px_oklch(0.02_0.01_260_/_0.34)] backdrop-blur-2xl md:flex-row md:items-center md:justify-between xl:shrink-0">
           <div className="flex flex-wrap items-center gap-3">
             <AGLogo compact />
             {started && <AGChip active>S{sprint} · {SPRINT_LABELS[sprint]}</AGChip>}
@@ -932,7 +980,7 @@ export default function InterviewPage() {
         </header>
 
         <div className="grid flex-1 gap-4 xl:min-h-0 xl:grid-cols-[340px_minmax(0,1fr)]">
-          <AGSurface className="flex flex-col items-center justify-between gap-4 px-5 py-5 xl:sticky xl:top-4 xl:h-full xl:min-h-0 xl:overflow-hidden">
+          <AGSurface className="flex flex-col items-center justify-between gap-4 px-5 py-5 backdrop-blur-2xl xl:sticky xl:top-4 xl:h-full xl:min-h-0 xl:overflow-hidden">
             <div className="w-full space-y-4">
               <div className="space-y-2">
                 <AGSectionLabel>Live Interrogator</AGSectionLabel>
@@ -941,7 +989,10 @@ export default function InterviewPage() {
                 </p>
               </div>
 
-              <div className="relative flex min-h-[220px] items-center justify-center rounded-[28px] border border-[var(--ag-border)] bg-[linear-gradient(180deg,oklch(0.11_0.016_265_/_0.88),oklch(0.08_0.012_265_/_0.96))]">
+              <div
+                className="ag-orb-stage relative flex min-h-[246px] items-center justify-center rounded-[28px] border border-[var(--ag-border)] bg-[linear-gradient(180deg,oklch(0.11_0.016_265_/_0.76),oklch(0.08_0.012_265_/_0.9))]"
+                data-phase={phase}
+              >
                 <AIOrb state={phase} />
               </div>
 
@@ -966,7 +1017,7 @@ export default function InterviewPage() {
               <div className="space-y-3 text-center">
                 <div className="flex items-center justify-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${phaseDotClass}`} style={{ animation: started ? "agBlink 2s ease-in-out infinite" : "none" }} />
-                  <span className="text-sm font-semibold text-[var(--ag-text-0)]">{phaseLabel}</span>
+                  <span className="ag-phase-text text-sm font-semibold">{phaseLabel}</span>
                 </div>
                 <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--ag-text-3)]">
                   {PERSONA_DESC[persona]}
@@ -1023,10 +1074,10 @@ export default function InterviewPage() {
             </div>
           </AGSurface>
 
-          <AGSurface className="flex min-h-[680px] flex-col overflow-hidden xl:min-h-0">
+          <AGSurface className="flex min-h-[680px] flex-col overflow-hidden backdrop-blur-2xl xl:min-h-0">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--ag-border)] px-6 py-5">
               <div>
-                <AGSectionLabel>Live Transcript</AGSectionLabel>
+                <AGSectionLabel>Conversation Field</AGSectionLabel>
                 <p className="mt-2 text-sm text-[var(--ag-text-2)]">
                   Session {session_id.slice(0, 8)} · {started ? "interview active" : "awaiting launch"}
                 </p>
@@ -1037,20 +1088,47 @@ export default function InterviewPage() {
               </div>
             </div>
 
+            {started && activeAiText && (
+              <div className="border-b border-[var(--ag-border)] px-6 py-5">
+                <div className="ag-active-turn rounded-[28px] border border-[var(--ag-border)] bg-[linear-gradient(135deg,oklch(0.16_0.024_265_/_0.72),oklch(0.08_0.014_265_/_0.86))] px-6 py-6 shadow-[0_24px_90px_oklch(0.02_0.01_260_/_0.34)]">
+                  <div className="relative z-[1] flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${phaseDotClass}`} style={{ animation: "agBlink 2s ease-in-out infinite" }} />
+                      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ag-text-3)]">
+                        Active Probe
+                      </p>
+                    </div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ag-text-3)]">
+                      {phase === "thinking" ? "Synthesizing next boundary" : phase === "speaking" ? "Outbound question" : phase === "listening" ? "Awaiting evidence" : "Ready"}
+                    </p>
+                  </div>
+                  <p className="relative z-[1] mt-5 max-w-4xl text-2xl font-semibold leading-[1.28] tracking-[-0.035em] text-[var(--ag-text-0)] md:text-3xl">
+                    {activeAiText}
+                  </p>
+                  {partial && (
+                    <div className="relative z-[1] mt-5 rounded-2xl border border-[var(--ag-border)] bg-[oklch(0.08_0.012_265_/_0.58)] px-4 py-3">
+                      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--ag-text-3)]">Live capture</p>
+                      <p className="mt-2 text-sm italic leading-7 text-[var(--ag-text-2)]">{partial}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div ref={transcriptRef} className="ag-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6">
               {!started && !showResumeGate && (
                 <div className="flex h-full min-h-[420px] items-center justify-center">
-                  <div className="max-w-lg text-center">
-                    <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--ag-border-strong)] bg-[var(--ag-blue-soft)] text-xl text-[var(--ag-blue)]">
+                  <div className="ag-active-turn max-w-2xl rounded-[30px] border border-[var(--ag-border)] bg-[linear-gradient(135deg,oklch(0.14_0.024_265_/_0.72),oklch(0.075_0.014_265_/_0.84))] px-8 py-10 text-center shadow-[0_28px_110px_oklch(0.02_0.01_260_/_0.4)]">
+                    <div className="relative z-[1] mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--ag-border-strong)] bg-[var(--ag-blue-soft)] text-xl text-[var(--ag-blue)] shadow-[0_0_44px_oklch(0.68_0.19_255_/_0.22)]">
                       ∞
                     </div>
-                    <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[var(--ag-text-0)]">
+                    <h2 className="relative z-[1] text-3xl font-semibold tracking-[-0.045em] text-[var(--ag-text-0)] md:text-5xl">
                       Antigravity Protocol
                     </h2>
-                    <p className="mt-4 text-sm leading-7 text-[var(--ag-text-2)]">
+                    <p className="relative z-[1] mx-auto mt-5 max-w-xl text-sm leading-7 text-[var(--ag-text-2)]">
                       A voice-native interview system built to test ownership, fundamentals, and systems reasoning under live pressure.
                     </p>
-                    <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--ag-text-3)]">
+                    <p className="relative z-[1] mt-7 font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--ag-text-3)]">
                       Probe → Break → Analyze → Adapt
                     </p>
                   </div>
@@ -1105,7 +1183,11 @@ export default function InterviewPage() {
               )}
 
               {messages.map((msg, i) => (
-                <MessageItem key={i} msg={msg} />
+                <MessageItem
+                  key={i}
+                  msg={msg}
+                  active={i === activeAiMessageIndex}
+                />
               ))}
 
               {partial && (
@@ -1189,7 +1271,7 @@ export default function InterviewPage() {
   );
 }
 
-function MessageItem({ msg }: { msg: Message }) {
+function MessageItem({ msg, active = false }: { msg: Message; active?: boolean }) {
   if (msg.isSprintMarker) {
     return <AGSprintDivider sprint={msg.sprint ?? 1} label={SPRINT_LABELS[msg.sprint ?? 1]} />;
   }
@@ -1226,14 +1308,14 @@ function MessageItem({ msg }: { msg: Message }) {
             isAI
               ? "border-[var(--ag-border)] bg-[var(--ag-surface-0)] text-[var(--ag-text-1)]"
               : "border-[var(--ag-border-strong)] bg-[oklch(0.68_0.19_255_/_0.08)] text-[var(--ag-text-0)]"
-          }`}
+          } ${active ? "ag-active-turn" : ""}`}
           style={
             isAI && msg.severity && msg.severity !== "low"
               ? { borderLeftWidth: "2px", borderLeftColor: msg.severity === "high" ? "var(--ag-red)" : "var(--ag-amber)" }
               : undefined
           }
         >
-          {msg.text}
+          <span className="relative z-[1]">{msg.text}</span>
         </div>
       </div>
     </div>

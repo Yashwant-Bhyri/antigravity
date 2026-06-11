@@ -1,0 +1,866 @@
+{
+  "session_id": "0186a07c-2ec2-413e-b297-c76b5aaa541b",
+  "current_sprint": 1,
+  "current_persona": "curious_lead",
+  "sprint_name": "Project Defense",
+  "question_count": 2,
+  "sprint_question_count": 2,
+  "interview_start_time": 1778211261.1369872,
+  "interview_started": true,
+  "interview_complete": true,
+  "finalization_status": "complete",
+  "finalization_error": "",
+  "report_ready": true,
+  "resume": "(+86) 15914122353 | 123040005@link.cuhk.edu.cn| 2001 Longxiang Boulevard, Longgang District, Shenzhen :\n   TheChineseUniversityofHongKong,Shenzhen(B.Eng. in Computer Science and Engineering) \u2022 FullAdmissionExcellenceScholarship\u2013SchoolofDatascience,CUHK-SZ\n\u2022 2024 Guangdong Government Outstanding International Student Scholarship\n\u2022 2025 Leading Academic Peer Advisor @ School of Data Science, CUHK-SZ\n2023-27\nTECHNICAL SKILLS:\nTop Skills: Python, C++, SQL Hybrid, RISC- V, Git, Docker, Google GCP, AWS Deployment, Linux, Deployment Testing AI Skills: OpenClaw, Google ADK, Agent System design, Prompt-Engineering, Fine-tuning, RL, Model Inference, TinyML\nEXPERIENCE:\nAI Agent Development Engineer [Intern] : AIGC Algorithms - Wondershare Filmora @ Shenzhen Jan 2026 \u2013 Present\n\u2022 Architected and prototyped an end-to-end Agent based AIGC video generation and editing pipeline on Google ADK by implementing a unified seed-based generation workflow. Leveraged seed diffusion for regeneration with targeted prompt steering to deliver real-time AI editing functionality with character identity, scene geometry, and narrative coherence across edits. Reduced API token overhead by ~40% and per-generation cost by ~35% versus full Veo-3 resampling (~30\u201350% savings at the $0.40/sec baseline).\n\u2022 Engineered a ML - feature-map control system that translates orthogonal control axes (exposure, lighting tone, motion energy, transition speed, color palette, etc.) into pixel-level semantic generation instructions for Google Veo 3 seed-regeneration, enabling targeted edits to specific video frame segments without disturbing the video manifold. \n\u2022 Built a semantic UI-to-latent translation interface that maps intuitive editing controls (sliders, palettes, tone adjustments) to diffusion conditioning prompt signals enabling non-technical users to use AI editing features to perform controlled semantic AI-video regeneration for multimodal alignment across video, music, and transitions while minimizing token-heavy LLM orchestration.\nAI Engineer Intern : AI Model Developer - Optek Microelectronics @ Shenzhen, China 2025 July - Sept\n\u2022 Engineered a full-stack TinyML Audio Classification Pipeline, by integrating MediaPipe Audio for real-time feature extraction (log-Mel spectrograms, MFCCs), TensorFlow Lite-Micro INT8 for quantized inference, and Edge Impulse for SDK deployment, achieving top notch-industry standards of 95%+ classification accuracy on AudioSet, UrbanSound8K.\n\u2022 Optimized and delivered a custom classifier for a 700 MHz DSP + 16 MB NPU in the proprietary XNCC development environment, accomplishing<10 ms latency, 200 KB runtime footprint, and 4\u00d7 model compression via INT8 quantization and pruning for scalable, low-power, low latency AI application.\nResearch Assistant : HKU- COLUMBIA- ALIBABA- CUHKSZ@ BIRD Vision 2025 June - Sept\n\u2022 Reconstructed an advanced multi-modal benchmark framework that pioneered BIRD-SQL dataset (12,751+\nquestion-SQL pairs, 95+ large databases) by integrating vision + NLP annotation for advance database queries and\ndesigning evaluation protocols to identify model failure points.\n\u2022 Designed relational DB schemas, and created complex hybrid SQL queries to introduce reasoning challenges for\nvision-language models. Primarily involved in a robust benchmark construction, using schema-aware prompt\nengineering, OCR validation, annotating complex multimodal inputs.\nResearch Assistant \u2013 AI Model Benchmark Optimization @ CUHKSZ Natural Language Processing Group 2024\n\u2022 Assisted to automate critical data-driven Python pipelines (Pandas, NumPy, Scikit-learn) for hallucination detection, data grounding index, reducing factual deviation by 31% in all AI-generated benchmarked outputs. Engineered systematic benchmarking for 200+ LLM response pairs, boosting truth-layer accuracy by 25%.\nResearch Assistant - Algorithmic Performance Optimization 2024\n\u2022 Worked on a novel script framework to quantitatively optimize algorithmic - Augmented data retrieval (RAG)\nperformance of an ALLaVA vision-language model. Improved Algorithmic data retrieval by 46% , and optimized workflow operations of a 1.3 M-sampled: labeled evaluation database.",
+  "parsed_resume": {
+    "skills": [
+      "Top Skills: Python",
+      "C++",
+      "SQL Hybrid",
+      "RISC- V",
+      "Git",
+      "Docker",
+      "Google GCP",
+      "AWS Deployment",
+      "Linux",
+      "Deployment Testing AI Skills: OpenClaw",
+      "Google ADK",
+      "Agent System design",
+      "Prompt-Engineering",
+      "Fine-tuning",
+      "RL",
+      "Model Inference",
+      "TinyML",
+      "Python",
+      "EXPERIENCE"
+    ],
+    "tools": [
+      "Engineered a full-stack TinyML Audio Classification Pipeline",
+      "by integrating MediaPipe Audio for real-time feature extraction (log-Mel spectrograms",
+      "MFCCs)",
+      "TensorFlow Lite-Micro INT8 for quantized inference",
+      "and Edge Impulse for SDK deployment",
+      "achieving top notch-industry standards of 95%+ classification accuracy on AudioSet",
+      "UrbanSound8K"
+    ],
+    "projects": [
+      {
+        "name": "link.cuhk.edu.cn|",
+        "description": "(+86) 15914122353 | 123040005",
+        "technologies": [],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      },
+      {
+        "name": "TheChineseUniversityofHongKong,Shenzhen(B.Eng. in Computer Science and Engineering) \u2022 FullAdmissionExcellenceScholarship",
+        "description": "TheChineseUniversityofHongKong,Shenzhen(B.Eng. in Computer Science and Engineering) \u2022 FullAdmissionExcellenceScholarship\u2013SchoolofDatascience,CUHK-SZ",
+        "technologies": [
+          "2024 Guangdong Government Outstanding International Student Scholarship",
+          "2025 Leading Academic Peer Advisor @ School of Data Science",
+          "CUHK-SZ"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "built"
+      },
+      {
+        "name": "Shenzhen",
+        "description": "AI Agent Development Engineer [Intern] : AIGC Algorithms - Wondershare Filmora",
+        "technologies": [
+          "Architected and prototyped an end-to-end Agent based AIGC video generation and editing pipeline on Google ADK by implementing a unified seed-based generation workflow. Leveraged seed diffusion for regeneration with targeted prompt steering to deliver real-time AI editing functionality with character identity",
+          "and narrative coherence across edits. Reduced API token overhead by ~40% and per-generation cost by ~35% versus full Veo-3 resampling (~30\u201350% savings at the $0.40",
+          "Engineered a ML - feature-map control system that translates orthogonal control axes (exposure",
+          "etc.) into pixel-level semantic generation instructions for Google Veo 3 seed-regeneration",
+          "Built a semantic UI-to-latent translation interface that maps intuitive editing controls (sliders",
+          "tone adjustments) to diffusion conditioning prompt signals enabling non-technical users to use AI editing features to perform controlled semantic AI-video regeneration for multimodal alignment across video",
+          "and transitions while minimizing token-heavy LLM orchestration"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "built"
+      },
+      {
+        "name": "Shenzhen, China",
+        "description": "AI Engineer Intern : AI Model Developer - Optek Microelectronics",
+        "technologies": [
+          "Engineered a full-stack TinyML Audio Classification Pipeline",
+          "by integrating MediaPipe Audio for real-time feature extraction (log-Mel spectrograms",
+          "MFCCs)",
+          "TensorFlow Lite-Micro INT8 for quantized inference",
+          "and Edge Impulse for SDK deployment",
+          "achieving top notch-industry standards of 95%+ classification accuracy on AudioSet",
+          "UrbanSound8K",
+          "Optimized and delivered a custom classifier for a 700 MHz DSP + 16 MB NPU in the proprietary XNCC development environment",
+          "200 KB runtime footprint",
+          "and 4\u00d7 model compression via INT8 quantization and pruning for scalable",
+          "low latency AI application"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "built"
+      },
+      {
+        "name": "BIRD Vision",
+        "description": "Research Assistant : HKU- COLUMBIA- ALIBABA- CUHKSZ",
+        "technologies": [
+          "Reconstructed an advanced multi-modal benchmark framework that pioneered BIRD-SQL dataset (12",
+          "Designed relational DB schemas",
+          "and created complex hybrid SQL queries to introduce reasoning challenges for"
+        ],
+        "ownership_level": "supporting",
+        "contribution_type": "assisted"
+      },
+      {
+        "name": "engineering, OCR validation, annotating complex multimodal inputs.",
+        "description": "engineering, OCR validation, annotating complex multimodal inputs.",
+        "technologies": [],
+        "ownership_level": "shared",
+        "contribution_type": "built"
+      }
+    ],
+    "claims": [
+      {
+        "text": "2024 Guangdong Government Outstanding International Student Scholarship",
+        "project": "TheChineseUniversityofHongKong,Shenzhen(B.Eng. in Computer Science and Engineering) \u2022 FullAdmissionExcellenceScholarship",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "2025 Leading Academic Peer Advisor @ School of Data Science, CUHK-SZ",
+        "project": "TheChineseUniversityofHongKong,Shenzhen(B.Eng. in Computer Science and Engineering) \u2022 FullAdmissionExcellenceScholarship",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Architected and prototyped an end-to-end Agent based AIGC video generation and editing pipeline on Google ADK by implementing a unified seed-based generation workflow. Leveraged seed diffusion for regeneration with targeted prompt steering ",
+        "project": "Shenzhen",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Engineered a ML - feature-map control system that translates orthogonal control axes (exposure, lighting tone, motion energy, transition speed, color palette, etc.) into pixel-level semantic generation instructions for Google Veo 3 seed-reg",
+        "project": "Shenzhen",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Built a semantic UI-to-latent translation interface that maps intuitive editing controls (sliders, palettes, tone adjustments) to diffusion conditioning prompt signals enabling non-technical users to use AI editing features to perform contr",
+        "project": "Shenzhen",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Engineered a full-stack TinyML Audio Classification Pipeline, by integrating MediaPipe Audio for real-time feature extraction (log-Mel spectrograms, MFCCs), TensorFlow Lite-Micro INT8 for quantized inference, and Edge Impulse for SDK deploy",
+        "project": "Shenzhen, China",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Optimized and delivered a custom classifier for a 700 MHz DSP + 16 MB NPU in the proprietary XNCC development environment, accomplishing<10 ms latency, 200 KB runtime footprint, and 4\u00d7 model compression via INT8 quantization and pruning for",
+        "project": "Shenzhen, China",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Reconstructed an advanced multi-modal benchmark framework that pioneered BIRD-SQL dataset (12,751+",
+        "project": "BIRD Vision",
+        "strength": "flagship",
+        "contribution_type": "assisted"
+      },
+      {
+        "text": "Designed relational DB schemas, and created complex hybrid SQL queries to introduce reasoning challenges for",
+        "project": "BIRD Vision",
+        "strength": "flagship",
+        "contribution_type": "assisted"
+      },
+      {
+        "text": "Assisted to automate critical data-driven Python pipelines (Pandas, NumPy, Scikit-learn) for hallucination detection, data grounding index, reducing factual deviation by 31% in all AI-generated benchmarked outputs. Engineered systematic ben",
+        "project": "CUHKSZ Natural Language Processing Group",
+        "strength": "flagship",
+        "contribution_type": "assisted"
+      }
+    ],
+    "experiences": [
+      {
+        "title": "(+86) 15914122353 | 123040005",
+        "company": "link.cuhk.edu.cn|",
+        "duration": "2001 Longxiang Boulevard, Longgang District, Shenzhen :",
+        "contribution_type": "contributed"
+      },
+      {
+        "title": "TheChineseUniversityofHongKong,Shenzhen(B.Eng. in Computer Science and Engineering) \u2022 FullAdmissionExcellenceScholarship",
+        "company": "",
+        "duration": "",
+        "contribution_type": "built"
+      },
+      {
+        "title": "AI Agent Development Engineer [Intern] : AIGC Algorithms - Wondershare Filmora",
+        "company": "Shenzhen",
+        "duration": "2026 \u2013 Present",
+        "contribution_type": "built"
+      },
+      {
+        "title": "AI Engineer Intern : AI Model Developer - Optek Microelectronics",
+        "company": "Shenzhen, China",
+        "duration": "2025 July - Sept",
+        "contribution_type": "built"
+      },
+      {
+        "title": "Research Assistant : HKU- COLUMBIA- ALIBABA- CUHKSZ",
+        "company": "BIRD Vision",
+        "duration": "2025 June - Sept",
+        "contribution_type": "assisted"
+      },
+      {
+        "title": "engineering, OCR validation, annotating complex multimodal inputs.",
+        "company": "",
+        "duration": "",
+        "contribution_type": "built"
+      }
+    ],
+    "experience": {
+      "ml": 0,
+      "swe": 0,
+      "data_eng": 0
+    },
+    "experience_tier": "junior"
+  },
+  "github_links": [],
+  "target_role": "AI Application dev",
+  "years_experience": "0-1",
+  "prior_assessment_context": {},
+  "prior_assessment_prompt": "",
+  "skills": [
+    "Top Skills: Python",
+    "C++",
+    "SQL Hybrid",
+    "RISC- V",
+    "Git",
+    "Docker",
+    "Google GCP",
+    "AWS Deployment",
+    "Linux",
+    "Deployment Testing AI Skills: OpenClaw",
+    "Google ADK",
+    "Agent System design",
+    "Prompt-Engineering",
+    "Fine-tuning",
+    "RL",
+    "Model Inference",
+    "TinyML",
+    "Python",
+    "EXPERIENCE"
+  ],
+  "scores": {
+    "reasoning": 2,
+    "technical_depth": 1,
+    "communication": 3,
+    "adaptability": 1
+  },
+  "weaknesses": [
+    {
+      "weakness": "The candidate completely avoided the specific technical question about seed-based pipeline, token reduction, and runtime decision logic \u2014 instead pivoting to a generic description of a 'multi-agent orchestration system'",
+      "type": "deflection",
+      "severity": "high",
+      "probe_direction": "ownership_probe",
+      "continue_probing": true
+    },
+    {
+      "weakness": "Candidate cannot describe any specific failure modes they guarded against in a system they claimed was 'fully robust,' suggesting they may not have deeply owned or understood the system's design.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "ownership_probe",
+      "continue_probing": true
+    }
+  ],
+  "history": [
+    {
+      "turn_id": "be726a68-92db-4ad1-8eca-8415596c7d37",
+      "question": "Welcome to the interview \u2014 I'm really glad you're here. To start on a lighter note, let's ease in with something you know really well.\n\nAt Wondershare, your seed-based pipeline claims 40% token reduction versus full Veo-3 resampling \u2014 what specific API call or prompt structure change drives that reduction, and how does the pipeline decide at runtime whether to regenerate from seed or fall back to full resampling?",
+      "answer": "indeed so i was working on a multi agent orchestra system which was working fully on an end to end basis which was actually a fully robust system",
+      "weakness": {
+        "weakness": "The candidate completely avoided the specific technical question about seed-based pipeline, token reduction, and runtime decision logic \u2014 instead pivoting to a generic description of a 'multi-agent orchestration system'",
+        "type": "deflection",
+        "severity": "high",
+        "probe_direction": "ownership_probe",
+        "continue_probing": true
+      },
+      "concepts": [
+        "multi-agent system",
+        "orchestration",
+        "end-to-end system",
+        "robustness"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate's brief mention of working on a 'multi-agent orchestra system' on an 'end-to-end basis' is loosely consistent with the resume's description of an 'end-to-end Agent based AIGC video generation and editing pipeline' at Wondershare Filmora using Google ADK. The language is vague but not contradictory.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "rigid",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate makes a broad, vague claim about a 'multi-agent orchestra system' with no enumeration of steps, no structure, and no specifics. Phrases like 'fully robust,' 'end to end,' and 'fully' are stacked superlatives without substantiation. No clarification was sought, no constraints were acknowledged, and no uncertainty was expressed. The statement reads as a boast rather than a technical explanation. There was no challenge to respond to, so adaptability cannot be assessed from this snippet alone."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "shenzhen",
+      "focus_label": "Shenzhen",
+      "answer_version": 1,
+      "route_kind": "clarification_fast",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "3f61ae4d-59c6-4c4a-a703-20a668dbbe1d",
+      "question": "When you say 'fully robust,' what specific failure modes were you guarding against in the multi-agent orchestration?",
+      "answer": "well there is something that i'm unsure of as of now",
+      "weakness": {
+        "weakness": "Candidate cannot describe any specific failure modes they guarded against in a system they claimed was 'fully robust,' suggesting they may not have deeply owned or understood the system's design.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "ownership_probe",
+        "continue_probing": true
+      },
+      "concepts": [],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate's response ('well there is something that i'm unsure of as of now') is too vague and non-committal to identify any specific claim or contradiction. There is nothing in this answer that conflicts with the resume or prior turns. No new assertions were made that could be checked against the resume.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "admitted_gap",
+        "confidence_calibration": "calibrated",
+        "notes": "The candidate has not yet provided a substantive answer or structured response. The only observable behavior is an unprompted acknowledgment of uncertainty, which reflects intellectual honesty and appropriate confidence calibration. No enumeration, no clarifying questions about constraints, and no developed reasoning are present to evaluate further. The admission of uncertainty before being challenged is a positive metacognitive signal, but there is insufficient content to score structure or clarification behavior meaningfully."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "clarification_fast",
+      "analysis_status": "complete"
+    }
+  ],
+  "failure_surface": {
+    "AIGC_video_generation": 1.0
+  },
+  "final_evaluation": {
+    "overall_score": 3,
+    "breakdown": {
+      "reasoning": 2,
+      "technical_depth": 1,
+      "communication": 3,
+      "adaptability": 1
+    },
+    "failure_surface": {
+      "AIGC_video_generation": 1.0
+    },
+    "hire_recommendation": "NO HIRE",
+    "confidence_score": 0.7,
+    "summary": "Candidate failed to explain core technical aspects of their flagship resume project (seed-based AIGC pipeline), deflecting questions about implementation details and failure modes. Coverage was extremely narrow \u2013 only one project was tested, revealing critical gaps.",
+    "risk_flags": [
+      "Deflection on flagship claim: Avoided explaining token-reduction mechanism in seed-based pipeline",
+      "Inability to describe failure modes for a self-described 'fully robust' system",
+      "Lack of production awareness for claimed cost-saving architecture"
+    ],
+    "strengths": [
+      "None demonstrated \u2013 technical claims collapsed under scrutiny"
+    ],
+    "claim_credibility_risk": {
+      "level": "high",
+      "detail": "Flagship claims about seed-diffusion pipeline and 'fully robust' agent orchestration completely unsubstantiated; scholarship/peer advisor claims untested but irrelevant to role."
+    },
+    "untested_dimensions": [
+      "Python/C++ coding",
+      "Cloud deployment (GCP/AWS)",
+      "ML fine-tuning/RL",
+      "UI-to-latent translation claim",
+      "All non-AIGC technical skills"
+    ],
+    "coverage_portrait": null,
+    "verdict_basis": "weakness_aggregation",
+    "coverage_verdict_advisory": {
+      "hire_recommendation": "NO HIRE",
+      "confidence_score": 0.6
+    },
+    "verdict_confidence_basis": "LLM contextual verdict: no hire based on the full transcript and weakness pattern."
+  },
+  "last_question": "You mentioned 12,751 question-SQL pairs \u2014 pick one pair you personally wrote and describe what made it a valid test of visual reasoning versus database reasoning.",
+  "consecutive_high_weakness_count": 0,
+  "last_weakness_type": null,
+  "current_question_followups": [],
+  "current_question_followup_asked": false,
+  "active_question_packet": {
+    "question_text": "You mentioned 12,751 question-SQL pairs \u2014 pick one pair you personally wrote and describe what made it a valid test of visual reasoning versus database reasoning.",
+    "route_kind": "trajectory_map_short_answer_rescue",
+    "sprint": 1,
+    "focus_key": "bird_sql_multimodal_benchmark_construction_and",
+    "focus_label": "Multimodal Bird-Sql Benchmark Construction And Evaluation",
+    "followups": [],
+    "asked_followup_count": 0,
+    "max_followups": 0,
+    "pivoting": false,
+    "weakness": null,
+    "discrepancy": null,
+    "source_turn_number": 1
+  },
+  "candidate_model": {
+    "project_map": {},
+    "established_facts": [
+      "The candidate's brief mention of working on a 'multi-agent orchestra system' on an 'end-to-end basis' is loosely consist (confirmed Turn 1)",
+      "The candidate's response ('well there is something that i'm unsure of as of now') is too vague and non-committal to iden (confirmed Turn 2)"
+    ],
+    "probed_weaknesses": [
+      "deflection: The candidate completely avoided the specific technical question about seed-base (Turn 1)",
+      "shallow: Candidate cannot describe any specific failure modes they guarded against in a s (Turn 2)"
+    ]
+  },
+  "current_answer_turn_id": "3f61ae4d-59c6-4c4a-a703-20a668dbbe1d",
+  "current_answer_question": "When you say 'fully robust,' what specific failure modes were you guarding against in the multi-agent orchestration?",
+  "current_answer_response": "You mentioned 12,751 question-SQL pairs \u2014 pick one pair you personally wrote and describe what made it a valid test of visual reasoning versus database reasoning.",
+  "current_answer_context": {
+    "pivoting": false,
+    "route_kind": "trajectory_map_short_answer_rescue",
+    "weakness": null,
+    "discrepancy": null,
+    "answer_version": 1,
+    "packet_focus_key": "bird_sql_multimodal_benchmark_construction_and",
+    "packet_focus_label": "Multimodal Bird-Sql Benchmark Construction And Evaluation",
+    "closing_phase": ""
+  },
+  "current_answer_turn_number": 2,
+  "current_answer_version": 1,
+  "interview_trajectory_map": {
+    "focus_areas": [
+      {
+        "label": "AIGC Seed-Based Video Generation And Editing Pipeline",
+        "focus_key": "aigc_video_generation_pipeline_seed_based",
+        "anchor_context": "End-to-end Agent pipeline on Google ADK using seed diffusion for regeneration with targeted prompt steering, claiming 40% token reduction and 35% cost reduction vs full Veo-3 resampling.",
+        "sub_focuses": [
+          "seed diffusion regeneration and prompt steering architecture",
+          "ML feature-map control system for orthogonal editing axes",
+          "semantic UI-to-latent translation for diffusion conditioning",
+          "cost and token overhead measurement methodology"
+        ],
+        "resume_snippets": [
+          "Reduced API token overhead by ~40% and per-generation cost by ~35% versus full Veo-3 resampling (~30\u201350% savings at the $0.40/sec baseline)",
+          "ML - feature-map control system that translates orthogonal control axes (exposure, lighting tone, motion energy) into pixel-level semantic generation instructions for Google Veo 3 "
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "seed_diffusion_regeneration_architecture",
+          "ml_feature_map_control_system",
+          "semantic_ui_to_latent_translation",
+          "cost_and_token_overhead_measurement"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Most recent and technically dense work with specific architecture claims (seed-based identity preservation, feature-map",
+        "opener": "At Wondershare, your seed-based pipeline claims 40% token reduction versus full Veo-3 resampling \u2014 what specific API call or prompt structure change drives that reduction, and how does the pipeline decide at runtime whether to regenerate from seed or fall back to full resampling?",
+        "dimensions": [
+          {
+            "id": "seed_diffusion_regeneration_architecture",
+            "label": "Seed Diffusion Regeneration and Prompt Steering",
+            "resume_anchor": "unified seed-based generation workflow leveraging seed diffusion for regeneration with targeted prompt steering to deliver real-time AI editing with character identity, scene geometry, and narrative coherence across edits",
+            "surface": "In your seed-based pipeline, a seed value is supposed to preserve character identity across regenerations \u2014 what breaks character identity when the same seed is used with a modified prompt, and how did your architecture handle that?",
+            "mechanism": "Your pipeline claims narrative coherence across edits using seed diffusion \u2014 when you steer the prompt toward a targeted change like lighting tone, what prevents the seed conditioning from conflicting with the new prompt signal, and how is that tension resolved in your implementation?",
+            "boundary": "Describe a specific edit type in your Wondershare pipeline where seed regeneration failed to maintain scene geometry, what the failure looked like at the pixel level, and what change to the prompt steering logic you made to fix it.",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "ml_feature_map_control_system",
+            "label": "ML Feature-Map Control for Orthogonal Editing Axes",
+            "resume_anchor": "ML feature-map control system that translates orthogonal control axes (exposure, lighting tone, motion energy, transition speed, color palette) into pixel-level semantic generation instructions for Google Veo 3 seed-regeneration, enabling targeted edits to specific video frame segments without disturbing the video manifold",
+            "surface": "Your feature-map control system maps exposure and motion energy as orthogonal axes \u2014 in practice, what makes those two axes orthogonal in the latent space, and how do you verify they are not coupled in your implementation?",
+            "mechanism": "When a user adjusts motion energy for a specific frame segment, your system must isolate that edit without disturbing adjacent frames \u2014 what is the mechanism in your feature-map layer that enforces that spatial boundary, and where does it break down?",
+            "boundary": "Give me a concrete example from your Wondershare work where two control axes that should be orthogonal produced interference in the Veo 3 output \u2014 what the entanglement looked like in the generated frames and how you diagnosed whether it was a prompt issue or a feature-map conditioning issue.",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "semantic_ui_to_latent_translation",
+            "label": "Semantic UI-to-Latent Translation for Diffusion Conditioning",
+            "resume_anchor": "semantic UI-to-latent translation interface that maps intuitive editing controls (sliders, palettes, tone adjustments) to diffusion conditioning prompt signals enabling non-technical users to perform controlled semantic AI-video regeneration while minimizing token-heavy LLM orchestration",
+            "surface": "Your UI-to-latent interface translates a slider value to a diffusion conditioning prompt signal \u2014 what is the intermediate representation between the slider position and the final prompt token, and how is the mapping defined?",
+            "mechanism": "Your claim is that this interface minimizes token-heavy LLM orchestration \u2014 what specifically in the translation layer avoids an LLM call, and what is the tradeoff in expressive range or edit precision that comes from bypassing it?",
+            "boundary": "When a non-technical user's slider adjustment produces a semantically ambiguous conditioning signal \u2014 one that maps to two plausible diffusion outcomes \u2014 what does your pipeline do, and how did you discover that ambiguity existed in your specific control range?",
+            "signal_weight": 2.0
+          },
+          {
+            "id": "cost_and_token_overhead_measurement",
+            "label": "Cost and Token Overhead Measurement Methodology",
+            "resume_anchor": "Reduced API token overhead by ~40% and per-generation cost by ~35% versus full Veo-3 resampling (~30\u201350% savings at the $0.40/sec baseline)",
+            "surface": "Your 40% token reduction is measured against full Veo-3 resampling \u2014 what was the actual token count for one full-resampling baseline call in your specific pipeline, and what did it drop to with seed regeneration?",
+            "mechanism": "Your cost reduction is framed against a $0.40/sec baseline \u2014 how did you account for the cost of the seed generation call itself and any additional prompt engineering overhead when calculating the 35% net savings figure?",
+            "boundary": "Walk me through the measurement setup you used to validate the 40% token reduction across varied edit types \u2014 how did you control for the fact that heavier edits require longer prompts, and what was the variance in savings across your test cases?",
+            "signal_weight": 3.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned seed diffusion for regeneration \u2014 pick one specific edit type you built in the Wondershare pipeline and tell me what the seed value controls in that edit.",
+          "honest_gap": "That is fair \u2014 tell me which part of the pipeline you had the most direct ownership over, whether that was the prompt steering logic, the feature-map layer, or the cost measurement, and we can go deeper there.",
+          "claim_conflict": "Your resume says the pipeline decides at runtime between seed regeneration and full resampling, but your answer describes a fixed seed path \u2014 where in the ADK graph does that branching decision actually live?",
+          "metric_risk": "You cited 40% token reduction \u2014 what was the raw token count for your baseline full-resampling call, how many calls did you average that over, and did you include the seed initialization call in the denominator?",
+          "overclaim_risk": "You used the phrase 'pixel-level semantic generation instructions' \u2014 in your specific Veo 3 integration, what format does that instruction take when it leaves your feature-map layer and hits the API, and what field in the API request does it populate?",
+          "bridge": "Let us shift to your work at Optek \u2014 the TinyML Audio Classification On Constrained Edge Hardware role surfaces a different kind of constraint problem. At Wondershare you were optimizing token cost; at Optek you were optimizing for sub-10ms latency and a 200KB footprint simultaneously on a 700MHz DSP. Which of those two constraints did you hit first during quantization?"
+        },
+        "candidate_q4_options": [
+          "Your pipeline claims real-time AI editing functionality \u2014 at what video length or resolution did latency become unacceptable, and what architectural decision did you make to stay within that real-time threshold?",
+          "Your Google ADK implementation uses seed diffusion to preserve identity across edits \u2014 when a user's edit is large enough that seed continuity would actually hurt the output, what signal does the pipeline use to detect that and what happens next?",
+          "Your feature-map control system targets specific frame segments without disturbing the video manifold \u2014 how do you define the boundary of a frame segment in latent space, and what unit is that boundary expressed in?",
+          "The 30\u201350% savings range you cite is wide \u2014 what is the single biggest variable in your pipeline that determines whether a given edit lands at the 30% end versus the 50% end, and how did you identify it?"
+        ]
+      },
+      {
+        "label": "TinyML Audio Classification On Constrained Edge Hardware",
+        "focus_key": "tinyml_edge_audio_classification_constrained_hardware",
+        "anchor_context": "Full-stack TinyML pipeline on a 700 MHz DSP + 16 MB NPU achieving <10 ms latency, 200 KB footprint, and 4x compression via INT8 quantization and pruning.",
+        "sub_focuses": [
+          "INT8 quantization and pruning pipeline for 4x compression",
+          "real-time feature extraction with MediaPipe log-Mel and MFCCs",
+          "XNCC proprietary SDK deployment and latency optimization"
+        ],
+        "resume_snippets": [
+          "TensorFlow Lite-Micro INT8 for quantized inference, and Edge Impulse for SDK deployment, achieving 95%+ classification accuracy on AudioSet, UrbanSound8K",
+          "custom classifier for a 700 MHz DSP + 16 MB NPU in the proprietary XNCC development environment, accomplishing <10 ms latency, 200 KB runtime footprint, and 4\u00d7 model compression"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "int8_quantization_pruning_compression",
+          "realtime_feature_extraction_mel_mfcc",
+          "xncc_sdk_deployment_latency",
+          "classification_accuracy_benchmark_validity"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Entirely different domain and stack from the Wondershare work \u2014 embedded inference, hardware-constrained deployment, and",
+        "opener": "At Optek, you hit both <10ms latency and 200KB footprint on a 700MHz DSP \u2014 those two constraints usually pull in opposite directions during quantization. Which constraint did you hit first, and what did you have to sacrifice on the other to close the gap?",
+        "dimensions": [
+          {
+            "id": "int8_quantization_pruning_compression",
+            "label": "INT8 Quantization and Pruning for 4x Compression",
+            "resume_anchor": "4\u00d7 model compression via INT8 quantization and pruning, 200 KB runtime footprint, TensorFlow Lite-Micro INT8 for quantized inference",
+            "surface": "Your 4x compression combined INT8 quantization and pruning \u2014 which of those two techniques contributed more to the final 200 KB footprint, and how did you measure each contribution separately?",
+            "mechanism": "INT8 quantization on a 700 MHz DSP without a floating-point unit can introduce asymmetric rounding errors across layers \u2014 how did those accumulation errors manifest in your classification accuracy, and what did you change in the quantization pipeline to recover from them?",
+            "boundary": "When you applied pruning before quantization on this pipeline, how did the sparsity pattern interact with TFLite-Micro's INT8 kernel dispatch on the XNCC NPU \u2014 and did you have to retrain or re-quantize after pruning to stay under the 200 KB constraint?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "realtime_feature_extraction_mel_mfcc",
+            "label": "Real-Time Log-Mel and MFCC Feature Extraction with MediaPipe",
+            "resume_anchor": "MediaPipe Audio for real-time feature extraction (log-Mel spectrograms, MFCCs), <10 ms latency",
+            "surface": "Your pipeline uses both log-Mel spectrograms and MFCCs for feature extraction \u2014 on this 700 MHz DSP, what were the respective compute costs of each, and which one ran during inference at the edge?",
+            "mechanism": "MediaPipe Audio's feature extraction pipeline is designed for mobile-class hardware \u2014 what did you have to strip or reconfigure in its log-Mel computation to fit within your <10 ms latency budget on the 700 MHz DSP, and how did that change affect your frequency resolution?",
+            "boundary": "At the boundary between MediaPipe's feature output and your TFLite-Micro model input on XNCC, what buffer format mismatch or timing misalignment did you encounter, and how did you resolve it without blowing the 10 ms end-to-end budget?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "xncc_sdk_deployment_latency",
+            "label": "XNCC Proprietary SDK Deployment and Latency Optimization",
+            "resume_anchor": "custom classifier for a 700 MHz DSP + 16 MB NPU in the proprietary XNCC development environment, accomplishing <10 ms latency",
+            "surface": "Edge Impulse's automated export handles standard TFLite formats \u2014 what specific model format conversion step for XNCC was not handled by Edge Impulse's export pipeline, and how did you perform that step manually?",
+            "mechanism": "The XNCC NPU runs at 700 MHz with 16 MB available \u2014 when you profiled the inference graph, which layer or operation type was the bottleneck that most threatened the <10 ms target, and what did you do at the operator level to resolve it?",
+            "boundary": "XNCC is a proprietary environment \u2014 when your quantized model produced a correct output on TFLite-Micro desktop validation but a degraded output on the XNCC hardware target, what was your debugging process given the limited observability inside the XNCC runtime?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "classification_accuracy_benchmark_validity",
+            "label": "95%+ Accuracy Claim on AudioSet and UrbanSound8K Under Compression",
+            "resume_anchor": "achieving 95%+ classification accuracy on AudioSet, UrbanSound8K with INT8 quantization and pruning",
+            "surface": "Your compressed model claims 95%+ accuracy on UrbanSound8K \u2014 what is the published baseline accuracy on UrbanSound8K for a model of comparable parameter count or runtime footprint, and how does your 200 KB INT8 model compare to that baseline?",
+            "mechanism": "INT8 quantization typically causes accuracy degradation that is non-uniform across class labels \u2014 on UrbanSound8K's 10 classes, which class suffered the largest accuracy drop after quantization, and what does that tell you about where precision loss concentrates in your feature representation?",
+            "boundary": "Your accuracy was measured at 95%+ \u2014 was that evaluated on the full UrbanSound8K 10-fold cross-validation split or a held-out subset, and how did accuracy shift when you evaluated on audio captured through the actual microphone hardware in the XNCC deployment environment versus the clean benchmark recordings?",
+            "signal_weight": 2.5
+          }
+        ],
+        "recovery": {
+          "short_answer": "Let's anchor on the 200 KB footprint specifically \u2014 after INT8 quantization, what was the size of the largest single layer in the model, and did that layer alone threaten the footprint budget?",
+          "honest_gap": "That's fair \u2014 tell me about the part of the XNCC deployment you do own clearly: what did the inference execution loop look like on the DSP side, even at a high level?",
+          "claim_conflict": "Your resume says you achieved <10 ms latency and 4x compression together \u2014 but what you just described sounds like you hit one of those targets and estimated the other. Which number did you personally measure end-to-end on the XNCC hardware?",
+          "metric_risk": "You cited 95%+ accuracy \u2014 what was the exact test split size, how many samples from UrbanSound8K were in your evaluation set, and was accuracy measured before or after deploying the INT8 model to the XNCC hardware target?",
+          "overclaim_risk": "You used the phrase 'top notch-industry standards' to describe 95% accuracy \u2014 what is the published baseline accuracy on UrbanSound8K for a model of comparable size to your 200 KB INT8 model, and how does your result compare to that specific number?",
+          "bridge": "Good \u2014 let's move to a different kind of constrained-resource problem. In the Multimodal Bird-SQL Benchmark Construction and Evaluation work, you were designing queries that specifically exposed failure points in vision-language models \u2014 I want to dig into the schema and query design decisions there."
+        },
+        "candidate_q4_options": [
+          "Your pipeline runs on 16 MB NPU memory \u2014 how did you partition the 200 KB runtime footprint across model weights, activations, and feature buffers, and what would break first if you reduced that budget by half?",
+          "You used Edge Impulse for SDK deployment alongside TFLite-Micro \u2014 at what point in the pipeline did Edge Impulse's toolchain end and XNCC-specific integration begin, and what was the first failure you hit at that handoff?",
+          "Your INT8 quantization achieved 4x compression \u2014 what was the original uncompressed model size and architecture, and why was that starting architecture the right one to compress rather than designing a smaller model from scratch?",
+          "AudioSet and UrbanSound8K have very different class distributions and recording conditions \u2014 which dataset was harder for your compressed model, and what specific acoustic property caused the gap?"
+        ]
+      },
+      {
+        "label": "Multimodal Bird-Sql Benchmark Construction And Evaluation",
+        "focus_key": "bird_sql_multimodal_benchmark_construction_and",
+        "anchor_context": "Reconstructed the BIRD-SQL benchmark (12,751+ question-SQL pairs, 95+ databases) with vision+NLP annotation and schema-aware prompt engineering to expose model failure points.",
+        "sub_focuses": [
+          "relational schema design and complex hybrid SQL query construction",
+          "schema-aware prompt engineering and OCR validation for multimodal inputs"
+        ],
+        "resume_snippets": [
+          "Reconstructed an advanced multi-modal benchmark framework that pioneered BIRD-SQL dataset (12,751+ question-SQL pairs, 95+ large databases)",
+          "Designed relational DB schemas, and created complex hybrid SQL queries to introduce reasoning challenges for vision-language models"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 5,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "relational_schema_design",
+          "multimodal_annotation_integration",
+          "schema_aware_prompt_engineering",
+          "ocr_validation_pipeline",
+          "failure_point_evaluation_protocol"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Different technical territory \u2014 benchmark engineering, SQL reasoning challenge design, and multimodal annotation \u2014 with",
+        "opener": "In the BIRD Vision project, you designed hybrid SQL queries to expose failure points specific to vision-language models \u2014 describe one query structure where a text-only LLM would succeed but a VLM fails, and explain why the visual input creates the failure.",
+        "dimensions": [
+          {
+            "id": "relational_schema_design",
+            "label": "Relational Schema Design for VLM Reasoning Challenges",
+            "resume_anchor": "Designed relational DB schemas, and created complex hybrid SQL queries to introduce reasoning challenges for vision-language models",
+            "surface": "Name one specific schema from the 95 databases you worked on and describe what structural property made it genuinely hard for a VLM to reason over versus a simpler schema.",
+            "mechanism": "In the hybrid SQL queries you designed, what specific join or subquery pattern caused a VLM to fail in a way that a purely text-based model would not, and what about the visual grounding made that pattern fail?",
+            "boundary": "When you introduced a reasoning challenge through schema design, how did you verify the failure was caused by the schema structure rather than by the VLM's general SQL generation weakness \u2014 what was your control?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "multimodal_annotation_integration",
+            "label": "Vision + NLP Annotation for Benchmark Construction",
+            "resume_anchor": "integrating vision + NLP annotation for advance database queries and designing evaluation protocols to identify model failure points",
+            "surface": "In the 12,751 question-SQL pairs, what did vision annotation add to a pair that the NLP annotation alone could not capture \u2014 give a concrete example from the dataset.",
+            "mechanism": "When a question-SQL pair required both a visual input and a database query to answer correctly, how did your evaluation protocol isolate whether a model failure came from the visual understanding side versus the SQL generation side?",
+            "boundary": "Describe a case where a question-SQL pair appeared correct under your evaluation protocol but later proved to be a flawed test item \u2014 what made it pass automated checks, and how did you catch it?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "schema_aware_prompt_engineering",
+            "label": "Schema-Aware Prompt Engineering",
+            "resume_anchor": "using schema-aware prompt engineering, OCR validation, annotating complex multimodal inputs",
+            "surface": "What information from the relational schema did you inject into the prompt for VLM evaluation, and why was that specific information necessary for the model to generate a correct SQL query?",
+            "mechanism": "When a database schema had ambiguous foreign key relationships across multiple tables, how did your schema-aware prompt structure encode that ambiguity \u2014 and what happened to model performance when it was omitted?",
+            "boundary": "Across the 95 databases, schema complexity varied significantly \u2014 describe a case where your standard schema-aware prompt template broke down for a specific schema type and what you changed to handle it.",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "ocr_validation_pipeline",
+            "label": "OCR Validation for Multimodal Inputs",
+            "resume_anchor": "using schema-aware prompt engineering, OCR validation, annotating complex multimodal inputs",
+            "surface": "What type of visual content in the BIRD-SQL benchmark required OCR validation before a question-SQL pair could be included, and what would have broken downstream if OCR output was wrong?",
+            "mechanism": "When OCR output for a visual input was partially correct \u2014 recognizing most but not all tokens \u2014 how did your validation step decide whether the pair was usable or needed to be discarded or manually corrected?",
+            "boundary": "Describe one specific OCR error that corrupted a question-SQL pair in a way that passed your automated validation and how you caught it during manual review.",
+            "signal_weight": 2.0
+          },
+          {
+            "id": "failure_point_evaluation_protocol",
+            "label": "Evaluation Protocol Design for Model Failure Points",
+            "resume_anchor": "designing evaluation protocols to identify model failure points",
+            "surface": "What metric or signal in your evaluation protocol indicated a model failure point, as opposed to just a wrong SQL output?",
+            "mechanism": "The benchmark targets failure points specific to vision-language models \u2014 how did your evaluation protocol distinguish a failure caused by visual misinterpretation from one caused by SQL reasoning error on the same question?",
+            "boundary": "With 12,751 question-SQL pairs across 95 databases, some failure patterns would be rare and others frequent \u2014 how did you determine whether a failure pattern was a genuine model weakness versus an annotation artifact in that subset of the data?",
+            "signal_weight": 2.5
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned 12,751 question-SQL pairs \u2014 pick one pair you personally wrote and describe what made it a valid test of visual reasoning versus database reasoning.",
+          "honest_gap": "Fair enough \u2014 set aside the evaluation protocol for a moment. In the schema design work specifically, what part of constructing a query that challenges a VLM do you feel you owned most directly?",
+          "claim_conflict": "You said the queries introduce reasoning challenges for vision-language models, but the answer you just gave describes a challenge that would apply equally to any text-based SQL model \u2014 what specifically about visual input is the VLM failing on here?",
+          "metric_risk": "You cited 12,751 question-SQL pairs and 95 databases \u2014 how were pairs allocated across databases, what counted as a valid pair, and who validated the ground-truth SQL answers against actual database execution results?",
+          "overclaim_risk": "You used the phrase 'schema-aware prompt engineering' \u2014 in your actual implementation, what schema elements appeared in the prompt string, and how did that string change between a single-table schema and a ten-table schema with foreign keys?",
+          "bridge": "That gives me a solid read on the benchmark construction work. Let's shift to Wondershare \u2014 in the AIGC Seed-Based Video Generation And Editing Pipeline, you claimed 40% token reduction versus full Veo-3 resampling. I want to understand the architectural decision behind that."
+        },
+        "candidate_q4_options": [
+          "You worked with 95 large databases \u2014 what was the distribution strategy for question-SQL pairs across databases, and how did you ensure the benchmark didn't over-represent a single schema type?",
+          "The benchmark claims to pioneer vision integration into BIRD-SQL \u2014 what specific query category was impossible to construct without a visual input, and what made it so?",
+          "Schema-aware prompting was part of your annotation pipeline \u2014 when two annotators disagreed on whether a query correctly answered the visual question, what was your resolution protocol?",
+          "You designed hybrid SQL queries to challenge VLMs specifically \u2014 what SQL construct, such as a specific join type or aggregation pattern, produced the highest model failure rate in your dataset, and what does that tell you about where VLMs break down?"
+        ]
+      }
+    ],
+    "generated_at": 1778211257.5339265,
+    "pending_hydration_focus_keys": [],
+    "generation_strategy": "two_pass_full_resume_reasoning",
+    "pass_1_review": {
+      "stage": "pass_1",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.1,
+      "top_two_score": 7.6,
+      "opener_quality_score": 5.5,
+      "dimension_depth_score": 7.8,
+      "strengths": [
+        "Dimension boundary probes are genuinely ownership-gated \u2014 the XNCC memory allocation probe, the competing-axis conflict probe, and the OCR vs schema conflict probe all require hands-on experience to answer credibly.",
+        "Signal-weight 3.0 assignments are correctly targeted at the highest-density claims (seed architecture, INT8 compression pipeline, schema reasoning design), not spread generically.",
+        "Recovery overlays are complete and well-differentiated \u2014 metric_risk, overclaim_risk, and claim_conflict probes are all tied to specific resume language rather than generic fallbacks."
+      ],
+      "issues": [
+        "All three openers use 'walk me through' framing, which invites narrative rather than forcing an immediate analytical position \u2014 this is the primary score ceiling. Per rubric, scores above 8.5 require openers that force an analytical hypothesis.",
+        "Focus area 1 opener ('walk me through how that pipeline actually worked') is the weakest \u2014 it asks for a full system tour rather than anchoring on the specific causal claim (40% token reduction) that is the most verifiable and falsifiable part of the resume.",
+        "The BIRD-SQL opener ('what reconstructed actually meant') is legitimate for a non-engineering role framing but the work is presented as engineering \u2014 it should force a specific design decision rather than solicit a job description."
+      ],
+      "repair_instructions": [
+        "Rewrite all three openers as causal or hypothesis-forcing challenges. For focus 1: 'At Wondershare, your seed-based regeneration claims 40% token reduction versus full Veo-3 resampling \u2014 what specific API call or prompt structure change is responsible for that reduction, and how does the pipeline decide at runtime whether to use seed regeneration or fall back to full resampling?' This forces an immediate architectural position.",
+        "For the TinyML opener, replace 'walk me through' with a tradeoff challenge: 'At Optek, you hit both <10ms latency and 200KB footprint on a 700MHz DSP \u2014 those two constraints usually pull in opposite directions during quantization. Which constraint did you hit first, and what did you have to sacrifice on the other to close the gap?' This surfaces the real engineering tension immediately.",
+        "For the BIRD-SQL opener, anchor on the schema design claim specifically: 'In the BIRD Vision project, you claim the hybrid SQL queries expose failure points specific to vision-language models \u2014 describe one query structure you designed where a text-only LLM would succeed but a VLM fails, and explain why the visual input creates the failure.' This bypasses the job-description phase entirely.",
+        "In focus area 2 recovery, remove the 'video manifold' overclaim_risk \u2014 it is copied from focus area 1 and is factually wrong for the TinyML track. Replace with: 'You used the phrase top notch-industry standards to describe 95% accuracy \u2014 what is the published baseline accuracy on UrbanSound8K for a model of comparable size, and how does your compressed model compare to that baseline?'"
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "aigc_video_generation_pipeline_seed_based",
+          "label": "AIGC Seed-Based Video Generation And Editing Pipeline",
+          "score": 7.3,
+          "issues": [
+            "Surface probe on seed_diffusion_regeneration_architecture ('what role does the seed value play in maintaining character identity') is answerable from Veo-3 documentation and general diffusion literature \u2014 it does not require ownership of this specific pipeline.",
+            "The cost_and_token_overhead_measurement dimension is strong but its surface probe ('what unit were you counting tokens in for Veo 3') could be answered by anyone who read the API docs. Push it one level harder: ask what the token count was for one baseline call in their specific pipeline."
+          ]
+        },
+        {
+          "focus_key": "tinyml_edge_audio_classification_constrained_hardware",
+          "label": "TinyML Audio Classification On Constrained Edge Hardware",
+          "score": 7.8,
+          "issues": [
+            "Recovery overclaim_risk probe mistakenly references 'video manifold' from focus area 1 \u2014 this must be corrected before use as it would confuse candidates and signal interviewer error.",
+            "The xncc_sdk_deployment_latency surface probe ('what format did the model need to be in before XNCC could execute it') is partially answerable from TFLite-Micro and Edge Impulse documentation \u2014 strengthen by asking what XNCC-specific format conversion step was not handled by Edge Impulse's automated export."
+          ]
+        },
+        {
+          "focus_key": "bird_sql_multimodal_benchmark_construction_and",
+          "label": "Multimodal Bird-Sql Benchmark Construction And Evaluation",
+          "score": 6.8,
+          "issues": [
+            "The relational_schema_design surface probe ('what made a schema genuinely challenging for a VLM versus trivially easy') is answerable from NLP benchmark literature without owning this specific dataset \u2014 add a constraint: 'name one specific schema from the 95 databases you worked on and what property made it hard'.",
+            "The ocr_validation_pipeline dimension (signal_weight 2.0) is the weakest in the focus \u2014 its boundary probe asks for a false-positive rate that the candidate likely never measured formally, making it more likely to produce an honest gap than signal depth. Reframe the boundary as: 'describe one specific OCR error that corrupted a question-SQL pair that passed automated validation and how you caught it in review'."
+          ]
+        }
+      ]
+    },
+    "quality_review": {
+      "stage": "pass_1_repair",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.6,
+      "top_two_score": 8.1,
+      "opener_quality_score": 8.2,
+      "dimension_depth_score": 7.1,
+      "strengths": [
+        "All three openers force an immediate analytical position on a specific causal or constraint claim rather than inviting narrative \u2014 the Wondershare opener on runtime fallback logic and the Optek opener on constraint ordering are hypothesis-quality.",
+        "Signal-weight 3.0 dimensions in areas 1 and 2 have boundary probes that name specific artifacts (XNCC runtime, ADK graph branch, Veo 3 API field) that only a hands-on owner would know.",
+        "Recovery overlays are complete across all five vectors (short_answer, honest_gap, claim_conflict, metric_risk, overclaim_risk) with concrete numeric anchors in each."
+      ],
+      "issues": [
+        "Area 3 (BIRD-SQL) opener asks the candidate to 'describe one query structure' \u2014 this invites a narrative rather than forcing an analytical position; it should challenge a specific claim from the resume (e.g., the controlled failure-attribution method) rather than ask for an example.",
+        "Area 3 has five dimensions but two (ocr_validation_pipeline and failure_point_evaluation_protocol) have surface probes answerable from the BIRD-SQL paper or documentation alone \u2014 they do not require hands-on ownership of the actual annotation pipeline.",
+        "Area 1 dimension semantic_ui_to_latent_translation has signal_weight 2.0 and its boundary probe ('how did you discover that ambiguity existed') is weaker than the other signal-weight 3.0 dimensions \u2014 the mechanism probe also does not name a specific artifact or format that only an implementer would know."
+      ],
+      "repair_instructions": [
+        "Area 3 opener repair: Replace the narrative opener with a causal challenge anchored to the attribution problem \u2014 e.g., 'In BIRD Vision, you designed evaluation protocols to identify model failure points \u2014 when a VLM produces wrong SQL on a multimodal question, what in your protocol distinguishes a visual misinterpretation failure from a SQL reasoning failure, and what evidence do you have that the protocol actually separates those two failure types?' This forces an analytical position on the hardest claim in that resume bullet.",
+        "Area 3 dimensions ocr_validation_pipeline and failure_point_evaluation_protocol: Merge them into one dimension or replace with a dimension grounded in the schema construction work \u2014 e.g., a dimension on how pair validity was adjudicated when ground-truth SQL execution returned correct results through an unintended query path. The current surface probes for both dimensions can be answered by reading the BIRD-SQL paper; revise boundary probes to name a specific database or pair structure the candidate personally constructed.",
+        "Area 1 semantic_ui_to_latent_translation: Raise signal_weight to 2.5 and sharpen the boundary probe to name a specific format \u2014 e.g., 'When a slider value produces a conditioning signal that hits a known instability region in the Veo 3 prompt space, what specific field in the API request carries that signal, what value range triggers the instability, and how did you map the UI control range to avoid it?' This requires hands-on knowledge of the API schema.",
+        "Area 3 bridge correction: The current bridge routes back to Wondershare, but if BIRD-SQL is covered third, the bridge is unused or loops incorrectly. Rewrite it to route forward to the NLP hallucination detection work (2024 CUHKSZ NLP group) if a fourth area is added, or remove the forward bridge entirely and replace with a closing synthesis prompt about cross-domain benchmark work."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "aigc_video_generation_pipeline_seed_based",
+          "label": "AIGC Seed-Based Video Generation And Editing Pipeline",
+          "score": 8.2,
+          "issues": [
+            "semantic_ui_to_latent_translation boundary probe does not name a specific API field or format, making it answerable by someone who read the Veo 3 documentation carefully without implementing the interface.",
+            "cost_and_token_overhead_measurement surface probe asks for a raw token count \u2014 valid, but should also ask for the unit of measurement (tokens vs. seconds vs. API calls) since 'API token overhead' is ambiguous in the context of a video generation API that charges by duration."
+          ]
+        },
+        {
+          "focus_key": "tinyml_edge_audio_classification_constrained_hardware",
+          "label": "TinyML Audio Classification On Constrained Edge Hardware",
+          "score": 8.0,
+          "issues": [
+            "realtime_feature_extraction_mel_mfcc surface probe ('what were the respective compute costs of each') is partially answerable from MediaPipe profiling documentation without XNCC-specific work \u2014 add 'on the XNCC target specifically' to force hardware-grounded answer.",
+            "classification_accuracy_benchmark_validity surface probe asks for a published baseline comparison \u2014 this is researchable without hands-on work; replace with a probe about the specific test split and hardware used for the 95% measurement."
+          ]
+        },
+        {
+          "focus_key": "bird_sql_multimodal_benchmark_construction_and",
+          "label": "Multimodal Bird-Sql Benchmark Construction And Evaluation",
+          "score": 6.8,
+          "issues": [
+            "ocr_validation_pipeline surface and mechanism probes are answerable from OCR pipeline documentation and the BIRD-SQL paper without hands-on annotation work.",
+            "failure_point_evaluation_protocol surface probe ('what metric or signal indicated a model failure point') is answerable from the benchmark paper's evaluation section.",
+            "Five dimensions is one too many given the weaker grounding on two of them \u2014 consolidating to four stronger dimensions would improve signal density."
+          ]
+        }
+      ]
+    },
+    "generation_notes": ""
+  },
+  "interview_map_status": "ready",
+  "interview_map_error": "",
+  "interview_map_validation": {
+    "ready": true,
+    "errors": [],
+    "warnings": [],
+    "focus_count": 3,
+    "llm_focus_count": 3,
+    "rich_focus_count": 3,
+    "priority_llm_ready_count": 3,
+    "pending_focus_keys": [],
+    "focus_reports": [
+      {
+        "label": "AIGC Seed-Based Video Generation And Editing Pipeline",
+        "focus_key": "aigc_video_generation_pipeline_seed_based",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "TinyML Audio Classification On Constrained Edge Hardware",
+        "focus_key": "tinyml_edge_audio_classification_constrained_hardware",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "Multimodal Bird-Sql Benchmark Construction And Evaluation",
+        "focus_key": "bird_sql_multimodal_benchmark_construction_and",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 5,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "interview_map_prepared_at": 1778211257.5380688,
+  "candidate_state": {
+    "disengagement_level": 0.0,
+    "consecutive_no_content": 0,
+    "explicit_skip_count": 0,
+    "social_deflection_count": 0,
+    "incoherence_count": 0,
+    "communication_mode": "normal",
+    "topic_fatigue": {},
+    "topic_question_counts": {},
+    "forced_exit_triggered": false,
+    "phase": "orientation",
+    "anchor_confidence": null,
+    "implementation_anchor": null,
+    "second_domain_surfaced": null,
+    "_communication_mode_checked": true
+  }
+}

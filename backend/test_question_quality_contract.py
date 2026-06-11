@@ -34,6 +34,74 @@ def test_low_signal_sql_recall_is_blocked_late() -> None:
     assert "late_low_level_probe" in _codes(result)
 
 
+def test_tool_recall_is_blocked_as_low_signal() -> None:
+    result = check_question_readiness(
+        "What was the main tool you used most for this work?",
+        route_kind="third_surface_probe",
+        posture="recover",
+        turn_number=12,
+        expected_space=["dashboard decision use"],
+    )
+
+    assert result["should_block"] is True
+    assert "low_signal_implementation_recall" in _codes(result)
+    assert "late_low_level_probe" in _codes(result)
+
+
+def test_plural_tool_recall_is_blocked_as_low_signal() -> None:
+    result = check_question_readiness(
+        "What tools did you use to pull and validate the funnel data?",
+        route_kind="trajectory_map_followup",
+        posture="recover",
+        turn_number=5,
+        expected_space=["data validation reasoning"],
+    )
+
+    assert result["should_block"] is True
+    assert "low_signal_implementation_recall" in _codes(result)
+
+
+def test_file_format_recall_is_blocked_as_low_signal() -> None:
+    result = check_question_readiness(
+        "What file format did your telemetry use to store that payload?",
+        route_kind="trajectory_map_mechanism",
+        posture="recover",
+        turn_number=12,
+        expected_space=["telemetry reasoning"],
+    )
+
+    assert result["should_block"] is True
+    assert "low_signal_implementation_recall" in _codes(result)
+    assert "late_low_level_probe" in _codes(result)
+
+
+def test_team_deployment_recall_is_blocked_as_low_signal() -> None:
+    result = check_question_readiness(
+        "Which team owned production dbt deployments?",
+        route_kind="third_surface_probe",
+        posture="recover",
+        turn_number=11,
+        expected_space=["ownership boundary"],
+    )
+
+    assert result["should_block"] is True
+    assert "low_signal_ownership_recall" in _codes(result)
+    assert "late_low_level_probe" in _codes(result)
+
+
+def test_ownership_boundary_question_is_still_allowed() -> None:
+    result = check_question_readiness(
+        "Which part did you personally own, and where did engineering take over?",
+        route_kind="trajectory_map_followup",
+        posture="clarify",
+        turn_number=4,
+        expected_space=["candidate boundary", "engineering boundary"],
+    )
+
+    assert result["should_block"] is False
+    assert "low_signal_ownership_recall" not in _codes(result)
+
+
 def test_guided_answer_lane_with_escape_hatch_is_allowed() -> None:
     result = check_question_readiness(
         "When you moved the trial from 7 days to 1 day, were you mainly trying to improve conversion, reduce low-intent trials, test urgency, or was there something else?",
@@ -109,6 +177,11 @@ def test_terminal_messages_are_not_ranked_as_bad_questions() -> None:
 def main() -> None:
     test_self_rating_variants_are_blocked()
     test_low_signal_sql_recall_is_blocked_late()
+    test_tool_recall_is_blocked_as_low_signal()
+    test_plural_tool_recall_is_blocked_as_low_signal()
+    test_file_format_recall_is_blocked_as_low_signal()
+    test_team_deployment_recall_is_blocked_as_low_signal()
+    test_ownership_boundary_question_is_still_allowed()
     test_guided_answer_lane_with_escape_hatch_is_allowed()
     test_guided_answer_lane_without_escape_is_warned()
     test_unsupported_internals_are_warned_not_blindly_accepted()

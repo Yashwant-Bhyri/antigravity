@@ -1,0 +1,1322 @@
+{
+  "session_id": "3dfa958d-9395-4c7c-a9bc-d3a9ff747f78",
+  "current_sprint": 3,
+  "current_persona": "senior_peer",
+  "sprint_name": "System Design",
+  "question_count": 13,
+  "sprint_question_count": 3,
+  "interview_start_time": 1778221307.8776205,
+  "interview_started": true,
+  "interview_complete": true,
+  "finalization_status": "complete",
+  "finalization_error": "",
+  "report_ready": true,
+  "resume": "Muzammil Ali\n+91 6300634181 | muzammilali.cse@gmail.com | linkedin.com/in/muzammil2006 | https://github.com/Muzammil363\nProfessional Summary\nComputer Science candidate at IIIT Sri City (8.62 CGPA) with a 1600+ LeetCode rating. Proficient in Data\nStructures, Algorithms, and Object-Oriented Programming. Experienced in architecting scalable full-stack\nsystems using the MERN stack and WebSockets. Passionate about Diving Deep into complex backend\noptimizations and delivering high-impact solutions as an SDE Intern.\nEducation\nIndian Institute of Information Technology Sri City, Andhra Pradesh\nBachelor of Technology in Computer Science CGPA: 8.62 | Aug. 2023 \u2013 Present\nSri Chaitanya Junior College Narasaraopet, Andhra Pradesh\nIntermediate Percentage: 98.2 | Jun. 2021 \u2013 May 2023\nTechnical Skills\nProgramming Languages: Java, Python, C++, JavaScript (ES6+).\nWeb & Frameworks: Node.js, Express.js, ReactJS, Redux, REST APIs, WebSockets, Redis, BullMQ.\nTools: PostgreSQL, MySQL, MongoDB, Git & GitHub,Postman , Docker, AWS S3\nCS Fundamentals: Data Structures Algorithms (DSA), Operating Systems, DBMS, Computer Networks.\nProjects\nChatApp | ReactJS, Express.js, MongoDB, Node.js\n\u2022 Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency\ncommunication between users.\n\u2022 Optimized message retrieval by implementing cursor-based pagination, reducing server load and improving\nscalability for large datasets.\n\u2022 Architected scalable RESTful APIs with Node.js and JWT authentication to manage secure user sessions and\nprivate data interactions.\n\u2022 Developed a responsive UI in ReactJS, utilizing a modular component architecture for seamless real-time message\nupdates and state management.\nVideoPlayer | ReactJS, Node.js, Redis, BullMQ, AWS S3\n\u2022 Engineered a video streaming platform, integrating Redis and BullMQ job queues to offload CPU-intensive video\ntranscoding to dedicated worker nodes, significantly reducing API latency.\n\u2022 Leveraged HLS for adaptive video streaming, configuring FFmpeg to transcode uploads into multi-bitrate manifest\nfiles (.m3u8) to enable low-latency seeking and dynamic quality switching.\n\u2022 Integrated AWS S3 for scalable video storage and optimized media delivery through chunk-based fetching,\nminimizing initial buffering and ensuring smooth playback for high-resolution content.\nAdVantage | ReactJS,Express.js,MongoDB, Node.js\n\u2022 Architected a full-stack e-commerce platform with Node.js and React, supporting dynamic product listings and\nsecure RESTful APIs.\n\u2022 Developed a seller analytics dashboard to visualize sales and rental trends, utilizing React hooks for efficient state\nmanagement.\nAchievements\nLeetCode: Achieved 1600+ Contest Rating; solved 460+ Data Structures and Algorithms\nproblems.\nAcademics: Secured 98.2 percentile in JEE Mains 2023\nLeadership Activities\nCore Member in Gradient Club IIIT Sri City, Andhra Pradesh\nGradient - Official programming club of IIIT Sri City promoting coding and innovation.",
+  "parsed_resume": {
+    "skills": [
+      "Technical Skills",
+      "Programming Languages: Java",
+      "Python",
+      "C++",
+      "JavaScript (ES6+)"
+    ],
+    "tools": [
+      "+91 6300634181",
+      "muzammilali.cse@gmail.com",
+      "linkedin.com",
+      "in",
+      "muzammil2006",
+      "https",
+      "github.com",
+      "Muzammil363",
+      "Tools: PostgreSQL",
+      "MySQL",
+      "MongoDB",
+      "Git & GitHub",
+      "Postman",
+      "Docker",
+      "AWS S3"
+    ],
+    "projects": [
+      {
+        "name": "gmail.com | linkedin.com/in/muzammil2006 | https://github.com/Muzammil363",
+        "description": "+91 6300634181 | muzammilali.cse",
+        "technologies": [],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      },
+      {
+        "name": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "description": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "technologies": [
+          "Implemented real-time messaging using WebSockets and end-to-end encryption",
+          "Optimized message retrieval by implementing cursor-based pagination",
+          "Architected scalable RESTful APIs with Node.js and JWT authentication to manage secure user sessions and",
+          "Developed a responsive UI in ReactJS",
+          "Engineered a video streaming platform",
+          "integrating Redis and BullMQ job queues to offload CPU-intensive video",
+          "Leveraged HLS for adaptive video streaming",
+          "configuring FFmpeg to transcode uploads into multi-bitrate manifest",
+          "Integrated AWS S3 for scalable video storage and optimized media delivery through chunk-based fetching",
+          "Architected a full-stack e-commerce platform with Node.js and React",
+          "Developed a seller analytics dashboard to visualize sales and rental trends",
+          "utilizing React hooks for efficient state"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      }
+    ],
+    "claims": [
+      {
+        "text": "Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Optimized message retrieval by implementing cursor-based pagination, reducing server load and improving",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Architected scalable RESTful APIs with Node.js and JWT authentication to manage secure user sessions and",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Developed a responsive UI in ReactJS, utilizing a modular component architecture for seamless real-time message",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Engineered a video streaming platform, integrating Redis and BullMQ job queues to offload CPU-intensive video",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Leveraged HLS for adaptive video streaming, configuring FFmpeg to transcode uploads into multi-bitrate manifest",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Integrated AWS S3 for scalable video storage and optimized media delivery through chunk-based fetching,",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Architected a full-stack e-commerce platform with Node.js and React, supporting dynamic product listings and",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "Developed a seller analytics dashboard to visualize sales and rental trends, utilizing React hooks for efficient state",
+        "project": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      }
+    ],
+    "experiences": [
+      {
+        "title": "+91 6300634181 | muzammilali.cse",
+        "company": "gmail.com | linkedin.com/in/muzammil2006 | https://github.com/Muzammil363",
+        "duration": "2006 | https://github.com/Muzammil363",
+        "contribution_type": "contributed"
+      },
+      {
+        "title": "optimizations and delivering high-impact solutions as an SDE Intern.",
+        "company": "",
+        "duration": "",
+        "contribution_type": "contributed"
+      }
+    ],
+    "experience": {
+      "ml": 0,
+      "swe": 0,
+      "data_eng": 0
+    },
+    "experience_tier": "junior"
+  },
+  "github_links": [
+    "https://github.com/Muzammil363/VideoPlayer"
+  ],
+  "target_role": "Software developer",
+  "years_experience": "0-1",
+  "prior_assessment_context": {},
+  "prior_assessment_prompt": "",
+  "skills": [
+    "Technical Skills",
+    "Programming Languages: Java",
+    "Python",
+    "C++",
+    "JavaScript (ES6+)"
+  ],
+  "scores": {
+    "reasoning": 4,
+    "technical_depth": 3,
+    "communication": 3,
+    "adaptability": 4
+  },
+  "weaknesses": [
+    {
+      "weakness": "Candidate described the overall flow but never actually answered what the job payload looks like \u2014 no fields, no data structure, no schema mentioned (e.g., videoId, s3Key, userId, timestamp, job status, etc.).",
+      "type": "deflection",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate describes storing a document ID and S3 key in the payload but never explains what the worker actually does with those fields step-by-step \u2014 there's no clarity on how the worker resolves the S3 key into a file download, kicks off FFmpeg, or tracks job progress back to the database document.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "step_by_step",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate describes what the job object 'holds' but cannot produce any actual code structure \u2014 no JSON shape, no field names, no types \u2014 suggesting they may not have written this code themselves.",
+      "type": "ownership_probe",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate describes polling a status endpoint but never explains the actual real-time delivery mechanism \u2014 how does the frontend get updates without the user manually refreshing, i.e., what replaces the missing push/streaming layer (WebSockets, SSE, long-polling)?",
+      "type": "missing_step",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate describes JWT as 'just some encoded URL' and mentions decoding to verify, but never explains the actual verification mechanism \u2014 specifically that the server uses the signature (HMAC or RSA) to verify the token wasn't tampered with, not just that it can be decoded",
+      "type": "shallow",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate deflects the question entirely by admitting they didn't implement progress tracking, without attempting to reason through how they would design it even hypothetically.",
+      "type": "deflection",
+      "severity": "medium",
+      "probe_direction": "step_by_step",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate describes having a unique ID per video but never explains the actual mechanism by which progress updates are routed back to the correct user session in real-time \u2014 there's no mention of how the frontend polls or subscribes using that ID, or how the server associates a socket/SSE connection to a specific user.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "step_by_step",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate completely deflects the question about how 40% progress is communicated from backend to frontend, instead describing the upload chunking process \u2014 never addressing the actual data flow mechanism (polling, WebSockets, SSE) for progress updates at all.",
+      "type": "deflection",
+      "severity": "high",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate describes only the retry/drop mechanism but has no user-facing error communication, and more importantly, never addresses what failure information (error type, at what stage, why it failed) would even be captured or stored \u2014 there's no logging, error state persistence, or diagnostic trail discussed.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate identifies CPU as the bottleneck and says 'scale horizontally' but never explains what that actually means in the context of their BullMQ/worker architecture \u2014 how many workers, how they'd be coordinated, whether BullMQ supports distributed workers, or what the queue depth would look like under 500 concurrent jobs.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate provides no meaningful answer \u2014 no mechanism, no trade-off reasoning, no attempt to describe queue depth, worker concurrency, rate limiting, or back-pressure strategies.",
+      "type": "deflection",
+      "severity": "medium",
+      "probe_direction": "scaling",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    },
+    {
+      "weakness": "The candidate attributes part of the pipeline implementation to the interviewer ('the command was generated by you'), suggesting they may not have independently built even a single step of the transcoding pipeline end to end.",
+      "type": "deflection",
+      "severity": "high",
+      "probe_direction": "ownership_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+    }
+  ],
+  "history": [
+    {
+      "turn_id": "109e54c8-5dec-48be-be7f-71c320dbdcd5",
+      "question": "Hey, thanks so much for coming in \u2014 really glad to have you here. Let's start easy. Just give me a quick intro about yourself \u2014 who you are, what you've been up to lately, whatever feels natural.",
+      "answer": "and i have had some experience in building and stack applications and i'm",
+      "weakness": null,
+      "concepts": [],
+      "discrepancy": null,
+      "reasoning_behavior": null,
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "video_transcoding_hls_pipeline_async_and",
+      "focus_label": "Async Video Transcoding And Adaptive Streaming Pipeline",
+      "answer_version": 1,
+      "route_kind": "sprint_opener",
+      "analysis_status": "pending"
+    },
+    {
+      "turn_id": "a9c23335-3ff0-4708-b0af-151d01cb09ea",
+      "question": "When a video upload lands on your API, what exactly does your producer enqueue into Redis \u2014 what does that job payload look like?",
+      "answer": "yeah then someone hits the upload url i'll give them resend urls so that they can upload the raw video directly into my amazon s three raw bucket and then i'll and i'll store the test three key along with the video id in i'll push that into producer queue so that there is another worker who another worker who which will pick up the job from the queue and process it using a different type tools which is video transcoding and storing the multiple formats of the video hls terms and pushing all them back to the again s three processing bucket so that i can serve the videos to the users and what",
+      "weakness": {
+        "weakness": "Candidate described the overall flow but never actually answered what the job payload looks like \u2014 no fields, no data structure, no schema mentioned (e.g., videoId, s3Key, userId, timestamp, job status, etc.).",
+        "type": "deflection",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "upload URL",
+        "resend URLs",
+        "raw video",
+        "Amazon S3",
+        "raw bucket",
+        "S3 key",
+        "video ID",
+        "producer queue",
+        "worker",
+        "job queue",
+        "video transcoding",
+        "multiple formats",
+        "HLS",
+        "S3 processing bucket",
+        "video serving"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate's explanation of the video processing pipeline (presigned S3 upload URLs, job queues, FFmpeg transcoding, HLS output, S3 storage) is fully consistent with the VideoPlayer project on the resume, which lists Redis, BullMQ, AWS S3, HLS, and FFmpeg. No contradictions detected.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "calibrated",
+        "notes": "The candidate presents a loosely structured pipeline (upload URL -> S3 raw bucket -> queue -> worker -> transcoding -> HLS formats -> S3 processed bucket -> serve), but the explanation is stream-of-consciousness with no enumerated steps, self-corrections mid-sentence ('another worker who another worker who which'), and trailing off at the end ('and what'). There is some implicit structure in the order of operations, but it is not deliberately organized. No clarifying questions were asked \u2014 the candidate assumed requirements and dove into implementation. The response was not challenged, so adaptability cannot be meaningfully assessed. Confidence appears calibrated: the candidate seems familiar with the domain (presigned URLs, S3, producer-consumer queues, HLS transcoding) but the verbal stumbling suggests they are thinking out loud rather than presenting a rehearsed or polished answer."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "depth_probe",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "8d8e8a50-2de2-456d-acf4-87f28cf2fc0b",
+      "question": "Walk me through what fields you actually put in that Redis job payload \u2014 video file path, upload ID, what else?",
+      "answer": "no i'm not including any video file but initially i'll in my database i'm just putting the like thumbnail part and video metadata something and it creates a underscore id it creates a document which has a unique id in so i am storing that underscore id value of the document and s three key of the current video with this i can identify the video which is the video after first",
+      "weakness": {
+        "weakness": "The candidate describes storing a document ID and S3 key in the payload but never explains what the worker actually does with those fields step-by-step \u2014 there's no clarity on how the worker resolves the S3 key into a file download, kicks off FFmpeg, or tracks job progress back to the database document.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "step_by_step",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "video file",
+        "database",
+        "thumbnail",
+        "video metadata",
+        "underscore id",
+        "document",
+        "unique id",
+        "S3 key",
+        "video identification"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is explaining that the job payload contains the MongoDB document's _id and the S3 key of the uploaded video, rather than the video file itself. This is a reasonable and technically sound approach consistent with the resume's claims about using BullMQ, Redis, MongoDB, and AWS S3 together. There is no contradiction with the resume or prior confirmed facts.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "calibrated",
+        "notes": "Candidate is responding to a challenge about their video storage design. They show some flexibility by clarifying their approach (storing metadata + S3 key rather than the video file itself), which suggests they understood the pushback and are explaining rather than defending blindly. However, the explanation is poorly structured \u2014 no enumeration, stream-of-consciousness delivery, and the sentence trails off incoherently ('which is the video after first'). They do not ask clarifying questions; they assume the challenger wants a justification and provide one. Confidence appears reasonable \u2014 they seem to know what they're doing but struggle to articulate it clearly. The core idea (store MongoDB _id + S3 key as a reference pointer) is coherent but buried in unclear communication."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "8bc465b9-47f7-469f-bc32-c8686afc594d",
+      "question": "Still on that same upload flow \u2014 you mentioned pushing the S3 key and video ID into the queue, so what does that actual job object look like in code?",
+      "answer": "yeah the job object by default it holds only these two values security and video id when it pulls off the job from the queue it grabs s three key with that the help of that s three key it downloads the raw video from amazon s three and then s three bucket of s three bucket and then we process it after processing again it uploads all the chunks to back to it plus it will get a function three storage",
+      "weakness": {
+        "weakness": "The candidate describes what the job object 'holds' but cannot produce any actual code structure \u2014 no JSON shape, no field names, no types \u2014 suggesting they may not have written this code themselves.",
+        "type": "ownership_probe",
+        "severity": "medium",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "job object",
+        "security",
+        "video id",
+        "queue",
+        "S3 key",
+        "Amazon S3",
+        "S3 bucket",
+        "raw video",
+        "download",
+        "processing",
+        "chunks",
+        "upload",
+        "function",
+        "storage"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is continuing to describe the same job payload and processing pipeline established in prior turns \u2014 the job contains a MongoDB document ID and an S3 key, the worker downloads the raw video using that key, transcodes it, and uploads the output back to S3. This is consistent with what was already partially confirmed. No new contradictions are introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate provides a loosely sequential explanation of a video processing pipeline (job queue \u2192 S3 key \u2192 download \u2192 process \u2192 upload chunks), which shows some implicit structure, but it's not clearly enumerated or organized. The explanation is stream-of-consciousness with no step labeling. There are signs of technical familiarity but the communication is muddled \u2014 'function three storage' likely means 'S3 storage' or possibly a different service, suggesting either a verbal slip or confusion. No clarification was sought; the candidate assumed the context and explained directly. Since there was no challenge, adaptability cannot be fully assessed and defaults to baseline. Confidence appears high but the delivery is imprecise, suggesting mild overconfidence relative to communication clarity."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "f8d0af34-ad8b-4d37-8787-0affb30a2aeb",
+      "question": "Imagine your PM comes to you tomorrow and says: 'We're launching a creator dashboard \u2014 users need to see live progress of their video upload and transcoding, like a percentage bar that updates as it happens.' Right now, your pipeline stores the S3 key and MongoDB document ID in the BullMQ producer queue and processes jobs in the background. How would you redesign or extend what you built to show users real-time job progress?",
+      "answer": "yeah william can support for each job it supports some states like it is in queue or processing or processing or fail or retrying like these options william q provides for each job so with the help of that those we can build an endpoint to settle what is the current status of a video which is being transported and we can show that to users in the dashboard in real time",
+      "weakness": {
+        "weakness": "The candidate describes polling a status endpoint but never explains the actual real-time delivery mechanism \u2014 how does the frontend get updates without the user manually refreshing, i.e., what replaces the missing push/streaming layer (WebSockets, SSE, long-polling)?",
+        "type": "missing_step",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "job status",
+        "queue",
+        "processing",
+        "fail",
+        "retrying",
+        "endpoint",
+        "video transport",
+        "dashboard",
+        "real-time status",
+        "state management"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is describing BullMQ's built-in job state tracking (queued, processing, failed, retrying) and how it can be used to build a status endpoint for the dashboard. This is consistent with the resume's claim of using BullMQ for job queues in the VideoPlayer project. No new contradictions are introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate provides a stream-of-consciousness response with no enumerated steps, no logical segmentation, and significant repetition ('processing or processing'). They assume the context without asking for constraints. No challenge was issued, so adaptability cannot be assessed from this interaction. Confidence calibration leans overconfident \u2014 they speak declaratively about capabilities ('william q provides') without hedging or acknowledging uncertainty, yet the explanation is vague and poorly articulated, suggesting the confidence level exceeds the demonstrated understanding. The answer touches on a reasonable concept (job status polling for a dashboard) but lacks any structured reasoning or precise communication."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "be1395f8-05f5-4ad8-b911-e5c48dc30a0d",
+      "question": "Can you walk me through, in plain terms, what's actually inside a JWT and how the server uses it to verify that a request is legitimate?",
+      "answer": "jwt is json just some encoded url which contains some data which we used to store the in it and when i use and for example for authentication we use i have used the jwt thing i include users and those users unique id in that token and when user is logged in i will queue that cookie i'll set that as cookie and so that client browser stores it and when user wants to hit any protected code it actually sends around the so that i can decode it and verify if he's a real user",
+      "weakness": {
+        "weakness": "The candidate describes JWT as 'just some encoded URL' and mentions decoding to verify, but never explains the actual verification mechanism \u2014 specifically that the server uses the signature (HMAC or RSA) to verify the token wasn't tampered with, not just that it can be decoded",
+        "type": "shallow",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "JWT (JSON Web Token)",
+        "JSON",
+        "URL encoding",
+        "Authentication",
+        "User ID",
+        "Token",
+        "Cookie",
+        "Client browser",
+        "Protected routes/endpoints",
+        "Token decoding",
+        "Token verification",
+        "User verification"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate's explanation of JWT is consistent with the resume claim of implementing JWT authentication for secure user sessions in the ChatApp project. The description \u2014 encoding a user ID into a token, storing it as a cookie, and verifying it on protected routes \u2014 is a standard and plausible implementation that aligns with the resume bullet point. No contradictions with prior confirmed facts.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "overconfident",
+        "notes": "The explanation is unstructured and stream-of-consciousness with no enumeration or logical sequencing. The candidate conflates JWT with URL encoding ('json just some encoded url'), which is technically imprecise, but more importantly for meta-cognition purposes, they show no awareness of the imprecision \u2014 no hedging, no uncertainty markers. When challenged, the response reads as a reiteration of the same vague explanation rather than a genuine attempt to address the challenge or acknowledge gaps. No clarifying questions were asked before diving in. Confidence is high relative to the clarity and accuracy of the explanation, suggesting overconfidence."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "849693e8-9da7-40c3-9937-f4cc6675b0d1",
+      "question": "I'm curious\u2014when you're processing a video through your pipeline, at what moment does the system actually become aware of how much of the file has been handled, and how would you design a way for a worker to communicate that back?",
+      "answer": "be honest currently even i did not handle that much of the videos process it by the worker mode",
+      "weakness": {
+        "weakness": "The candidate deflects the question entirely by admitting they didn't implement progress tracking, without attempting to reason through how they would design it even hypothetically.",
+        "type": "deflection",
+        "severity": "medium",
+        "probe_direction": "step_by_step",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "videos",
+        "process",
+        "worker mode"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate now admits they did not handle much of the video processing in worker mode, which is in tension with the resume claim of having 'Engineered a video streaming platform, integrating Redis and BullMQ job queues to offload CPU-intensive video transcoding to dedicated worker nodes.' The resume implies a fully implemented, production-grade worker architecture, but the candidate's own admission suggests their hands-on implementation was limited or incomplete. This doesn't directly contradict a specific technical fact but raises credibility concerns about the depth of ownership over the worker/transcoding pipeline.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "admitted_gap",
+        "confidence_calibration": "calibrated",
+        "notes": "When challenged, the candidate openly admitted they lack hands-on experience with the topic (video processing via worker mode). This is intellectually honest rather than evasive. However, the response shows virtually no structure \u2014 no enumeration, no logical sequencing, no organized explanation. The candidate does not ask clarifying questions nor attempt to reason through an answer despite the gap. Communication is informal and fragmented. The honesty about limitations reflects appropriate confidence calibration, but the lack of any structured thinking or recovery attempt is notable."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "7eafc125-eb82-4c1f-805c-2546a8d2a195",
+      "question": "I'm curious \u2014 when two people upload videos at the exact same moment, walk me through how your system would keep track of which progress updates belong to which person.",
+      "answer": "yeah this is quite simple each for each video i'll create document in mongodb so i'll have underscore id and for each video i'll have some unique so that based on those i can easily identify which video belongs to which user easily",
+      "weakness": {
+        "weakness": "The candidate describes having a unique ID per video but never explains the actual mechanism by which progress updates are routed back to the correct user session in real-time \u2014 there's no mention of how the frontend polls or subscribes using that ID, or how the server associates a socket/SSE connection to a specific user.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "step_by_step",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "MongoDB",
+        "document",
+        "_id",
+        "unique identifier",
+        "video",
+        "user identification",
+        "data structure"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is describing the MongoDB document structure for video storage, which is consistent with the resume claim of using MongoDB in the VideoPlayer project. This aligns with previously established facts about the job payload containing the MongoDB document's _id. No new contradiction is introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "rigid",
+        "confidence_calibration": "overconfident",
+        "notes": "Candidate jumps straight into a solution with no enumeration of steps, no structure, and no clarification-seeking. Uses 'quite simple' dismissively without acknowledging trade-offs or constraints (e.g., scale, indexing strategy, query patterns). The design mention is vague \u2014 'some unique' field is never defined. No consideration of alternative approaches or edge cases. Overall thinking feels rushed and unexamined."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "68ebd2c6-24c5-4863-a32d-e02ecdf421ea",
+      "question": "I'm curious \u2014 when that worker process figures out it's 40% done, walk me through how that information actually makes its way from the backend to show up in front of the user?",
+      "answer": "yeah for this part when user when user completes the upload to my s three raw okay then user don't have to worry about how much process has turned at the back end what i'm doing is on front end i'm deleting the users' file users' video into chunks by chunks like a chunk of five mb and i'm uploading that to log amazon s three log a clip checklist so that he can you he can directly see the see the data he has currently uploaded to my replica after he has done it's done i'll have that s three id and a a so that i can process it later which is done asynchronously don't we don't need to bother about user in in the meeting",
+      "weakness": {
+        "weakness": "The candidate completely deflects the question about how 40% progress is communicated from backend to frontend, instead describing the upload chunking process \u2014 never addressing the actual data flow mechanism (polling, WebSockets, SSE) for progress updates at all.",
+        "type": "deflection",
+        "severity": "high",
+        "probe_direction": "implementation_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "S3 upload",
+        "chunking",
+        "file splitting",
+        "5 MB chunks",
+        "front-end processing",
+        "video upload",
+        "asynchronous processing",
+        "S3 ID",
+        "progress tracking",
+        "backend processing",
+        "data upload"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate describes chunked upload to S3 and then asynchronous processing, which is broadly consistent with the resume claim of 'chunk-based fetching' and BullMQ job queues. However, the candidate conflates chunk-based *upload* with chunk-based *delivery/playback*, and the explanation is vague and somewhat incoherent (mentioning a 'checklist', 'replica', 'the meeting'). More notably, the candidate still does not explain how the front end actually knows when processing is complete \u2014 a gap already flagged in prior turns \u2014 and the new detail about 'deleting the users' video into chunks' is garbled enough to raise doubt about whether they truly implemented this themselves. No direct contradiction is introduced, but the answer remains weakly aligned with the resume's specific claims about HLS transcoding and adaptive streaming.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate does not enumerate steps clearly \u2014 the explanation is stream-of-consciousness with significant repetition and self-correction mid-sentence ('log amazon s three log a clip checklist'). There is a loose logical flow: chunked upload \u2192 S3 \u2192 async processing \u2192 user is decoupled, but it is never stated cleanly. No clarifying questions are asked; the candidate assumes the listener understands the architecture. Confidence seems reasonably high but the explanation is so unclear it is hard to assess whether the underlying knowledge is solid or if the confidence is misplaced \u2014 leaning overconfident given the communication quality. The candidate was not challenged in this exchange, so adaptability cannot be directly observed; rated flexible as a neutral default. The key weakness is communication structure, not necessarily conceptual depth."
+      },
+      "sprint": 2,
+      "persona": "socratic_mentor",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "coverage_surface",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "5a3f417e-9c72-4030-8f5d-8b9e4bc3ac95",
+      "question": "I'm curious\u2014if a transcoding job fails partway through, what would you want to communicate to someone looking at their dashboard about what actually happened?",
+      "answer": "currently in my code the transferring job fails in a midway i have a link queue so that it will retry three times to process the video again and again if even then it fails will drop off the video from the job so currently i don't have any mechanism to show that user that your video upload has failed on but only he can know that he's he won't be able to see that newly uploaded video in his library",
+      "weakness": {
+        "weakness": "The candidate describes only the retry/drop mechanism but has no user-facing error communication, and more importantly, never addresses what failure information (error type, at what stage, why it failed) would even be captured or stored \u2014 there's no logging, error state persistence, or diagnostic trail discussed.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "job transfer",
+        "retry mechanism",
+        "queue",
+        "video processing",
+        "failure handling",
+        "error notification",
+        "user feedback",
+        "video upload",
+        "library",
+        "job failure",
+        "retry attempts",
+        "video drop-off"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate is honestly describing their retry mechanism (3 retries via BullMQ) and acknowledging the lack of a failure notification system to the user. This is consistent with prior turns where they admitted not handling progress tracking. There is no contradiction with resume claims \u2014 the resume only states they used BullMQ for job queues, not that they built a complete failure-notification pipeline. The candidate is being forthright about limitations rather than inflating capabilities.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "admitted_gap",
+        "confidence_calibration": "calibrated",
+        "notes": "The candidate explains their current system in a stream-of-consciousness manner with minimal structure \u2014 no enumeration or clear step-by-step breakdown. They do not ask clarifying questions before describing the system. When challenged, they explicitly acknowledge a gap in their implementation ('I don't have any mechanism to show the user that your video upload has failed'), which is intellectually honest rather than defensive or evasive. Confidence calibration is reasonable \u2014 they are not overclaiming; they openly admit the limitation exists and describe the current observable consequence (user simply won't see the video). The response lacks polish and organization but demonstrates self-awareness about the system's shortcomings."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "23a30f94-c9e2-4719-82e4-7f0f2e5d5d5f",
+      "question": "On the systems side of that, let's say your platform starts getting real traction and you're now handling 500 concurrent video uploads instead of a handful \u2014 what's the first bottleneck you'd expect to hit in that transcoding pipeline, and how would you start thinking about addressing it?",
+      "answer": "if i get five hundred concurrent request from five hundred new users first thing is my api server won't lag it simply provides s three urls for all users so that they can upload the raw video to my stories bucket and then it will return like simply your video accepted currently and it is in a job queue after that my transcoding pipeline should do the heavy lifting so the transcoding of your gesture can ten mb of the video takes at least five seconds so then if i have too many concurrent requests then cpu will take a lot of time for the cpu to process so i have to scale it horizontally",
+      "weakness": {
+        "weakness": "The candidate identifies CPU as the bottleneck and says 'scale horizontally' but never explains what that actually means in the context of their BullMQ/worker architecture \u2014 how many workers, how they'd be coordinated, whether BullMQ supports distributed workers, or what the queue depth would look like under 500 concurrent jobs.",
+        "type": "shallow",
+        "severity": "medium",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "concurrent requests",
+        "API server",
+        "URLs",
+        "video upload",
+        "S3 bucket",
+        "job queue",
+        "transcoding pipeline",
+        "video processing",
+        "CPU",
+        "horizontal scaling",
+        "load handling",
+        "asynchronous processing"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate's explanation is consistent with the resume claims. They correctly describe offloading CPU-intensive transcoding to worker nodes via BullMQ job queues (as stated on the resume), using S3 for raw video storage, and acknowledging the need for horizontal scaling under high concurrency. No new contradictions are introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "overconfident",
+        "notes": "The candidate presents a loosely structured stream-of-consciousness response with no enumeration or clear phases. There is a logical flow implied (API accepts \u2192 queue \u2192 transcoding pipeline \u2192 horizontal scaling) but it is not explicitly organized. No clarifying questions are asked about constraints such as file size limits, latency requirements, or infrastructure budget \u2014 the candidate dives straight into a solution. Confidence is somewhat overconfident: claims the API 'simply won't lag' without acknowledging potential bottlenecks at the API layer itself (e.g., connection handling, auth overhead). The horizontal scaling mention is reasonable but vague, with no discussion of how or when to trigger it. The '10mb takes 5 seconds' figure is stated as fact without qualification. Overall, thinking is present but underdeveloped and poorly communicated."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "1462b8c8-ae03-45c1-bb98-41ebd26f1d1b",
+      "question": "With 500 concurrent uploads hitting BullMQ, how would you prevent queue saturation\u2014cap ingestion, scale workers, or tune queue depth?",
+      "answer": "hello yeah i don't know if it a cap english and scale with the",
+      "weakness": {
+        "weakness": "The candidate provides no meaningful answer \u2014 no mechanism, no trade-off reasoning, no attempt to describe queue depth, worker concurrency, rate limiting, or back-pressure strategies.",
+        "type": "deflection",
+        "severity": "medium",
+        "probe_direction": "scaling",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate's response is essentially unintelligible \u2014 it appears to be a connection/audio issue or incomplete utterance. There is no substantive claim made that can be compared against the resume or prior statements, so no conflict can be identified.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "admitted_gap",
+        "confidence_calibration": "underconfident",
+        "notes": "The response is largely incoherent and incomplete \u2014 appears to be a fragmented or accidental input rather than a deliberate answer. No structure is present, no enumeration, no logical flow. The candidate does not ask clarifying questions. The phrase 'i don't know' suggests some self-awareness or admitted uncertainty, but it reads more like confusion than intellectual honesty. Confidence calibration is underconfident given the lack of any substantive engagement. Cannot meaningfully assess adaptability since no challenge was issued and no real answer was given."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "sprint_seed",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "423c6747-924f-4498-b5c5-c86d27c8382f",
+      "question": "That's fair \u2014 tell me the part of the transcoding pipeline you did own end to end, even if it's just one step between upload and playback.",
+      "answer": "yeah architecture pipeline and i think the command was generated by you",
+      "weakness": {
+        "weakness": "The candidate attributes part of the pipeline implementation to the interviewer ('the command was generated by you'), suggesting they may not have independently built even a single step of the transcoding pipeline end to end.",
+        "type": "deflection",
+        "severity": "high",
+        "probe_direction": "ownership_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "video_transcoding_hls_pipeline_async_and"
+      },
+      "concepts": [
+        "architecture",
+        "pipeline",
+        "command"
+      ],
+      "discrepancy": {
+        "conflict_level": "none",
+        "description": "The candidate's response is again essentially unintelligible or incoherent \u2014 it appears to be another audio/connection issue or a completely off-topic utterance. There is no new claim made that can be compared against the resume, and no contradiction is introduced.",
+        "severity": "low"
+      },
+      "reasoning_behavior": {
+        "structure_score": 0,
+        "clarification_behavior": "assumes",
+        "adaptability": "defensive",
+        "confidence_calibration": "underconfident",
+        "notes": "The response is extremely brief and lacks any structured thinking. The candidate makes an assumption ('I think the command was generated by you') without verifying or asking for clarification. No enumeration of steps or logical breakdown is present. The phrase 'I think' suggests low confidence, but it reads more like deflection than genuine uncertainty. The response doesn't engage meaningfully with any technical or design question \u2014 it's essentially a non-answer. No clarification was sought before responding."
+      },
+      "sprint": 3,
+      "persona": "senior_peer",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "clarification_fast",
+      "analysis_status": "complete"
+    }
+  ],
+  "failure_surface": {
+    "redis_bullmq": 0.8,
+    "jwt_authentication": 0.9,
+    "job_progress_tracking": 1.0,
+    "distributed_scaling": 0.7
+  },
+  "final_evaluation": {
+    "overall_score": 4,
+    "breakdown": {
+      "reasoning": 4,
+      "technical_depth": 3,
+      "communication": 3,
+      "adaptability": 4
+    },
+    "failure_surface": {
+      "redis_bullmq": 0.8,
+      "jwt_authentication": 0.9,
+      "job_progress_tracking": 1.0,
+      "distributed_scaling": 0.7
+    },
+    "hire_recommendation": "NO HIRE",
+    "confidence_score": 0.75,
+    "summary": "Candidate showed shallow, deflective responses on system design fundamentals like job payloads, JWT mechanics, and real-time progress tracking, with multiple admissions of unimplemented features. Coverage was critically narrow\u2014only 3 domains probed\u2014but weaknesses were severe in tested areas.",
+    "risk_flags": [
+      "High ownership risk: Deflected transcoding pipeline specifics after claiming implementation",
+      "Critical security gap: Misunderstood JWT as 'encoded URL' without signature verification",
+      "No progress-tracking design despite project claims"
+    ],
+    "strengths": [
+      "Describes high-level architecture flows (e.g., video upload \u2192 queue \u2192 worker)",
+      "Identi\ufb01es horizontal scaling as solution for CPU bottlenecks"
+    ],
+    "claim_credibility_risk": {
+      "level": "high",
+      "detail": "Directly tested claims on video pipeline engineering and JWT authentication failed substantiation; project ownership assertions weakened by deflection and lack of granular detail."
+    },
+    "untested_dimensions": [
+      "WebSockets",
+      "end-to-end encryption",
+      "cursor pagination",
+      "REST API architecture"
+    ],
+    "coverage_portrait": {
+      "coverage_score": 0.0,
+      "coverage_confidence": 0.72,
+      "primary_domain": {
+        "voluntary_coverage": [],
+        "recovered_coverage": [],
+        "missed_coverage": [
+          "Surfacing Job Progress",
+          "Delivering Progress to the Browser",
+          "Matching a Job to the Right User",
+          "Communicating Failures to the User",
+          "Handling Disconnects and Page Refreshes"
+        ],
+        "incorrect_coverage": [],
+        "domain_score": 0.0
+      }
+    },
+    "verdict_basis": "llm_contextual_with_coverage",
+    "coverage_verdict_advisory": {
+      "hire_recommendation": "INSUFFICIENT_DATA",
+      "confidence_score": 0.1
+    },
+    "verdict_confidence_basis": "LLM verdict informed by coverage portrait: 0% of expected dimensions addressed \u2014 0 demonstrated voluntarily, 5 not addressed when prompted."
+  },
+  "last_question": "Alright, we're almost done \u2014 before we finish, is there anything about your work or what you've been building that you wanted to talk about that we didn't get to?",
+  "consecutive_high_weakness_count": 1,
+  "last_weakness_type": "deflection",
+  "current_question_followups": [],
+  "current_question_followup_asked": false,
+  "active_question_packet": {
+    "question_text": "Alright, we're almost done \u2014 before we finish, is there anything about your work or what you've been building that you wanted to talk about that we didn't get to?",
+    "route_kind": "trajectory_map_surface",
+    "sprint": 3,
+    "focus_key": "video_transcoding_hls_pipeline_async_and",
+    "focus_label": "Async Video Transcoding And Adaptive Streaming Pipeline",
+    "followups": [],
+    "asked_followup_count": 0,
+    "max_followups": 0,
+    "pivoting": false,
+    "weakness": null,
+    "discrepancy": null,
+    "source_turn_number": 12
+  },
+  "candidate_model": {
+    "project_map": {},
+    "established_facts": [
+      "The candidate's explanation of the video processing pipeline (presigned S3 upload URLs, job queues, FFmpeg transcoding,  (confirmed Turn 2)",
+      "The candidate is explaining that the job payload contains the MongoDB document's _id and the S3 key of the uploaded vide (confirmed Turn 3)",
+      "The candidate is continuing to describe the same job payload and processing pipeline established in prior turns \u2014 the jo (confirmed Turn 4)",
+      "The candidate is describing BullMQ's built-in job state tracking (queued, processing, failed, retrying) and how it can b (confirmed Turn 5)",
+      "The candidate's explanation of JWT is consistent with the resume claim of implementing JWT authentication for secure use (confirmed Turn 6)",
+      "The candidate is describing the MongoDB document structure for video storage, which is consistent with the resume claim  (confirmed Turn 8)",
+      "The candidate is honestly describing their retry mechanism (3 retries via BullMQ) and acknowledging the lack of a failur (confirmed Turn 10)",
+      "The candidate's explanation is consistent with the resume claims. They correctly describe offloading CPU-intensive trans (confirmed Turn 11)",
+      "The candidate's response is essentially unintelligible \u2014 it appears to be a connection/audio issue or incomplete utteran (confirmed Turn 12)",
+      "The candidate's response is again essentially unintelligible or incoherent \u2014 it appears to be another audio/connection i (confirmed Turn 13)"
+    ],
+    "probed_weaknesses": [
+      "shallow: The candidate describes JWT as 'just some encoded URL' and mentions decoding to  (Turn 6)",
+      "deflection: The candidate deflects the question entirely by admitting they didn't implement  (Turn 7)",
+      "shallow: The candidate describes having a unique ID per video but never explains the actu (Turn 8)",
+      "deflection: The candidate completely deflects the question about how 40% progress is communi (Turn 9)",
+      "shallow: The candidate describes only the retry/drop mechanism but has no user-facing err (Turn 10)",
+      "shallow: The candidate identifies CPU as the bottleneck and says 'scale horizontally' but (Turn 11)",
+      "deflection: The candidate provides no meaningful answer \u2014 no mechanism, no trade-off reasoni (Turn 12)",
+      "deflection: The candidate attributes part of the pipeline implementation to the interviewer  (Turn 13)"
+    ]
+  },
+  "current_answer_turn_id": "423c6747-924f-4498-b5c5-c86d27c8382f",
+  "current_answer_question": "That's fair \u2014 tell me the part of the transcoding pipeline you did own end to end, even if it's just one step between upload and playback.",
+  "current_answer_response": "Alright, we're almost done \u2014 before we finish, is there anything about your work or what you've been building that you wanted to talk about that we didn't get to?",
+  "current_answer_context": {
+    "pivoting": false,
+    "route_kind": "sprint_seed",
+    "weakness": null,
+    "discrepancy": null,
+    "answer_version": 1,
+    "packet_focus_key": "video_transcoding_hls_pipeline_async_and",
+    "packet_focus_label": "Async Video Transcoding And Adaptive Streaming Pipeline",
+    "closing_phase": "last_two"
+  },
+  "current_answer_turn_number": 13,
+  "current_answer_version": 1,
+  "interview_trajectory_map": {
+    "focus_areas": [
+      {
+        "label": "Async Video Transcoding And Adaptive Streaming Pipeline",
+        "focus_key": "video_transcoding_hls_pipeline_async_and",
+        "anchor_context": "Built a video streaming platform using BullMQ job queues to offload FFmpeg transcoding to worker nodes, producing HLS multi-bitrate manifests for adaptive playback.",
+        "sub_focuses": [
+          "BullMQ and Redis job queue architecture for CPU-intensive workloads",
+          "FFmpeg HLS transcoding into multi-bitrate m3u8 manifests",
+          "AWS S3 integration and chunk-based media delivery"
+        ],
+        "resume_snippets": [
+          "integrating Redis and BullMQ job queues to offload CPU-intensive video transcoding to dedicated worker nodes, significantly reducing API latency",
+          "configuring FFmpeg to transcode uploads into multi-bitrate manifest files (.m3u8) to enable low-latency seeking and dynamic quality switching"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "bullmq_redis_queue_architecture",
+          "ffmpeg_hls_multibitrate_transcoding",
+          "aws_s3_chunk_based_delivery",
+          "api_latency_reduction_measurement"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Combines a non-trivial async architecture (job queues, worker nodes), media processing (FFmpeg, HLS), and cloud storage\u2014",
+        "opener": "In your VideoPlayer project, offloading FFmpeg to BullMQ workers significantly reduced API latency \u2014 what was actually blocking the API before the queue was introduced, and how did the queue eliminate that specific bottleneck?",
+        "dimensions": [
+          {
+            "id": "bullmq_redis_queue_architecture",
+            "label": "BullMQ and Redis job queue architecture",
+            "resume_anchor": "integrating Redis and BullMQ job queues to offload CPU-intensive video transcoding to dedicated worker nodes, significantly reducing API latency",
+            "surface": "When a video upload lands on your API, what exactly does your producer enqueue into Redis \u2014 what does that job payload look like?",
+            "mechanism": "In your worker process, what concurrency value did you set in BullMQ's Worker constructor, and what happened to job throughput when you tested above that limit?",
+            "boundary": "If your worker crashes mid-transcode after FFmpeg has already written two of four bitrate renditions to disk, what does BullMQ do with that job on restart, and what did you have to build to prevent partial outputs from being served?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "ffmpeg_hls_multibitrate_transcoding",
+            "label": "FFmpeg HLS transcoding into multi-bitrate m3u8 manifests",
+            "resume_anchor": "configuring FFmpeg to transcode uploads into multi-bitrate manifest files (.m3u8) to enable low-latency seeking and dynamic quality switching",
+            "surface": "How many bitrate renditions did you configure FFmpeg to produce, and what resolution or bitrate targets did you choose for each?",
+            "mechanism": "Your master .m3u8 references multiple rendition playlists \u2014 when the player switches quality mid-stream, what information in the manifest allows it to seek to the correct segment offset without rebuffering?",
+            "boundary": "When you ran FFmpeg transcoding inside a BullMQ worker, what specific FFmpeg flag or output configuration caused you the most trouble to get right, and how did you verify the manifest was actually valid before marking the job complete?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "aws_s3_chunk_based_delivery",
+            "label": "AWS S3 integration and chunk-based media delivery",
+            "resume_anchor": "Integrated AWS S3 for scalable video storage and optimized media delivery through chunk-based fetching, minimizing initial buffering",
+            "surface": "After transcoding, where do your .m3u8 manifest files and .ts segments land in S3 \u2014 same prefix as the raw upload or a separate path, and why?",
+            "mechanism": "When your React player requests an HLS segment, did you serve it directly from a public S3 URL, a presigned URL, or through a backend proxy \u2014 and what drove that specific decision?",
+            "boundary": "If a viewer starts playback before all segments are fully uploaded to S3 \u2014 because transcoding is still running \u2014 what does your player or backend do when it requests a segment that does not exist yet at that S3 key?",
+            "signal_weight": 2.0
+          },
+          {
+            "id": "api_latency_reduction_measurement",
+            "label": "API latency impact of async offloading",
+            "resume_anchor": "integrating Redis and BullMQ job queues to offload CPU-intensive video transcoding to dedicated worker nodes, significantly reducing API latency",
+            "surface": "When you say the queue significantly reduced API latency, what response does your upload endpoint now return to the client \u2014 and what does the client do while the job is still processing?",
+            "mechanism": "How did you surface job progress or completion back to the client \u2014 polling, a webhook, or something else \u2014 and what tradeoff did that choice create for the user experience?",
+            "boundary": "What was your actual measurement of API response time before and after introducing the queue, and how did you isolate that improvement from other variables like file size or network conditions?",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "Let's ground that in the VideoPlayer code \u2014 when BullMQ picks up a transcoding job, what is the first FFmpeg command your worker actually runs?",
+          "honest_gap": "That's fair \u2014 tell me the part of the transcoding pipeline you did own end to end, even if it's just one step between upload and playback.",
+          "claim_conflict": "Your resume says the queue significantly reduced API latency, but you just described the upload endpoint still waiting on FFmpeg \u2014 those two things can't both be true. Which one reflects what the code actually does?",
+          "metric_risk": "You mentioned significant latency reduction \u2014 what was the before and after number, how did you measure it, and was that on the same file size each time?",
+          "overclaim_risk": "You used the term adaptive bitrate \u2014 in your specific m3u8 configuration, what is the mechanism that causes the player to switch from one rendition to another during playback?",
+          "bridge": "That gives me a clear picture of the async pipeline. Let's shift to your ChatApp \u2014 specifically the Real-Time Encrypted Messaging With Websockets, where you made some interesting decisions about where encryption happens relative to the server."
+        },
+        "candidate_q4_options": [
+          "In your VideoPlayer project, what happens to the original uploaded file on your server after the BullMQ job picks it up for transcoding \u2014 where does it live during processing and what removes it afterward?",
+          "Your HLS setup uses FFmpeg to produce multi-bitrate renditions \u2014 how does the player decide which rendition to start on for a brand-new viewer with no prior bandwidth signal?",
+          "In your BullMQ setup, how did you handle a job that fails because FFmpeg exits with a non-zero code \u2014 did you configure retries, and if so, what retry limit did you set and why?",
+          "You chose BullMQ over a simpler in-process queue for transcoding \u2014 what property of BullMQ was necessary for this workload that a plain in-memory queue could not provide?"
+        ]
+      },
+      {
+        "label": "Real-Time Encrypted Messaging With Websockets",
+        "focus_key": "realtime_chat_websockets_real_time_encrypted",
+        "anchor_context": "Built a full-stack chat app with end-to-end encryption, WebSocket-based real-time messaging, cursor-based pagination, and JWT-secured REST APIs in MERN stack.",
+        "sub_focuses": [
+          "WebSocket connection lifecycle and message delivery guarantees",
+          "end-to-end encryption scheme and key management",
+          "cursor-based pagination for message retrieval at scale"
+        ],
+        "resume_snippets": [
+          "Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency communication",
+          "Optimized message retrieval by implementing cursor-based pagination, reducing server load and improving scalability for large datasets"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "e2e_encryption_key_management",
+          "websocket_connection_lifecycle",
+          "cursor_based_pagination",
+          "jwt_session_security"
+        ],
+        "fallback_branches": [],
+        "why_priority": "E2E encryption and cursor-based pagination are specific, defensible claims that require real design decisions\u2014key exchan",
+        "opener": "In your ChatApp, encrypting a message client-side before WebSocket send means the server never sees plaintext \u2014 but your server also stores messages in MongoDB. Walk me through what is actually written to the database and how the recipient retrieves and decrypts it.",
+        "dimensions": [
+          {
+            "id": "e2e_encryption_key_management",
+            "label": "E2E Encryption Key Exchange and Storage",
+            "resume_anchor": "Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency communication between users.",
+            "surface": "In your ChatApp code, when User A opens a conversation with User B for the first time, what specific API call or data lookup does your client make before it can encrypt the first message?",
+            "mechanism": "Your MongoDB stores encrypted ciphertext \u2014 when User B comes online after being offline, what does their client fetch, and how does it derive the key needed to decrypt messages sent while they were gone?",
+            "boundary": "If User A loses their local key material \u2014 say, they clear browser storage \u2014 what happens to their message history in MongoDB, and what design decision in your implementation determines whether recovery is possible at all?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "websocket_connection_lifecycle",
+            "label": "WebSocket Connection Lifecycle and Delivery Guarantees",
+            "resume_anchor": "Implemented real-time messaging using WebSockets and end-to-end encryption, ensuring secure, low-latency communication between users.",
+            "surface": "In your ChatApp, when a WebSocket connection drops mid-send, what does the sending client actually observe \u2014 and what state is the message in at that point on the server?",
+            "mechanism": "Your ChatApp uses WebSockets for low-latency delivery but also stores messages in MongoDB via REST. Walk me through the ordering guarantee \u2014 if a WebSocket event and the HTTP write race, which one is authoritative and how does the recipient know?",
+            "boundary": "In your ChatApp, if User B is offline when User A sends a message, trace exactly what happens from the moment the WebSocket send fires \u2014 what triggers delivery to User B and how does your implementation avoid delivering the same message twice?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "cursor_based_pagination",
+            "label": "Cursor-Based Pagination for Message Retrieval at Scale",
+            "resume_anchor": "Optimized message retrieval by implementing cursor-based pagination, reducing server load and improving scalability for large datasets.",
+            "surface": "In your ChatApp's message retrieval endpoint, what field did you use as the cursor \u2014 and what does the client send on the second request to get the next page?",
+            "mechanism": "Cursor-based pagination avoids the offset drift problem \u2014 in your ChatApp, if a new message is inserted into the conversation while a user is paginating backwards through history, what does your cursor guarantee about the consistency of their result set?",
+            "boundary": "You claimed cursor-based pagination reduces server load on large datasets \u2014 in your MongoDB schema, what index supports the cursor query, and what query plan would you get without it on a conversation with 50,000 messages?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "jwt_session_security",
+            "label": "JWT Authentication and Session Management",
+            "resume_anchor": "Architected scalable RESTful APIs with Node.js and JWT authentication to manage secure user sessions and private data interactions.",
+            "surface": "In your ChatApp, where is the JWT stored on the client side, and what request header carries it to your Express APIs?",
+            "mechanism": "Your ChatApp uses JWTs for session management \u2014 if you issued access tokens without refresh tokens, what is the concrete tradeoff your implementation makes between token expiry duration and the user re-authentication experience?",
+            "boundary": "In your specific implementation, if a JWT is stolen from a logged-in user \u2014 given your token storage choice and whether or not you implemented refresh tokens \u2014 what is the actual blast radius, and what would you need to change in the current codebase to reduce it?",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "Let's make that concrete \u2014 in your ChatApp's MongoDB, show me one field on a message document and tell me exactly what value is stored in it.",
+          "honest_gap": "That's fair \u2014 tell me which part of the encryption or delivery flow you do have clear hands-on ownership of, and walk me through that piece specifically.",
+          "claim_conflict": "Your resume says end-to-end encryption \u2014 but what you just described means the server has access to plaintext at some point. Which is accurate about your implementation?",
+          "metric_risk": "You said cursor-based pagination reduced server load \u2014 what were you measuring, what was the load before, and how did you observe the difference?",
+          "overclaim_risk": "You used the term end-to-end encryption \u2014 in your actual ChatApp code, which library or primitive performs the encrypt call, and what arguments does it take?",
+          "bridge": "Good \u2014 let's move to your VideoPlayer project. You built an Async Video Transcoding And Adaptive Streaming Pipeline using BullMQ and FFmpeg, and I want to dig into exactly what was blocking your API before the queue was introduced."
+        },
+        "candidate_q4_options": [
+          "In your ChatApp, the server routes WebSocket messages between users \u2014 if the server never sees plaintext, how does it know which recipient socket to deliver a message to?",
+          "Your ChatApp stores messages in MongoDB. What does a single message document look like \u2014 what fields are present and which of them are encrypted?",
+          "You built both a WebSocket layer and REST APIs in ChatApp \u2014 for what operations did you choose REST over WebSocket, and what drove that boundary?",
+          "In your ChatApp's cursor-based pagination, what happens to the cursor value when the user reaches the oldest message in a conversation \u2014 how does the client know to stop paginating?"
+        ]
+      }
+    ],
+    "generated_at": 1778221305.0738468,
+    "pending_hydration_focus_keys": [],
+    "generation_strategy": "two_pass_full_resume_reasoning",
+    "pass_1_review": {
+      "stage": "pass_1",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.2,
+      "top_two_score": 7.2,
+      "opener_quality_score": 6.0,
+      "dimension_depth_score": 7.8,
+      "strengths": [
+        "Boundary probes are genuinely ownership-gating: worker crash + partial transcode state, new-device decryption with stale keys, and concurrent seek + new-message cursor collision all require hands-on experience to answer credibly.",
+        "signal_weight 3.0 dimensions in both areas are anchored to specific resume claims and escalate correctly from surface \u2192 mechanism \u2192 boundary.",
+        "Recovery overlays are complete \u2014 all five required vectors (short_answer, honest_gap, claim_conflict, metric_risk, overclaim_risk) are present and wired to actual resume language."
+      ],
+      "issues": [
+        "Both openers use 'walk me through' phrasing, which invites narrative rather than forcing an immediate analytical or causal position \u2014 this is the primary drag on opener_quality_score.",
+        "VideoPlayer opener asks for end-to-end pipeline description, which is a broader narrative entry than needed; it does not force a hypothesis about the specific architectural trade-off (sync vs async handoff, latency source) that the dimensions actually probe.",
+        "ChatApp encryption surface probe ('where are keys generated \u2014 client or server \u2014 and why does that placement matter?') is answerable from any E2E encryption tutorial without hands-on experience; it needs to be anchored to a specific artifact or decision point in the candidate's own code."
+      ],
+      "repair_instructions": [
+        "VideoPlayer opener: replace 'walk me through' with a causal challenge \u2014 e.g., 'In your VideoPlayer project, you said offloading FFmpeg to BullMQ workers significantly reduced API latency \u2014 what was actually blocking the API before the queue was introduced, and how did the queue eliminate that specific bottleneck?'",
+        "ChatApp opener: anchor to the encryption-vs-delivery tension \u2014 e.g., 'In your ChatApp, encrypting a message client-side before WebSocket send means the server never sees plaintext \u2014 but your server also stores messages in MongoDB. Walk me through what is actually written to the database and how the recipient retrieves and decrypts it.' This forces an immediate position on a concrete design artifact.",
+        "ChatApp e2e_encryption_key_management surface probe: replace the generic 'client or server side, why does placement matter' question with 'In your ChatApp code, when User A opens a new conversation with User B for the first time, what API call or data lookup does your client make before it can encrypt the first message?' \u2014 this is unanswerable without having written that flow.",
+        "VideoPlayer worker_concurrency_and_scaling dimension: the mechanism probe ('what failure mode do you hit first') is answerable from Node.js documentation. Tighten it to a specific artifact: 'In your worker process, what concurrency value did you set in BullMQ's Worker constructor, and what happened to job throughput when you tested above that limit?'"
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "video_transcoding_hls_pipeline_async_and",
+          "label": "Async Video Transcoding And Adaptive Streaming Pipeline",
+          "score": 7.4,
+          "issues": [
+            "worker_concurrency_and_scaling mechanism probe ('what failure mode do you hit first on a Node.js worker process') is answerable from documentation without having run the system.",
+            "aws_s3_chunk_based_delivery surface probe is solid, but the mechanism probe conflates HLS architecture knowledge (widely documented) with candidate-specific implementation \u2014 needs a question about a decision the candidate made, e.g., whether they used presigned URLs or a proxy, and why."
+          ]
+        },
+        {
+          "focus_key": "realtime_chat_websockets_real_time_encrypted",
+          "label": "Real-Time Encrypted Messaging With Websockets",
+          "score": 7.0,
+          "issues": [
+            "e2e_encryption_key_management surface probe is answerable from any cryptography primer \u2014 it must reference a specific artifact from the candidate's implementation (first-message key lookup, key storage location in the codebase) to be ownership-gating.",
+            "jwt_session_security boundary probe (stolen JWT blast radius) is a well-known security question answerable from JWT documentation; it should be anchored to a specific implementation choice in this app, e.g., whether refresh tokens were used and where they are stored."
+          ]
+        }
+      ]
+    },
+    "quality_review": {
+      "stage": "pass_1_repair",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.9,
+      "top_two_score": 7.9,
+      "opener_quality_score": 8.2,
+      "dimension_depth_score": 7.5,
+      "strengths": [
+        "Both openers force an immediate causal/analytical position rather than narrative retelling \u2014 the VideoPlayer opener challenges the candidate to identify the specific bottleneck, and the ChatApp opener creates a productive tension between E2E encryption and server-side storage.",
+        "Signal-weight 3.0 dimensions are well-grounded in specific resume artifacts (BullMQ worker constructor, FFmpeg flag trouble, key derivation for offline users) and boundary probes generally require hands-on ownership to answer.",
+        "Recovery overlays are complete across all five vectors (short_answer, honest_gap, claim_conflict, metric_risk, overclaim_risk) with concrete, resume-specific probes rather than generic fallbacks."
+      ],
+      "issues": [
+        "VideoPlayer dimension 'api_latency_reduction_measurement' (signal_weight 2.0) is partially redundant with the opener \u2014 both probe whether the latency claim is real and how it was measured. The mechanism and boundary probes could instead explore the upload-to-playback end-user experience (e.g., polling vs WebSocket progress notification tradeoffs in concrete terms).",
+        "ChatApp 'jwt_session_security' surface probe ('where is the JWT stored') is answerable from documentation or common tutorials without any hands-on ownership; the mechanism probe is also a textbook tradeoff question. This dimension adds little differentiation for a project-level candidate.",
+        "The 'e2e_encryption_key_management' boundary probe assumes a specific implementation detail (browser storage clearing) that may not match the candidate's actual approach, risking a misdirected conversation if the candidate used server-side key storage \u2014 the probe should explicitly fork: 'if you stored keys client-side... if server-side...'."
+      ],
+      "repair_instructions": [
+        "Replace 'api_latency_reduction_measurement' with a dimension on worker failure and job state recovery: surface='What Redis data structure does BullMQ use to track active vs failed jobs, and what key does it write when your worker process exits unexpectedly?'; mechanism='How did you configure the job stalledInterval and what happens to a job that moves from active to stalled \u2014 does it retry automatically or require manual intervention?'; boundary='If you had two worker processes running concurrently and both picked up the same job due to a Redis partition, what in your FFmpeg output path would surface the collision and how would you detect it after the fact?'",
+        "Strengthen the 'jwt_session_security' surface probe to require ownership: change to 'In your ChatApp Express middleware, show me the exact check that rejects a request with an expired JWT \u2014 what function call throws, what error type do you catch, and what HTTP status do you return?' This is unanswerable without having written the middleware.",
+        "Add an explicit fork to the E2E encryption boundary probe: 'If keys live in browser localStorage \u2014 what happens when storage is cleared? If keys are derived server-side or stored in your MongoDB \u2014 explain what that means about whether your implementation is actually end-to-end.' This prevents the probe from misfiring on a valid alternative architecture.",
+        "In the ChatApp 'websocket_connection_lifecycle' mechanism probe, add specificity: change 'which one is authoritative' to 'did you write the MongoDB record before or after emitting the WebSocket event, and if the DB write fails after the socket event fires, what does the recipient's UI show versus what is persisted?' This forces a concrete ordering decision only an implementer would know."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "video_transcoding_hls_pipeline_async_and",
+          "label": "Async Video Transcoding And Adaptive Streaming Pipeline",
+          "score": 8.1,
+          "issues": [
+            "Dimension 'api_latency_reduction_measurement' overlaps with opener and adds a fourth dimension that is weaker than the other three \u2014 boundary probe asks for measurement methodology which is a soft metrics challenge, not a hands-on artifact challenge.",
+            "S3 chunk-based delivery boundary probe (viewer requests non-existent segment mid-transcode) is excellent but the surface probe ('same prefix or separate path') is answerable from any S3 tutorial \u2014 add specificity: 'what does your S3 key look like for the 720p segment 4 of video ID abc123?'"
+          ]
+        },
+        {
+          "focus_key": "realtime_chat_websockets_real_time_encrypted",
+          "label": "Real-Time Encrypted Messaging With Websockets",
+          "score": 7.7,
+          "issues": [
+            "'jwt_session_security' surface and mechanism probes are documentation-answerable and add minimal signal for a project-level candidate \u2014 dimension should be repaired or replaced with a more specific ownership probe.",
+            "E2E encryption boundary probe assumes client-side key storage without forking for server-side alternatives, which could derail the interview if the implementation differs."
+          ]
+        }
+      ]
+    },
+    "generation_notes": ""
+  },
+  "interview_map_status": "ready",
+  "interview_map_error": "",
+  "interview_map_validation": {
+    "ready": true,
+    "errors": [],
+    "warnings": [],
+    "focus_count": 2,
+    "llm_focus_count": 2,
+    "rich_focus_count": 2,
+    "priority_llm_ready_count": 2,
+    "pending_focus_keys": [],
+    "focus_reports": [
+      {
+        "label": "Async Video Transcoding And Adaptive Streaming Pipeline",
+        "focus_key": "video_transcoding_hls_pipeline_async_and",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "Real-Time Encrypted Messaging With Websockets",
+        "focus_key": "realtime_chat_websockets_real_time_encrypted",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "interview_map_prepared_at": 1778221305.0756884,
+  "candidate_state": {
+    "disengagement_level": 0.0,
+    "consecutive_no_content": 0,
+    "explicit_skip_count": 0,
+    "social_deflection_count": 0,
+    "incoherence_count": 0,
+    "communication_mode": "normal",
+    "topic_fatigue": {},
+    "topic_question_counts": {},
+    "forced_exit_triggered": false,
+    "phase": "orientation",
+    "anchor_confidence": "medium",
+    "implementation_anchor": "They store the S3 key along with the video ID in a producer queue, and then retrieve the MongoDB document's _id to store alongside the S3 key for video identification.",
+    "second_domain_surfaced": null,
+    "_communication_mode_checked": true
+  },
+  "coverage_map": {
+    "application_question": "Imagine your PM comes to you tomorrow and says: 'We're launching a creator dashboard \u2014 users need to see live progress of their video upload and transcoding, like a percentage bar that updates as it happens.' Right now, your pipeline stores the S3 key and MongoDB document ID in the BullMQ producer queue and processes jobs in the background. How would you redesign or extend what you built to show users real-time job progress?",
+    "implementation_anchor": "They store the S3 key along with the video ID in a producer queue, and then retrieve the MongoDB document's _id to store alongside the S3 key for video identification.",
+    "coverage_score": 0.0,
+    "coverage_confidence": 0.72,
+    "total_weight": 10.0,
+    "dimensions": [
+      {
+        "id": "progress_event_sourcing",
+        "label": "Surfacing Job Progress",
+        "description": "Tests whether the candidate understands that BullMQ jobs emit lifecycle events (active, progress, completed, failed) and can identify where in the worker to emit meaningful progress updates \u2014 not just start/end.",
+        "expected_approaches": [
+          "Call job.updateProgress() inside the worker at meaningful transcoding checkpoints (e.g., after each HLS segment is written)",
+          "Emit custom events from the worker and store intermediate state back to MongoDB or Redis",
+          "Poll job status via BullMQ's getJob() API on a timer as a simpler fallback"
+        ],
+        "surfacing_question": "At what point in your current pipeline does the system actually know how far along a video is \u2014 and how would you get that information out of the worker?",
+        "weight": 2.5,
+        "coverage_state": "missed",
+        "candidate_response": "yeah william can support for each job it supports some states like it is in queue or processing or processing or fail or retrying like these options william q provides for each job so with the help of that those we can build an endpoint to settle what is the current status of a video which is being transported and we can show that to users in the dashboard in real time",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "client_delivery_mechanism",
+        "label": "Delivering Progress to the Browser",
+        "description": "Tests whether the candidate can connect backend job events to a frontend UI update, and whether they consider their existing WebSocket experience as a transfer opportunity.",
+        "expected_approaches": [
+          "Reuse the existing WebSocket infrastructure to push progress events to the specific connected client",
+          "Use Server-Sent Events (SSE) as a simpler one-directional alternative",
+          "Have the frontend poll a REST endpoint that reads job state from Redis/BullMQ"
+        ],
+        "surfacing_question": "Once the worker knows it's 40% done, how does that number actually get onto the user's screen?",
+        "weight": 2.0,
+        "coverage_state": "missed",
+        "candidate_response": "yeah william can support for each job it supports some states like it is in queue or processing or processing or fail or retrying like these options william q provides for each job so with the help of that those we can build an endpoint to settle what is the current status of a video which is being transported and we can show that to users in the dashboard in real time",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "job_to_user_mapping",
+        "label": "Matching a Job to the Right User",
+        "description": "Tests whether the candidate recognizes that broadcasting progress to all connected clients is wrong \u2014 they need to route updates to only the user who owns that video, which ties directly to their existing MongoDB _id and JWT session design.",
+        "expected_approaches": [
+          "Store the user ID alongside the S3 key and MongoDB _id in the job payload, and use it to target the correct WebSocket connection",
+          "Maintain a server-side map of userId \u2192 socket connection and look it up when emitting progress",
+          "Include the videoId in the progress event and let the client filter on its own subscribed IDs"
+        ],
+        "surfacing_question": "If two different users upload videos at the same time, how does your system make sure each person only sees progress for their own video?",
+        "weight": 2.5,
+        "coverage_state": "missed",
+        "candidate_response": "yeah william can support for each job it supports some states like it is in queue or processing or processing or fail or retrying like these options william q provides for each job so with the help of that those we can build an endpoint to settle what is the current status of a video which is being transported and we can show that to users in the dashboard in real time",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "failure_state_communication",
+        "label": "Communicating Failures to the User",
+        "description": "Tests whether the candidate thinks beyond the happy path \u2014 what does the UI show if the transcoding job fails or gets stuck, and how does that state get communicated.",
+        "expected_approaches": [
+          "Listen to BullMQ's 'failed' event in the worker and push an error message through the same progress channel",
+          "Store a 'status' field on the MongoDB document (processing, completed, failed) and surface it via polling",
+          "Implement a timeout on the client side so the progress bar doesn't hang indefinitely"
+        ],
+        "surfacing_question": "What should the user see on their dashboard if the transcoding job crashes halfway through?",
+        "weight": 1.5,
+        "coverage_state": "missed",
+        "candidate_response": "yeah william can support for each job it supports some states like it is in queue or processing or processing or fail or retrying like these options william q provides for each job so with the help of that those we can build an endpoint to settle what is the current status of a video which is being transported and we can show that to users in the dashboard in real time",
+        "surfacing_attempted": true
+      },
+      {
+        "id": "state_persistence_for_reconnects",
+        "label": "Handling Disconnects and Page Refreshes",
+        "description": "Tests whether the candidate considers that a WebSocket connection can drop mid-upload and the user might refresh \u2014 requiring durable state, not just in-flight events.",
+        "expected_approaches": [
+          "Persist the latest progress percentage to Redis or MongoDB so the client can fetch current state on reconnect",
+          "Store job status on the MongoDB video document so a REST GET /videos/:id always returns current state",
+          "Have the client re-subscribe and replay the last known progress event from a Redis key"
+        ],
+        "surfacing_question": "If the user refreshes the page while their video is still transcoding, how do they get back to seeing the correct progress?",
+        "weight": 1.5,
+        "coverage_state": "missed",
+        "candidate_response": "yeah william can support for each job it supports some states like it is in queue or processing or processing or fail or retrying like these options william q provides for each job so with the help of that those we can build an endpoint to settle what is the current status of a video which is being transported and we can show that to users in the dashboard in real time",
+        "surfacing_attempted": true
+      }
+    ]
+  },
+  "application_question_served": true,
+  "_last_coverage_dim_id": null,
+  "_last_coverage_recovery_depth": null
+}

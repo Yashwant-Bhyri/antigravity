@@ -1,0 +1,1092 @@
+{
+  "session_id": "c1e66811-c749-431c-9925-47636d4cbb46",
+  "current_sprint": 1,
+  "current_persona": "curious_lead",
+  "sprint_name": "Project Defense",
+  "question_count": 3,
+  "sprint_question_count": 3,
+  "interview_start_time": 1778266176.2764988,
+  "interview_started": true,
+  "interview_complete": false,
+  "finalization_status": "idle",
+  "finalization_error": "",
+  "report_ready": false,
+  "resume": "Praveen Kumar Siraparapu\n +91 8897743819 # praveenkumarsiraparapu@gmail.com \u00ef LinkedIn \u00a7 GitHub \u00d0 LeetCode\nEducation\n\u2022 Indian Institute of Information Technology, Sri City December 2021 \u2013 April 2025\nB.Tech in Computer Science and Engineering CGPA: 8.10/10\nExperience\n\u2022InCruiter April 2025 \u2013 Present\nSoftware Development Engineer - I Bangalore\n\n\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and can-\ndidate workflows, reducing API latency by 30% through optimized queries and caching.\n\n\u2013 Migrated the complete backend codebase from JavaScript to TypeScript, improving type safety, reducing runtime\nerrors, and enhancing long-term maintainability.\n\u2013 Built a Redis-powered distributed queue system enabling asynchronous job processing with retries, deduplication,\nand worker scaling, increasing background task throughput by 3\u00d7.\n\u2013 Architected and delivered a multi-tenant backend supporting secure tenant isolation, per-client configurations, and\ngranular RBAC controls for enterprise clients.\n\u2013 Developed an event-driven notification pipeline (email + in-app alerts) that reduced manual operations by 40%\nand improved candidate engagement.\n\u2013 Integrated the InCruiter AI Interview platform with SmartRecruiters using webhooks and robust API connectors,\nenabling seamless automated assessment workflows.\n\u2013 Enhanced system observability with structured logs, real-time dashboards, and automated alerts; fixed a worker\nmemory leak reducing system errors by 25%.\n\u2013 Collaborated with frontend, QA, and DevOps teams to streamline CI/CD and containerized deployments, reducing\nrelease time and improving deployment reliability.\nPersonal Projects\n\u2022Gadgets-Of-Galaxy NextGen E-Commerce | \u00a7 GitHub Link\n\u2013 Built a full-stack e-commerce system using React, Node.js, and MongoDB, supporting 100+ products, 10+\ncategories, and JWT-based authentication.\n\u2013 Implemented product search, filtering, pagination, and server-side caching to reduce DB load and improve page\nload performance.\n\u2013 Integrated a payment gateway with idempotent order APIs to prevent duplicate charges during retries.\n\u2013 Led a team of 5 using Git workflows and improved collaboration with version control best practices.\nTools and Technologies used: ReactJS, Node.js, MongoDB, Redux, RESTful APIs, Git\n\u2022Swagoo Food Delivery | \u00a7 GitHub Link\n\u2013 Developed a complete food delivery platform supporting 100+ restaurants, real-time order tracking, and secure\nJWT-based role-based access control.\n\u2013 Built the backend using TypeScript with Node.js to improve type safety and maintainability.\n\u2013 Developed RESTful APIs for menus, orders, payments, and restaurants with proper validation and error handling.\n\u2013 Optimized backend endpoints and added analytics hooks to improve checkout conversion.\nTools and Technologies used: HTML, CSS, ReactJS, Redux, TypeScript, Node.js, MongoDB, JWT,\nRESTful APIs\nTechnical Skills and Interests\nLanguages: JavaScript (Node.js), TypeScript, Java, Python, C\nBackend & Frameworks: Express.js, REST APIs, Microservices, JWT, OAuth2, TypeScript\nDatabases & Caching: MongoDB, MySQL, Redis (queues + caching)\nDevOps & Tools: Docker, Git, GitHub Actions, Postman, Grafana, Prometheus\nConcepts: Data Structures Algorithms, System Design, OOP, Cloud Basics\nResearch Publications\n\u2022 FedWAvg: Mitigating Model Contamination in UAV Networks in UAV Networks\nthrough Federated Weighted Average for Weather Forecasting\n2024 IEEE 100th Vehicular Technology Conference (VTC2024\u2013Fall), Washington, DC, USA\nPositions of Responsibility\n\u2022 Entrepreneurship Cell IIIT Sricity( Core Committee Member)\nCoordinated a team of 20+ volunteers to organize Abhisarga, increasing event attendance by 40% and boosting\nengagement through structured planning and cross-team coordination",
+  "parsed_resume": {
+    "skills": [
+      "Technical Skills and Interests",
+      "Languages: JavaScript (Node.js)",
+      "TypeScript",
+      "Java",
+      "Python"
+    ],
+    "tools": [
+      "+91 8897743819 # praveenkumarsiraparapu@gmail.com \u00ef LinkedIn \u00a7 GitHub \u00d0 LeetCode",
+      "\u2013 Collaborated with frontend",
+      "QA",
+      "and DevOps teams to streamline CI",
+      "CD and containerized deployments",
+      "reducing",
+      "release time and improving deployment reliability",
+      "Gadgets-Of-Galaxy NextGen E-Commerce",
+      "\u00a7 GitHub Link",
+      "\u2013 Led a team of 5 using Git workflows and improved collaboration with version control best practices",
+      "Tools and Technologies used: ReactJS",
+      "Node.js",
+      "MongoDB",
+      "Redux",
+      "RESTful APIs"
+    ],
+    "projects": [
+      {
+        "name": "gmail.com \u00ef LinkedIn \u00a7 GitHub \u00d0 LeetCode",
+        "description": "+91 8897743819 # praveenkumarsiraparapu",
+        "technologies": [
+          "Indian Institute of Information Technology",
+          "Sri City December 2021 \u2013 April 2025"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "contributed"
+      },
+      {
+        "name": "B.Tech in Computer Science and Engineering CGPA: 8.10/10",
+        "description": "B.Tech in Computer Science and Engineering CGPA: 8.10/10",
+        "technologies": [
+          "InCruiter April 2025 \u2013 Present"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "built"
+      },
+      {
+        "name": "Software Development Engineer - I Bangalore",
+        "description": "Software Development Engineer - I Bangalore",
+        "technologies": [],
+        "ownership_level": "shared",
+        "contribution_type": "built"
+      },
+      {
+        "name": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and can-",
+        "description": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and can-",
+        "technologies": [
+          "Gadgets-Of-Galaxy NextGen E-Commerce",
+          "\u00a7 GitHub Link",
+          "Swagoo Food Delivery",
+          "FedWAvg: Mitigating Model Contamination in UAV Networks in UAV Networks",
+          "Entrepreneurship Cell IIIT Sricity( Core Committee Member)"
+        ],
+        "ownership_level": "shared",
+        "contribution_type": "built"
+      }
+    ],
+    "claims": [
+      {
+        "text": "Indian Institute of Information Technology, Sri City December 2021 \u2013 April 2025",
+        "project": "gmail.com \u00ef LinkedIn \u00a7 GitHub \u00d0 LeetCode",
+        "strength": "strong",
+        "contribution_type": "contributed"
+      },
+      {
+        "text": "InCruiter April 2025 \u2013 Present",
+        "project": "B.Tech in Computer Science and Engineering CGPA: 8.10/10",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Gadgets-Of-Galaxy NextGen E-Commerce | \u00a7 GitHub Link",
+        "project": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and can-",
+        "strength": "flagship",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Swagoo Food Delivery | \u00a7 GitHub Link",
+        "project": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and can-",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "FedWAvg: Mitigating Model Contamination in UAV Networks in UAV Networks",
+        "project": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and can-",
+        "strength": "strong",
+        "contribution_type": "built"
+      },
+      {
+        "text": "Entrepreneurship Cell IIIT Sricity( Core Committee Member)",
+        "project": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and can-",
+        "strength": "strong",
+        "contribution_type": "built"
+      }
+    ],
+    "experiences": [
+      {
+        "title": "+91 8897743819 # praveenkumarsiraparapu",
+        "company": "gmail.com \u00ef LinkedIn \u00a7 GitHub \u00d0 LeetCode",
+        "duration": "",
+        "contribution_type": "contributed"
+      },
+      {
+        "title": "B.Tech in Computer Science and Engineering CGPA: 8.10/10",
+        "company": "",
+        "duration": "",
+        "contribution_type": "built"
+      },
+      {
+        "title": "Software Development Engineer - I Bangalore",
+        "company": "",
+        "duration": "",
+        "contribution_type": "built"
+      },
+      {
+        "title": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and can-",
+        "company": "",
+        "duration": "",
+        "contribution_type": "built"
+      }
+    ],
+    "experience": {
+      "ml": 0,
+      "swe": 0,
+      "data_eng": 0
+    },
+    "experience_tier": "junior"
+  },
+  "github_links": [
+    "https://github.com/praveen6911"
+  ],
+  "target_role": "Full Stack Developer",
+  "years_experience": "0-1",
+  "prior_assessment_context": {},
+  "prior_assessment_prompt": "",
+  "skills": [
+    "Technical Skills and Interests",
+    "Languages: JavaScript (Node.js)",
+    "TypeScript",
+    "Java",
+    "Python"
+  ],
+  "scores": {},
+  "weaknesses": [
+    {
+      "weakness": "The candidate lists technologies and projects but gives no concrete detail about what they personally built, their specific role, or what problem they solved \u2014 it's a tech-stack recitation with no ownership signal.",
+      "type": "vague",
+      "severity": "medium",
+      "probe_direction": "ownership_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+    },
+    {
+      "weakness": "The candidate describes idempotency generically (header-based key, store in DB) without any specifics about what they actually implemented \u2014 no mention of the key format, TTL, lookup logic, race conditions, or what schema/table/cache they used in their own project.",
+      "type": "ownership_probe",
+      "severity": "high",
+      "probe_direction": "ownership_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+    }
+  ],
+  "history": [
+    {
+      "turn_id": "e5305778-a561-4d6d-8a05-500b91e27807",
+      "question": "Hey, thanks so much for coming in \u2014 really glad to have you here. Let's start easy. Just give me a quick intro about yourself \u2014 who you are, what you've been up to lately, whatever feels natural.",
+      "answer": "hi i'm praveen kumar i recently completed my in computer science and engineering from in from latest vct with a ccp of seven point seven i have experience in full stack development using technologies like js node js express js mongodb and python i have worked on multiple including a food delivery platform and an ecommerce website with jwt authentication and payment integration and machine learning products like multi disease multi disease prediction and text summarization telugu text summarization",
+      "weakness": {
+        "weakness": "The candidate lists technologies and projects but gives no concrete detail about what they personally built, their specific role, or what problem they solved \u2014 it's a tech-stack recitation with no ownership signal.",
+        "type": "vague",
+        "severity": "medium",
+        "probe_direction": "ownership_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+      },
+      "concepts": [
+        "Computer Science and Engineering",
+        "Full Stack Development",
+        "JavaScript",
+        "Node.js",
+        "Express.js",
+        "MongoDB",
+        "Python",
+        "Food Delivery Platform",
+        "E-commerce Website",
+        "JWT Authentication",
+        "Payment Integration",
+        "Machine Learning",
+        "Disease Prediction",
+        "Text Summarization",
+        "Telugu Text Summarization"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate states a CGPA of 7.7, but the resume clearly lists a CGPA of 8.10/10. Additionally, the candidate mentions ML projects (multi-disease prediction and Telugu text summarization) that do not appear anywhere on the resume, suggesting either fabrication or undisclosed projects. The candidate also omits any mention of their current professional experience at InCruiter, which is the most prominent section on the resume.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "calibrated",
+        "notes": "This appears to be an introductory self-presentation rather than a response to a technical challenge. The candidate lists credentials and project experience in a loosely structured way \u2014 there is some implicit ordering (education \u2192 skills \u2192 projects) but no explicit enumeration or step-by-step framing. No clarifying questions were asked, as none were needed in this context. The candidate was not challenged, so adaptability cannot be meaningfully assessed; marked as flexible by default. Confidence appears measured \u2014 the candidate states accomplishments without overclaiming expertise or hedging excessively. Speech-to-text artifacts (repeated words, incomplete institution names) suggest this was a spoken introduction, which may explain the informal structure."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "clarification_fast",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "1eb9be39-e13f-4df1-b209-6110d4eb16bb",
+      "question": "In your idempotent order API, what did the client send on retry to signal it was the same request \u2014 and where did you store that signal on the backend?",
+      "answer": "you can make an api idempotent by sending an idempotency key from the client side with the request every request usually through a header like item item item key if the client retires the same request due to timeout or network failure it sends the same idempotency key again on the back end we show that key along with the request status and response data to release or or a database",
+      "weakness": {
+        "weakness": "The candidate describes idempotency generically (header-based key, store in DB) without any specifics about what they actually implemented \u2014 no mention of the key format, TTL, lookup logic, race conditions, or what schema/table/cache they used in their own project.",
+        "type": "ownership_probe",
+        "severity": "high",
+        "probe_direction": "ownership_probe",
+        "continue_probing": true,
+        "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+      },
+      "concepts": [
+        "API",
+        "idempotent",
+        "idempotency key",
+        "client",
+        "request",
+        "header",
+        "retry",
+        "timeout",
+        "network failure",
+        "request status",
+        "response data",
+        "database"
+      ],
+      "discrepancy": {
+        "conflict_level": "suspected",
+        "description": "The candidate's explanation of idempotency is technically reasonable but vague and somewhat garbled (likely due to speech-to-text issues). The resume claims 'idempotent order APIs to prevent duplicate charges during retries' in the Gadgets-Of-Galaxy project, implying hands-on implementation. However, the candidate's answer describes only a generic, surface-level understanding of idempotency keys without referencing any specific implementation detail from their own project (e.g., what storage backend was used to cache responses, how keys were scoped, TTL handling, etc.). This is weakly aligned but not directly contradictory \u2014 it suggests the claim may be inflated or borrowed from documentation rather than built firsthand.",
+        "severity": "medium"
+      },
+      "reasoning_behavior": {
+        "structure_score": 1,
+        "clarification_behavior": "assumes",
+        "adaptability": "flexible",
+        "confidence_calibration": "calibrated",
+        "notes": "The candidate provides a basic but loosely structured explanation of API idempotency using idempotency keys. There is minimal enumeration \u2014 the answer flows as a single run-on explanation rather than discrete steps. No clarifying questions were asked; the candidate jumped straight into an answer assuming a general context. The explanation covers the core mechanism (client sends key in header, server stores key with response, retries return cached response) but the delivery is fragmented and difficult to follow, likely due to speech-to-text artifacts ('item item item key', 'release or or a database'). Confidence appears calibrated \u2014 the candidate doesn't overclaim or hedge excessively, but the lack of precision and structure limits the quality of the response. No challenge was issued, so adaptability cannot be meaningfully assessed."
+      },
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "",
+      "focus_label": "",
+      "answer_version": 1,
+      "route_kind": "clarification_fast",
+      "analysis_status": "complete"
+    },
+    {
+      "turn_id": "9b42cf98-d784-4143-ac7a-05cfa699be80",
+      "question": "Of the e-commerce projects you mentioned, what specific feature or problem did you personally own end-to-end?",
+      "answer": "in my ecommerce product i was handle the authentication and order management model end to end i implemented jwt based authentication for login and sign up including proctor protected routes and token verification on the back end using node js and express js i also worked on the product cut and order flow where users could add products to the card place orders and proceed with payment integration i designed the mongodb schema a rest apis connect to the front end with react js and tested the cup complete flow from user authentication to success successful order placement",
+      "weakness": null,
+      "concepts": [],
+      "discrepancy": null,
+      "reasoning_behavior": null,
+      "sprint": 1,
+      "persona": "curious_lead",
+      "focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency",
+      "focus_label": "Full-Stack E-Commerce System With Payment Idempotency And Caching",
+      "answer_version": 1,
+      "route_kind": "clarification_fast",
+      "analysis_status": "pending"
+    }
+  ],
+  "failure_surface": {},
+  "final_evaluation": null,
+  "last_question": "In your e-commerce project specifically, did you store that idempotency key in Redis, a database table, or somewhere else \u2014 and what made you pick that?",
+  "consecutive_high_weakness_count": 1,
+  "last_weakness_type": "ownership_probe",
+  "current_question_followups": [],
+  "current_question_followup_asked": true,
+  "active_question_packet": {
+    "question_text": "In your e-commerce project specifically, did you store that idempotency key in Redis, a database table, or somewhere else \u2014 and what made you pick that?",
+    "route_kind": "clarification_fast",
+    "sprint": 1,
+    "focus_key": "engineered_scalable_restful_microservices_using_node_js_express_for_authentication_user_management_and_can",
+    "focus_label": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentica",
+    "followups": [],
+    "asked_followup_count": 0,
+    "max_followups": 0,
+    "pivoting": false,
+    "weakness": {
+      "weakness": "The candidate describes idempotency generically (header-based key, store in DB) without any specifics about what they actually implemented \u2014 no mention of the key format, TTL, lookup logic, race conditions, or what schema/table/cache they used in their own project.",
+      "type": "ownership_probe",
+      "severity": "high",
+      "probe_direction": "ownership_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+    },
+    "discrepancy": {
+      "conflict_level": "suspected",
+      "description": "The candidate's explanation of idempotency is technically reasonable but vague and somewhat garbled (likely due to speech-to-text issues). The resume claims 'idempotent order APIs to prevent duplicate charges during retries' in the Gadgets-Of-Galaxy project, implying hands-on implementation. However, the candidate's answer describes only a generic, surface-level understanding of idempotency keys without referencing any specific implementation detail from their own project (e.g., what storage backend was used to cache responses, how keys were scoped, TTL handling, etc.). This is weakly aligned but not directly contradictory \u2014 it suggests the claim may be inflated or borrowed from documentation rather than built firsthand.",
+      "severity": "medium"
+    },
+    "source_turn_number": 2
+  },
+  "candidate_model": {
+    "project_map": {},
+    "established_facts": [],
+    "probed_weaknesses": [
+      "vague: The candidate lists technologies and projects but gives no concrete detail about (Turn 1)",
+      "ownership_probe: The candidate describes idempotency generically (header-based key, store in DB)  (Turn 2)"
+    ]
+  },
+  "speculative_cache": {
+    "turn_id": "a3358dce-caad-4df8-8fa4-5e84323aa7bb",
+    "sprint": 1,
+    "speculation_version": 6,
+    "last_trigger_time": 1778266382.3031468,
+    "last_snapshot_seq": 84,
+    "last_snapshot_is_final": true,
+    "inflight": false,
+    "best_ready_question": "You mentioned storing idempotency data in the database \u2014 walk me through how you'd handle a duplicate request coming in while the first one was still processing?",
+    "last_refine_action": "keep"
+  },
+  "current_answer_turn_id": "9b42cf98-d784-4143-ac7a-05cfa699be80",
+  "current_answer_question": "Of the e-commerce projects you mentioned, what specific feature or problem did you personally own end-to-end?",
+  "current_answer_response": "In your e-commerce project specifically, did you store that idempotency key in Redis, a database table, or somewhere else \u2014 and what made you pick that?",
+  "current_answer_context": {
+    "pivoting": false,
+    "route_kind": "clarification_fast",
+    "weakness": {
+      "weakness": "The candidate describes idempotency generically (header-based key, store in DB) without any specifics about what they actually implemented \u2014 no mention of the key format, TTL, lookup logic, race conditions, or what schema/table/cache they used in their own project.",
+      "type": "ownership_probe",
+      "severity": "high",
+      "probe_direction": "ownership_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+    },
+    "discrepancy": {
+      "conflict_level": "suspected",
+      "description": "The candidate's explanation of idempotency is technically reasonable but vague and somewhat garbled (likely due to speech-to-text issues). The resume claims 'idempotent order APIs to prevent duplicate charges during retries' in the Gadgets-Of-Galaxy project, implying hands-on implementation. However, the candidate's answer describes only a generic, surface-level understanding of idempotency keys without referencing any specific implementation detail from their own project (e.g., what storage backend was used to cache responses, how keys were scoped, TTL handling, etc.). This is weakly aligned but not directly contradictory \u2014 it suggests the claim may be inflated or borrowed from documentation rather than built firsthand.",
+      "severity": "medium"
+    },
+    "answer_version": 1,
+    "packet_focus_key": "engineered_scalable_restful_microservices_using_node_js_express_for_authentication_user_management_and_can",
+    "packet_focus_label": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentica",
+    "closing_phase": ""
+  },
+  "current_answer_turn_number": 3,
+  "current_answer_version": 1,
+  "latest_turn_versions": {
+    "9b42cf98-d784-4143-ac7a-05cfa699be80": 1
+  },
+  "interview_trajectory_map": {
+    "focus_areas": [
+      {
+        "label": "Microservices Backend Platform With Distributed Queuing And Multi-Tenancy",
+        "focus_key": "incruiter_backend_platform_microservices_distributed_queuing",
+        "anchor_context": "Engineered scalable RESTful microservices at InCruiter with Redis-powered distributed queues, multi-tenant RBAC, and a 3\u00d7 throughput gain on background job processing.",
+        "sub_focuses": [
+          "Redis distributed queue design with retries and deduplication",
+          "multi-tenant isolation and granular RBAC architecture",
+          "API latency reduction via query optimization and caching",
+          "worker memory leak diagnosis and observability instrumentation",
+          "JavaScript-to-TypeScript codebase migration strategy"
+        ],
+        "resume_snippets": [
+          "Built a Redis-powered distributed queue system enabling asynchronous job processing with retries, deduplication, and worker scaling, increasing background task throughput by 3\u00d7.",
+          "Architected and delivered a multi-tenant backend supporting secure tenant isolation, per-client configurations, and granular RBAC controls for enterprise clients."
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 5,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "redis_queue_retries_deduplication",
+          "multi_tenant_isolation_rbac",
+          "api_latency_query_optimization_caching",
+          "worker_memory_leak_observability",
+          "js_to_ts_migration_strategy"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Multiple hard architectural claims \u2014 3\u00d7 throughput, 30% latency cut, memory leak fix \u2014 each demands a 'what did you pers",
+        "opener": "You hit 3\u00d7 background task throughput at InCruiter with a Redis-powered queue \u2014 what was the core bottleneck you were solving before that system existed?",
+        "dimensions": [
+          {
+            "id": "redis_queue_retries_deduplication",
+            "label": "Redis queue design \u2014 retries and deduplication",
+            "resume_anchor": "Built a Redis-powered distributed queue system enabling asynchronous job processing with retries, deduplication, and worker scaling, increasing background task throughput by 3\u00d7.",
+            "surface": "In your Redis queue at InCruiter, how did you represent a job that needed to be retried \u2014 what did the data structure in Redis actually look like?",
+            "mechanism": "Deduplication in a distributed queue means the same job can arrive twice simultaneously from two workers \u2014 how did your implementation prevent both from executing?",
+            "boundary": "A job in your queue fails on attempt 2 of 3, but the worker process dies mid-retry before updating Redis \u2014 what state is that job in, and how does your system recover it?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "multi_tenant_isolation_rbac",
+            "label": "Multi-tenant isolation and granular RBAC",
+            "resume_anchor": "Architected and delivered a multi-tenant backend supporting secure tenant isolation, per-client configurations, and granular RBAC controls for enterprise clients.",
+            "surface": "In the multi-tenant backend at InCruiter, at what layer did tenant isolation actually get enforced \u2014 the database query, the middleware, or somewhere else?",
+            "mechanism": "Granular RBAC means permissions exist below the role level \u2014 how did your data model distinguish between a permission attached to a role versus one assigned directly to a user within a tenant?",
+            "boundary": "Two enterprise tenants share the same underlying database \u2014 give me the specific scenario where a misconfigured query could leak one tenant's data to another, and what your architecture does to prevent it.",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "api_latency_query_optimization_caching",
+            "label": "30% API latency reduction \u2014 query optimization and caching",
+            "resume_anchor": "Engineered scalable RESTful microservices using Node.js/Express for authentication, user management, and candidate workflows, reducing API latency by 30% through optimized queries and caching.",
+            "surface": "For the 30% latency reduction at InCruiter \u2014 which specific API routes or query patterns did you target first, and why those?",
+            "mechanism": "When you added caching to a candidate workflow endpoint, what did you use as the cache key, and what event invalidates that cache entry?",
+            "boundary": "You optimized queries and added caching \u2014 if both changes went live together, how did you isolate which one actually drove the latency improvement, and what does your measurement tell you about the split?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "worker_memory_leak_observability",
+            "label": "Worker memory leak diagnosis and observability",
+            "resume_anchor": "Enhanced system observability with structured logs, real-time dashboards, and automated alerts; fixed a worker memory leak reducing system errors by 25%.",
+            "surface": "When you identified the worker memory leak at InCruiter \u2014 what observable symptom in your dashboards or logs first indicated there was a memory problem rather than something else?",
+            "mechanism": "Memory leaks in Node.js workers often come from a specific category of root cause \u2014 what did yours turn out to be, and what in the code was holding the reference?",
+            "boundary": "After you fixed the leak, how did you confirm in production that it was fully resolved and not just slower-growing \u2014 what metric or threshold gave you that confidence?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "js_to_ts_migration_strategy",
+            "label": "JavaScript-to-TypeScript codebase migration",
+            "resume_anchor": "Migrated the complete backend codebase from JavaScript to TypeScript, improving type safety, reducing runtime errors, and enhancing long-term maintainability.",
+            "surface": "Migrating a live InCruiter backend from JavaScript to TypeScript \u2014 did you do a hard cutover or a gradual migration, and what determined that approach?",
+            "mechanism": "TypeScript's strictness settings vary widely \u2014 what compiler options did you set, and where did you have to relax strictness to make the migration feasible without breaking production?",
+            "boundary": "Migrating a running microservices backend means some services are typed and some aren't at the same time \u2014 how did you handle inter-service contract safety during the transition period?",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned the Redis queue specifically \u2014 tell me what one job entry looks like in Redis: the key format, the data it holds, and what changes when it gets retried.",
+          "honest_gap": "That's fair \u2014 which part of this system did you have the most direct ownership over: the queue design, the RBAC model, or the observability setup? Start there.",
+          "claim_conflict": "Your resume says you built retries and deduplication in the Redis queue \u2014 but what you just described sounds like a basic pub/sub pattern with no retry state. Help me understand where the retry logic actually lives.",
+          "metric_risk": "You said 3\u00d7 throughput \u2014 what was the baseline measurement, what unit is that in, and over what time window was it measured? Walk me through how that number was calculated.",
+          "overclaim_risk": "You used the term 'tenant isolation' \u2014 in your implementation, what does that term specifically do: is it a middleware check, a query filter, a separate schema, or something else? Tell me the exact mechanism.",
+          "bridge": "Let's shift gears \u2014 you also built a Full-Stack E-Commerce System With Payment Idempotency And Caching, and idempotent order APIs to prevent duplicate charges is a non-trivial problem. I want to dig into that next."
+        },
+        "candidate_q4_options": [
+          "Your Redis queue achieved 3\u00d7 throughput \u2014 how did worker scaling actually work, and what was the concurrency model: multiple processes, multiple threads, or something else?",
+          "The multi-tenant RBAC at InCruiter supported per-client configurations \u2014 when a tenant's permission set changes at runtime, how does that change propagate to already-authenticated sessions?",
+          "The SmartRecruiters webhook integration you built \u2014 when SmartRecruiters delivers a webhook that your system already processed, what prevents a duplicate workflow from triggering?",
+          "You reduced runtime errors by migrating to TypeScript \u2014 what category of error was actually showing up in production before the migration that TypeScript would have caught at compile time?"
+        ]
+      },
+      {
+        "label": "Full-Stack E-Commerce System With Payment Idempotency And Caching",
+        "focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency",
+        "anchor_context": "Built end-to-end e-commerce platform with idempotent order APIs to prevent duplicate charges, server-side caching for DB load reduction, and JWT auth across 100+ products.",
+        "sub_focuses": [
+          "idempotent payment API design to handle retry safety",
+          "server-side caching strategy and DB load reduction",
+          "JWT-based authentication and session management"
+        ],
+        "resume_snippets": [
+          "Integrated a payment gateway with idempotent order APIs to prevent duplicate charges during retries.",
+          "Implemented product search, filtering, pagination, and server-side caching to reduce DB load and improve page load performance."
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "idempotent_payment_api_design",
+          "server_side_caching_strategy",
+          "jwt_auth_session_design",
+          "pagination_correctness_under_mutation"
+        ],
+        "fallback_branches": [],
+        "why_priority": "Idempotency in payment flows is a non-trivial design decision the candidate claims to have personally implemented \u2014 wort",
+        "opener": "In Gadgets-Of-Galaxy, you built idempotent order APIs to prevent duplicate charges \u2014 what was the core problem that made idempotency necessary there, and how did you actually implement it?",
+        "dimensions": [
+          {
+            "id": "idempotent_payment_api_design",
+            "label": "Idempotent Order API Design",
+            "resume_anchor": "Integrated a payment gateway with idempotent order APIs to prevent duplicate charges during retries.",
+            "surface": "In your idempotent order API, what did the client send on retry to signal it was the same request \u2014 and where did you store that signal on the backend?",
+            "mechanism": "When a payment gateway returned a timeout before you got a response, how did your idempotency logic distinguish 'charge succeeded but response was lost' from 'charge never happened' \u2014 and what did you return to the client in each case?",
+            "boundary": "If two retry requests for the same order arrived concurrently at your Node.js server before either had written the idempotency record, what race condition does that create and what did you specifically implement to prevent a double charge in that window?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "server_side_caching_strategy",
+            "label": "Server-Side Caching and DB Load Reduction",
+            "resume_anchor": "Implemented product search, filtering, pagination, and server-side caching to reduce DB load and improve page load performance.",
+            "surface": "In Gadgets-Of-Galaxy, which specific endpoints or query results did you cache server-side \u2014 and what was your cache invalidation trigger when a product was updated?",
+            "mechanism": "Your product search supports filtering across 10+ categories with pagination \u2014 when a filter combination had never been requested before, what did your caching layer do, and how did you avoid a cache stampede on a cold cache under concurrent requests?",
+            "boundary": "If a user on page 3 of paginated results had a new product inserted into page 1 during their session, what does your pagination implementation return on their next page fetch \u2014 and is that behavior correct by design or a known inconsistency you accepted?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "jwt_auth_session_design",
+            "label": "JWT Auth Claims and Revocation",
+            "resume_anchor": "Built a full-stack e-commerce system using JWT-based authentication.",
+            "surface": "In Gadgets-Of-Galaxy, what claims did you put in the JWT payload beyond a user identifier \u2014 and what drove each of those additions?",
+            "mechanism": "When an admin role needed to be revoked before the token expired in your e-commerce system, what did you actually implement to enforce that revocation within an active session?",
+            "boundary": "If a user changed their password and you needed all existing tokens for that account to stop working immediately, what would break in your current JWT implementation and what would you have to add to make that guarantee hold?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "pagination_correctness_under_mutation",
+            "label": "Pagination Correctness Under Data Mutation",
+            "resume_anchor": "Implemented product search, filtering, pagination, and server-side caching to reduce DB load and improve page load performance.",
+            "surface": "In Gadgets-Of-Galaxy, what pagination strategy did you use for the product listing \u2014 offset-based or something else \u2014 and what drove that choice given 100+ products?",
+            "mechanism": "With offset-based pagination on a MongoDB collection, what happens to the result set a user sees if a product is deleted from page 1 while they are navigating to page 2 \u2014 and did your implementation account for that?",
+            "boundary": "If you needed to guarantee stable pagination results across a session regardless of concurrent writes to the product catalog, what would you have to change in your current MongoDB query structure to enforce that \u2014 and what cost does that introduce?",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned idempotent order APIs \u2014 tell me specifically what you stored server-side to detect a duplicate request, and where that record lived.",
+          "honest_gap": "That's fair \u2014 tell me what you do know about how the payment retry path worked in Gadgets-Of-Galaxy, even if the idempotency detail is fuzzy.",
+          "claim_conflict": "Your resume says idempotent order APIs prevented duplicate charges during retries \u2014 but what you just described would allow two concurrent retries to both reach the payment gateway before either writes a record. How did you prevent that?",
+          "metric_risk": "You said server-side caching reduced DB load \u2014 what were you measuring to know that, what was the baseline before caching, and how did you observe the change?",
+          "overclaim_risk": "You used the term idempotency key \u2014 in your specific Gadgets-Of-Galaxy implementation, where was that key generated, what format did it take, and what table or store held it?",
+          "bridge": "Good \u2014 let's shift to a different kind of distributed systems problem. Your IEEE paper on Federated Learning For UAV Weather Forecasting involves model aggregation across unreliable nodes, which has some interesting parallels. I want to ask you about the experimental design there."
+        },
+        "candidate_q4_options": [
+          "In Gadgets-Of-Galaxy, when the payment gateway integration returned an error code you hadn't seen before, how did your order API decide whether to mark the order as failed or leave it in a pending state?",
+          "Your caching layer was meant to reduce DB load \u2014 how did you actually measure whether it was working, and what metric told you the DB was being hit less?",
+          "In the idempotent order API, what happened to the idempotency record after a successful charge \u2014 how long did you keep it and what determined that TTL?",
+          "You used MongoDB for the e-commerce backend \u2014 when a user searched by category and applied a price filter simultaneously, how did that query execute and what did you do to keep it performant across 100+ products?"
+        ]
+      },
+      {
+        "label": "Federated Learning For Uav Weather Forecasting",
+        "focus_key": "fedwavg_federated_learning_for_uav_weather",
+        "anchor_context": "Published IEEE VTC2024 paper on FedWAvg, a federated weighted average method to mitigate model contamination in UAV networks for weather forecasting.",
+        "sub_focuses": [
+          "federated averaging weighting scheme and contamination mitigation",
+          "UAV network threat model and adversarial client assumption"
+        ],
+        "resume_snippets": [
+          "FedWAvg: Mitigating Model Contamination in UAV Networks through Federated Weighted Average for Weather Forecasting",
+          "2024 IEEE 100th Vehicular Technology Conference (VTC2024\u2013Fall), Washington, DC, USA"
+        ],
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branches": [
+          "fedwavg_weighting_scheme",
+          "uav_threat_model_adversarial_clients",
+          "non_iid_data_distribution_uav",
+          "fedavg_baseline_comparison"
+        ],
+        "fallback_branches": [],
+        "why_priority": "An IEEE-published ML systems paper is a genuinely different technical domain; worth a lightweight probe on what the cand",
+        "opener": "Your FedWAvg paper at IEEE VTC2024 proposes weighted aggregation to handle model contamination in UAV networks \u2014 what was the core contamination problem that vanilla FedAvg couldn't handle, and why did weighting fix it?",
+        "dimensions": [
+          {
+            "id": "fedwavg_weighting_scheme",
+            "label": "Federated Weighted Average Aggregation Design",
+            "resume_anchor": "FedWAvg: Mitigating Model Contamination in UAV Networks through Federated Weighted Average for Weather Forecasting",
+            "surface": "In FedWAvg, what property of a UAV client's local model did you use to compute its aggregation weight \u2014 and what made that property a reliable signal of contamination?",
+            "mechanism": "When two UAV clients submit updates with similar gradient magnitudes but one is contaminated, how does FedWAvg's weighting scheme distinguish them \u2014 what does the weight computation actually measure that gradient norm alone cannot?",
+            "boundary": "In your experiments, at what contamination ratio did FedWAvg's weighting scheme start failing to suppress the malicious updates \u2014 and what did the aggregated model's forecast output look like at that threshold?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "uav_threat_model_adversarial_clients",
+            "label": "UAV Network Threat Model and Adversarial Client Assumption",
+            "resume_anchor": "FedWAvg: Mitigating Model Contamination in UAV Networks through Federated Weighted Average for Weather Forecasting \u2014 mitigating model contamination",
+            "surface": "In your paper's threat model, what specific adversarial behavior did a malicious UAV client perform \u2014 did it corrupt its local data, manipulate its gradient, or something else \u2014 and how was that attack injected in your simulation?",
+            "mechanism": "Your threat model assumes some UAV clients are compromised \u2014 what assumption did you make about how much of the network could be adversarial before FedWAvg's guarantees break down, and what property of the aggregation enforces that bound?",
+            "boundary": "If a malicious UAV client in your model mimics a benign client's update distribution precisely \u2014 same loss trajectory, similar weight magnitude \u2014 what specific part of FedWAvg's design still catches it, and did you test that case?",
+            "signal_weight": 3.0
+          },
+          {
+            "id": "non_iid_data_distribution_uav",
+            "label": "Non-IID Data Distribution Across UAV Clients",
+            "resume_anchor": "FedWAvg: Mitigating Model Contamination in UAV Networks through Federated Weighted Average for Weather Forecasting \u2014 UAV Networks for Weather Forecasting",
+            "surface": "In your simulation, what specific parameter or dataset partition scheme controlled how different two UAV clients' weather data distributions were \u2014 and what value of that parameter did you use in your main results table?",
+            "mechanism": "Non-IID distribution across UAV clients affects both model quality and contamination detection \u2014 in FedWAvg, how did increasing data heterogeneity between clients change the weighting signal for distinguishing clean from contaminated updates?",
+            "boundary": "At the non-IID level you used in your experiments, how did you verify that FedWAvg's performance gain over FedAvg was due to contamination suppression and not just better handling of heterogeneous distributions from clean clients?",
+            "signal_weight": 2.5
+          },
+          {
+            "id": "fedavg_baseline_comparison",
+            "label": "FedAvg Baseline Comparison and Evaluation Metrics",
+            "resume_anchor": "FedWAvg: Mitigating Model Contamination in UAV Networks through Federated Weighted Average for Weather Forecasting \u2014 2024 IEEE 100th VTC",
+            "surface": "In your results \u2014 specifically the table or figure comparing FedWAvg against FedAvg \u2014 which evaluation metric showed the largest improvement, and what were the actual values for both methods at your primary contamination setting?",
+            "mechanism": "FedAvg averages client updates uniformly \u2014 when you ran it as your baseline under contamination, where in the aggregation step did the malicious update dominate, and how did that show up in the forecasting error numerically?",
+            "boundary": "When you tuned FedWAvg's weighting hyperparameters for the VTC2024 submission, what did overfitting to the contamination scenario look like \u2014 did the model degrade on clean federated rounds when the weight function was too aggressive?",
+            "signal_weight": 2.0
+          }
+        ],
+        "recovery": {
+          "short_answer": "You mentioned FedWAvg uses weighted aggregation \u2014 take me to one specific UAV client update from your simulation: what value did the weighting function assign it, and what made that value higher or lower than another client's?",
+          "honest_gap": "That's fair \u2014 tell me what you do have strong hands-on ownership of in FedWAvg: was it the simulation setup, the aggregation logic, the evaluation pipeline, or something else \u2014 let's go deep there.",
+          "claim_conflict": "Your paper title says 'mitigating model contamination' through weighted averaging \u2014 but your answer doesn't explain how the weight value connects to contamination level; walk me through that link specifically.",
+          "metric_risk": "You referenced a performance improvement \u2014 what was the denominator: number of federated rounds, percentage of contaminated clients, or something else? And what was FedAvg's baseline number in that same metric?",
+          "overclaim_risk": "You used the term 'model contamination' \u2014 in your specific implementation, what did a contaminated model update look like numerically compared to a clean one, and what computation in FedWAvg produced a different weight for it?",
+          "bridge": "Let's shift to your production engineering work \u2014 at InCruiter you built a distributed queue system and a multi-tenant backend, which is a very different kind of system design problem; I want to dig into that in Microservices Backend Platform With Distributed Queuing And Multi-Tenancy."
+        },
+        "candidate_q4_options": [
+          "FedWAvg runs on UAV networks with constrained communication \u2014 how did the per-round communication cost of your weighted aggregation compare to standard FedAvg, and did that affect your round convergence results?",
+          "Weather forecasting is a regression task with temporal structure \u2014 what model architecture did each UAV client train locally, and why was that architecture appropriate for the time-series structure of the weather data?",
+          "In federated learning the server never sees raw client data \u2014 how did you validate that FedWAvg's weight assignments were actually tracking contamination quality and not just penalizing clients with legitimately unusual local weather patterns?",
+          "Your paper targets UAV networks specifically \u2014 what property of UAV communication topology or mobility made the contamination problem harder than in a standard cross-silo federated setup, and did FedWAvg exploit that topology in any way?"
+        ]
+      }
+    ],
+    "generated_at": 1778266173.9300413,
+    "pending_hydration_focus_keys": [],
+    "generation_strategy": "two_pass_full_resume_reasoning",
+    "pass_1_review": {
+      "stage": "pass_1",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.8,
+      "top_two_score": 8.1,
+      "opener_quality_score": 8.2,
+      "dimension_depth_score": 7.4,
+      "strengths": [
+        "All three openers force an analytical position rather than inviting narrative \u2014 '3\u00d7 throughput: what was the bottleneck before?', 'idempotency: what made it necessary?', and 'FedWAvg: what broke with standard FedAvg?' are genuine hypothesis challenges.",
+        "Signal-weight 3.0 dimensions (redis_queue_retries_deduplication, idempotent_payment_api_design, weighting_scheme_design) have boundary probes that require hands-on ownership \u2014 the mid-retry worker-death scenario, the sub-200ms race on idempotency commit, and the edge case in weight tuning are all unanswerable from documentation alone.",
+        "Recovery overlays are complete and differentiated across all three focus areas \u2014 metric_risk, overclaim_risk, claim_conflict, short_answer, honest_gap, and bridge are all present and specifically anchored."
+      ],
+      "issues": [
+        "focus area 1 dimension js_to_ts_migration_strategy: surface probe ('hard cutover or gradual?') and mechanism probe (compiler options / strictness relaxation) are both answerable by anyone who has read about TS migration patterns \u2014 they don't force recall of a specific artifact from this codebase. The boundary probe (inter-service contract safety during transition) is the only probe that requires real ownership.",
+        "focus area 2 dimension jwt_auth_session_management: surface and mechanism probes are textbook JWT questions with no resume grounding \u2014 'where did the client store it' and 'what mechanism for pre-expiry invalidation' apply to any JWT implementation and could be answered from documentation. The boundary probe (secret rotation without mass logout) is strong but the first two probes waste time.",
+        "focus area 3 dimension uav_network_constraints: surface probe ('how did you model non-IID distribution?') is answerable from the paper itself or standard FL literature \u2014 it doesn't require hands-on simulation ownership. Needs a specific artifact challenge (e.g., 'what Dirichlet parameter or partitioning scheme did you use and what happened when you changed it?')."
+      ],
+      "repair_instructions": [
+        "focus area 1, js_to_ts_migration_strategy surface probe: Replace 'hard cutover or gradual?' with 'In the InCruiter migration, what was the first module or service you converted, and what type error appeared in that module that had been silently failing in production JS?' \u2014 forces recall of a specific artifact rather than strategy pattern.",
+        "focus area 1, js_to_ts_migration_strategy mechanism probe: Replace compiler options question with 'When you typed the Redis queue job payload, what TypeScript type did you define for the retry metadata field, and where did strict null checks break existing logic?' \u2014 anchors to a specific data structure the candidate must have touched.",
+        "focus area 2, jwt_auth_session_management surface and mechanism probes: Drop the generic storage/validation question. Replace surface with 'In Gadgets-Of-Galaxy, what does the JWT payload contain beyond userId \u2014 what claims did you add and why?' and mechanism with 'When an admin role needed to be revoked before a token expired in your e-commerce system, what did you actually implement to enforce that?' \u2014 both require ownership of this specific project's design decisions.",
+        "focus area 3, uav_network_constraints surface probe: Replace 'how did you model non-IID distribution?' with 'In your simulation, what specific parameter or dataset partition scheme controlled how different two UAV clients' data distributions were, and what value of that parameter did you use in your main results table?' \u2014 forces recall of an experimental artifact that only the author would know precisely."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "incruiter_backend_platform_microservices_distributed_queuing",
+          "label": "Microservices Backend Platform With Distributed Queuing And Multi-Tenancy",
+          "score": 8.0,
+          "issues": [
+            "js_to_ts_migration_strategy surface and mechanism probes are pattern-level questions answerable from any TS migration guide \u2014 no specific artifact from the InCruiter codebase is named.",
+            "api_latency_query_optimization_caching boundary probe is strong but mechanism probe ('what cache key, what invalidation event') is answerable by anyone familiar with Express caching middleware patterns without real ownership."
+          ]
+        },
+        {
+          "focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency",
+          "label": "Full-Stack E-Commerce System With Payment Idempotency And Caching",
+          "score": 7.8,
+          "issues": [
+            "jwt_auth_session_management surface probe ('where did client store it, how did backend validate') is generic JWT 101 \u2014 not grounded in anything specific to this project's implementation.",
+            "pagination_and_search_correctness signal weight 2.0 is appropriate but mechanism probe (offset vs cursor insertion anomaly) is a well-known pagination gotcha answerable from documentation; boundary probe saves it but comes too late."
+          ]
+        },
+        {
+          "focus_key": "fedwavg_federated_learning_for_uav_weather",
+          "label": "Federated Learning For UAV Weather Forecasting",
+          "score": 7.5,
+          "issues": [
+            "uav_network_constraints surface probe ('how did you model non-IID distribution?') is answerable from the paper text or standard FL survey \u2014 no specific experimental parameter is named that would require first-hand simulation access.",
+            "fedavg_baseline_comparison surface probe ('what metric \u2014 accuracy, RMSE, F1?') is answerable by reading the abstract or results table without having run the experiments; should name the specific table or figure to force precise recall."
+          ]
+        }
+      ]
+    },
+    "quality_review": {
+      "stage": "pass_1_repair",
+      "critic_model": "anthropic/claude-sonnet-4-6",
+      "ready": true,
+      "overall_score": 7.8,
+      "top_two_score": 8.2,
+      "opener_quality_score": 8.1,
+      "dimension_depth_score": 7.4,
+      "strengths": [
+        "All three openers force an immediate analytical position on a specific causal claim (3\u00d7 throughput bottleneck, idempotency necessity, FedAvg contamination failure) \u2014 none invite pure narrative.",
+        "signal_weight 3.0 dimensions across all areas have genuinely sharp boundary probes: the concurrent-retry race condition, the mid-retry worker crash recovery, and the mimicry-resistant adversarial client question each require hands-on ownership to answer.",
+        "Recovery overlays are complete and specific \u2014 metric_risk and overclaim_risk probes name concrete artifacts (idempotency key format, tenant isolation mechanism, FedWAvg weight computation) rather than generic follow-ups."
+      ],
+      "issues": [
+        "incruiter focus: 'js_to_ts_migration_strategy' boundary probe ('how did you handle inter-service contract safety during transition') is answerable by anyone who has read a TypeScript migration guide \u2014 it doesn't name a specific artifact or InCruiter-specific constraint that only an owner would know.",
+        "gadgets_galaxy focus: 'pagination_correctness_under_mutation' dimension surface probe ('what pagination strategy did you use') is answerable from the GitHub repo without any deeper knowledge; the mechanism probe essentially telegraphs the answer (offset-based delete skew) before the candidate responds.",
+        "fedwavg focus: 'fedavg_baseline_comparison' surface probe ('which metric showed the largest improvement, what were the actual values') is a memory test on a table value, not a probe of causal understanding \u2014 a co-author who ran one script could answer it without understanding the aggregation."
+      ],
+      "repair_instructions": [
+        "Replace 'js_to_ts_migration_strategy' boundary probe with: 'At InCruiter, during the transition period when some services were still JS and some were TS, give me a specific API contract that existed between them \u2014 what type safety guarantee did you actually have at that boundary, and what class of bug did that gap produce or risk?' This forces recall of a specific cross-service boundary rather than general migration knowledge.",
+        "Drop 'pagination_correctness_under_mutation' as a standalone dimension \u2014 it overlaps heavily with 'server_side_caching_strategy' and the mechanism probe pre-answers the surface probe. Consolidate: fold the offset-vs-cursor question into the caching dimension as a second mechanism probe, freeing a slot for a dimension on the MongoDB query execution plan for the compound category+price filter.",
+        "Replace 'fedavg_baseline_comparison' surface probe with: 'In your main results, when FedAvg was run under your contamination setup, at what round did the global model's forecast error start visibly diverging from the clean baseline \u2014 and what does that round number tell you about how quickly a contaminated update poisons aggregation?' This tests causal understanding of aggregation dynamics rather than table lookup.",
+        "Strengthen 'api_latency_query_optimization_caching' boundary probe: current version ('how did you isolate which change drove the improvement') is good but generic. Add specificity: 'In your InCruiter dashboards, what Grafana panel or metric name showed the per-query execution time before and after the index change \u2014 and what was the p95 value drop for the candidate workflow endpoint specifically?' This requires naming a real observable artifact."
+      ],
+      "focus_reviews": [
+        {
+          "focus_key": "incruiter_backend_platform_microservices_distributed_queuing",
+          "label": "Microservices Backend Platform With Distributed Queuing And Multi-Tenancy",
+          "score": 8.1,
+          "issues": [
+            "'js_to_ts_migration_strategy' boundary probe is answerable from documentation \u2014 lacks a specific InCruiter-only artifact or failure mode.",
+            "'api_latency_query_optimization_caching' boundary probe is strong conceptually but could be sharpened with a specific metric name or panel reference to prevent generic answers."
+          ]
+        },
+        {
+          "focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency",
+          "label": "Full-Stack E-Commerce System With Payment Idempotency And Caching",
+          "score": 7.6,
+          "issues": [
+            "'pagination_correctness_under_mutation' is redundant with the caching dimension and the mechanism probe telegraphs the correct answer (offset delete skew) before the candidate answers.",
+            "JWT dimension boundary probe ('what would break if password changed') is a well-known JWT limitation question \u2014 it tests textbook knowledge more than personal implementation decisions."
+          ]
+        },
+        {
+          "focus_key": "fedwavg_federated_learning_for_uav_weather",
+          "label": "Federated Learning For UAV Weather Forecasting",
+          "score": 7.4,
+          "issues": [
+            "'fedavg_baseline_comparison' surface probe is a table-value memory test \u2014 co-author or reviewer could answer without understanding aggregation dynamics.",
+            "'non_iid_data_distribution_uav' boundary probe ('verify gain was due to contamination suppression not heterogeneity handling') is the strongest dimension here but the mechanism probe is slightly weaker \u2014 it asks how heterogeneity changes the weighting signal without anchoring to a specific experimental condition the candidate would have set up personally."
+          ]
+        }
+      ]
+    },
+    "generation_notes": ""
+  },
+  "interview_map_status": "ready",
+  "interview_map_error": "",
+  "interview_map_validation": {
+    "ready": true,
+    "errors": [],
+    "warnings": [],
+    "focus_count": 3,
+    "llm_focus_count": 3,
+    "rich_focus_count": 3,
+    "priority_llm_ready_count": 3,
+    "pending_focus_keys": [],
+    "focus_reports": [
+      {
+        "label": "Microservices Backend Platform With Distributed Queuing And Multi-Tenancy",
+        "focus_key": "incruiter_backend_platform_microservices_distributed_queuing",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 5,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "Full-Stack E-Commerce System With Payment Idempotency And Caching",
+        "focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      },
+      {
+        "label": "Federated Learning For Uav Weather Forecasting",
+        "focus_key": "fedwavg_federated_learning_for_uav_weather",
+        "track_source": "llm",
+        "track_schema": "dimension",
+        "llm_branch_count": 4,
+        "fallback_branch_count": 0,
+        "llm_branch_ratio": 1.0,
+        "pending": false,
+        "ready": true,
+        "is_rich": true
+      }
+    ],
+    "require_all_llm": false,
+    "min_llm_branch_ratio": 0.72
+  },
+  "interview_map_prepared_at": 1778266173.934387,
+  "candidate_state": {
+    "disengagement_level": 0.0,
+    "consecutive_no_content": 0,
+    "explicit_skip_count": 0,
+    "social_deflection_count": 0,
+    "incoherence_count": 0,
+    "communication_mode": "simplified",
+    "topic_fatigue": {},
+    "topic_question_counts": {},
+    "forced_exit_triggered": false,
+    "phase": "orientation",
+    "anchor_confidence": "high",
+    "implementation_anchor": "I implemented JWT-based authentication for login and signup with protected routes and token verification on the backend using Node.js and Express.js.",
+    "second_domain_surfaced": null,
+    "_communication_mode_checked": true
+  },
+  "prepped_turn_queue": [
+    {
+      "turn_id": "9b42cf98-d784-4143-ac7a-05cfa699be80",
+      "turn_number": 3,
+      "answer_version": 1,
+      "analysis": {
+        "session_id": "c1e66811-c749-431c-9925-47636d4cbb46",
+        "turn_id": "9b42cf98-d784-4143-ac7a-05cfa699be80",
+        "turn_number": 3,
+        "answer_version": 1,
+        "question": "Of the e-commerce projects you mentioned, what specific feature or problem did you personally own end-to-end?",
+        "answer": "in my ecommerce product i was handle the authentication and order management model end to end i implemented jwt based authentication for login and sign up including proctor protected routes and token verification on the back end using node js and express js i also worked on the product cut and order flow where users could add products to the card place orders and proceed with payment integration i designed the mongodb schema a rest apis connect to the front end with react js and tested the cup complete flow from user authentication to success successful order placement",
+        "weakness": {
+          "weakness": "The candidate lists a broad set of features (auth, orders, payments, schema, APIs, frontend) but gives no specific technical decision or problem they personally solved \u2014 no mention of a concrete challenge, trade-off, or implementation detail that would distinguish ownership from following a tutorial.",
+          "type": "shallow",
+          "severity": "medium",
+          "probe_direction": "implementation_probe",
+          "continue_probing": true,
+          "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+        },
+        "concepts": [
+          "ecommerce",
+          "authentication",
+          "order management",
+          "JWT",
+          "protected routes",
+          "token verification",
+          "Node.js",
+          "Express.js",
+          "product catalog",
+          "shopping cart",
+          "order flow",
+          "payment integration",
+          "MongoDB",
+          "schema design",
+          "REST APIs",
+          "React.js",
+          "end-to-end testing",
+          "user authentication",
+          "order placement"
+        ],
+        "discrepancy": {
+          "conflict_level": "suspected",
+          "description": "The candidate mentions a CGPA of 'seven point seven' in Turn 1, while the resume states 8.10/10. This is a minor but notable discrepancy. In the current answer, the candidate describes end-to-end ownership of authentication and order management in the e-commerce project, which is broadly consistent with the resume claims. However, the explanation remains generic \u2014 no specific details about the idempotent order API implementation (despite being probed on it in Turn 2), Redis caching, or pagination/filtering are mentioned, suggesting the depth of ownership may be inflated relative to resume claims like 'server-side caching to reduce DB load' and 'idempotent order APIs to prevent duplicate charges.'",
+          "severity": "medium"
+        },
+        "reasoning_behavior": {
+          "structure_score": 1,
+          "clarification_behavior": "assumes",
+          "adaptability": "defensive",
+          "confidence_calibration": "overconfident",
+          "notes": "The candidate provides a broad, run-on narrative with minimal structure \u2014 no enumeration, no clear separation of concerns, and no logical sequencing of steps. There is some implied order (auth \u2192 product \u2192 order \u2192 payment), but it reads as a single stream of consciousness rather than organized thought. When challenged, the response does not engage with the challenge substantively \u2014 it restates or elaborates on the original claim without addressing what was specifically questioned, indicating a defensive posture. The candidate assumes full context without asking for clarifying constraints. Confidence appears overconfident given the vague and unstructured delivery \u2014 terms like 'end to end' and 'complete flow' are asserted without specifics that would validate the claim. Several apparent speech-to-text errors (e.g., 'proctor protected routes', 'product cut', 'card' instead of 'cart', 'cup complete') further obscure technical precision."
+        },
+        "sprint": 1,
+        "persona": "curious_lead",
+        "focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency",
+        "focus_label": "Full-Stack E-Commerce System With Payment Idempotency And Caching",
+        "candidate_model_updates": {
+          "established_facts": [],
+          "probed_weaknesses": [
+            "shallow: The candidate lists a broad set of features (auth, orders, payments, schema, API (Turn 3)"
+          ]
+        }
+      },
+      "metadata": {
+        "pivoting": false,
+        "route_kind": "sprint_seed",
+        "consecutive_high_weakness_count": 0,
+        "last_weakness_type": null,
+        "current_question_followups": [
+          "What would you do differently if you were starting this project from scratch today?",
+          "What was the hardest part to get right, and how did you know when you'd actually solved it?"
+        ],
+        "current_question_followup_asked": false,
+        "answer_version": 1
+      }
+    }
+  ],
+  "prepped_next_question": "You mentioned you implemented JWT-based authentication with protected routes \u2014 in Gadgets-Of-Galaxy specifically, what did you actually put inside the JWT payload beyond just a user ID, and what drove those decisions?",
+  "prepped_next_question_turn_number": 3,
+  "prepped_next_context": {
+    "pivoting": false,
+    "route_kind": "sprint_seed",
+    "weakness": {
+      "weakness": "The candidate lists a broad set of features (auth, orders, payments, schema, APIs, frontend) but gives no specific technical decision or problem they personally solved \u2014 no mention of a concrete challenge, trade-off, or implementation detail that would distinguish ownership from following a tutorial.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+    },
+    "discrepancy": {
+      "conflict_level": "suspected",
+      "description": "The candidate mentions a CGPA of 'seven point seven' in Turn 1, while the resume states 8.10/10. This is a minor but notable discrepancy. In the current answer, the candidate describes end-to-end ownership of authentication and order management in the e-commerce project, which is broadly consistent with the resume claims. However, the explanation remains generic \u2014 no specific details about the idempotent order API implementation (despite being probed on it in Turn 2), Redis caching, or pagination/filtering are mentioned, suggesting the depth of ownership may be inflated relative to resume claims like 'server-side caching to reduce DB load' and 'idempotent order APIs to prevent duplicate charges.'",
+      "severity": "medium"
+    },
+    "turn_id": "9b42cf98-d784-4143-ac7a-05cfa699be80",
+    "answer_version": 1
+  },
+  "prepped_next_packet": {
+    "question_text": "You mentioned you implemented JWT-based authentication with protected routes \u2014 in Gadgets-Of-Galaxy specifically, what did you actually put inside the JWT payload beyond just a user ID, and what drove those decisions?",
+    "route_kind": "sprint_seed",
+    "sprint": 1,
+    "focus_key": "engineered_scalable_restful_microservices_using_node_js_express_for_authentication_user_management_and_can",
+    "focus_label": "\u2013 Engineered scalable RESTful microservices using Node.js/Express for authentica",
+    "followups": [
+      "What would you do differently if you were starting this project from scratch today?",
+      "What was the hardest part to get right, and how did you know when you'd actually solved it?"
+    ],
+    "asked_followup_count": 0,
+    "max_followups": 2,
+    "pivoting": false,
+    "weakness": {
+      "weakness": "The candidate lists a broad set of features (auth, orders, payments, schema, APIs, frontend) but gives no specific technical decision or problem they personally solved \u2014 no mention of a concrete challenge, trade-off, or implementation detail that would distinguish ownership from following a tutorial.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+    },
+    "discrepancy": {
+      "conflict_level": "suspected",
+      "description": "The candidate mentions a CGPA of 'seven point seven' in Turn 1, while the resume states 8.10/10. This is a minor but notable discrepancy. In the current answer, the candidate describes end-to-end ownership of authentication and order management in the e-commerce project, which is broadly consistent with the resume claims. However, the explanation remains generic \u2014 no specific details about the idempotent order API implementation (despite being probed on it in Turn 2), Redis caching, or pagination/filtering are mentioned, suggesting the depth of ownership may be inflated relative to resume claims like 'server-side caching to reduce DB load' and 'idempotent order APIs to prevent duplicate charges.'",
+      "severity": "medium"
+    },
+    "source_turn_number": 3
+  },
+  "prepped_turn_analysis": {
+    "session_id": "c1e66811-c749-431c-9925-47636d4cbb46",
+    "turn_id": "9b42cf98-d784-4143-ac7a-05cfa699be80",
+    "turn_number": 3,
+    "answer_version": 1,
+    "question": "Of the e-commerce projects you mentioned, what specific feature or problem did you personally own end-to-end?",
+    "answer": "in my ecommerce product i was handle the authentication and order management model end to end i implemented jwt based authentication for login and sign up including proctor protected routes and token verification on the back end using node js and express js i also worked on the product cut and order flow where users could add products to the card place orders and proceed with payment integration i designed the mongodb schema a rest apis connect to the front end with react js and tested the cup complete flow from user authentication to success successful order placement",
+    "weakness": {
+      "weakness": "The candidate lists a broad set of features (auth, orders, payments, schema, APIs, frontend) but gives no specific technical decision or problem they personally solved \u2014 no mention of a concrete challenge, trade-off, or implementation detail that would distinguish ownership from following a tutorial.",
+      "type": "shallow",
+      "severity": "medium",
+      "probe_direction": "implementation_probe",
+      "continue_probing": true,
+      "inferred_focus_key": "gadgets_galaxy_ecommerce_commerce_payment_idempotency"
+    },
+    "concepts": [
+      "ecommerce",
+      "authentication",
+      "order management",
+      "JWT",
+      "protected routes",
+      "token verification",
+      "Node.js",
+      "Express.js",
+      "product catalog",
+      "shopping cart",
+      "order flow",
+      "payment integration",
+      "MongoDB",
+      "schema design",
+      "REST APIs",
+      "React.js",
+      "end-to-end testing",
+      "user authentication",
+      "order placement"
+    ],
+    "discrepancy": {
+      "conflict_level": "suspected",
+      "description": "The candidate mentions a CGPA of 'seven point seven' in Turn 1, while the resume states 8.10/10. This is a minor but notable discrepancy. In the current answer, the candidate describes end-to-end ownership of authentication and order management in the e-commerce project, which is broadly consistent with the resume claims. However, the explanation remains generic \u2014 no specific details about the idempotent order API implementation (despite being probed on it in Turn 2), Redis caching, or pagination/filtering are mentioned, suggesting the depth of ownership may be inflated relative to resume claims like 'server-side caching to reduce DB load' and 'idempotent order APIs to prevent duplicate charges.'",
+      "severity": "medium"
+    },
+    "reasoning_behavior": {
+      "structure_score": 1,
+      "clarification_behavior": "assumes",
+      "adaptability": "defensive",
+      "confidence_calibration": "overconfident",
+      "notes": "The candidate provides a broad, run-on narrative with minimal structure \u2014 no enumeration, no clear separation of concerns, and no logical sequencing of steps. There is some implied order (auth \u2192 product \u2192 order \u2192 payment), but it reads as a single stream of consciousness rather than organized thought. When challenged, the response does not engage with the challenge substantively \u2014 it restates or elaborates on the original claim without addressing what was specifically questioned, indicating a defensive posture. The candidate assumes full context without asking for clarifying constraints. Confidence appears overconfident given the vague and unstructured delivery \u2014 terms like 'end to end' and 'complete flow' are asserted without specifics that would validate the claim. Several apparent speech-to-text errors (e.g., 'proctor protected routes', 'product cut', 'card' instead of 'cart', 'cup complete') further obscure technical precision."
+    },
+    "sprint": 1,
+    "persona": "curious_lead",
+    "candidate_model_updates": {
+      "established_facts": [],
+      "probed_weaknesses": [
+        "shallow: The candidate lists a broad set of features (auth, orders, payments, schema, API (Turn 3)"
+      ]
+    }
+  },
+  "prepped_next_metadata": {
+    "pivoting": false,
+    "route_kind": "sprint_seed",
+    "consecutive_high_weakness_count": 0,
+    "last_weakness_type": null,
+    "current_question_followups": [
+      "What would you do differently if you were starting this project from scratch today?",
+      "What was the hardest part to get right, and how did you know when you'd actually solved it?"
+    ],
+    "current_question_followup_asked": false,
+    "answer_version": 1
+  },
+  "coverage_map": {
+    "application_question": "Imagine your PM comes to you tomorrow and says: 'We're launching a B2B version of Gadgets-Of-Galaxy where companies can have multiple employees sharing one company account \u2014 each employee logs in individually but all purchases bill to the company. The JWT auth system you built for login and signup needs to support this.' How would you approach redesigning the authentication and authorization layer to handle this multi-tenant, role-within-organization model?",
+    "implementation_anchor": "I implemented JWT-based authentication for login and signup with protected routes and token verification on the backend using Node.js and Express.js.",
+    "coverage_score": 0.0,
+    "coverage_confidence": 0.72,
+    "total_weight": 10.0,
+    "dimensions": [
+      {
+        "id": "token_payload_redesign",
+        "label": "JWT Payload Structure",
+        "description": "Tests whether the candidate understands that the existing JWT payload (likely just userId, email, role) needs to be extended to carry organization/tenant context without bloating the token or creating security leaks between tenants",
+        "expected_approaches": [
+          "Add orgId and orgRole fields to the JWT payload at login time",
+          "Issue a separate org-scoped token after a user selects their active organization",
+          "Keep JWT minimal and resolve org membership server-side on each request using the userId"
+        ],
+        "surfacing_question": "Your current tokens probably store something like a user ID and maybe a role \u2014 what changes when the same user needs to act on behalf of a company, and how does the token reflect that?",
+        "weight": 2.5,
+        "coverage_state": "not_evaluated",
+        "candidate_response": "",
+        "surfacing_attempted": false
+      },
+      {
+        "id": "role_hierarchy_authorization",
+        "label": "Role-Based Access Within Org",
+        "description": "Tests whether the candidate can differentiate authentication (who you are) from authorization (what you can do within an org), and design permission levels like company admin vs. regular employee",
+        "expected_approaches": [
+          "Define org-level roles (admin, member, viewer) stored in a join table linking users to organizations",
+          "Use middleware on protected routes that checks both the JWT validity AND the user's role within the org fetched from DB",
+          "Embed permissions array in JWT payload for fast route-level checks"
+        ],
+        "surfacing_question": "If a company admin should be able to see all employee orders but a regular employee can only see their own \u2014 where in your current Express.js setup does that check actually happen?",
+        "weight": 2.0,
+        "coverage_state": "not_evaluated",
+        "candidate_response": "",
+        "surfacing_attempted": false
+      },
+      {
+        "id": "data_isolation",
+        "label": "Tenant Data Isolation",
+        "description": "Tests awareness that without scoping database queries to an organization, a user from Company A could potentially access Company B's data \u2014 a critical security boundary for B2B",
+        "expected_approaches": [
+          "Always filter queries by orgId extracted from the verified JWT or session",
+          "Add orgId as a foreign key to all relevant tables (orders, carts, invoices) and enforce it in every query",
+          "Use database row-level security policies to enforce tenant boundaries at the DB layer"
+        ],
+        "surfacing_question": "Once multiple companies are in the same database, what stops an authenticated employee of Company A from accidentally \u2014 or intentionally \u2014 seeing Company B's purchase history?",
+        "weight": 3.0,
+        "coverage_state": "not_evaluated",
+        "candidate_response": "",
+        "surfacing_attempted": false
+      },
+      {
+        "id": "existing_route_migration",
+        "label": "Backward Compatibility of Protected Routes",
+        "description": "Tests whether the candidate thinks about how their existing token verification middleware on protected routes would need to change \u2014 and whether individual consumer accounts can coexist with B2B org accounts",
+        "expected_approaches": [
+          "Add an optional orgId check in middleware \u2014 if present, apply org-scoped logic; if absent, fall back to individual user logic",
+          "Version the API routes (/v1 vs /v2) so B2B routes are separate from existing consumer routes",
+          "Introduce a user 'account type' flag in the token to branch logic at the middleware level"
+        ],
+        "surfacing_question": "Your current protected routes work for individual shoppers right now \u2014 what breaks or needs to change in that middleware when a request comes from a B2B employee token?",
+        "weight": 1.5,
+        "coverage_state": "not_evaluated",
+        "candidate_response": "",
+        "surfacing_attempted": false
+      },
+      {
+        "id": "invite_and_onboarding_flow",
+        "label": "User-to-Org Onboarding",
+        "description": "Tests product thinking and basic security awareness around how employees join a company account \u2014 this is a new flow that doesn't exist in the original single-user auth system",
+        "expected_approaches": [
+          "Admin sends an invite link with a short-lived signed token; new user registers and gets linked to the org on acceptance",
+          "Admin manually adds employee emails; on their next login the system detects and prompts org association",
+          "Organization code or domain-based auto-join (e.g., all @company.com emails auto-join that org)"
+        ],
+        "surfacing_question": "If a company admin wants to add a new employee to their account, what does that flow look like from the moment the admin clicks 'invite' to the moment the employee can start placing orders?",
+        "weight": 1.0,
+        "coverage_state": "not_evaluated",
+        "candidate_response": "",
+        "surfacing_attempted": false
+      }
+    ]
+  },
+  "prepped_application_question": "Imagine your PM comes to you tomorrow and says: 'We're launching a B2B version of Gadgets-Of-Galaxy where companies can have multiple employees sharing one company account \u2014 each employee logs in individually but all purchases bill to the company. The JWT auth system you built for login and signup needs to support this.' How would you approach redesigning the authentication and authorization layer to handle this multi-tenant, role-within-organization model?"
+}
