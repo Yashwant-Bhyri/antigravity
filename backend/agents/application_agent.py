@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 
+from backend.agents.question_repair_agent import QuestionRepairAgent
 from backend.models.llm_router import JSON_OBJECT_FORMAT, LLMRouter
 from backend.models.coverage_map import AnswerCoverageMap, CoverageDimension
 
@@ -81,13 +82,25 @@ Return JSON only:
 class ApplicationAgent:
     def __init__(self) -> None:
         self.llm = LLMRouter(tier="medium")
-        self.repair_llm = LLMRouter(tier="small")
-        self.verify_llm = LLMRouter(tier="small")
+        self.question_repair_agent = QuestionRepairAgent()
+        self.repair_llm = LLMRouter(
+            tier="small",
+            model_override=os.environ.get("APP_TRANSFER_REPAIR_MODEL", "gpt-oss-120b").strip(),
+            timeout_override=float(os.environ.get("APP_TRANSFER_REPAIR_TIMEOUT_SECONDS", "45")),
+        )
+        self.verify_llm = LLMRouter(
+            tier="small",
+            model_override=os.environ.get("APP_TRANSFER_REPAIR_VERIFY_MODEL", "gpt-oss-120b").strip(),
+            timeout_override=float(os.environ.get("APP_TRANSFER_REPAIR_VERIFY_TIMEOUT_SECONDS", "45")),
+        )
         fallback_models = [
             model.strip()
             for model in os.environ.get(
-                "OPENROUTER_APP_TRANSFER_REPAIR_FALLBACK_MODELS",
-                "openai/gpt-5.4-mini,google/gemini-3.1-flash-lite",
+                "APP_TRANSFER_REPAIR_FALLBACK_MODELS",
+                os.environ.get(
+                    "OPENROUTER_APP_TRANSFER_REPAIR_FALLBACK_MODELS",
+                    "gpt-oss-120b,gemma-4-31b",
+                ),
             ).split(",")
             if model.strip()
         ]
@@ -122,6 +135,15 @@ class ApplicationAgent:
             str(question or ""),
             flags=re.IGNORECASE,
         ))
+
+    @classmethod
+    def _normalize_repaired_question(cls, question: str) -> str:
+        cleaned = " ".join(str(question or "").split()).strip()
+        if not cleaned or not cls._contains_answer_lanes(cleaned) or cls._has_escape_hatch(cleaned):
+            return cleaned
+        if cleaned.endswith("?"):
+            cleaned = cleaned[:-1].rstrip()
+        return f"{cleaned}, or something else?"
 
     @staticmethod
     def _anchor_depth_ambiguous(anchor: str) -> bool:
@@ -352,7 +374,8 @@ class ApplicationAgent:
             audit_call_name=f"ApplicationAgent.application_transfer_voice_repair.{repair_label}",
             audit_metadata={"repair_label": repair_label},
         )
-        return str((result or {}).get("question") if isinstance(result, dict) else "").strip()
+        rewritten = str((result or {}).get("question") if isinstance(result, dict) else "").strip()
+        return self._normalize_repaired_question(rewritten)
 
     def _repair_chain(self) -> list[dict]:
         chain = [{
@@ -382,6 +405,57 @@ class ApplicationAgent:
         self.last_repair_verification = {"repair_attempted": False}
         if not self._question_too_long(question) and self._question_speakable_enough(question, implementation_anchor):
             return question
+
+        shared_repair_agent = getattr(self, "question_repair_agent", None)
+        if shared_repair_agent is not None:
+            try:
+                shared_rewrite = await shared_repair_agent.repair(
+                    question=question,
+                    route_kind="application_transfer",
+                    posture="application_transfer",
+                    turn_number=6,
+                    target_role=target_role,
+                    signal_goal="Preserve the role-relevant transfer scenario while making the question easy to say out loud.",
+                    anchor_context=implementation_anchor,
+                    audit_call_name="ApplicationAgent.application_transfer_cerebras_repair",
+                    audit_metadata={"repair_scope": "application_transfer"},
+                )
+                shared_question = self._normalize_repaired_question(str(shared_rewrite.get("question") or "").strip())
+                if shared_rewrite.get("accepted") and shared_question:
+                    verifier = await self._verify_repaired_application_question(
+                        original_question=question,
+                        repaired_question=shared_question,
+                        target_role=target_role,
+                        implementation_anchor=implementation_anchor,
+                    )
+                    if verifier.get("accepted"):
+                        self.last_repair_verification = {
+                            "repair_attempted": True,
+                            "repair_accepted": True,
+                            "attempts": [{
+                                "attempt": 1,
+                                "repair_label": "shared_cerebras_gpt_oss_repair_agent",
+                                "repair_model": str(shared_rewrite.get("repair_model") or ""),
+                                "repair_backend": str(shared_rewrite.get("repair_backend") or ""),
+                                "accepted": True,
+                                "reason": verifier.get("reason", ""),
+                                "risk_flags": verifier.get("risk_flags", []),
+                                "repaired_question": shared_question,
+                                "word_count": len(shared_question.split()),
+                                "shared_conditioning": True,
+                            }],
+                            "final_reason": verifier.get("reason", ""),
+                            "final_risk_flags": verifier.get("risk_flags", []),
+                            "final_repair_label": "shared_cerebras_gpt_oss_repair_agent",
+                            "final_repair_model": str(shared_rewrite.get("repair_model") or ""),
+                            "final_repair_backend": str(shared_rewrite.get("repair_backend") or ""),
+                            "fallback_to_original": False,
+                            "shared_conditioning": True,
+                            "shared_conditioning_meta": shared_rewrite,
+                        }
+                        return shared_question
+            except Exception:
+                pass
 
         attempts: list[dict] = []
         feedback = ""

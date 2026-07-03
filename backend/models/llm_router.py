@@ -5,7 +5,7 @@ import time
 import uuid
 from typing import Any
 from openai import AsyncOpenAI
-from backend.config.env_runtime import model_tier
+from backend.config.env_runtime import env_first, model_tier
 from backend.services.llm_usage import estimate_text_tokens, llm_quality_logger, llm_usage_logger, text_hash
 
 
@@ -37,6 +37,40 @@ TIER_TIMEOUT_SECONDS = {
 }
 
 JSON_OBJECT_FORMAT = {"type": "json_object"}
+
+CEREBRAS_NATIVE_MODEL_PREFIXES = (
+    "gpt-oss-",
+    "gemma-4-",
+)
+
+
+def _strip_provider_prefix(model: str) -> str:
+    cleaned = str(model or "").strip()
+    if "/" in cleaned:
+        return cleaned.rsplit("/", 1)[-1].strip()
+    return cleaned
+
+
+def _is_cerebras_native_model(model: str) -> bool:
+    local_name = _strip_provider_prefix(model).lower()
+    return any(local_name.startswith(prefix) for prefix in CEREBRAS_NATIVE_MODEL_PREFIXES)
+
+
+def _openrouter_fallback_model_for_cerebras_native(model: str) -> str:
+    cleaned = str(model or "").strip()
+    local_name = _strip_provider_prefix(cleaned)
+    if "/" in cleaned and not local_name.lower().startswith("gemma-4-"):
+        return cleaned
+    if local_name.lower().startswith("gpt-oss-"):
+        return f"openai/{local_name}"
+    if local_name.lower().startswith("gemma-4-"):
+        return os.environ.get("OPENROUTER_GEMMA_4_FALLBACK_MODEL", "").strip()
+    return cleaned
+
+
+def _env_flag(*names: str) -> bool:
+    value = env_first(*names, default="").strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 def _get_attr_or_key(value: Any, key: str) -> Any:
@@ -270,10 +304,35 @@ class LLMRouter:
     ):
         assert tier in MODEL_TIERS, f"Unknown tier: {tier}. Choose from: {list(MODEL_TIERS.keys())}"
         self.tier = tier
-        self.model = (model_override or MODEL_TIERS[tier]).strip()
+        requested_model = (model_override or MODEL_TIERS[tier]).strip()
+        backend_name = env_first("LLM_ROUTER_BACKEND", default="openrouter").strip().lower()
+        auto_cerebras_native = (
+            _is_cerebras_native_model(requested_model)
+            and bool(os.environ.get("CEREBRAS_API_KEY", "").strip())
+            and not _env_flag("LLM_ROUTER_DISABLE_CEREBRAS_NATIVE_AUTO")
+        )
+        self.openrouter_fallback_model = _openrouter_fallback_model_for_cerebras_native(requested_model)
+        self.backend = "cerebras_direct" if auto_cerebras_native else (backend_name or "openrouter")
+        self.model = (
+            _strip_provider_prefix(requested_model)
+            if self.backend in {"cerebras", "cerebras_direct", "direct_cerebras"}
+            else (
+                self.openrouter_fallback_model
+                if _is_cerebras_native_model(requested_model)
+                else requested_model
+            )
+        )
+        if self.backend in {"cerebras", "cerebras_direct", "direct_cerebras"}:
+            api_key_name = "CEREBRAS_API_KEY"
+            base_url = env_first("LLM_ROUTER_BASE_URL", "CEREBRAS_BASE_URL", default="https://api.cerebras.ai/v1")
+            self._token_param = "max_completion_tokens"
+        else:
+            api_key_name = "OPENROUTER_API_KEY"
+            base_url = env_first("LLM_ROUTER_BASE_URL", "OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+            self._token_param = "max_tokens"
         self.client = AsyncOpenAI(
-            api_key=os.environ["OPENROUTER_API_KEY"],
-            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ[api_key_name],
+            base_url=base_url,
             timeout=timeout_override or TIER_TIMEOUT_SECONDS[tier],
         )
 
@@ -300,12 +359,15 @@ class LLMRouter:
         quality_capture_text = llm_quality_logger.capture_text()
         request_payload = {
             "model": self.model,
-            "max_tokens": max_tokens,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
         }
+        request_payload[self._token_param] = max_tokens
+        if self.backend in {"cerebras", "cerebras_direct", "direct_cerebras"}:
+            request_payload["temperature"] = 0
+            request_payload["seed"] = 0
         if response_format:
             request_payload["response_format"] = response_format
         import re as _re
@@ -357,7 +419,7 @@ class LLMRouter:
                     else estimated_prompt_tokens + estimated_completion_tokens
                 )
                 attempt_record = {
-                    "max_tokens_requested": int(payload.get("max_tokens") or 0),
+                    "max_tokens_requested": int(payload.get("max_completion_tokens") or payload.get("max_tokens") or 0),
                     "system_chars": len(system_text),
                     "user_chars": len(user_text),
                     "output_chars": len(cleaned_text),
@@ -394,7 +456,7 @@ class LLMRouter:
                     turn_id=audit_turn_id or "",
                     tier=self.tier,
                     model=self.model,
-                    max_tokens_requested=int(payload.get("max_tokens") or 0),
+                    max_tokens_requested=int(payload.get("max_completion_tokens") or payload.get("max_tokens") or 0),
                     response_format=response_format_name,
                     system_chars=len(system_text),
                     user_chars=len(user_text),
@@ -415,7 +477,7 @@ class LLMRouter:
                             if actual_completion_tokens is not None
                             else estimated_completion_tokens
                         )
-                        / max(int(payload.get("max_tokens") or 1), 1),
+                        / max(int(payload.get("max_completion_tokens") or payload.get("max_tokens") or 1), 1),
                         4,
                     ),
                     system_hash=text_hash(system_text),
@@ -438,7 +500,7 @@ class LLMRouter:
                     "turn_id": audit_turn_id or "",
                     "tier": self.tier,
                     "model": self.model,
-                    "max_tokens_requested": int(payload.get("max_tokens") or 0),
+                    "max_tokens_requested": int(payload.get("max_completion_tokens") or payload.get("max_tokens") or 0),
                     "response_format": response_format_name,
                     "system_chars": len(system_text),
                     "user_chars": len(user_text),
@@ -475,7 +537,9 @@ class LLMRouter:
         attempt_records.append(attempt_record)
         if parsed is None and response_format:
             retry_payload = dict(request_payload)
-            retry_payload["max_tokens"] = min(max(max_tokens * 2, 1000), 8000)
+            retry_payload.pop("max_tokens", None)
+            retry_payload.pop("max_completion_tokens", None)
+            retry_payload[self._token_param] = min(max(max_tokens * 2, 1000), 8000)
             retry_reason = (
                 f"provider_error:{type(captured_exc).__name__}"
                 if captured_exc

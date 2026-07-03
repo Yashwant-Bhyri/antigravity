@@ -1,4 +1,5 @@
 import re
+from backend.agents.question_repair_agent import QuestionRepairAgent
 from backend.models.llm_router import LLMRouter, _load_json_lenient
 
 
@@ -413,6 +414,50 @@ class FollowUpAgent:
     def __init__(self):
         self.llm = LLMRouter(tier="medium")
         self.llm_fast = LLMRouter(tier="small")  # Haiku — speculative + seed generation
+        self.question_repair_agent = QuestionRepairAgent()
+
+    async def _repair_live_question(
+        self,
+        *,
+        question: str,
+        route_kind: str,
+        posture: str,
+        turn_number: int,
+        surface_kind: str,
+        expected_space: list[str] | None,
+        target_role: str,
+        focus_label: str,
+        sub_focus_label: str,
+        signal_goal: str,
+        anchor_context: str,
+    ) -> str:
+        repair_agent = getattr(self, "question_repair_agent", None)
+        if repair_agent is None:
+            return question
+
+        try:
+            repaired = await repair_agent.repair(
+                question=question,
+                route_kind=route_kind,
+                posture=posture,
+                turn_number=turn_number,
+                surface_kind=surface_kind,
+                expected_space=expected_space,
+                target_role=target_role,
+                focus_label=focus_label,
+                sub_focus_label=sub_focus_label,
+                signal_goal=signal_goal,
+                anchor_context=anchor_context,
+                audit_call_name=f"FollowUpAgent.{route_kind}.cerebras_repair",
+                audit_metadata={"repair_scope": route_kind},
+            )
+            repaired_question = str(repaired.get("question") or "").strip()
+            if repaired.get("accepted") and repaired_question:
+                return repaired_question
+        except Exception:
+            pass
+
+        return question
 
     async def generate(
         self,
@@ -1027,7 +1072,20 @@ Rules:
         )
         result = await self.llm_fast.call(system=system, user=user)
         raw = result if isinstance(result, str) else (result.get("question", "") if isinstance(result, dict) else "")
-        return _finalize_question_output(raw, dim.surfacing_question)
+        finalized = _finalize_question_output(raw, dim.surfacing_question)
+        return await self._repair_live_question(
+            question=finalized,
+            route_kind="coverage_surface",
+            posture="coverage_surface",
+            turn_number=int(state.get("turn_count") or 0) + 1,
+            surface_kind=str(getattr(dim, "surface_kind", "breadth") or "breadth"),
+            expected_space=list(getattr(dim, "expected_approaches", []) or []),
+            target_role=str(state.get("target_role") or ""),
+            focus_label=str((state.get("current_answer_context") or {}).get("focus_label") or "application transfer"),
+            sub_focus_label=str(getattr(dim, "label", "") or dimension_id),
+            signal_goal="Keep the coverage surfacing prompt short and speakable without losing the dimension being tested.",
+            anchor_context=str(getattr(coverage_map, "implementation_anchor", "") or ""),
+        )
 
     async def generate_coverage_depth_probe(
         self,
@@ -1077,7 +1135,20 @@ Rules:
         result = await self.llm_fast.call(system=system, user=user)
         fallback = f"What part of {dim.label} did you personally handle, and what did it look like in practice?"
         raw = result if isinstance(result, str) else (result.get("question", "") if isinstance(result, dict) else "")
-        return _finalize_question_output(raw, fallback)
+        finalized = _finalize_question_output(raw, fallback)
+        return await self._repair_live_question(
+            question=finalized,
+            route_kind="coverage_depth_probe",
+            posture="coverage_depth_probe",
+            turn_number=int(state.get("turn_count") or 0) + 1,
+            surface_kind="depth",
+            expected_space=list(getattr(dim, "expected_approaches", []) or []),
+            target_role=str(state.get("target_role") or ""),
+            focus_label=str((state.get("current_answer_context") or {}).get("focus_label") or "application transfer"),
+            sub_focus_label=str(getattr(dim, "label", "") or dimension_id),
+            signal_goal="Keep the coverage depth probe short and speakable without losing the tradeoff or mechanism target.",
+            anchor_context=str(anchor or ""),
+        )
 
     async def generate_graceful_close(self, state: dict, turn_in_close: int) -> str:
         """Phase 6 close questions (turns 14-15). Returns a fixed warm close — no LLM needed."""
