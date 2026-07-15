@@ -43,19 +43,20 @@ async def consume_launch_token(token: str) -> dict[str, Any]:
     return response.json()
 
 
-async def notify_handoff_started(handoff_id: str, session_id: str) -> None:
-    await _post_handoff_event(
+async def notify_handoff_started(handoff_id: str, session_id: str) -> bool:
+    return await _post_handoff_event(
         "started",
         {
             "handoff_id": handoff_id,
             "antigravity_session_id": session_id,
         },
         session_id=session_id,
+        immediate=False,
     )
 
 
-async def notify_handoff_complete(handoff_id: str, session_id: str, report: dict[str, Any]) -> None:
-    await _post_handoff_event(
+async def notify_handoff_complete(handoff_id: str, session_id: str, report: dict[str, Any]) -> bool:
+    return await _post_handoff_event(
         "complete",
         {
             "handoff_id": handoff_id,
@@ -66,9 +67,9 @@ async def notify_handoff_complete(handoff_id: str, session_id: str, report: dict
     )
 
 
-async def notify_handoff_failed(handoff_id: str, session_id: str, error: str) -> None:
+async def notify_handoff_failed(handoff_id: str, session_id: str, error: str) -> bool:
     payload_session_id = "" if session_id == "none" else session_id
-    await _post_handoff_event(
+    return await _post_handoff_event(
         "failed",
         {
             "handoff_id": handoff_id,
@@ -79,10 +80,28 @@ async def notify_handoff_failed(handoff_id: str, session_id: str, error: str) ->
     )
 
 
-async def _post_handoff_event(event: str, payload: dict[str, Any], *, session_id: str) -> None:
+async def _post_handoff_event(
+    event: str,
+    payload: dict[str, Any],
+    *,
+    session_id: str,
+    immediate: bool = True,
+) -> bool:
     base_url = _api_base_url()
     if not base_url:
-        return
+        return False
+    from backend.db.postgres import enqueue_delivery, mark_delivery_result
+
+    delivery_id = await enqueue_delivery(
+        session_id,
+        "provenhire",
+        f"handoff_{event}",
+        payload,
+    )
+    if delivery_id:
+        payload = {**payload, "delivery_id": delivery_id}
+        if not immediate:
+            return True
     handoff_id = str(payload.get("handoff_id") or "")
     signature = sign_handoff_event(event, handoff_id, session_id)
     last_error: Exception | None = None
@@ -97,7 +116,9 @@ async def _post_handoff_event(event: str, payload: dict[str, Any], *, session_id
                     headers={"X-Antigravity-Signature": signature},
                 )
             response.raise_for_status()
-            return
+            if delivery_id:
+                await mark_delivery_result(delivery_id, delivered=True)
+            return True
         except Exception as exc:
             last_error = exc
             _LOGGER.warning(
@@ -116,3 +137,44 @@ async def _post_handoff_event(event: str, payload: dict[str, Any], *, session_id
         session_id,
         last_error,
     )
+    if delivery_id:
+        await mark_delivery_result(delivery_id, delivered=False, error=str(last_error or "delivery failed"))
+    return False
+
+
+async def process_pending_handoff_deliveries(limit: int = 20) -> int:
+    """Retry durable ProvenHire callbacks. Safe to run from every backend instance."""
+    from backend.db.postgres import list_pending_deliveries, mark_delivery_result
+
+    base_url = _api_base_url()
+    if not base_url:
+        return 0
+    delivered = 0
+    for row in await list_pending_deliveries(limit=limit):
+        if row.get("destination") != "provenhire":
+            continue
+        event_type = str(row.get("event_type") or "")
+        if not event_type.startswith("handoff_"):
+            continue
+        event = event_type.removeprefix("handoff_")
+        payload = row.get("payload") or {}
+        if isinstance(payload, str):
+            import json
+            payload = json.loads(payload)
+        payload = {**payload, "delivery_id": str(row.get("id"))}
+        session_id = str(payload.get("antigravity_session_id") or "none") or "none"
+        handoff_id = str(payload.get("handoff_id") or "")
+        try:
+            signature = sign_handoff_event(event, handoff_id, session_id)
+            async with httpx.AsyncClient(timeout=httpx.Timeout(connect=5.0, read=30.0, write=20.0, pool=10.0)) as client:
+                response = await client.post(
+                    f"{base_url}/ai-interview-adapter/handoff-{event}",
+                    json=payload,
+                    headers={"X-Antigravity-Signature": signature},
+                )
+            response.raise_for_status()
+            await mark_delivery_result(str(row.get("id")), delivered=True)
+            delivered += 1
+        except Exception as exc:
+            await mark_delivery_result(str(row.get("id")), delivered=False, error=str(exc))
+    return delivered

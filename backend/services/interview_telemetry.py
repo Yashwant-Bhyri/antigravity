@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import time
+import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,6 +58,7 @@ class InterviewTelemetry:
         **fields: Any,
     ) -> dict[str, Any]:
         record = {
+            "event_id": str(uuid.uuid4()),
             "ts": round(time.time(), 3),
             "iso_ts": datetime.now(timezone.utc).isoformat(),
             "session_id": session_id,
@@ -67,6 +69,13 @@ class InterviewTelemetry:
         }
         async with self._lock_for(session_id):
             await asyncio.to_thread(self._append_record, self.trace_path(session_id), record)
+        try:
+            from backend.db.postgres import append_interview_event
+            await append_interview_event(record)
+        except Exception:
+            # Telemetry must never break the live voice path. The local JSONL copy
+            # remains available for the final-session reconciliation pass.
+            pass
         return record
 
     def _read_records(self, path: Path) -> list[dict[str, Any]]:
@@ -88,6 +97,12 @@ class InterviewTelemetry:
 
     async def get_events(self, session_id: str, limit: int = 500) -> list[dict[str, Any]]:
         records = await asyncio.to_thread(self._read_records, self.trace_path(session_id))
+        if not records:
+            try:
+                from backend.db.postgres import get_interview_events
+                records = await get_interview_events(session_id, limit=0)
+            except Exception:
+                records = []
         if limit <= 0:
             return records
         return records[-limit:]

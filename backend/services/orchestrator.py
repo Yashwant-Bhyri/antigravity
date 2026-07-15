@@ -2873,9 +2873,15 @@ class Orchestrator:
                 t = w.get("type", "unknown")
                 weakness_by_type[t] = weakness_by_type.get(t, 0) + 1
             _parsed = state.get("parsed_resume") or {}
+            telemetry_summary = await interview_telemetry.summarize(session_id, limit=200)
+            telemetry_events = await interview_telemetry.get_events(session_id, limit=0)
             full_report = {
+                **evaluation,
                 "session_id": session_id,
                 "complete": True,
+                "interview_complete": True,
+                "report_ready": True,
+                "finalization_status": "complete",
                 "candidate_name": _parsed.get("candidate_name", ""),
                 "target_role": state.get("target_role", ""),
                 "years_experience": state.get("years_experience", ""),
@@ -2911,8 +2917,14 @@ class Orchestrator:
                 "coverage_verdict_advisory": evaluation.get("coverage_verdict_advisory"),
                 "verdict_basis": evaluation.get("verdict_basis"),
                 "verdict_confidence_basis": evaluation.get("verdict_confidence_basis"),
+                "final_evidence_packet": evaluation.get("final_evidence_packet", {}),
+                "history": state.get("history", []),
+                "per_answer_scores": state.get("per_answer_scores", []),
+                "reasoning_signals": state.get("reasoning_signals", []),
+                "telemetry_summary": telemetry_summary,
+                "telemetry_events": telemetry_events,
             }
-            asyncio.create_task(persist_session(
+            persisted = await persist_session(
                 session_id=session_id,
                 resume_snippet=state.get("resume", "")[:200],
                 hire_recommendation=evaluation.get("hire_recommendation", ""),
@@ -2920,13 +2932,37 @@ class Orchestrator:
                 sprint_reached=_coerce_positive_int(state.get("current_sprint", 1), default=1),
                 duration_minutes=round(duration, 1),
                 full_report=full_report,
-            ))
+                candidate_name=str(_parsed.get("candidate_name") or ""),
+                target_role=str(state.get("target_role") or ""),
+                years_experience=str(state.get("years_experience") or ""),
+                telemetry_summary=telemetry_summary,
+                session_snapshot={
+                    "question_count": state.get("question_count", 0),
+                    "current_sprint": state.get("current_sprint", 1),
+                    "interview_start_time": state.get("interview_start_time"),
+                    "external_handoff": state.get("external_handoff", {}),
+                },
+            )
+            if not persisted:
+                await self._trace(session_id, "session_postgres_persist_deferred", level="warn")
             external_handoff = state.get("external_handoff") or {}
             handoff_id = str(external_handoff.get("handoff_id") or "")
             if handoff_id:
-                asyncio.create_task(notify_handoff_complete(handoff_id, session_id, full_report))
-        except Exception:
-            pass
+                delivered = await notify_handoff_complete(handoff_id, session_id, full_report)
+                await self._trace(
+                    session_id,
+                    "provenhire_report_delivery",
+                    delivered=delivered,
+                    handoff_id=handoff_id,
+                )
+        except Exception as exc:
+            await self._trace(
+                session_id,
+                "session_report_persistence_failed",
+                level="error",
+                error_type=type(exc).__name__,
+                error=str(exc)[:500],
+            )
 
         return state
 

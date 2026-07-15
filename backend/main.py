@@ -1,5 +1,7 @@
 import os
+import asyncio
 from pathlib import Path
+from datetime import datetime, timezone
 
 try:
     from dotenv import load_dotenv
@@ -37,7 +39,9 @@ except Exception as e:
     pass  # In Vercel/Docker, environment variables are injected natively; no dotenv needed
 
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from backend.api.routes import router, tts_service
 
@@ -51,19 +55,171 @@ async def lifespan(app: FastAPI):
         pass  # non-fatal — will generate lazily on first call
 
     # Initialise Postgres schema (creates tables if not present) — best-effort
+    postgres_ready = False
     try:
         from backend.db.postgres import init_schema
-        await init_schema()
+        postgres_ready = bool(await init_schema())
     except Exception:
         pass  # Postgres unavailable — sessions endpoint will return empty, interviews still work
 
+    stop_outbox = asyncio.Event()
+
+    async def drain_outbox() -> None:
+        from backend.services.provenhire_handoff import process_pending_handoff_deliveries
+        while not stop_outbox.is_set():
+            try:
+                await process_pending_handoff_deliveries()
+            except Exception:
+                pass
+            try:
+                await asyncio.wait_for(stop_outbox.wait(), timeout=15.0)
+            except asyncio.TimeoutError:
+                continue
+
+    outbox_task = asyncio.create_task(drain_outbox()) if postgres_ready else None
     yield
+    stop_outbox.set()
+    if outbox_task:
+        try:
+            await asyncio.wait_for(outbox_task, timeout=5.0)
+        except Exception:
+            outbox_task.cancel()
+    try:
+        from backend.db.postgres import close_pool
+        await close_pool()
+    except Exception:
+        pass
 
 
 app = FastAPI(
     title="Antigravity — Interview Assessment Engine",
     lifespan=lifespan,
 )
+
+
+def _truthy_env(value: str | None) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _internal_surfaces_enabled() -> bool:
+    return _truthy_env(os.getenv("ANTIGRAVITY_ENABLE_INTERNAL_SURFACES"))
+
+
+def _internal_route_token() -> str:
+    return str(os.getenv("ANTIGRAVITY_INTERNAL_ROUTE_TOKEN") or "").strip()
+
+
+def _is_internal_api_path(path: str, method: str) -> bool:
+    if path.startswith("/api/replay/"):
+        return True
+    if path.startswith("/api/simulation/"):
+        return True
+    if path.startswith("/api/admin/"):
+        return True
+    if path.startswith("/api/phase_one_"):
+        return True
+    if path in {
+        "/api/question_review_feedback",
+        "/api/trial_batch_review",
+        "/api/sessions",
+    }:
+        return True
+    if path.startswith("/api/trial_review_bundle/"):
+        return True
+    if path.startswith("/api/llm_audit/"):
+        return True
+    if method.upper() == "GET" and (
+        path.startswith("/api/telemetry/")
+        or path.startswith("/api/state/")
+    ):
+        return True
+    return False
+
+
+async def _readiness_snapshot() -> tuple[dict, int]:
+    from backend.db.postgres import get_pool
+    from backend.state.session_manager import SessionManager
+
+    checks: dict[str, dict[str, object]] = {}
+
+    openrouter_ok = bool(str(os.getenv("OPENROUTER_API_KEY") or "").strip())
+    deepgram_ok = bool(str(os.getenv("DEEPGRAM_API_KEY") or "").strip())
+    tts_snapshot = tts_service.status_snapshot()
+    tts_ok = bool(tts_snapshot.get("cartesia_configured") or tts_snapshot.get("elevenlabs_configured"))
+
+    checks["openrouter"] = {
+        "ok": openrouter_ok,
+        "required": True,
+        "detail": "configured" if openrouter_ok else "Missing OPENROUTER_API_KEY",
+    }
+    checks["deepgram"] = {
+        "ok": deepgram_ok,
+        "required": True,
+        "detail": "configured" if deepgram_ok else "Missing DEEPGRAM_API_KEY",
+    }
+    checks["tts"] = {
+        "ok": tts_ok,
+        "required": True,
+        "provider": tts_snapshot.get("provider"),
+        "detail": (
+            "configured"
+            if tts_ok
+            else "Neither CARTESIA_API_KEY nor ELEVENLABS_API_KEY is configured"
+        ),
+        "snapshot": tts_snapshot,
+    }
+
+    redis_ok = False
+    redis_detail = ""
+    try:
+        session_manager = SessionManager()
+        redis_ok = bool(await session_manager._redis_call(lambda: session_manager.redis.ping()))
+        redis_detail = "pong" if redis_ok else "ping returned falsey result"
+        try:
+            await session_manager.redis.aclose()
+        except Exception:
+            pass
+    except Exception as exc:
+        redis_detail = f"{type(exc).__name__}: {exc}"
+    checks["redis"] = {
+        "ok": redis_ok,
+        "required": True,
+        "detail": redis_detail,
+    }
+
+    postgres_ok = False
+    postgres_detail = ""
+    try:
+        pool = await get_pool()
+        if pool is None:
+            postgres_detail = "pool unavailable; DB-backed history/dashboard features degraded"
+        else:
+            async with pool.acquire() as conn:
+                await conn.fetchval("SELECT 1")
+            postgres_ok = True
+            postgres_detail = "query_ok"
+    except Exception as exc:
+        postgres_detail = f"{type(exc).__name__}: {exc}"
+    checks["postgres"] = {
+        "ok": postgres_ok,
+        "required": _truthy_env(os.getenv("ANTIGRAVITY_REQUIRE_POSTGRES")),
+        "detail": postgres_detail or "not_checked",
+    }
+
+    missing_critical = [name for name, item in checks.items() if item.get("required") and not item.get("ok")]
+    degraded = [name for name, item in checks.items() if not item.get("required") and not item.get("ok")]
+    ready = not missing_critical
+    status = "ready" if ready and not degraded else "degraded" if ready else "not_ready"
+    payload = {
+        "status": status,
+        "ready": ready,
+        "missing_critical": missing_critical,
+        "degraded": degraded,
+        "checks": checks,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    return payload, 200 if ready else 503
+
 
 # Add CORS so the frontend can talk to the backend
 _cors_extra = [o.strip() for o in os.getenv("ANTIGRAVITY_CORS_ORIGINS", "").split(",") if o.strip()]
@@ -91,10 +247,39 @@ _allow_origins = list(dict.fromkeys(_allow_origins))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allow_origins,
-    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def protect_internal_surfaces(request: Request, call_next):
+    path = request.url.path
+    if not _is_internal_api_path(path, request.method):
+        return await call_next(request)
+    if _internal_surfaces_enabled():
+        return await call_next(request)
+    configured_token = _internal_route_token()
+    provided_token = request.headers.get("X-Antigravity-Internal-Token", "").strip()
+    if configured_token and provided_token == configured_token:
+        return await call_next(request)
+    return JSONResponse(status_code=404, content={"detail": "Not found"})
+
+
+@app.get("/healthz")
+async def healthz():
+    return {
+        "status": "ok",
+        "service": "antigravity-backend",
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/readinessz")
+async def readinessz():
+    payload, status_code = await _readiness_snapshot()
+    return JSONResponse(status_code=status_code, content=payload)
+
 
 app.include_router(router, prefix="/api")
