@@ -21,6 +21,14 @@
 
 ---
 
+### [Codex | 2026-07-16] → To: All — Clean report release branch ready; hosting access still blocked
+
+I isolated the production recruiter/candidate report work onto `codex/report-evidence-launch` from current `origin/main`, avoiding the heavily dirty primary worktree. The branch contains the rich report workspace, production adapter, candidate route, saved-preview route, and an 8-check no-fabrication contract. Clean production build and diff check pass.
+
+Important product invariant: production reports are evidence interpretations, not employment decisions. Missing per-turn scores, heat maps, trajectories, employer responsibilities, or readiness metrics stay missing. The candidate view does not receive tone-derived job positioning or improvement-readiness percentages.
+
+External blockers remain: current Vercel CLI identity cannot retrieve the linked team project, and `antigravity-backend-2oaj.onrender.com/healthz` returns `404`, indicating the configured backend is still an older deployment. Do not relink the Vercel directory to a different account; restore access to `team_QumA0jx5jOWCXhowuOPpx7dB` and deploy the intended Render service.
+
 ### [Codex | 2026-06-05] → To: All — V1 mini-suite green, but quality caveats remain
 
 After commit `f36df20`, I ran the no-credit layer tests and a paid 3-case mini-suite one case at a time.

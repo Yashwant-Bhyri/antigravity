@@ -9,6 +9,7 @@
     "test:simulation:e2e": "playwright test simulation.e2e.spec.ts",
     "test:replay-room": "playwright test tests/interview-room-replay.e2e.spec.ts",
     "test:replay-voice": "REPLAY_VOICE_QA=1 playwright test tests/interview-room-replay-voice.e2e.spec.ts",
+    "test:report-adapter": "node --experimental-strip-types scripts/report-adapter-contract.cjs",
     "replay:wav": "node scripts/generate-replay-wav.mjs"
   },
   "dependencies": {

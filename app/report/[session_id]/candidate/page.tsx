@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { RecruiterWorkspace } from "../../demo-reports/[slug]/recruiter-workspace";
+import { CandidateWorkspace } from "../../../demo-reports/[slug]/candidate/candidate-workspace";
 import { getApiBaseUrl } from "@/lib/api";
-import { adaptProductionReport } from "../report-adapter";
+import { adaptProductionReport } from "../../report-adapter";
 
 async function getReport(sessionId: string) {
   const response = await fetch(`${getApiBaseUrl()}/report/${encodeURIComponent(sessionId)}`, { cache: "no-store" });
@@ -10,18 +10,16 @@ async function getReport(sessionId: string) {
   return response.json();
 }
 
-export default async function ProductionReportPage({ params }: { params: Promise<{ session_id: string }> }) {
+export default async function CandidateReportPage({ params }: { params: Promise<{ session_id: string }> }) {
   const { session_id: sessionId } = await params;
   const payload = await getReport(sessionId);
   const report = adaptProductionReport(payload, sessionId);
 
   return (
-    <RecruiterWorkspace
+    <CandidateWorkspace
       report={report}
-      nextReports={[]}
       galleryHref="/interview-room/replay"
       galleryLabel="Interview replay"
-      candidateHref={`/report/${encodeURIComponent(sessionId)}/candidate`}
     />
   );
 }
