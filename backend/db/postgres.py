@@ -214,6 +214,50 @@ async def append_interview_event(record: dict) -> bool:
                 str(record.get("level") or "info"),
                 json.dumps({**record, "event_id": event_id}),
             )
+            # The final report callback contains the telemetry snapshot available
+            # at finalization time. Events emitted after that snapshot (for
+            # example callback-delivery confirmation or a late background-task
+            # failure) must not remain stranded in Antigravity. Once a complete
+            # handoff exists, queue every later fact as an idempotent delivery.
+            handoff_id = await conn.fetchval(
+                """
+                SELECT payload->>'handoff_id'
+                FROM delivery_outbox
+                WHERE session_id=$1
+                  AND destination='provenhire'
+                  AND event_type='handoff_complete'
+                LIMIT 1
+                """,
+                str(record.get("session_id") or "unknown"),
+            )
+            if handoff_id:
+                delivery_id = str(
+                    uuid.uuid5(
+                        uuid.NAMESPACE_URL,
+                        f"provenhire-telemetry:{record.get('session_id')}:{event_id}",
+                    )
+                )
+                event_type = f"handoff_telemetry:{event_id}"
+                payload = {
+                    "delivery_id": delivery_id,
+                    "handoff_id": str(handoff_id),
+                    "antigravity_session_id": str(record.get("session_id") or "unknown"),
+                    "event": {**record, "event_id": event_id},
+                }
+                await conn.execute(
+                    """
+                    INSERT INTO delivery_outbox(id, session_id, destination, event_type, payload)
+                    VALUES($1, $2, 'provenhire', $3, $4)
+                    ON CONFLICT(session_id, destination, event_type) DO UPDATE SET
+                        payload=EXCLUDED.payload,
+                        status=CASE WHEN delivery_outbox.status='delivered' THEN 'delivered' ELSE 'pending' END,
+                        updated_at=NOW()
+                    """,
+                    delivery_id,
+                    str(record.get("session_id") or "unknown"),
+                    event_type,
+                    json.dumps(payload),
+                )
         return True
     except Exception as exc:
         await _mark_unavailable(exc)

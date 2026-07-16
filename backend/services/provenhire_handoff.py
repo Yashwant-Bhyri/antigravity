@@ -156,7 +156,11 @@ async def process_pending_handoff_deliveries(limit: int = 20) -> int:
         event_type = str(row.get("event_type") or "")
         if not event_type.startswith("handoff_"):
             continue
-        event = event_type.removeprefix("handoff_")
+        event = (
+            "telemetry"
+            if event_type.startswith("handoff_telemetry:")
+            else event_type.removeprefix("handoff_")
+        )
         payload = row.get("payload") or {}
         if isinstance(payload, str):
             import json

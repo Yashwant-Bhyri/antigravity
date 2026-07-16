@@ -2,7 +2,11 @@ import os
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from backend.services.provenhire_handoff import notify_handoff_complete, notify_handoff_started
+from backend.services.provenhire_handoff import (
+    notify_handoff_complete,
+    notify_handoff_started,
+    process_pending_handoff_deliveries,
+)
 
 
 class _Response:
@@ -65,6 +69,39 @@ class ProvenHireDurableDeliveryContract(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(queued)
         enqueue.assert_awaited_once()
         client.assert_not_called()
+
+    async def test_late_telemetry_outbox_row_uses_signed_telemetry_endpoint(self):
+        post = AsyncMock(return_value=_Response())
+        mark = AsyncMock()
+        pending = AsyncMock(
+            return_value=[
+                {
+                    "id": "delivery-telemetry-1",
+                    "destination": "provenhire",
+                    "event_type": "handoff_telemetry:event-1",
+                    "payload": {
+                        "handoff_id": "handoff-1",
+                        "antigravity_session_id": "session-1",
+                        "event": {"event_id": "event-1", "event": "late_failure"},
+                    },
+                }
+            ]
+        )
+        with (
+            patch("backend.db.postgres.list_pending_deliveries", pending),
+            patch("backend.db.postgres.mark_delivery_result", mark),
+            patch(
+                "backend.services.provenhire_handoff.httpx.AsyncClient",
+                side_effect=lambda *args, **kwargs: _Client(post, *args, **kwargs),
+            ),
+        ):
+            delivered = await process_pending_handoff_deliveries()
+
+        self.assertEqual(delivered, 1)
+        self.assertTrue(post.await_args.args[0].endswith("/handoff-telemetry"))
+        self.assertEqual(post.await_args.kwargs["json"]["delivery_id"], "delivery-telemetry-1")
+        self.assertTrue(post.await_args.kwargs["headers"]["X-Antigravity-Signature"])
+        mark.assert_awaited_once_with("delivery-telemetry-1", delivered=True)
 
 
 if __name__ == "__main__":
