@@ -3,7 +3,7 @@ import os
 import re
 import time
 import uuid
-from backend.db.postgres import persist_session
+from backend.db.postgres import persist_session, reconcile_interview_events
 from backend.services.provenhire_handoff import notify_handoff_complete, notify_handoff_failed
 from backend.agents.concept_agent import ConceptAgent
 from backend.agents.weakness_agent import WeaknessAgent
@@ -2393,6 +2393,10 @@ class Orchestrator:
         # Keyed by (session_id, turn_id, answer_version) so exact duplicate work is
         # suppressed while same-turn revisions remain allowed to run.
         self._pipeline_inflight: set[tuple[str, str, int]] = set()
+        # Strong references to analysis tasks that can contribute to the final
+        # evidence packet. Finalization drains this registry before taking its
+        # report snapshot so the last answer and its score cannot be omitted.
+        self._pipeline_tasks: dict[str, set[asyncio.Task]] = {}
         # Tracks which turn_ids currently have ANY pipeline in flight per session.
         # Prevents STT revision explosions: if a pipeline is already running for a
         # given (session_id, turn_id), subsequent revisions skip launching a new one.
@@ -2407,6 +2411,60 @@ class Orchestrator:
 
     async def _trace(self, session_id: str, event: str, **fields) -> None:
         await interview_telemetry.log(session_id, event, source="backend.orchestrator", **fields)
+
+    async def _persist_completed_report(self, state: dict, full_report: dict) -> bool:
+        """Persist the report/outbox atomically and expose retryable durability state."""
+        session_id = str(state.get("session_id") or full_report.get("session_id") or "")
+        evaluation = state.get("final_evaluation") or full_report
+        external_handoff = state.get("external_handoff") or {}
+        handoff_id = str(external_handoff.get("handoff_id") or "")
+        parsed_resume = state.get("parsed_resume") or {}
+        duration = (time.time() - state.get("interview_start_time", time.time())) / 60
+
+        state["durability_status"] = "pending"
+        state["durable_report_payload"] = full_report
+        await self.session_manager.save_state(session_id, state)
+        persisted = await persist_session(
+            session_id=session_id,
+            resume_snippet=state.get("resume", "")[:200],
+            hire_recommendation=evaluation.get("hire_recommendation", ""),
+            overall_score=_safe_float(evaluation.get("overall_score"), 0.0),
+            sprint_reached=_coerce_positive_int(state.get("current_sprint", 1), default=1),
+            duration_minutes=round(duration, 1),
+            full_report=full_report,
+            candidate_name=str(parsed_resume.get("candidate_name") or ""),
+            target_role=str(state.get("target_role") or ""),
+            years_experience=str(state.get("years_experience") or ""),
+            telemetry_summary=full_report.get("telemetry_summary") or {},
+            session_snapshot={
+                "question_count": state.get("question_count", 0),
+                "current_sprint": state.get("current_sprint", 1),
+                "interview_start_time": state.get("interview_start_time"),
+                "external_handoff": external_handoff,
+            },
+            provenhire_handoff_id=handoff_id,
+        )
+        if not persisted:
+            state["durability_status"] = "deferred"
+            state["delivery_status"] = "not_queued"
+            await self.session_manager.save_state(session_id, state)
+            await self._trace(session_id, "session_postgres_persist_deferred", level="warn")
+            return False
+
+        delivered = True
+        if handoff_id:
+            delivered = await notify_handoff_complete(handoff_id, session_id, full_report)
+            await self._trace(
+                session_id,
+                "provenhire_report_delivery",
+                delivered=delivered,
+                handoff_id=handoff_id,
+            )
+        state["durability_status"] = "complete"
+        state["delivery_status"] = "delivered" if delivered else "queued_for_retry"
+        state.pop("durable_report_payload", None)
+        await self.session_manager.save_state(session_id, state)
+        return True
 
     # ─────────────────────────────────────────────
     # SESSION LIFECYCLE
@@ -2634,7 +2692,77 @@ class Orchestrator:
         )
         return session_id
 
-    async def end_session(self, session_id: str) -> dict:
+    def _track_pipeline_task(self, session_id: str, coroutine, *, name: str) -> asyncio.Task:
+        task = asyncio.create_task(coroutine, name=name)
+        tasks = self._pipeline_tasks.setdefault(session_id, set())
+        tasks.add(task)
+
+        def _consume_result(completed: asyncio.Task) -> None:
+            session_tasks = self._pipeline_tasks.get(session_id)
+            if session_tasks is not None:
+                session_tasks.discard(completed)
+                if not session_tasks:
+                    self._pipeline_tasks.pop(session_id, None)
+            # Retrieving the exception prevents "Task exception was never
+            # retrieved" while the pipeline itself remains responsible for
+            # emitting the detailed failure telemetry.
+            if not completed.cancelled():
+                try:
+                    completed.exception()
+                except (asyncio.CancelledError, Exception):
+                    pass
+
+        task.add_done_callback(_consume_result)
+        return task
+
+    async def _drain_pipeline_tasks(self, session_id: str) -> dict:
+        timeout_seconds = max(
+            0.0,
+            float(os.getenv("FINALIZATION_PIPELINE_DRAIN_TIMEOUT_SECONDS", "120")),
+        )
+        started_at = time.perf_counter()
+        deadline = started_at + timeout_seconds
+        observed: set[asyncio.Task] = set()
+
+        while True:
+            pending = {
+                task
+                for task in self._pipeline_tasks.get(session_id, set())
+                if not task.done()
+            }
+            observed.update(pending)
+            if not pending:
+                status = "complete"
+                break
+            remaining = deadline - time.perf_counter()
+            if remaining <= 0:
+                status = "timed_out"
+                break
+            await asyncio.wait(pending, timeout=remaining)
+
+        still_pending = {
+            task
+            for task in self._pipeline_tasks.get(session_id, set())
+            if not task.done()
+        }
+        diagnostics = {
+            "status": status,
+            "timeout_seconds": timeout_seconds,
+            "waited_ms": round((time.perf_counter() - started_at) * 1000, 3),
+            "observed_task_count": len(observed),
+            "completed_task_count": len(observed - still_pending),
+            "pending_task_count": len(still_pending),
+            "evidence_complete": not still_pending,
+        }
+        await self._trace(
+            session_id,
+            f"finalization_background_drain_{status}",
+            **diagnostics,
+            level="warn" if still_pending else "info",
+        )
+        return diagnostics
+
+    async def end_session(self, session_id: str, *, _owns_finalization: bool = False) -> dict:
         started_at = time.perf_counter()
         state = await self.session_manager.get_state(session_id)
 
@@ -2647,9 +2775,14 @@ class Orchestrator:
                 state["finalization_error"] = ""
                 state["report_ready"] = True
                 await self.session_manager.save_state(session_id, state)
+            pending_report = state.get("durable_report_payload")
+            if state.get("durability_status") == "deferred" and isinstance(pending_report, dict):
+                await self._persist_completed_report(state, pending_report)
             return state
 
-        if state.get("finalization_status") == "running" or session_id in self._finalization_inflight:
+        if not _owns_finalization and (
+            state.get("finalization_status") == "running" or session_id in self._finalization_inflight
+        ):
             started_running_at = _safe_float(state.get("finalization_started_at"), 0.0)
             stale_after_seconds = float(os.getenv("FINALIZATION_STALE_AFTER_SECONDS", "240"))
             if started_running_at and time.time() - started_running_at < stale_after_seconds:
@@ -2673,6 +2806,21 @@ class Orchestrator:
         state["finalization_started_at"] = time.time()
         state["finalization_error"] = ""
         state["report_ready"] = False
+        await self.session_manager.save_state(session_id, state)
+
+        drain_diagnostics = await self._drain_pipeline_tasks(session_id)
+        # Background pipelines write staged evidence from their own state
+        # snapshots. Reload after the drain and reassert finalization state so
+        # those writes cannot accidentally revert the lifecycle flags.
+        state = await self.session_manager.get_state(session_id)
+        state["interview_complete"] = True
+        state["finalization_status"] = "running"
+        state["finalization_started_at"] = state.get("finalization_started_at") or time.time()
+        state["finalization_error"] = ""
+        state["report_ready"] = False
+        state["finalization_diagnostics"] = {
+            "background_analysis": drain_diagnostics,
+        }
         await self.session_manager.save_state(session_id, state)
 
         # Flush any staged analysis that hasn't been consumed so evaluation sees complete history
@@ -2842,6 +2990,29 @@ class Orchestrator:
             state["scores"] = state["final_evaluation"]["breakdown"]
             state["failure_surface"] = {}
 
+        if not drain_diagnostics["evidence_complete"]:
+            evaluation = state.get("final_evaluation") or {}
+            warning = (
+                f"{drain_diagnostics['pending_task_count']} background analysis task(s) "
+                "did not finish before the final evidence snapshot."
+            )
+            risk_flags = list(evaluation.get("risk_flags") or [])
+            if warning not in risk_flags:
+                risk_flags.append(warning)
+            evaluation["risk_flags"] = risk_flags
+            untested = list(evaluation.get("untested_dimensions") or [])
+            if "late_turn_analysis" not in untested:
+                untested.append("late_turn_analysis")
+            evaluation["untested_dimensions"] = untested
+            quality = dict(evaluation.get("interview_quality") or {})
+            fairness_warnings = list(quality.get("fairness_warnings") or [])
+            if "background_analysis_incomplete" not in fairness_warnings:
+                fairness_warnings.append("background_analysis_incomplete")
+            quality["fairness_warnings"] = fairness_warnings
+            evaluation["interview_quality"] = quality
+            evaluation["finalization_diagnostics"] = state["finalization_diagnostics"]
+            state["final_evaluation"] = evaluation
+
         state["finalization_status"] = "complete"
         state["finalization_error"] = ""
         state["report_ready"] = bool(state.get("final_evaluation"))
@@ -2866,7 +3037,6 @@ class Orchestrator:
 
         try:
             evaluation = state.get("final_evaluation") or {}
-            duration = (time.time() - state.get("interview_start_time", time.time())) / 60
             weaknesses = state.get("weaknesses", [])
             weakness_by_type: dict[str, int] = {}
             for w in weaknesses:
@@ -2875,6 +3045,7 @@ class Orchestrator:
             _parsed = state.get("parsed_resume") or {}
             telemetry_summary = await interview_telemetry.summarize(session_id, limit=200)
             telemetry_events = await interview_telemetry.get_events(session_id, limit=0)
+            reconciled_event_count = await reconcile_interview_events(telemetry_events)
             full_report = {
                 **evaluation,
                 "session_id": session_id,
@@ -2923,38 +3094,14 @@ class Orchestrator:
                 "reasoning_signals": state.get("reasoning_signals", []),
                 "telemetry_summary": telemetry_summary,
                 "telemetry_events": telemetry_events,
-            }
-            persisted = await persist_session(
-                session_id=session_id,
-                resume_snippet=state.get("resume", "")[:200],
-                hire_recommendation=evaluation.get("hire_recommendation", ""),
-                overall_score=_safe_float(evaluation.get("overall_score"), 0.0),
-                sprint_reached=_coerce_positive_int(state.get("current_sprint", 1), default=1),
-                duration_minutes=round(duration, 1),
-                full_report=full_report,
-                candidate_name=str(_parsed.get("candidate_name") or ""),
-                target_role=str(state.get("target_role") or ""),
-                years_experience=str(state.get("years_experience") or ""),
-                telemetry_summary=telemetry_summary,
-                session_snapshot={
-                    "question_count": state.get("question_count", 0),
-                    "current_sprint": state.get("current_sprint", 1),
-                    "interview_start_time": state.get("interview_start_time"),
-                    "external_handoff": state.get("external_handoff", {}),
+                "telemetry_reconciliation": {
+                    "source_event_count": len(telemetry_events),
+                    "postgres_reconciled_count": reconciled_event_count,
+                    "complete": reconciled_event_count == len(telemetry_events),
                 },
-            )
-            if not persisted:
-                await self._trace(session_id, "session_postgres_persist_deferred", level="warn")
-            external_handoff = state.get("external_handoff") or {}
-            handoff_id = str(external_handoff.get("handoff_id") or "")
-            if handoff_id:
-                delivered = await notify_handoff_complete(handoff_id, session_id, full_report)
-                await self._trace(
-                    session_id,
-                    "provenhire_report_delivery",
-                    delivered=delivered,
-                    handoff_id=handoff_id,
-                )
+                "finalization_diagnostics": state.get("finalization_diagnostics", {}),
+            }
+            await self._persist_completed_report(state, full_report)
         except Exception as exc:
             await self._trace(
                 session_id,
@@ -2973,6 +3120,9 @@ class Orchestrator:
             state["finalization_error"] = ""
             state["report_ready"] = True
             await self.session_manager.save_state(session_id, state)
+            pending_report = state.get("durable_report_payload")
+            if state.get("durability_status") == "deferred" and isinstance(pending_report, dict):
+                await self._persist_completed_report(state, pending_report)
             return state
 
         state["interview_complete"] = True
@@ -2988,7 +3138,7 @@ class Orchestrator:
 
     async def _finalize_session_worker(self, session_id: str) -> None:
         try:
-            await self.end_session(session_id)
+            await self.end_session(session_id, _owns_finalization=True)
         except Exception as exc:
             try:
                 state = await self.session_manager.get_state(session_id)
@@ -4927,6 +5077,22 @@ class Orchestrator:
         await self.session_manager.save_state(session_id, state)
 
         if complete:
+            # The completion decision is made on the current answer. Launch its
+            # full analysis before finalization so the last candidate response is
+            # represented in history, scoring, telemetry, and the report.
+            self._track_pipeline_task(
+                session_id,
+                self._run_background_pipeline(
+                    session_id=session_id,
+                    text=text,
+                    entities=entities,
+                    last_question=last_question,
+                    turn_id=turn_id,
+                    turn_number=current_turn_number,
+                    answer_version=current_answer_version,
+                ),
+                name=f"analysis:{session_id}:{turn_id or current_turn_number}:{current_answer_version}",
+            )
             await self.start_finalization_background(session_id)
             await self._trace(
                 session_id,
@@ -4954,7 +5120,8 @@ class Orchestrator:
         # ── Step 4: Kick off background pipeline ─────────────────────────────
         # Runs during candidate's answer to fast_response.
         # Writes only to staging fields — canonical state never touched there.
-        asyncio.create_task(
+        self._track_pipeline_task(
+            session_id,
             self._run_background_pipeline(
                 session_id=session_id,
                 text=text,
@@ -4963,7 +5130,8 @@ class Orchestrator:
                 turn_id=turn_id,
                 turn_number=current_turn_number,
                 answer_version=current_answer_version,
-            )
+            ),
+            name=f"analysis:{session_id}:{turn_id or current_turn_number}:{current_answer_version}",
         )
 
         elapsed_ms = round((time.perf_counter() - started_at) * 1000)
@@ -5340,7 +5508,8 @@ class Orchestrator:
             )
 
             # Per-answer scoring — fire and forget, never blocks anything
-            asyncio.create_task(
+            self._track_pipeline_task(
+                session_id,
                 self._score_answer_async(
                     session_id,
                     last_question,
@@ -5356,7 +5525,8 @@ class Orchestrator:
                     reasoning=reasoning if isinstance(reasoning, dict) else None,
                     target_role=target_role,
                     years_experience=years_experience,
-                )
+                ),
+                name=f"answer-score:{session_id}:{turn_id or turn_number}:{answer_version}",
             )
 
             # ── STAR-lite extraction after enough evidence-bearing turns ──────

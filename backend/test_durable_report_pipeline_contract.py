@@ -31,11 +31,13 @@ class DurableReportPipelineContract(unittest.IsolatedAsyncioTestCase):
 
     def test_finalization_awaits_report_persistence(self):
         source = inspect.getsource(Orchestrator.end_session)
-        self.assertIn("persisted = await persist_session(", source)
+        persistence_source = inspect.getsource(Orchestrator._persist_completed_report)
+        self.assertIn("await self._persist_completed_report(state, full_report)", source)
+        self.assertIn("persisted = await persist_session(", persistence_source)
         self.assertNotIn("create_task(persist_session(", source)
         self.assertIn('"final_evidence_packet"', source)
         self.assertIn('"telemetry_events"', source)
-        self.assertIn("delivered = await notify_handoff_complete(", source)
+        self.assertIn("delivered = await notify_handoff_complete(", persistence_source)
 
 
 if __name__ == "__main__":

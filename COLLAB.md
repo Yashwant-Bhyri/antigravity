@@ -21,6 +21,12 @@
 
 ---
 
+### [Codex | 2026-07-17] → To: All — Finalization now has a real evidence barrier
+
+The live ProvenHire→Antigravity proof exposed more than a telemetry-tail issue: the answer that caused completion could skip `_run_background_pipeline`, and the background finalizer could wait on its own in-flight marker. Branch `codex/late-telemetry-delivery` now launches terminal-answer analysis, tracks both pipeline and per-answer-score tasks, drains them before evaluation, and makes timeouts visible as incomplete evidence.
+
+The persistence boundary is also stronger: report upsert and deterministic `handoff_complete` outbox insertion are one transaction; local JSONL facts reconcile into `interview_events`; deferred persistence stays retryable in Redis; handoff consume fails before using the one-time token if durability is unavailable; and schema evolution now uses checksummed SQL migrations under a Postgres advisory lock. Do not reintroduce runtime-only DDL or untracked report-affecting tasks.
+
 ### [Codex | 2026-07-16] → To: All — Clean report release branch ready; hosting access still blocked
 
 I isolated the production recruiter/candidate report work onto `codex/report-evidence-launch` from current `origin/main`, avoiding the heavily dirty primary worktree. The branch contains the rich report workspace, production adapter, candidate route, saved-preview route, and an 8-check no-fabrication contract. Clean production build and diff check pass.

@@ -193,10 +193,8 @@ frontend/
 | Task | Owner | Notes |
 |---|---|---|
 | Frontend `turn_id` stale-response protection | Codex | `frontend/app/interview/[session_id]/page.tsx` + `frontend/lib/audio.ts`; depends on GM-1 |
-| `/sessions` list endpoint (recruiter dashboard) | — | Dashboard page exists, needs backend endpoint + Postgres |
 | LangGraph StateGraph wiring | — | Low priority — raw asyncio works fine for now |
-| Postgres persistence (interview logs, session list) | — | Redis works for active sessions; need Postgres for history |
-| Testing: unit tests for agents, simulation tests | — | No tests exist yet |
+| Testing: traditional unit coverage expansion | — | Durable pipeline and report contracts now exist; agent-level unit coverage remains sparse |
 
 
 ---
@@ -205,6 +203,7 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Final-answer evidence drain, transactional report handoff, and tracked Postgres migrations | Codex | 2026-07-17 | Fixed two finalization races: the completion branch now launches analysis for the last candidate answer, and the background finalizer no longer waits on its own in-flight marker. Finalization tracks/drains turn-analysis and per-answer-score tasks with a configurable bound; a timeout is surfaced as incomplete evidence in diagnostics, risk flags, untested dimensions, and interview-quality warnings. Report persistence and the ProvenHire completion outbox now share one transaction, failed persistence remains explicitly retryable in Redis, local JSONL telemetry is reconciled idempotently into Postgres, and cross-product launches fail before consuming their one-time token when durability is unavailable. Replaced ad-hoc startup DDL with checksummed SQL migrations under an advisory lock and added periodic migration/outbox recovery. Thirteen focused durability/finalization contracts, the existing final-report contract, Python compile, `git diff --check`, and a clean Next webpack production build pass. |
 | Post-report telemetry gap closed with signed idempotent late-event delivery | Codex | 2026-07-17 | A live cross-account ProvenHire→Antigravity interview proved bulk report delivery but exposed two facts emitted after the report snapshot. Antigravity now detects events written after a `handoff_complete` outbox record and creates one deterministic `handoff_telemetry:<event_id>` delivery per fact. The outbox worker signs and sends those facts to ProvenHire's dedicated telemetry callback; ProvenHire inserts them with event-ID duplicate protection and returns a retryable conflict if the report artifact has not arrived yet. Python compile, 3 durable-delivery contracts, and the ProvenHire server TypeScript build pass. |
 | Durable final-report, telemetry, and ProvenHire delivery pipeline isolated for release | Codex | 2026-07-16 | Added idempotent Postgres `interview_events` and `delivery_outbox`, enriched session/report persistence, awaited final-report writes, telemetry dual-write with stable event IDs, background outbox retries, Redis-expiry report fallback, report API evidence/transcript fields, and production readiness enforcement for Postgres. Added four backend contract checks plus startup/health/readiness smoke; Python compile and frontend build pass. |
 | Evidence-bound production report UI isolated on a clean release branch | Codex | 2026-07-16 | Replaced the legacy live report page with the rich recruiter workspace plus a dedicated candidate reflection route, added a production payload adapter, retained-evidence fallbacks, and saved-report preview handoff. Production reports no longer synthesize missing per-turn scores, heat maps, trajectories, responsibility readiness, or candidate improvement percentages. Legacy `MAYBE`/`HIRE`/`NO HIRE` values are presented as interview-evidence states rather than employment outcomes. Added an 8-check adapter contract; clean Next production build passed from `origin/main` in an isolated worktree. |
@@ -388,6 +387,10 @@ frontend/
 
 | Decision | Rationale | Date |
 |---|---|---|
+| Cross-product finalization drains evidence producers before snapshot and fails visibly on timeout | The completion decision can occur while the last turn's analysis and per-answer score are still running. Finalization must track and wait for those tasks; if the configured bound expires, the report must lower its evidence claim through explicit diagnostics/warnings instead of silently omitting the late turn. | 2026-07-17 |
+| Report persistence and the ProvenHire completion outbox share one Postgres transaction | Saving a canonical Antigravity report without creating its delivery intent can strand a completed interview between products after a crash. Atomic persistence plus deterministic outbox identity makes immediate callback failure safely retryable and idempotent. | 2026-07-17 |
+| ProvenHire handoffs fail before token consumption when Antigravity durability is unavailable | A standalone/local interview may degrade to Redis, but a cross-product workspace interview promises durable report and telemetry delivery. The one-time launch token must remain reusable while Postgres or required schema is unavailable. | 2026-07-17 |
+| Antigravity schema changes use checksummed, advisory-locked SQL migrations | Runtime `CREATE/ALTER TABLE IF NOT EXISTS` statements have no ordered history and can drift silently across instances. Versioned migrations provide auditability, concurrency safety, idempotent adoption of existing tables, and fail-closed checksum verification. | 2026-07-17 |
 | Telemetry emitted after the final-report snapshot uses event-level outbox delivery | The report callback cannot contain its own delivery-confirmation event or failures from tasks that finish later. Stable event IDs plus one signed, retryable outbox row per late fact preserve completeness without resending or mutating the canonical report. | 2026-07-17 |
 | Final report persistence and cross-product delivery are awaited and outbox-backed | Fire-and-forget tasks can disappear during process shutdown or provider failure. The complete report, evidence packet, transcript-derived history, scores, telemetry summary, and event facts are persisted before finalization returns; ProvenHire callbacks are enqueued idempotently and retried until delivered. Production readiness requires Postgres. | 2026-07-16 |
 | Production reports expose evidence states, never autonomous employment decisions | A saved interview can support strengths, gaps, coverage, and targeted follow-up without proving job readiness. Missing per-turn scores, heat maps, trajectories, employer responsibilities, or coaching-readiness metrics must remain visibly unavailable; the UI must not fill them from an overall score or tone heuristic. | 2026-07-16 |
@@ -434,6 +437,12 @@ frontend/
 
 ## HANDOFF NOTES
 > Time-sensitive notes from one AI to the other. Clear these once acknowledged.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-07-17**
+- Branch `codex/late-telemetry-delivery` now closes the report-snapshot race found by the live cross-account proof. The last answer is always analyzed before final evaluation; tracked pipeline/score tasks are drained for up to `FINALIZATION_PIPELINE_DRAIN_TIMEOUT_SECONDS` (default 120), and timeout produces explicit incomplete-evidence diagnostics rather than a false complete report.
+- `persist_session()` now atomically writes the canonical report and deterministic `handoff_complete` outbox row. Local JSONL telemetry is reconciled into Postgres at finalization, deferred report persistence stays retryable in Redis, and the recovery loop retries migrations/outbox work after startup-time database outages.
+- Do not add new ad-hoc DDL to `init_schema()`. Add immutable SQL files under `backend/db/migrations/`; applied-file checksum changes intentionally fail closed.
+- ProvenHire handoff consume now checks the required durability tables before consuming the one-time token. Standalone interviews remain available, but cross-product interviews do not start in Redis-only mode.
 
 **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-07-16**
 - Live infrastructure verification on 2026-07-17 created a free Render Postgres and made Antigravity readiness fully green. A real synthetic ProvenHire handoff completed with `final_report_v2`; both `handoff_started` and `handoff_complete` were delivered on the first attempt. The run exposed 54 Antigravity event rows versus 52 in the final callback because `provenhire_report_delivery` and a late `bgpipeline_failed` occurred after the snapshot. Branch `codex/late-telemetry-delivery` closes that gap and pairs with ProvenHire branch `codex/late-telemetry-ingestion`.

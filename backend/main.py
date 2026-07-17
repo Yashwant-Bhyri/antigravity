@@ -54,21 +54,25 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass  # non-fatal — will generate lazily on first call
 
-    # Initialise Postgres schema (creates tables if not present) — best-effort
-    postgres_ready = False
+    # Apply tracked Postgres migrations. The recovery loop below retries this if
+    # the database is temporarily unavailable during process startup.
     try:
         from backend.db.postgres import init_schema
-        postgres_ready = bool(await init_schema())
+        await init_schema()
     except Exception:
-        pass  # Postgres unavailable — sessions endpoint will return empty, interviews still work
+        pass
 
     stop_outbox = asyncio.Event()
 
     async def drain_outbox() -> None:
+        from backend.db.postgres import init_schema, is_durability_ready
         from backend.services.provenhire_handoff import process_pending_handoff_deliveries
         while not stop_outbox.is_set():
             try:
-                await process_pending_handoff_deliveries()
+                if not await is_durability_ready():
+                    await init_schema()
+                if await is_durability_ready():
+                    await process_pending_handoff_deliveries()
             except Exception:
                 pass
             try:
@@ -76,7 +80,7 @@ async def lifespan(app: FastAPI):
             except asyncio.TimeoutError:
                 continue
 
-    outbox_task = asyncio.create_task(drain_outbox()) if postgres_ready else None
+    outbox_task = asyncio.create_task(drain_outbox(), name="durability-recovery-outbox")
     yield
     stop_outbox.set()
     if outbox_task:

@@ -889,6 +889,16 @@ async def consume_provenhire_handoff(data: ProvenHireHandoffConsumeRequest):
     if not token:
         raise HTTPException(status_code=400, detail="Launch token is required")
 
+    # Fail before consuming the one-time ProvenHire token when the durable
+    # report/telemetry/outbox boundary is unavailable. A cross-product interview
+    # must never start in a mode where its result can only live in Redis.
+    from backend.db.postgres import is_durability_ready
+    if not await is_durability_ready():
+        raise HTTPException(
+            status_code=503,
+            detail="Interview durability is temporarily unavailable; the launch token was not consumed.",
+        )
+
     try:
         handoff = await consume_launch_token(token)
     except Exception as e:

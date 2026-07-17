@@ -3,6 +3,8 @@ import os
 import time
 import json
 import uuid
+import hashlib
+from pathlib import Path
 import asyncpg
 
 _pool: asyncpg.Pool | None = None
@@ -11,6 +13,8 @@ _disabled_until = 0.0
 
 _LOGGER = logging.getLogger(__name__)
 _RETRY_COOLDOWN_SECS = 60
+_MIGRATIONS_DIR = Path(__file__).with_name("migrations")
+_MIGRATION_LOCK_ID = 7_314_227_911
 
 
 async def _mark_unavailable(exc: Exception):
@@ -64,68 +68,49 @@ async def close_pool():
 
 
 async def init_schema():
-    """Create tables if they don't exist. Called at app startup."""
+    """Apply tracked, idempotent schema migrations at app startup."""
     pool = await get_pool()
     if pool is None:
         return False
     async with pool.acquire() as conn:
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS sessions (
-                session_id          TEXT PRIMARY KEY,
-                created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                resume_snippet      TEXT,
-                hire_recommendation TEXT,
-                overall_score       NUMERIC(4,1),
-                sprint_reached      INTEGER,
-                duration_minutes    NUMERIC(5,1),
-                full_report         JSONB
+        await conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version     TEXT PRIMARY KEY,
+                checksum    TEXT NOT NULL,
+                applied_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
-        """)
-        # Add full_report column to existing installs that predate this migration.
-        await conn.execute("""
-            ALTER TABLE sessions ADD COLUMN IF NOT EXISTS full_report JSONB
-        """)
-        await conn.execute("""
-            ALTER TABLE sessions
-              ADD COLUMN IF NOT EXISTS candidate_name TEXT,
-              ADD COLUMN IF NOT EXISTS target_role TEXT,
-              ADD COLUMN IF NOT EXISTS years_experience TEXT,
-              ADD COLUMN IF NOT EXISTS report_schema_version TEXT,
-              ADD COLUMN IF NOT EXISTS telemetry_summary JSONB,
-              ADD COLUMN IF NOT EXISTS session_snapshot JSONB,
-              ADD COLUMN IF NOT EXISTS report_ready_at TIMESTAMPTZ
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS interview_events (
-                event_id       TEXT PRIMARY KEY,
-                session_id     TEXT NOT NULL,
-                event_ts       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                event_name     TEXT NOT NULL,
-                source         TEXT,
-                level          TEXT,
-                payload        JSONB NOT NULL,
-                created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-        """)
-        await conn.execute("CREATE INDEX IF NOT EXISTS interview_events_session_ts_idx ON interview_events(session_id, event_ts)")
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS delivery_outbox (
-                id              TEXT PRIMARY KEY,
-                session_id      TEXT NOT NULL,
-                destination     TEXT NOT NULL,
-                event_type      TEXT NOT NULL,
-                payload         JSONB NOT NULL,
-                status          TEXT NOT NULL DEFAULT 'pending',
-                attempts        INTEGER NOT NULL DEFAULT 0,
-                next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                last_error      TEXT,
-                delivered_at    TIMESTAMPTZ,
-                created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                UNIQUE(session_id, destination, event_type)
-            )
-        """)
-        await conn.execute("CREATE INDEX IF NOT EXISTS delivery_outbox_pending_idx ON delivery_outbox(status, next_attempt_at)")
+            """
+        )
+        await conn.execute("SELECT pg_advisory_lock($1)", _MIGRATION_LOCK_ID)
+        try:
+            migration_files = sorted(_MIGRATIONS_DIR.glob("*.sql"))
+            if not migration_files:
+                raise RuntimeError(f"No Postgres migrations found in {_MIGRATIONS_DIR}")
+            for migration_path in migration_files:
+                version = migration_path.stem
+                sql = migration_path.read_text(encoding="utf-8")
+                checksum = hashlib.sha256(sql.encode("utf-8")).hexdigest()
+                existing = await conn.fetchrow(
+                    "SELECT checksum FROM schema_migrations WHERE version=$1",
+                    version,
+                )
+                if existing:
+                    if str(existing["checksum"]) != checksum:
+                        raise RuntimeError(
+                            f"Postgres migration {version} changed after it was applied"
+                        )
+                    continue
+                async with conn.transaction():
+                    await conn.execute(sql)
+                    await conn.execute(
+                        "INSERT INTO schema_migrations(version, checksum) VALUES($1, $2)",
+                        version,
+                        checksum,
+                    )
+                _LOGGER.info("Applied Postgres migration %s", version)
+        finally:
+            await conn.execute("SELECT pg_advisory_unlock($1)", _MIGRATION_LOCK_ID)
     return True
 
 
@@ -142,51 +127,99 @@ async def persist_session(
     years_experience: str = "",
     telemetry_summary: dict | None = None,
     session_snapshot: dict | None = None,
+    provenhire_handoff_id: str = "",
 ):
-    """Write completed session to Postgres. Called once at end_session()."""
+    """Atomically persist the report and its ProvenHire completion outbox row."""
     pool = await get_pool()
     if pool is None:
         return False
     try:
         async with pool.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO sessions (
-                    session_id, resume_snippet, hire_recommendation, overall_score,
-                    sprint_reached, duration_minutes, full_report, candidate_name,
-                    target_role, years_experience, report_schema_version,
-                    telemetry_summary, session_snapshot, report_ready_at
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    INSERT INTO sessions (
+                        session_id, resume_snippet, hire_recommendation, overall_score,
+                        sprint_reached, duration_minutes, full_report, candidate_name,
+                        target_role, years_experience, report_schema_version,
+                        telemetry_summary, session_snapshot, report_ready_at
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+                    ON CONFLICT (session_id) DO UPDATE SET
+                        hire_recommendation = EXCLUDED.hire_recommendation,
+                        overall_score       = EXCLUDED.overall_score,
+                        sprint_reached      = EXCLUDED.sprint_reached,
+                        duration_minutes    = EXCLUDED.duration_minutes,
+                        full_report         = EXCLUDED.full_report,
+                        candidate_name      = EXCLUDED.candidate_name,
+                        target_role         = EXCLUDED.target_role,
+                        years_experience    = EXCLUDED.years_experience,
+                        report_schema_version = EXCLUDED.report_schema_version,
+                        telemetry_summary   = EXCLUDED.telemetry_summary,
+                        session_snapshot    = EXCLUDED.session_snapshot,
+                        report_ready_at     = EXCLUDED.report_ready_at
+                    """,
+                    session_id,
+                    resume_snippet[:200] if resume_snippet else "",
+                    hire_recommendation,
+                    overall_score,
+                    sprint_reached,
+                    duration_minutes,
+                    json.dumps(full_report) if full_report else None,
+                    candidate_name,
+                    target_role,
+                    years_experience,
+                    str((full_report or {}).get("schema_version") or "legacy_report"),
+                    json.dumps(telemetry_summary or {}),
+                    json.dumps(session_snapshot or {}),
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
-                ON CONFLICT (session_id) DO UPDATE SET
-                    hire_recommendation = EXCLUDED.hire_recommendation,
-                    overall_score       = EXCLUDED.overall_score,
-                    sprint_reached      = EXCLUDED.sprint_reached,
-                    duration_minutes    = EXCLUDED.duration_minutes,
-                    full_report         = EXCLUDED.full_report,
-                    candidate_name      = EXCLUDED.candidate_name,
-                    target_role         = EXCLUDED.target_role,
-                    years_experience    = EXCLUDED.years_experience,
-                    report_schema_version = EXCLUDED.report_schema_version,
-                    telemetry_summary   = EXCLUDED.telemetry_summary,
-                    session_snapshot    = EXCLUDED.session_snapshot,
-                    report_ready_at     = EXCLUDED.report_ready_at
-                """,
-                session_id,
-                resume_snippet[:200] if resume_snippet else "",
-                hire_recommendation,
-                overall_score,
-                sprint_reached,
-                duration_minutes,
-                json.dumps(full_report) if full_report else None,
-                candidate_name,
-                target_role,
-                years_experience,
-                str((full_report or {}).get("schema_version") or "legacy_report"),
-                json.dumps(telemetry_summary or {}),
-                json.dumps(session_snapshot or {}),
-            )
+                if provenhire_handoff_id:
+                    delivery_id = str(
+                        uuid.uuid5(
+                            uuid.NAMESPACE_URL,
+                            f"provenhire-complete:{provenhire_handoff_id}:{session_id}",
+                        )
+                    )
+                    payload = {
+                        "delivery_id": delivery_id,
+                        "handoff_id": provenhire_handoff_id,
+                        "antigravity_session_id": session_id,
+                        "report": full_report or {},
+                    }
+                    await conn.execute(
+                        """
+                        INSERT INTO delivery_outbox(id, session_id, destination, event_type, payload)
+                        VALUES($1, $2, 'provenhire', 'handoff_complete', $3)
+                        ON CONFLICT(session_id, destination, event_type) DO UPDATE SET
+                            payload=EXCLUDED.payload,
+                            status=CASE WHEN delivery_outbox.status='delivered' THEN 'delivered' ELSE 'pending' END,
+                            updated_at=NOW()
+                        """,
+                        delivery_id,
+                        session_id,
+                        json.dumps(payload),
+                    )
         return True
+    except Exception as exc:
+        await _mark_unavailable(exc)
+        return False
+
+
+async def is_durability_ready() -> bool:
+    """Return true only when every table required for a durable handoff exists."""
+    pool = await get_pool()
+    if pool is None:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT required.name, to_regclass(required.name) IS NOT NULL AS present
+                FROM unnest($1::text[]) AS required(name)
+                """,
+                ["sessions", "interview_events", "delivery_outbox", "schema_migrations"],
+            )
+        return bool(rows) and all(bool(row["present"]) for row in rows)
     except Exception as exc:
         await _mark_unavailable(exc)
         return False
@@ -262,6 +295,43 @@ async def append_interview_event(record: dict) -> bool:
     except Exception as exc:
         await _mark_unavailable(exc)
         return False
+
+
+async def reconcile_interview_events(records: list[dict]) -> int:
+    """Backfill the local JSONL trace into Postgres, idempotently, at finalization."""
+    if not records:
+        return 0
+    pool = await get_pool()
+    if pool is None:
+        return 0
+    values = []
+    for record in records:
+        event_id = str(record.get("event_id") or uuid.uuid4())
+        values.append(
+            (
+                event_id,
+                str(record.get("session_id") or "unknown"),
+                float(record.get("ts") or time.time()),
+                str(record.get("event") or "unknown"),
+                str(record.get("source") or "backend"),
+                str(record.get("level") or "info"),
+                json.dumps({**record, "event_id": event_id}),
+            )
+        )
+    try:
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                """
+                INSERT INTO interview_events(event_id, session_id, event_ts, event_name, source, level, payload)
+                VALUES($1, $2, to_timestamp($3), $4, $5, $6, $7)
+                ON CONFLICT(event_id) DO NOTHING
+                """,
+                values,
+            )
+        return len(values)
+    except Exception as exc:
+        await _mark_unavailable(exc)
+        return 0
 
 
 async def get_interview_events(session_id: str, limit: int = 0) -> list[dict]:
