@@ -1,5 +1,6 @@
 import inspect
 import unittest
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from backend.services.interview_telemetry import InterviewTelemetry
@@ -37,6 +38,11 @@ class DurableReportPipelineContract(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("create_task(persist_session(", source)
         self.assertIn('"final_evidence_packet"', source)
         self.assertIn('"telemetry_events"', source)
+        route_source = (Path(__file__).parent / "api" / "routes.py").read_text(encoding="utf-8")
+        self.assertIn('"finalization_diagnostics"', route_source)
+        self.assertIn('"durability_status"', route_source)
+        self.assertIn('"delivery_status"', route_source)
+        self.assertIn('"telemetry_reconciliation"', route_source)
         self.assertIn("delivered = await notify_handoff_complete(", persistence_source)
 
 

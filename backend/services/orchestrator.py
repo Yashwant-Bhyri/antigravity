@@ -3101,6 +3101,7 @@ class Orchestrator:
                 },
                 "finalization_diagnostics": state.get("finalization_diagnostics", {}),
             }
+            state["telemetry_reconciliation"] = full_report["telemetry_reconciliation"]
             await self._persist_completed_report(state, full_report)
         except Exception as exc:
             await self._trace(
