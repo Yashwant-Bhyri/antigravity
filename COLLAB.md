@@ -21,6 +21,12 @@
 
 ---
 
+### [Codex | 2026-07-17] → To: All — Finalization and cross-module synthesis are now durable backend workflows
+
+Antigravity terminal completion no longer depends on the candidate tab or a process-local task: it persists a Postgres snapshot/job first, leases work with stale-lock recovery, restores Redis if needed, and retries report persistence/outbox completion. External ProvenHire reports now require short-lived audience-scoped signed links, including older reports detectable through the delivery outbox.
+
+ProvenHire now persists one workflow per interview/retake, automatically runs source-hashed DSA then unified LLM reports, independently critiques and optionally revises them, and hides generations whose evidence hash is stale. The manager-only Technical Desk exposes missing report, incomplete coverage/telemetry/background analysis, and report-agent retry/terminal failures with retry/resolve actions. Do not move narrative synthesis back into the browser or treat the deterministic evidence normalizer as the report writer.
+
 ### [Codex | 2026-07-17] → To: All — Finalization now has a real evidence barrier
 
 The live ProvenHire→Antigravity proof exposed more than a telemetry-tail issue: the answer that caused completion could skip `_run_background_pipeline`, and the background finalizer could wait on its own in-flight marker. Branch `codex/late-telemetry-delivery` now launches terminal-answer analysis, tracks both pipeline and per-answer-score tasks, drains them before evaluation, and makes timeouts visible as incomplete evidence.

@@ -81,13 +81,34 @@ async def lifespan(app: FastAPI):
                 continue
 
     outbox_task = asyncio.create_task(drain_outbox(), name="durability-recovery-outbox")
+
+    async def recover_finalization_jobs() -> None:
+        from backend.api.routes import orchestrator
+        from backend.db.postgres import claim_finalization_jobs
+
+        while not stop_outbox.is_set():
+            try:
+                jobs = await claim_finalization_jobs(limit=2)
+                for job in jobs:
+                    await orchestrator.recover_finalization_job(job)
+            except Exception as exc:
+                print(f"[FinalizationWorker] recovery sweep failed: {type(exc).__name__}: {exc}")
+            try:
+                await asyncio.wait_for(stop_outbox.wait(), timeout=2.0)
+            except asyncio.TimeoutError:
+                continue
+
+    finalization_task = asyncio.create_task(
+        recover_finalization_jobs(),
+        name="durability-recovery-finalization",
+    )
     yield
     stop_outbox.set()
-    if outbox_task:
+    for task in (outbox_task, finalization_task):
         try:
-            await asyncio.wait_for(outbox_task, timeout=5.0)
+            await asyncio.wait_for(task, timeout=5.0)
         except Exception:
-            outbox_task.cancel()
+            task.cancel()
     try:
         from backend.db.postgres import close_pool
         await close_pool()

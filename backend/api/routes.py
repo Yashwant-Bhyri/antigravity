@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
+import base64
 import json
 import os
 import time
@@ -28,6 +29,51 @@ router = APIRouter()
 tts_service = TTSService()
 orchestrator = Orchestrator(tts_service=tts_service)
 voice_gateway = VoiceAgentGateway(orchestrator)
+
+
+def _verify_report_access_token(token: str, session_id: str, audience: str) -> bool:
+    secret = str(
+        os.getenv("ANTIGRAVITY_REPORT_ACCESS_SECRET")
+        or os.getenv("ANTIGRAVITY_WEBHOOK_SECRET")
+        or ""
+    ).strip()
+    if not secret or not token or "." not in token:
+        return False
+    try:
+        payload_part, signature = token.split(".", 1)
+        expected = hmac.new(
+            secret.encode("utf-8"),
+            payload_part.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        supplied = base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4))
+        if not hmac.compare_digest(expected, supplied):
+            return False
+        payload = json.loads(
+            base64.urlsafe_b64decode(payload_part + "=" * (-len(payload_part) % 4))
+        )
+        token_audience = str(payload.get("audience") or "")
+        return bool(
+            str(payload.get("session_id") or "") == session_id
+            and float(payload.get("exp") or 0) >= time.time()
+            and (token_audience == audience or token_audience == "admin")
+        )
+    except Exception:
+        return False
+
+
+def _require_external_report_access(
+    report_or_state: dict,
+    *,
+    session_id: str,
+    audience: str,
+    access_token: str,
+) -> None:
+    external_handoff = _as_dict(report_or_state.get("external_handoff"))
+    if not external_handoff:
+        return
+    if not _verify_report_access_token(access_token, session_id, audience):
+        raise HTTPException(status_code=403, detail="A valid audience-scoped report link is required.")
 
 
 def _as_dict(value) -> dict:
@@ -1613,7 +1659,7 @@ async def get_state(session_id: str):
 
 
 @router.get("/report/{session_id}")
-async def get_report(session_id: str):
+async def get_report(session_id: str, audience: str = "admin", access_token: str = ""):
     if replay_interview_service.is_replay_session(session_id):
         try:
             state = await replay_interview_service.get_state(session_id)
@@ -1636,6 +1682,12 @@ async def get_report(session_id: str):
         from backend.db.postgres import get_session_report
         pg_report = await get_session_report(session_id)
         if pg_report:
+            _require_external_report_access(
+                pg_report,
+                session_id=session_id,
+                audience=audience,
+                access_token=access_token,
+            )
             pg_report.setdefault("session_id", session_id)
             pg_report.setdefault("complete", True)
             pg_report.setdefault("candidate_name", "")
@@ -1671,6 +1723,12 @@ async def get_report(session_id: str):
         raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
 
     evaluation = _as_dict(state.get("final_evaluation"))
+    _require_external_report_access(
+        state,
+        session_id=session_id,
+        audience=audience,
+        access_token=access_token,
+    )
     report_ready = bool(state.get("report_ready") and evaluation)
     weaknesses = _as_list(state.get("weaknesses"))
 

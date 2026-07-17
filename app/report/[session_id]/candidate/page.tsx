@@ -4,15 +4,18 @@ import { CandidateWorkspace } from "../../../demo-reports/[slug]/candidate/candi
 import { getApiBaseUrl } from "@/lib/api";
 import { adaptProductionReport } from "../../report-adapter";
 
-async function getReport(sessionId: string) {
-  const response = await fetch(`${getApiBaseUrl()}/report/${encodeURIComponent(sessionId)}`, { cache: "no-store" });
+async function getReport(sessionId: string, accessToken: string) {
+  const query = new URLSearchParams({ audience: "candidate" });
+  if (accessToken) query.set("access_token", accessToken);
+  const response = await fetch(`${getApiBaseUrl()}/report/${encodeURIComponent(sessionId)}?${query}`, { cache: "no-store" });
   if (!response.ok) notFound();
   return response.json();
 }
 
-export default async function CandidateReportPage({ params }: { params: Promise<{ session_id: string }> }) {
+export default async function CandidateReportPage({ params, searchParams }: { params: Promise<{ session_id: string }>; searchParams: Promise<{ access_token?: string }> }) {
   const { session_id: sessionId } = await params;
-  const payload = await getReport(sessionId);
+  const { access_token: accessToken = "" } = await searchParams;
+  const payload = await getReport(sessionId, accessToken);
   const report = adaptProductionReport(payload, sessionId);
 
   return (

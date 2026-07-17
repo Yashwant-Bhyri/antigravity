@@ -130,7 +130,7 @@ backend/
   models/
     llm_router.py                  ✅ Tier-aware max_tokens: small=256, medium=768, large=2500
   state/
-    session_manager.py             ✅ Redis async, 1hr TTL
+    session_manager.py             ✅ Redis async, active/completed TTLs; terminal state is also checkpointed for durable finalization
 
 frontend/
   app/page.tsx                     ✅ Landing page
@@ -143,7 +143,6 @@ frontend/
 ```
 
 **What does NOT exist yet:**
-- `/sessions` list endpoint + Postgres persistence (dashboard blocked)
 - RAG question bank (FAISS/Pinecone — not started)
 - LangGraph StateGraph (raw asyncio works fine, low priority)
 - Kafka/event bus (Redis Streams as fallback when needed)
@@ -178,7 +177,7 @@ frontend/
    - `small` → Gemini Flash Lite / Haiku-class structured extraction and cheap repair
    - `medium` → Sonnet/Gemini 3.5 Flash for follow-ups, map generation, critique, discrepancy
    - `large` → Sonnet or Gemini Pro for Report V2/final synthesis; Opus is not the default because of cost
-4. **State lives in Redis only.** Never pass full state as function arguments between services.
+4. **Live operational state lives in Redis.** Never pass full state as function arguments between services. Terminal workspace finalization must also write a Postgres checkpoint/job before report generation so a process or browser exit cannot lose the work.
 5. **Agenda owns branching.** Weakness, discrepancy, fatigue, application transfer, coverage, and second-anchor signals feed the agenda selector; generic sprint prompts must not override map/application/coverage routing.
 6. **TTS policy.** Cartesia is always first. Keep fillers context-free in this release; context-aware fillers are explicitly future-version scope.
 7. **Python imports:** absolute imports only (`from backend.agents.x import X`), never relative.
@@ -203,6 +202,7 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Crash-safe browser-independent finalization, signed report access, and ProvenHire automatic report workflow/technical desk | Codex | 2026-07-17 | Antigravity now checkpoints terminal state and enqueues a leased Postgres finalization job before report generation; a startup worker restores Redis from the snapshot and retries with bounded exponential backoff after process/provider/database failure. ProvenHire report URLs use short-lived audience-scoped HMAC access tokens, including backward protection for existing outbox-backed reports. ProvenHire now durably enqueues one report workflow per interview, automatically runs evidence-hashed DSA and unified LLM generation with an independent critic and one revision pass, rejects stale generations, and exposes manager-only incidents/jobs/retry/resolve controls in a workspace Technical Desk. All Antigravity Python/Next and ProvenHire Prisma/server/Vite builds pass; a forced database outage proved the web server remains live while the worker emits structured errors. Live LLM/deployment proof still requires the production migration and OpenRouter/report-secret environment values. |
 | Final-answer evidence drain, transactional report handoff, and tracked Postgres migrations | Codex | 2026-07-17 | Fixed two finalization races: the completion branch now launches analysis for the last candidate answer, and the background finalizer no longer waits on its own in-flight marker. Finalization tracks/drains turn-analysis and per-answer-score tasks with a configurable bound; a timeout is surfaced as incomplete evidence in diagnostics, risk flags, untested dimensions, and interview-quality warnings. Report persistence and the ProvenHire completion outbox now share one transaction, failed persistence remains explicitly retryable in Redis, local JSONL telemetry is reconciled idempotently into Postgres, and cross-product launches fail before consuming their one-time token when durability is unavailable. Replaced ad-hoc startup DDL with checksummed SQL migrations under an advisory lock and added periodic migration/outbox recovery. Thirteen focused durability/finalization contracts, the existing final-report contract, Python compile, `git diff --check`, and a clean Next webpack production build pass. |
 | Post-report telemetry gap closed with signed idempotent late-event delivery | Codex | 2026-07-17 | A live cross-account ProvenHire→Antigravity interview proved bulk report delivery but exposed two facts emitted after the report snapshot. Antigravity now detects events written after a `handoff_complete` outbox record and creates one deterministic `handoff_telemetry:<event_id>` delivery per fact. The outbox worker signs and sends those facts to ProvenHire's dedicated telemetry callback; ProvenHire inserts them with event-ID duplicate protection and returns a retryable conflict if the report artifact has not arrived yet. Python compile, 3 durable-delivery contracts, and the ProvenHire server TypeScript build pass. |
 | Durable final-report, telemetry, and ProvenHire delivery pipeline isolated for release | Codex | 2026-07-16 | Added idempotent Postgres `interview_events` and `delivery_outbox`, enriched session/report persistence, awaited final-report writes, telemetry dual-write with stable event IDs, background outbox retries, Redis-expiry report fallback, report API evidence/transcript fields, and production readiness enforcement for Postgres. Added four backend contract checks plus startup/health/readiness smoke; Python compile and frontend build pass. |
@@ -387,6 +387,8 @@ frontend/
 
 | Decision | Rationale | Date |
 |---|---|---|
+| Terminal finalization and cross-product report synthesis are durable backend workflows | Browser-owned callbacks and process-local tasks can disappear when a tab closes or an instance restarts. Antigravity persists a terminal snapshot/job before evaluation; ProvenHire persists one workflow per interview and leases it from the database. Both use retries, stale-lease recovery, and operator-visible terminal failures. | 2026-07-17 |
+| Client-facing DSA/unified narratives use a draft-critic-revision LLM chain over immutable evidence | Deterministic code remains only for evidence normalization, hashing, validation, and safety gates. The interpretation shown to candidates/admins is generated by an LLM, independently critiqued, revised once when needed, citation-validated, and invalidated whenever the source evidence hash changes. | 2026-07-17 |
 | Cross-product finalization drains evidence producers before snapshot and fails visibly on timeout | The completion decision can occur while the last turn's analysis and per-answer score are still running. Finalization must track and wait for those tasks; if the configured bound expires, the report must lower its evidence claim through explicit diagnostics/warnings instead of silently omitting the late turn. | 2026-07-17 |
 | Report persistence and the ProvenHire completion outbox share one Postgres transaction | Saving a canonical Antigravity report without creating its delivery intent can strand a completed interview between products after a crash. Atomic persistence plus deterministic outbox identity makes immediate callback failure safely retryable and idempotent. | 2026-07-17 |
 | ProvenHire handoffs fail before token consumption when Antigravity durability is unavailable | A standalone/local interview may degrade to Redis, but a cross-product workspace interview promises durable report and telemetry delivery. The one-time launch token must remain reusable while Postgres or required schema is unavailable. | 2026-07-17 |

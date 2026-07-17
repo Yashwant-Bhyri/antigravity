@@ -4,6 +4,7 @@ import time
 import json
 import uuid
 import hashlib
+import socket
 from pathlib import Path
 import asyncpg
 
@@ -217,12 +218,208 @@ async def is_durability_ready() -> bool:
                 SELECT required.name, to_regclass(required.name) IS NOT NULL AS present
                 FROM unnest($1::text[]) AS required(name)
                 """,
-                ["sessions", "interview_events", "delivery_outbox", "schema_migrations"],
+                [
+                    "sessions",
+                    "interview_events",
+                    "delivery_outbox",
+                    "finalization_jobs",
+                    "session_checkpoints",
+                    "schema_migrations",
+                ],
             )
         return bool(rows) and all(bool(row["present"]) for row in rows)
     except Exception as exc:
         await _mark_unavailable(exc)
         return False
+
+
+async def checkpoint_session(
+    session_id: str,
+    state_snapshot: dict,
+    *,
+    reason: str,
+    lifecycle_status: str,
+) -> bool:
+    """Best-effort durable copy of the Redis state at a lifecycle boundary."""
+    pool = await get_pool()
+    if pool is None:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO session_checkpoints(
+                    session_id, lifecycle_status, state_snapshot, checkpoint_reason
+                ) VALUES($1, $2, $3, $4)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    lifecycle_status=EXCLUDED.lifecycle_status,
+                    state_snapshot=EXCLUDED.state_snapshot,
+                    checkpoint_reason=EXCLUDED.checkpoint_reason,
+                    updated_at=NOW()
+                """,
+                session_id,
+                lifecycle_status,
+                json.dumps(state_snapshot),
+                reason,
+            )
+        return True
+    except Exception as exc:
+        await _mark_unavailable(exc)
+        return False
+
+
+async def enqueue_finalization_job(session_id: str, state_snapshot: dict) -> bool:
+    """Persist the terminal state before any process-local finalization task starts."""
+    pool = await get_pool()
+    if pool is None:
+        return False
+    try:
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    INSERT INTO session_checkpoints(
+                        session_id, lifecycle_status, state_snapshot, checkpoint_reason
+                    ) VALUES($1, 'finalization_pending', $2, 'terminal_turn')
+                    ON CONFLICT(session_id) DO UPDATE SET
+                        lifecycle_status='finalization_pending',
+                        state_snapshot=EXCLUDED.state_snapshot,
+                        checkpoint_reason='terminal_turn',
+                        updated_at=NOW()
+                    """,
+                    session_id,
+                    json.dumps(state_snapshot),
+                )
+                await conn.execute(
+                    """
+                    INSERT INTO finalization_jobs(session_id, status, state_snapshot)
+                    VALUES($1, 'pending', $2)
+                    ON CONFLICT(session_id) DO UPDATE SET
+                        state_snapshot=EXCLUDED.state_snapshot,
+                        status=CASE
+                            WHEN finalization_jobs.status='complete' THEN 'complete'
+                            ELSE 'pending'
+                        END,
+                        next_attempt_at=CASE
+                            WHEN finalization_jobs.status='complete' THEN finalization_jobs.next_attempt_at
+                            ELSE NOW()
+                        END,
+                        locked_at=NULL,
+                        locked_by=NULL,
+                        updated_at=NOW()
+                    """,
+                    session_id,
+                    json.dumps(state_snapshot),
+                )
+        return True
+    except Exception as exc:
+        await _mark_unavailable(exc)
+        return False
+
+
+async def claim_finalization_jobs(limit: int = 2) -> list[dict]:
+    """Lease recoverable jobs. Stale running leases are reclaimable after five minutes."""
+    pool = await get_pool()
+    if pool is None:
+        return []
+    worker_id = f"{socket.gethostname()}:{os.getpid()}"
+    try:
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                rows = await conn.fetch(
+                    """
+                    SELECT session_id
+                    FROM finalization_jobs
+                    WHERE attempts < max_attempts
+                      AND next_attempt_at <= NOW()
+                      AND (
+                        status IN ('pending', 'retry')
+                        OR (status='running' AND locked_at < NOW() - INTERVAL '5 minutes')
+                      )
+                    ORDER BY created_at
+                    FOR UPDATE SKIP LOCKED
+                    LIMIT $1
+                    """,
+                    max(1, limit),
+                )
+                claimed: list[dict] = []
+                for row in rows:
+                    claimed_row = await conn.fetchrow(
+                        """
+                        UPDATE finalization_jobs
+                        SET status='running', attempts=attempts+1, locked_at=NOW(),
+                            locked_by=$2, started_at=COALESCE(started_at, NOW()),
+                            updated_at=NOW()
+                        WHERE session_id=$1
+                        RETURNING session_id, state_snapshot, attempts, max_attempts
+                        """,
+                        row["session_id"],
+                        worker_id,
+                    )
+                    if claimed_row:
+                        claimed.append(dict(claimed_row))
+                return claimed
+    except Exception as exc:
+        await _mark_unavailable(exc)
+        return []
+
+
+async def complete_finalization_job(session_id: str) -> None:
+    pool = await get_pool()
+    if pool is None:
+        return
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                """
+                UPDATE finalization_jobs
+                SET status='complete', completed_at=NOW(), locked_at=NULL,
+                    locked_by=NULL, last_error=NULL, updated_at=NOW()
+                WHERE session_id=$1
+                """,
+                session_id,
+            )
+            await conn.execute(
+                """
+                UPDATE session_checkpoints
+                SET lifecycle_status='report_complete', updated_at=NOW()
+                WHERE session_id=$1
+                """,
+                session_id,
+            )
+
+
+async def retry_finalization_job(session_id: str, error: str) -> str:
+    pool = await get_pool()
+    if pool is None:
+        return "unknown"
+    async with pool.acquire() as conn:
+        status = await conn.fetchval(
+            """
+            UPDATE finalization_jobs
+            SET status=CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'retry' END,
+                next_attempt_at=NOW() + LEAST(INTERVAL '1 hour',
+                    INTERVAL '15 seconds' * POWER(2, GREATEST(attempts - 1, 0))),
+                last_error=$2, locked_at=NULL, locked_by=NULL, updated_at=NOW()
+            WHERE session_id=$1
+            RETURNING status
+            """,
+            session_id,
+            error[:2000],
+        )
+    return str(status or "unknown")
+
+
+async def get_finalization_job(session_id: str) -> dict | None:
+    pool = await get_pool()
+    if pool is None:
+        return None
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM finalization_jobs WHERE session_id=$1",
+            session_id,
+        )
+    return dict(row) if row else None
 
 
 async def append_interview_event(record: dict) -> bool:
@@ -438,14 +635,39 @@ async def get_session_report(session_id: str) -> dict | None:
                 "SELECT full_report, hire_recommendation, overall_score, sprint_reached FROM sessions WHERE session_id = $1",
                 session_id,
             )
+            handoff_payload = await conn.fetchval(
+                """
+                SELECT payload
+                FROM delivery_outbox
+                WHERE session_id=$1
+                  AND destination='provenhire'
+                  AND event_type='handoff_complete'
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                session_id,
+            )
         if not row:
             return None
+        external_handoff: dict = {}
+        if handoff_payload:
+            if isinstance(handoff_payload, str):
+                handoff_payload = json.loads(handoff_payload)
+            if isinstance(handoff_payload, dict) and handoff_payload.get("handoff_id"):
+                external_handoff = {
+                    "handoff_id": str(handoff_payload.get("handoff_id") or ""),
+                    "provenhire_interview_id": str(
+                        handoff_payload.get("provenhire_interview_id") or ""
+                    ),
+                }
         if row["full_report"]:
             raw_report = row["full_report"]
             if isinstance(raw_report, str):
                 report = json.loads(raw_report)
             else:
                 report = dict(raw_report)
+            if external_handoff:
+                report.setdefault("external_handoff", external_handoff)
             report["complete"] = True
             return report
         # Fallback: reconstruct minimal report from summary columns
@@ -454,6 +676,7 @@ async def get_session_report(session_id: str) -> dict | None:
             "hire_recommendation": row["hire_recommendation"],
             "overall_score": float(row["overall_score"]) if row["overall_score"] is not None else None,
             "sprint_reached": row["sprint_reached"],
+            "external_handoff": external_handoff,
         }
     except Exception as exc:
         await _mark_unavailable(exc)

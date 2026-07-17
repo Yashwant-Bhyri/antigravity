@@ -3,7 +3,13 @@ import os
 import re
 import time
 import uuid
-from backend.db.postgres import persist_session, reconcile_interview_events
+from backend.db.postgres import (
+    complete_finalization_job,
+    enqueue_finalization_job,
+    persist_session,
+    reconcile_interview_events,
+    retry_finalization_job,
+)
 from backend.services.provenhire_handoff import notify_handoff_complete, notify_handoff_failed
 from backend.agents.concept_agent import ConceptAgent
 from backend.agents.weakness_agent import WeaknessAgent
@@ -3100,6 +3106,10 @@ class Orchestrator:
                     "complete": reconciled_event_count == len(telemetry_events),
                 },
                 "finalization_diagnostics": state.get("finalization_diagnostics", {}),
+                "external_handoff": {
+                    "handoff_id": str((state.get("external_handoff") or {}).get("handoff_id") or ""),
+                    "provenhire_interview_id": str((state.get("external_handoff") or {}).get("provenhire_interview_id") or ""),
+                } if (state.get("external_handoff") or {}).get("handoff_id") else {},
             }
             state["telemetry_reconciliation"] = full_report["telemetry_reconciliation"]
             await self._persist_completed_report(state, full_report)
@@ -3130,17 +3140,43 @@ class Orchestrator:
         state["finalization_status"] = "running"
         state["finalization_error"] = ""
         state["report_ready"] = False
+        state["finalization_durability"] = "pending"
         await self.session_manager.save_state(session_id, state)
 
-        if session_id not in self._finalization_inflight:
+        queued = await enqueue_finalization_job(session_id, state)
+        state["finalization_durability"] = "durable" if queued else "redis_only"
+        await self.session_manager.save_state(session_id, state)
+        await self._trace(
+            session_id,
+            "session_finalization_enqueued" if queued else "session_finalization_queue_degraded",
+            durable=queued,
+            level="info" if queued else "error",
+        )
+
+        # Workspace handoffs require Postgres at launch, so their durable worker
+        # will own finalization. Standalone/development interviews retain a
+        # process-local fallback when Postgres is intentionally unavailable.
+        if not queued and session_id not in self._finalization_inflight:
             self._finalization_inflight.add(session_id)
-            asyncio.create_task(self._finalize_session_worker(session_id))
+            asyncio.create_task(self._finalize_session_worker(session_id, durable_job=False))
         return state
 
-    async def _finalize_session_worker(self, session_id: str) -> None:
+    async def _finalize_session_worker(self, session_id: str, *, durable_job: bool = True) -> None:
+        retry_status = "failed"
         try:
-            await self.end_session(session_id, _owns_finalization=True)
+            finalized_state = await self.end_session(session_id, _owns_finalization=True)
+            if durable_job and finalized_state.get("durability_status") != "complete":
+                raise RuntimeError(
+                    "Final report was generated but its Postgres artifact/outbox transaction did not commit."
+                )
+            if durable_job:
+                await complete_finalization_job(session_id)
         except Exception as exc:
+            if durable_job:
+                retry_status = await retry_finalization_job(
+                    session_id,
+                    f"{type(exc).__name__}: {str(exc)[:1800]}",
+                )
             try:
                 state = await self.session_manager.get_state(session_id)
                 state["interview_complete"] = True
@@ -3156,12 +3192,37 @@ class Orchestrator:
                 )
                 external_handoff = state.get("external_handoff") or {}
                 handoff_id = str(external_handoff.get("handoff_id") or "")
-                if handoff_id:
+                if handoff_id and (not durable_job or retry_status == "failed"):
                     asyncio.create_task(notify_handoff_failed(handoff_id, session_id, str(exc)[:500]))
             except Exception:
                 pass
         finally:
             self._finalization_inflight.discard(session_id)
+
+    async def recover_finalization_job(self, job: dict) -> None:
+        """Resume a leased Postgres job, restoring Redis from its checkpoint if needed."""
+        session_id = str(job.get("session_id") or "")
+        if not session_id:
+            return
+        try:
+            await self.session_manager.get_state(session_id)
+        except KeyError:
+            snapshot = job.get("state_snapshot")
+            if isinstance(snapshot, str):
+                import json
+
+                snapshot = json.loads(snapshot)
+            if not isinstance(snapshot, dict) or not snapshot:
+                await retry_finalization_job(session_id, "Durable checkpoint is empty or invalid.")
+                return
+            snapshot["finalization_status"] = "running"
+            snapshot["finalization_durability"] = "recovered_from_postgres"
+            await self.session_manager.save_state(session_id, snapshot)
+            await self._trace(session_id, "session_finalization_redis_restored", level="warn")
+        if session_id in self._finalization_inflight:
+            return
+        self._finalization_inflight.add(session_id)
+        await self._finalize_session_worker(session_id, durable_job=True)
 
     async def _score_answer_async(
         self,
