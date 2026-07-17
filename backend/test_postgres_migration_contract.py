@@ -52,7 +52,7 @@ class PostgresMigrationContract(unittest.IsolatedAsyncioTestCase):
         self.assertIn("pg_advisory_unlock", rendered)
 
     async def test_applied_migration_checksum_must_not_change(self):
-        migration = next(postgres._MIGRATIONS_DIR.glob("*.sql"))
+        migration = sorted(postgres._MIGRATIONS_DIR.glob("*.sql"))[0]
         checksum = hashlib.sha256(migration.read_bytes()).hexdigest()
         connection = _Connection({migration.stem: checksum})
         with patch.object(postgres, "get_pool", return_value=_Pool(connection)):
@@ -62,7 +62,7 @@ class PostgresMigrationContract(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("CREATE TABLE IF NOT EXISTS sessions", rendered)
 
     async def test_changed_applied_migration_fails_closed_and_unlocks(self):
-        migration = next(postgres._MIGRATIONS_DIR.glob("*.sql"))
+        migration = sorted(postgres._MIGRATIONS_DIR.glob("*.sql"))[0]
         connection = _Connection({migration.stem: "wrong-checksum"})
         with patch.object(postgres, "get_pool", return_value=_Pool(connection)):
             with self.assertRaisesRegex(RuntimeError, "changed after it was applied"):
