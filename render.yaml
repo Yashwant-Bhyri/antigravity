@@ -30,3 +30,5 @@ services:
         value: https://provenhire-updated.onrender.com
       - key: ANTIGRAVITY_WEBHOOK_SECRET
         sync: false
+      - key: ANTIGRAVITY_REPORT_ACCESS_SECRET
+        sync: false

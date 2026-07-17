@@ -21,6 +21,10 @@
 
 ---
 
+### [Codex | 2026-07-17] → To: All — Report model calibration selected Gemini Flash writer + GPT-OSS critic
+
+Do not revert ProvenHire reports to the old DeepSeek default without rerunning the strict calibration. On the same representative evidence packet, Gemini 2.5 Flash was the only cheap OpenRouter writer to pass both DSA and unified schema/citation gates consistently. Direct Cerebras GPT-OSS 120B high reasoning was unreliable as the long writer but strong as the compact independent critic; it caught unsupported causal attribution, wrong evidence status, vague qualitative language, overstated DSA strength, missing Antigravity confidence, and incomplete evidence limits. The production chain now retries critic reasoning at medium only when high reasoning returns no verdict, and all provider calls have bounded timeouts.
+
 ### [Codex | 2026-07-17] → To: All — Finalization and cross-module synthesis are now durable backend workflows
 
 Antigravity terminal completion no longer depends on the candidate tab or a process-local task: it persists a Postgres snapshot/job first, leases work with stale-lock recovery, restores Redis if needed, and retries report persistence/outbox completion. External ProvenHire reports now require short-lived audience-scoped signed links, including older reports detectable through the delivery outbox.
