@@ -17,6 +17,13 @@
 
 ## 📜 STEP-BY-STEP ACTIVITY LOG
 
+## 2026-07-22 — Real production candidate acceptance attempt stopped at email delivery
+
+- **WHAT**: With Yash's explicit authorization, attempted to create a disposable job-seeker account on `provenhire.in` for the final ProvenHire → Antigravity → candidate-report acceptance test. The production signup form submitted, but the API returned `EMAIL_DELIVERY_FAILED` and the UI displayed `We could not send the verification email right now. Please try again.` The registration transaction creates the user/profile and verification-code row before delivery, then consumes the code and leaves the account unverified when delivery fails.
+- **WHY**: Code, contracts, deployed bundles, signed handoff behavior, candidate sanitization, and both distinct report modules are verified, but a real authenticated candidate completion is the only remaining proof that an actual production artifact appears in that same candidate's portal.
+- **IMPACT**: The acceptance test cannot legitimately continue to workspace registration or Antigravity completion without a verified email. This is the first broken production boundary and is independent of the Antigravity report pipeline. The documented production fix is to configure a verified Resend sending domain plus `EMAIL_FROM`, or a working Gmail SMTP fallback, on the Appa Rao ProvenHire Render service and redeploy. A real inbox is also required to receive the OTP; no CAPTCHA, OTP, or verification control was bypassed.
+- **EVIDENCE**: `server/src/controllers/auth.controller.ts` explicitly returns 502/`EMAIL_DELIVERY_FAILED` when `sendSignupVerificationCodeEmail` returns false. `server/src/services/resend.ts` requires `RESEND_API_KEY` or `GMAIL_USER` + `GMAIL_APP_PASSWORD`; the repository's `DEBUG_EMAIL_VERIFICATION.md` documents the same Render/Resend free-tier failure mode and verified-domain remedy. Render CLI identity/service queries were attempted again but the Render API timed out, so the provider-side error log could not be retrieved in this run.
+
 ## 2026-07-22 — ProvenHire Antigravity report module separation restored in production
 
 - **WHAT**: Full-story verification against the newest ProvenHire `main` revision (`877aed3`) found a post-deployment regression after the earlier localhost repair. The durable Antigravity artifact still persisted correctly under `modules.antigravity`, but the updated report UI accepted only `module=interview`, always exposed a truthy Placement Readiness module wrapper, and therefore no longer rendered the distinct Antigravity report selected by the existing post-interview `module=antigravity` return route. Restored `antigravity` as its own report module alongside the separate `interview`/Placement Readiness product.

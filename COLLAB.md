@@ -6725,3 +6725,12 @@ Current read:
 - Live bundle verification found separate `Placement interview` and `Antigravity report` labels, the deployed Antigravity origin, `View My Antigravity Report`, and `/reports?module=antigravity`. `/health` is 200.
 - Contracts/builds are green: frontend build, server build, report integrity 5/5, candidate synthesis 6/6, Placement Readiness 12/12. Browser verification rendered both distinct report experiences with no console errors.
 - Do not claim a real production candidate report has been observed in the portal until an authenticated candidate completes the flow. The current browser is correctly redirected to `/auth`, and no synthetic production record was created.
+
+## 2026-07-22 — Codex: production acceptance stopped at verification-email delivery
+
+- Yash explicitly authorized creating a disposable production candidate for the remaining full-flow acceptance test.
+- `provenhire.in` signup submitted but returned `EMAIL_DELIVERY_FAILED`: `We could not send the verification email right now. Please try again.`
+- The registration code commits the new user/profile and creates a verification-code row before sending; failed delivery consumes that code and leaves the account unverified. Do not treat this as a completed signup.
+- This is the first broken boundary, before workspace registration, Antigravity launch, or report delivery. No OTP/CAPTCHA bypass and no synthetic report injection were attempted.
+- Production remedy: configure a verified Resend domain and `EMAIL_FROM=ProvenHire <noreply@provenhire.in>` (or a working Gmail SMTP fallback) on the Appa Rao ProvenHire Render service, redeploy, then use a real authorized inbox for the OTP. The repo's `server/DEBUG_EMAIL_VERIFICATION.md` documents this exact failure class.
+- Render CLI/API calls timed out again, so retrieve the service log after connectivity returns to distinguish missing provider variables from Resend sandbox/recipient restriction.
