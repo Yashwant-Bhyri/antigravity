@@ -6702,3 +6702,10 @@ Current read:
 - Contract: one accepted-map third/deferred-surface question by default; a second only when the first answer exposes unresolved signal such as confounding, denominator/guardrail, ownership boundary, SLA/refund/lag, grain/dedup, comparability, or explicit causality uncertainty.
 - It refuses pending/quarantined tracks and rejects bad question families instead of using generic fallback. This means "no third probe" can be correct if hydration produced only weak/prosecutor/generic wording.
 - Green no-credit verification: agenda, ripper, question-quality, policy-checker, compile, and scaffolding audit `/tmp/antigravity_scaffolding_audit_20260605_022602.{json,md}`. Next useful confirmation is a single paid `marketplace_growth` or mixed-map full gate only after Yash wants to spend again.
+## 2026-07-22 — Codex: candidate report return verification
+
+- Deployed Antigravity recruiter and candidate report demos render cleanly with no browser console errors.
+- ProvenHire already has the required authenticated candidate portal route, candidate-safe dossier, signed candidate report token, and `View my feedback` entry from the workspace.
+- A production bundle audit found the complete Antigravity reflection link resolves to `http://localhost:3000`; the summary is inside ProvenHire, but the deep link is currently broken.
+- Repair is in ProvenHire PR #6 (`codex/fix-candidate-report-return`, commit `9e67b39`): production-safe Antigravity origin plus direct post-sync `View My Antigravity Report` routing.
+- Builds pass, including a hostile-env production build. Vercel preview remains blocked by the known collaborator/commit-author policy. Do not claim the production candidate deep link is fixed until PR #6 is merged and `provenhire.in` is rechecked.
