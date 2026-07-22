@@ -27,8 +27,57 @@ from backend.models.action_deck import (
 
 router = APIRouter()
 tts_service = TTSService()
-orchestrator = Orchestrator(tts_service=tts_service)
-voice_gateway = VoiceAgentGateway(orchestrator)
+
+
+class _LazyInterviewServices:
+    """Delay secret-dependent service construction until an interview call needs it."""
+
+    def __init__(self):
+        self._orchestrator = None
+        self._voice_gateway = None
+
+    @staticmethod
+    def _configuration_error(exc: Exception) -> HTTPException:
+        detail = str(exc).strip() or exc.__class__.__name__
+        return HTTPException(
+            status_code=503,
+            detail=f"Interview backend is not configured for this deployment: {detail}",
+        )
+
+    def get_orchestrator(self):
+        if self._orchestrator is None:
+            try:
+                self._orchestrator = Orchestrator(tts_service=tts_service)
+            except HTTPException:
+                raise
+            except Exception as exc:
+                raise self._configuration_error(exc)
+        return self._orchestrator
+
+    def get_voice_gateway(self):
+        if self._voice_gateway is None:
+            try:
+                self._voice_gateway = VoiceAgentGateway(self.get_orchestrator())
+            except HTTPException:
+                raise
+            except Exception as exc:
+                raise self._configuration_error(exc)
+        return self._voice_gateway
+
+
+class _LazyOrchestratorProxy:
+    def __getattr__(self, name):
+        return getattr(_services.get_orchestrator(), name)
+
+
+class _LazyVoiceGatewayProxy:
+    def __getattr__(self, name):
+        return getattr(_services.get_voice_gateway(), name)
+
+
+_services = _LazyInterviewServices()
+orchestrator = _LazyOrchestratorProxy()
+voice_gateway = _LazyVoiceGatewayProxy()
 
 
 def _verify_report_access_token(token: str, session_id: str, audience: str) -> bool:

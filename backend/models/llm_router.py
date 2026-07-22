@@ -330,8 +330,11 @@ class LLMRouter:
             api_key_name = "OPENROUTER_API_KEY"
             base_url = env_first("LLM_ROUTER_BASE_URL", "OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
             self._token_param = "max_tokens"
+        api_key = str(os.getenv(api_key_name) or "").strip()
+        if not api_key:
+            raise RuntimeError(f"Missing required environment variable: {api_key_name}")
         self.client = AsyncOpenAI(
-            api_key=os.environ[api_key_name],
+            api_key=api_key,
             base_url=base_url,
             timeout=timeout_override or TIER_TIMEOUT_SECONDS[tier],
         )

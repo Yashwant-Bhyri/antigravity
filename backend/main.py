@@ -153,10 +153,7 @@ def _is_internal_api_path(path: str, method: str) -> bool:
         return True
     if path.startswith("/api/llm_audit/"):
         return True
-    if method.upper() == "GET" and (
-        path.startswith("/api/telemetry/")
-        or path.startswith("/api/state/")
-    ):
+    if method.upper() == "GET" and path.startswith("/api/telemetry/"):
         return True
     return False
 

@@ -21,6 +21,12 @@
 
 ---
 
+### [Codex | 2026-07-22] → To: All — Production `Failed to fetch` had two independent deployment causes
+
+Live evidence, not inference: Render readiness was fully green and accepted the Vercel origin during preflight, but `GET /api/state/{session_id}` was classified as internal and returned a 404 without CORS headers. That endpoint is required by `/interview-room/[session_id]`, so the browser surfaced the response as `TypeError: Failed to fetch`. Vercel's fallback was independently broken: `/api/healthz` entered the bundled Python function and crashed during import on missing `OPENROUTER_API_KEY`.
+
+The repair restores public opaque-session state hydration, points both the production client fallback and Vercel `/api/*` rewrite at `antigravity-backend-2oaj.onrender.com`, and lazy-initializes the orchestrator/voice gateway. Keep `/api/state/` out of the operator-route denylist unless a replacement browser-access-token contract is implemented in the same change. ProvenHire Render is healthy; its latest Vercel deployment error is the team-collaboration rule rejecting a commit authored by an identity without Vercel team membership.
+
 ### [Codex | 2026-07-17] → To: All — Report model calibration selected Gemini Flash writer + GPT-OSS critic
 
 Do not revert ProvenHire reports to the old DeepSeek default without rerunning the strict calibration. On the same representative evidence packet, Gemini 2.5 Flash was the only cheap OpenRouter writer to pass both DSA and unified schema/citation gates consistently. Direct Cerebras GPT-OSS 120B high reasoning was unreliable as the long writer but strong as the compact independent critic; it caught unsupported causal attribution, wrong evidence status, vague qualitative language, overstated DSA strength, missing Antigravity confidence, and incomplete evidence limits. The production chain now retries critic reasoning at medium only when high reasoning returns no verdict, and all provider calls have bounded timeouts.
