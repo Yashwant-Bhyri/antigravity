@@ -6716,3 +6716,12 @@ Current read:
 - Both Appa Rao Vercel checks (`provenhire` and `provenhire-z18w`) completed successfully.
 - The current `provenhire.in` JavaScript bundle now contains `https://antigravity-gz2r.vercel.app`, `View My Antigravity Report`, and `/reports?module=antigravity`; `/health` returns 200.
 - The candidate deep link is now deployed rather than local-only. The remaining full acceptance proof is a real authenticated candidate completing an interview and opening the resulting report from their workspace.
+
+## 2026-07-22 — Codex: Antigravity/Placement report separation regression fixed
+
+- Latest ProvenHire main introduced a second Placement Readiness interview product but accidentally made its always-present `modules.interview` wrapper hide the separately persisted legacy/current Antigravity artifact.
+- The Antigravity completion page continued sending candidates to `?module=antigravity`, while the dossier UI accepted only `module=interview`, so the intended direct return fell back to Unified Overview.
+- ProvenHire PR #8 restores Antigravity as a separate sixth report module and preserves Placement Readiness as its own fifth module. It merged as `03bc07d45634b86045b138db1c18864dafffea55`; both Appa Rao Vercel deployments passed.
+- Live bundle verification found separate `Placement interview` and `Antigravity report` labels, the deployed Antigravity origin, `View My Antigravity Report`, and `/reports?module=antigravity`. `/health` is 200.
+- Contracts/builds are green: frontend build, server build, report integrity 5/5, candidate synthesis 6/6, Placement Readiness 12/12. Browser verification rendered both distinct report experiences with no console errors.
+- Do not claim a real production candidate report has been observed in the portal until an authenticated candidate completes the flow. The current browser is correctly redirected to `/auth`, and no synthetic production record was created.
