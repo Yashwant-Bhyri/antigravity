@@ -6709,3 +6709,10 @@ Current read:
 - A production bundle audit found the complete Antigravity reflection link resolves to `http://localhost:3000`; the summary is inside ProvenHire, but the deep link is currently broken.
 - Repair is in ProvenHire PR #6 (`codex/fix-candidate-report-return`, commit `9e67b39`): production-safe Antigravity origin plus direct post-sync `View My Antigravity Report` routing.
 - Builds pass, including a hostile-env production build. Vercel preview remains blocked by the known collaborator/commit-author policy. Do not claim the production candidate deep link is fixed until PR #6 is merged and `provenhire.in` is rechecked.
+
+### Production follow-up
+
+- PR #6 was merged through the authorized `APPARAOsiddapureddy` GitHub identity as `1e85b33f5109e79ed7d8614044448b241281e069`.
+- Both Appa Rao Vercel checks (`provenhire` and `provenhire-z18w`) completed successfully.
+- The current `provenhire.in` JavaScript bundle now contains `https://antigravity-gz2r.vercel.app`, `View My Antigravity Report`, and `/reports?module=antigravity`; `/health` returns 200.
+- The candidate deep link is now deployed rather than local-only. The remaining full acceptance proof is a real authenticated candidate completing an interview and opening the resulting report from their workspace.
