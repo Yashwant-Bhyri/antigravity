@@ -6734,3 +6734,12 @@ Current read:
 - This is the first broken boundary, before workspace registration, Antigravity launch, or report delivery. No OTP/CAPTCHA bypass and no synthetic report injection were attempted.
 - Production remedy: configure a verified Resend domain and `EMAIL_FROM=ProvenHire <noreply@provenhire.in>` (or a working Gmail SMTP fallback) on the Appa Rao ProvenHire Render service, redeploy, then use a real authorized inbox for the OTP. The repo's `server/DEBUG_EMAIL_VERIFICATION.md` documents this exact failure class.
 - Render CLI/API calls timed out again, so retrieve the service log after connectivity returns to distinguish missing provider variables from Resend sandbox/recipient restriction.
+
+## 2026-07-22 — Codex: production QA proves workspace interview launches the wrong provider
+
+- Reused the verified production QA candidate `qa.ai.apr2026b@test.provenhire.com`; production login returned 200. This avoided raw SQL and the broken signup-email boundary while retaining real auth/application invariants.
+- Through the seeded QA admin and real API, created/started disposable workspace `PH-PROVENHIRE-QA-2026-3855` (`758c56d9-cec3-4341-a08a-ca1fdabd6247`) with one interview round. Joined it in the deployed candidate UI and reached the round with no console errors.
+- First broken boundary: the round label can say Antigravity, but `WorkspaceRoundAttemptPage.tsx` sends every `roundType === "interview"` to `/api/placement-readiness/handoff-launch`. There is no provider discriminator in `WorkspaceRound`.
+- Antigravity Lab already supports `workspace_attempt_id` and `workspace_code`, and downstream Antigravity report persistence/portal rendering exists. The missing piece is the natural workspace launch selection.
+- Do not conflate this with the earlier report-tab regression. Both report modules are now separate, but a new workspace interview cannot choose Antigravity. Implement an explicit provider (`antigravity` or `placement_readiness`) in schema, admin builder, API contracts, and candidate launcher before resuming acceptance.
+- Browser policy blocked the attempted cross-domain Placement launch, so no alternate navigation workaround was attempted. The disposable workspace remains intentionally for the resumed test and should be cleaned up after final acceptance.
