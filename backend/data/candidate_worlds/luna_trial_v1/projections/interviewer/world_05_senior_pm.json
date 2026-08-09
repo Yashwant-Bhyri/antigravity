@@ -1,0 +1,31 @@
+{
+  "projection_schema_version": "candidate_projection_v1",
+  "projection_type": "interviewer_visible",
+  "world_id": "world_05_senior_pm",
+  "resume": {
+    "text": "FATIMA RAHMAN\nSenior Product Manager | B2B SaaS, platform migration, growth, partnerships\n\nShiftWorks — Senior Product Manager (2021–present)\n• Led legacy-to-cloud migration strategy for 1,200 customer accounts.\n• Increased activation by 36% through guided setup, integration readiness, and implementation-partner support.\n• Launched a certified partner marketplace pilot that cut time-to-value for complex customers.\n• Owned cross-functional roadmap across onboarding, billing, and partner products.\n\nEarlier roles: Product Manager, Customer Operations Lead.",
+    "claims": [
+      {
+        "claim_id": "claim_migration_strategy",
+        "claim_text": "Led legacy-to-cloud migration strategy for 1,200 customer accounts.",
+        "claim_type": "scope"
+      },
+      {
+        "claim_id": "claim_activation_36",
+        "claim_text": "Increased activation by 36% through guided setup, integration readiness, and implementation-partner support.",
+        "claim_type": "numerical"
+      },
+      {
+        "claim_id": "claim_marketplace",
+        "claim_text": "Launched a certified partner marketplace pilot that cut time-to-value for complex customers.",
+        "claim_type": "outcome"
+      },
+      {
+        "claim_id": "claim_portfolio",
+        "claim_text": "Owned cross-functional roadmap across onboarding, billing, and partner products.",
+        "claim_type": "ownership"
+      }
+    ]
+  },
+  "conversation_events": []
+}

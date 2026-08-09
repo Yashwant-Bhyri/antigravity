@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://antigravity.local/schemas/candidate_projection_v1.schema.json",
+  "title": "CandidateProjectionV1",
+  "description": "Physically separated actor-private, actor-turn, interviewer, and evaluator projections.",
+  "oneOf": [
+    {"$ref": "#/$defs/actorPrivate"},
+    {"$ref": "#/$defs/actorTurn"},
+    {"$ref": "#/$defs/interviewer"},
+    {"$ref": "#/$defs/evaluator"}
+  ],
+  "$defs": {
+    "id": {"type": "string", "minLength": 1},
+    "factId": {"type": "string", "pattern": "^fact_[a-z0-9_]+$"},
+    "factIds": {"type": "array", "items": {"$ref": "#/$defs/factId"}, "uniqueItems": true},
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "citedText": {
+      "type": "object", "additionalProperties": false, "required": ["text", "fact_ids"],
+      "properties": {"text": {"$ref": "#/$defs/nonEmpty"}, "fact_ids": {"$ref": "#/$defs/factIds"}}
+    },
+    "textOnly": {
+      "type": "object", "additionalProperties": false, "required": ["text"],
+      "properties": {"text": {"$ref": "#/$defs/nonEmpty"}}
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "pronouns", "location", "years_experience", "current_title", "biography", "non_evaluative_identity_note"],
+      "properties": {
+        "name": {"$ref": "#/$defs/nonEmpty"}, "pronouns": {"$ref": "#/$defs/nonEmpty"},
+        "location": {"$ref": "#/$defs/nonEmpty"}, "years_experience": {"type": "number", "minimum": 0},
+        "current_title": {"$ref": "#/$defs/nonEmpty"}, "biography": {"$ref": "#/$defs/textOnly"},
+        "non_evaluative_identity_note": {"$ref": "#/$defs/nonEmpty"}
+      }
+    },
+    "roleContext": {
+      "type": "object", "additionalProperties": false,
+      "required": ["title", "level", "role_family", "hiring_context", "responsibilities"],
+      "properties": {
+        "title": {"$ref": "#/$defs/nonEmpty"}, "level": {"$ref": "#/$defs/nonEmpty"},
+        "role_family": {"$ref": "#/$defs/nonEmpty"}, "hiring_context": {"$ref": "#/$defs/textOnly"},
+        "responsibilities": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/textOnly"}}
+      }
+    },
+    "resume": {
+      "type": "object", "additionalProperties": false, "required": ["text", "claims"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1},
+        "claims": {"type": "array", "items": {"$ref": "#/$defs/resumeClaim"}}
+      }
+    },
+    "resumeClaim": {
+      "type": "object", "additionalProperties": false, "required": ["claim_id", "claim_text", "claim_type"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/id"}, "claim_text": {"$ref": "#/$defs/nonEmpty"},
+        "claim_type": {"$ref": "#/$defs/nonEmpty"}
+      }
+    },
+    "ownership": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "scope", "boundary_text", "owned_by", "ownership_evidence_ids"],
+      "properties": {
+        "status": {"$ref": "#/$defs/nonEmpty"}, "scope": {"$ref": "#/$defs/nonEmpty"},
+        "boundary_text": {"$ref": "#/$defs/nonEmpty"}, "owned_by": {"$ref": "#/$defs/nonEmpty"},
+        "ownership_evidence_ids": {"$ref": "#/$defs/factIds"}
+      }
+    },
+    "disclosure": {
+      "type": "object", "additionalProperties": false,
+      "required": ["eligibility", "prerequisite_fact_ids", "earliest_turn", "reveal_trigger", "candidate_can_volunteer", "allowed_summary", "prohibited_expansion"],
+      "properties": {
+        "eligibility": {"$ref": "#/$defs/nonEmpty"}, "prerequisite_fact_ids": {"$ref": "#/$defs/factIds"},
+        "earliest_turn": {"type": "integer", "minimum": 0}, "reveal_trigger": {"$ref": "#/$defs/nonEmpty"},
+        "candidate_can_volunteer": {"type": "boolean"}, "allowed_summary": {"$ref": "#/$defs/nonEmpty"},
+        "prohibited_expansion": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}},
+        "prohibited_reveal_conditions": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}
+      }
+    },
+    "relation": {
+      "type": "object", "additionalProperties": false, "required": ["type", "target_fact_id", "reason"],
+      "properties": {"type": {"$ref": "#/$defs/nonEmpty"}, "target_fact_id": {"$ref": "#/$defs/factId"}, "reason": {"$ref": "#/$defs/nonEmpty"}}
+    },
+    "privateFact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fact_id", "label", "statement", "category", "truth_status", "ownership", "disclosure", "relations"],
+      "properties": {
+        "fact_id": {"$ref": "#/$defs/factId"}, "label": {"$ref": "#/$defs/nonEmpty"},
+        "statement": {"$ref": "#/$defs/citedText"}, "category": {"$ref": "#/$defs/nonEmpty"},
+        "truth_status": {"$ref": "#/$defs/nonEmpty"}, "ownership": {"$ref": "#/$defs/ownership"},
+        "disclosure": {"$ref": "#/$defs/disclosure"}, "relations": {"type": "array", "items": {"$ref": "#/$defs/relation"}}
+      }
+    },
+    "turnFact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fact_id", "label", "statement_text", "category", "ownership", "disclosure"],
+      "properties": {
+        "fact_id": {"$ref": "#/$defs/factId"}, "label": {"$ref": "#/$defs/nonEmpty"},
+        "statement_text": {"$ref": "#/$defs/nonEmpty"}, "category": {"$ref": "#/$defs/nonEmpty"},
+        "ownership": {"$ref": "#/$defs/ownership"}, "disclosure": {"$ref": "#/$defs/disclosure"}
+      }
+    },
+    "privateBehavior": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseline", "speaking_pattern", "short_answer_behavior", "response_policies", "correction_behavior", "contradiction_behavior", "fatigue_evolution"],
+      "properties": {
+        "baseline": {"$ref": "#/$defs/citedText"}, "speaking_pattern": {"$ref": "#/$defs/nonEmpty"},
+        "short_answer_behavior": {"$ref": "#/$defs/privateBehaviorAction"},
+        "response_policies": {"type": "array", "items": {"$ref": "#/$defs/privateResponsePolicy"}},
+        "correction_behavior": {"$ref": "#/$defs/privateBehaviorAction"},
+        "contradiction_behavior": {"$ref": "#/$defs/privateBehaviorAction"},
+        "fatigue_evolution": {"type": "array", "items": {"$ref": "#/$defs/privateFatiguePhase"}}
+      }
+    },
+    "privateBehaviorAction": {
+      "type": "object", "additionalProperties": false,
+      "required": ["condition", "behavior", "fact_ids", "actor_must_not_infer"],
+      "properties": {
+        "condition": {"$ref": "#/$defs/nonEmpty"}, "behavior": {"$ref": "#/$defs/nonEmpty"},
+        "fact_ids": {"$ref": "#/$defs/factIds"},
+        "actor_must_not_infer": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}
+      }
+    },
+    "privateResponsePolicy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["policy_id", "question_class", "condition", "answer_shape", "fact_ids", "allowed_disclosure", "must_not_do"],
+      "properties": {
+        "policy_id": {"$ref": "#/$defs/id"}, "question_class": {"$ref": "#/$defs/nonEmpty"},
+        "condition": {"$ref": "#/$defs/nonEmpty"}, "answer_shape": {"$ref": "#/$defs/nonEmpty"},
+        "fact_ids": {"$ref": "#/$defs/factIds"}, "allowed_disclosure": {"$ref": "#/$defs/factIds"},
+        "must_not_do": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}
+      }
+    },
+    "privateFatiguePhase": {
+      "type": "object", "additionalProperties": false,
+      "required": ["phase", "observable_behavior", "fact_ids"],
+      "properties": {
+        "phase": {"$ref": "#/$defs/nonEmpty"}, "observable_behavior": {"$ref": "#/$defs/citedText"},
+        "fact_ids": {"$ref": "#/$defs/factIds"}
+      }
+    },
+    "turnBehavior": {
+      "type": "object", "additionalProperties": false,
+      "required": ["baseline", "speaking_pattern", "short_answer_behavior", "response_policies", "correction_behavior", "contradiction_behavior", "fatigue_phases"],
+      "properties": {
+        "baseline": {
+          "type": "object", "additionalProperties": false, "required": ["style", "truth_rule"],
+          "properties": {"style": {"$ref": "#/$defs/nonEmpty"}, "truth_rule": {"$ref": "#/$defs/nonEmpty"}}
+        },
+        "speaking_pattern": {"$ref": "#/$defs/nonEmpty"},
+        "short_answer_behavior": {"type": "object", "additionalProperties": false, "required": ["condition", "behavior", "actor_must_not_infer"], "properties": {"condition": {"$ref": "#/$defs/nonEmpty"}, "behavior": {"$ref": "#/$defs/nonEmpty"}, "actor_must_not_infer": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}}},
+        "response_policies": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["policy_id", "question_class", "condition", "answer_shape", "visible_fact_ids"], "properties": {"policy_id": {"$ref": "#/$defs/id"}, "question_class": {"$ref": "#/$defs/nonEmpty"}, "condition": {"$ref": "#/$defs/nonEmpty"}, "answer_shape": {"$ref": "#/$defs/nonEmpty"}, "visible_fact_ids": {"$ref": "#/$defs/factIds"}}}},
+        "correction_behavior": {"$ref": "#/$defs/turnBehaviorAction"},
+        "contradiction_behavior": {"$ref": "#/$defs/turnBehaviorAction"},
+        "fatigue_phases": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["phase", "observable_behavior"], "properties": {"phase": {"$ref": "#/$defs/nonEmpty"}, "observable_behavior": {"$ref": "#/$defs/nonEmpty"}}}}
+      }
+    },
+    "turnBehaviorAction": {
+      "type": "object", "additionalProperties": false, "required": ["condition", "behavior", "actor_must_not_infer"],
+      "properties": {"condition": {"$ref": "#/$defs/nonEmpty"}, "behavior": {"$ref": "#/$defs/nonEmpty"}, "actor_must_not_infer": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}}
+    },
+    "actorPrivate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["projection_schema_version", "projection_type", "world_id", "identity", "role_context", "resume", "factual_truth", "protected_boundaries", "behavior_model", "actor_constraints"],
+      "properties": {
+        "projection_schema_version": {"const": "candidate_projection_v1"}, "projection_type": {"const": "actor_private"},
+        "world_id": {"pattern": "^world_[a-z0-9_]+$"}, "identity": {"$ref": "#/$defs/identity"},
+        "role_context": {"$ref": "#/$defs/roleContext"}, "resume": {"$ref": "#/$defs/resume"},
+        "factual_truth": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/privateFact"}},
+        "protected_boundaries": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["boundary_id", "description", "fact_ids", "eligible_behavior"], "properties": {"boundary_id": {"$ref": "#/$defs/id"}, "description": {"$ref": "#/$defs/citedText"}, "fact_ids": {"$ref": "#/$defs/factIds"}, "eligible_behavior": {"$ref": "#/$defs/nonEmpty"}}}},
+        "behavior_model": {"$ref": "#/$defs/privateBehavior"},
+        "actor_constraints": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}
+      }
+    },
+    "actorTurn": {
+      "type": "object", "additionalProperties": false,
+      "required": ["projection_schema_version", "projection_type", "world_id", "identity", "role_context", "resume", "turn_context", "granted_facts", "behavior_policy", "actor_constraints"],
+      "properties": {
+        "projection_schema_version": {"const": "candidate_projection_v1"}, "projection_type": {"const": "actor_turn_prompt"},
+        "world_id": {"pattern": "^world_[a-z0-9_]+$"}, "identity": {"$ref": "#/$defs/identity"},
+        "role_context": {"$ref": "#/$defs/roleContext"}, "resume": {"$ref": "#/$defs/resume"},
+        "turn_context": {"type": "object", "additionalProperties": false, "required": ["turn_number", "already_revealed_fact_ids", "newly_granted_fact_ids", "granted_fact_ids", "controller_authority", "question_semantics_used"], "properties": {"turn_number": {"type": "integer", "minimum": 0}, "already_revealed_fact_ids": {"$ref": "#/$defs/factIds"}, "newly_granted_fact_ids": {"$ref": "#/$defs/factIds"}, "granted_fact_ids": {"$ref": "#/$defs/factIds"}, "controller_authority": {"const": "trusted_disclosure_controller_only"}, "question_semantics_used": {"const": false}}},
+        "granted_facts": {"type": "array", "items": {"$ref": "#/$defs/turnFact"}},
+        "behavior_policy": {"$ref": "#/$defs/turnBehavior"},
+        "actor_constraints": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}
+      }
+    },
+    "interviewer": {
+      "type": "object", "additionalProperties": false, "required": ["projection_schema_version", "projection_type", "world_id", "resume", "conversation_events"],
+      "properties": {
+        "projection_schema_version": {"const": "candidate_projection_v1"}, "projection_type": {"const": "interviewer_visible"},
+        "world_id": {"pattern": "^world_[a-z0-9_]+$"}, "resume": {"$ref": "#/$defs/resume"},
+        "conversation_events": {"type": "array", "items": {"type": "object", "additionalProperties": false, "properties": {"turn": {"type": "integer"}, "speaker": {"type": "string"}, "question_text": {"type": "string"}, "answer_text": {"type": "string"}, "event_type": {"type": "string"}}}}
+      }
+    },
+    "evaluator": {
+      "type": "object", "additionalProperties": false, "required": ["projection_schema_version", "projection_type", "world_id", "frozen_truth", "evidence_graph", "attribution_rules", "acceptable_move_sets", "invalid_reality_violations", "sufficiency_conditions"],
+      "properties": {
+        "projection_schema_version": {"const": "candidate_projection_v1"}, "projection_type": {"const": "evaluator_only"},
+        "world_id": {"pattern": "^world_[a-z0-9_]+$"}, "frozen_truth": {"type": "object"},
+        "evidence_graph": {"type": "object", "additionalProperties": false, "required": ["fact_ids", "evidence_units", "relationships"], "properties": {"fact_ids": {"$ref": "#/$defs/factIds"}, "evidence_units": {"type": "array", "items": {"type": "object"}}, "relationships": {"type": "array", "items": {"type": "object"}}}},
+        "attribution_rules": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["rule_id", "text", "fact_ids"], "properties": {"rule_id": {"$ref": "#/$defs/id"}, "text": {"$ref": "#/$defs/nonEmpty"}, "fact_ids": {"$ref": "#/$defs/factIds"}}}},
+        "acceptable_move_sets": {"type": "object", "additionalProperties": false, "required": ["families", "junctions", "emergent_surfaces"], "properties": {"families": {"type": "array", "items": {"type": "object"}}, "junctions": {"type": "array", "items": {"type": "object"}}, "emergent_surfaces": {"type": "array", "items": {"type": "object"}}}},
+        "invalid_reality_violations": {"type": "array", "items": {"type": "object"}}, "sufficiency_conditions": {"type": "object"}
+      }
+    }
+  }
+}

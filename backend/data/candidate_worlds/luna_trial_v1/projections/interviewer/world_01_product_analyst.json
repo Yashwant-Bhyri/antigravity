@@ -1,0 +1,36 @@
+{
+  "projection_schema_version": "candidate_projection_v1",
+  "projection_type": "interviewer_visible",
+  "world_id": "world_01_product_analyst",
+  "resume": {
+    "text": "PRIYA NAIR\nProduct Analyst | SQL, dbt, Looker, experimentation\n\nLooply — Product Analyst (2023–present)\n• Built retention cohorts and reporting used by product and growth teams.\n• Partnered on AI engagement launch that improved repeat booking by 11%.\n• Defined customer segments and campaign rules for lifecycle messaging.\n\nLooply — Analytics Associate (2021–2023)\n• Automated weekly product reporting and investigated activation drop-offs.\n• Created self-serve dashboards for product managers.\n\nSelected project\n• Built a browser automation that reconciles personal subscription receipts into a spreadsheet.",
+    "claims": [
+      {
+        "claim_id": "claim_retention_analytics",
+        "claim_text": "Built retention cohorts and reporting used by product and growth teams.",
+        "claim_type": "method"
+      },
+      {
+        "claim_id": "claim_repeat_booking_lift",
+        "claim_text": "Partnered on an AI engagement launch that improved repeat booking by 11%.",
+        "claim_type": "outcome"
+      },
+      {
+        "claim_id": "claim_segments_rules",
+        "claim_text": "Defined customer segments and campaign rules for lifecycle messaging.",
+        "claim_type": "ownership"
+      },
+      {
+        "claim_id": "claim_reporting_automation",
+        "claim_text": "Automated weekly product reporting and investigated activation drop-offs.",
+        "claim_type": "method"
+      },
+      {
+        "claim_id": "claim_side_project",
+        "claim_text": "Built a browser automation to reconcile personal subscription receipts.",
+        "claim_type": "side_project"
+      }
+    ]
+  },
+  "conversation_events": []
+}

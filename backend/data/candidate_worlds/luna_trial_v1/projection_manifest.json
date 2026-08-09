@@ -1,0 +1,49 @@
+{
+  "manifest_version": "candidate_projection_manifest_v1",
+  "purpose": "Reproducible, isolated CandidateWorldV1 projection freeze.",
+  "materializer": "materialize_projections.py",
+  "verify_command": "python3 data/candidate_worlds/luna_trial_v1/materialize_projections.py --verify",
+  "source_files": {
+    "worlds/world_01_product_analyst.json": "461df5f83eadf8c65498cd1d9898f9d27822ac784e237328d413b8e944c66f6b",
+    "worlds/world_02_backend_engineer.json": "23ff9803fa9cd3eae6ed062fff6ac03d95055d95ffe145fa2ed538059a1ee90c",
+    "worlds/world_03_data_scientist.json": "e86bf5674244239c518d0da2b1e51b0c18dec63d6d31021f1728601271cf4d63",
+    "worlds/world_04_junior_fullstack.json": "64bce27c37a915fe0523cc20671a4dfb644038b8e000a4bea62ff33c2790658d",
+    "worlds/world_05_senior_pm.json": "b5c56f0201ddc7b36050f954b520f897068412c2b5cbe109e2142f512fe6c269",
+    "candidate_world_v1.schema.json": "d59841c34aadcd0cd869b33625b1f76cbc93f7b90d1f7cb5413e52b9880a6b2a",
+    "projection_v1.schema.json": "5fa9930dc203cae4dd5a9d5f0560f63a6674530706c90b843a9dd6cd4191f88b",
+    "materialize_projections.py": "4fef4b4f718b67a9e99b8d1bf5d0b49717bcebe6bc685428449933a47779835f",
+    "disclosure_controller.py": "9f307be42409659fc332bc1cbb9eeeca04583f938be32b33e4ea3cb918ea8384",
+    "validate_actor_response.py": "c2d3f4abf601486d211bbdbed63a802ac7f1d27e0b603af920db6e531349c4e4",
+    "check_projections.py": "477cfcf68a139b549726194134010cc7c34d2a7ad61369bc406efd4ef955582c"
+  },
+  "projection_files": {
+    "projections/actor/world_01_product_analyst.json": "80d0c4bf0e09c3cc4d37b68af5b006c46a8af2fc7fd840ad0cfd20557550f952",
+    "projections/actor/world_02_backend_engineer.json": "183473ae753176ff56acf4bf23e91ad5b0d7ea9df8534ea7ff1ad0b536b391e5",
+    "projections/actor/world_03_data_scientist.json": "88baecf075735fb6736e8139810ee7fcfb4599c15f277daa1585ca6ba687b296",
+    "projections/actor/world_04_junior_fullstack.json": "6a8647446ef3bbaf2fd2afb2572ee0f621555b806c687f5699ce3324bd9d35d7",
+    "projections/actor/world_05_senior_pm.json": "9f06aafa7f2a397c86208379c979cec5ba755ee4ed99614172bf89ea38a1d0a4",
+    "projections/actor_private/world_01_product_analyst.json": "4070029f718c27a139d27d0baadf0264c465466d3e4ddbeaa3b7bd026d4ffa4e",
+    "projections/actor_private/world_02_backend_engineer.json": "220b510ef82318cf57b2602d23aa3344e27b1578ff0b90206ce53e8b376735a6",
+    "projections/actor_private/world_03_data_scientist.json": "82f897cffce6f8828c686f004bf85eb2d6c54329f5788ba70faa50d4032c2ab7",
+    "projections/actor_private/world_04_junior_fullstack.json": "d7bf23be5dee756c16f5517815d3a35b78b6de193edd8e536d454c629a1afc9a",
+    "projections/actor_private/world_05_senior_pm.json": "3920e3bcab8cb6958ebf2b99664003e5fa9762e1e12be8add2df15567722812e",
+    "projections/evaluator/world_01_product_analyst.json": "f0cf81319476234588f380fbe03bde4c1c2dc202288e57045666cb7370b232f1",
+    "projections/evaluator/world_02_backend_engineer.json": "1880164537682767746f591ebfc9d74fa0461508817370be88001cd191b2643e",
+    "projections/evaluator/world_03_data_scientist.json": "f24248a260aa9952ad7deb9e70f7769e282ef128dda0aff1cfcccebc510bc1d0",
+    "projections/evaluator/world_04_junior_fullstack.json": "c0b89ead77d77fee2bba7ccc407b3110e32067d4967ad48051d5353915fa0ded",
+    "projections/evaluator/world_05_senior_pm.json": "714e8e55cef91d00ebed6d7751d5e0de5e01a190cf05adc725b61eff2325ad9d",
+    "projections/interviewer/world_01_product_analyst.json": "a91e219ff4ae0c65c40dbf52c5640bd920f793ee7be72fd6e6a93bc61b516cd5",
+    "projections/interviewer/world_02_backend_engineer.json": "a897060bb704e77753512aa0bf26a2079e307c08b24cfaf448ef43c09d79b6db",
+    "projections/interviewer/world_03_data_scientist.json": "a8cfbcf2b4eb3cecb02c69d57e9ad7462528662f1e0b9dd74bfdd4d08084d357",
+    "projections/interviewer/world_04_junior_fullstack.json": "1c7ed5906edb01c95fca4b3b1e7a9984377479478937ffd012c68d3eccd46559",
+    "projections/interviewer/world_05_senior_pm.json": "ea3aa441eb281af282af0761b7721e59f01d846ad2b32bf562c395a4bb94c860"
+  },
+  "projection_counts": {
+    "worlds": 5,
+    "actor_private": 5,
+    "actor_turn_prompt": 5,
+    "interviewer": 5,
+    "evaluator": 5
+  },
+  "manifest_hash_policy": "The manifest intentionally excludes its own hash to avoid circular self-reference."
+}

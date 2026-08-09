@@ -1,0 +1,36 @@
+{
+  "projection_schema_version": "candidate_projection_v1",
+  "projection_type": "interviewer_visible",
+  "world_id": "world_04_junior_fullstack",
+  "resume": {
+    "text": "LEO CHEN\nJunior Software Engineer | React, TypeScript, Node.js, PostgreSQL\n\nCarePath — Junior Software Engineer (2025–present)\n• Built patient scheduling and intake features used by 40 clinics.\n• Fixed a timezone defect that caused appointments to appear on the wrong day.\n• Added frontend validation, API tests, and accessibility improvements.\n• Supported deployments and monitored production issues.\n\nCo-op project\n• Built a small Minecraft inventory mod in Java.",
+    "claims": [
+      {
+        "claim_id": "claim_scheduling_feature",
+        "claim_text": "Built patient scheduling and intake features used by 40 clinics.",
+        "claim_type": "ownership"
+      },
+      {
+        "claim_id": "claim_timezone_fix",
+        "claim_text": "Fixed a timezone defect that caused appointments to appear on the wrong day.",
+        "claim_type": "method"
+      },
+      {
+        "claim_id": "claim_accessibility",
+        "claim_text": "Added accessibility improvements.",
+        "claim_type": "method"
+      },
+      {
+        "claim_id": "claim_deployments",
+        "claim_text": "Supported deployments and monitored production issues.",
+        "claim_type": "scope"
+      },
+      {
+        "claim_id": "claim_minecraft",
+        "claim_text": "Built a Minecraft inventory mod in Java.",
+        "claim_type": "side_project"
+      }
+    ]
+  },
+  "conversation_events": []
+}

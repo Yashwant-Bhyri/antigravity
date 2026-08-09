@@ -1,0 +1,494 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://antigravity.local/schemas/candidate_world_v1.schema.json",
+  "title": "CandidateWorldV1",
+  "description": "A frozen, reviewable candidate reality plus bounded spoken behavior. Evaluator truth is separate from actor-visible evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "world_id",
+    "title",
+    "authoring_metadata",
+    "identity",
+    "target_role",
+    "resume",
+    "hiring_hypotheses",
+    "latent_capability_profile",
+    "evidence_units",
+    "protected_boundaries",
+    "emergent_surfaces",
+    "irrelevant_temptations",
+    "absorption_rules",
+    "candidate_behavior_profile",
+    "answer_realizations",
+    "representative_junctions",
+    "acceptable_move_families",
+    "hard_invalid_moves",
+    "evidence_sufficiency",
+    "evaluator_hidden_truth"
+  ],
+  "properties": {
+    "schema_version": { "const": "candidate_world_v1" },
+    "world_id": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 8 },
+    "authoring_metadata": { "$ref": "#/$defs/authoringMetadata" },
+    "identity": { "$ref": "#/$defs/identity" },
+    "target_role": { "$ref": "#/$defs/targetRole" },
+    "resume": { "$ref": "#/$defs/resume" },
+    "hiring_hypotheses": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/hypothesis" } },
+    "latent_capability_profile": { "$ref": "#/$defs/capabilityProfile" },
+    "evidence_units": { "type": "array", "minItems": 8, "items": { "$ref": "#/$defs/evidenceUnit" } },
+    "protected_boundaries": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/protectedBoundary" } },
+    "emergent_surfaces": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/emergentSurface" } },
+    "irrelevant_temptations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/temptation" } },
+    "absorption_rules": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/absorptionRule" } },
+    "candidate_behavior_profile": { "$ref": "#/$defs/behaviorProfile" },
+    "answer_realizations": { "type": "array", "minItems": 8, "items": { "$ref": "#/$defs/answerRealization" } },
+    "representative_junctions": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/junction" } },
+    "acceptable_move_families": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/moveFamily" } },
+    "hard_invalid_moves": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/invalidMove" } },
+    "evidence_sufficiency": { "$ref": "#/$defs/evidenceSufficiency" },
+    "evaluator_hidden_truth": { "$ref": "#/$defs/hiddenTruth" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{2,96}$" },
+    "factId": { "type": "string", "pattern": "^fact_[a-z0-9_]{2,80}$" },
+    "idArray": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true },
+    "factIdArray": { "type": "array", "items": { "$ref": "#/$defs/factId" }, "uniqueItems": true },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "citedText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "fact_ids"],
+      "properties": {
+        "text": { "$ref": "#/$defs/nonEmptyString" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" }
+      }
+    },
+    "authoringMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trial_id", "authored_by", "status", "authored_on", "source_basis", "non_gold_reason"],
+      "properties": {
+        "trial_id": { "const": "luna_trial_v1" },
+        "authored_by": { "const": "GPT-5.6 Luna" },
+        "status": { "const": "exploratory_non_gold" },
+        "authored_on": { "type": "string", "format": "date" },
+        "source_basis": { "type": "string", "minLength": 20 },
+        "non_gold_reason": { "type": "string", "minLength": 40 },
+        "paid_provider_calls": { "const": false }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "pronouns", "location", "years_experience", "current_title", "biography", "non_evaluative_identity_note"],
+      "properties": {
+        "name": { "type": "string", "minLength": 2 },
+        "pronouns": { "type": "string", "minLength": 2 },
+        "location": { "type": "string", "minLength": 2 },
+        "years_experience": { "type": "number", "minimum": 0, "maximum": 60 },
+        "current_title": { "type": "string", "minLength": 2 },
+        "biography": { "$ref": "#/$defs/citedText" },
+        "non_evaluative_identity_note": { "type": "string", "minLength": 20 }
+      }
+    },
+    "targetRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "level", "role_family", "hiring_context", "responsibilities", "must_test_dimensions", "do_not_assume"],
+      "properties": {
+        "title": { "type": "string", "minLength": 2 },
+        "level": { "type": "string", "minLength": 2 },
+        "role_family": { "type": "string", "minLength": 2 },
+        "hiring_context": { "$ref": "#/$defs/citedText" },
+        "responsibilities": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/citedText" } },
+        "must_test_dimensions": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/dimension" } },
+        "do_not_assume": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension_id", "label", "why_it_matters", "minimum_evidence", "possible_statuses"],
+      "properties": {
+        "dimension_id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "why_it_matters": { "$ref": "#/$defs/citedText" },
+        "minimum_evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "possible_statuses": { "type": "array", "minItems": 2, "items": { "enum": ["supported", "mixed", "weak", "untested", "interviewer_failure", "not_role_required"] } }
+      }
+    },
+    "resume": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "claims", "resume_limits"],
+      "properties": {
+        "text": { "type": "string", "minLength": 100 },
+        "claims": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/resumeClaim" } },
+        "resume_limits": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/citedText" } }
+      }
+    },
+    "resumeClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "claim_text", "claim_type", "truth_status", "fact_ids", "risk_if_overread"],
+      "properties": {
+        "claim_id": { "$ref": "#/$defs/id" },
+        "claim_text": { "$ref": "#/$defs/nonEmptyString" },
+        "claim_type": { "enum": ["scope", "outcome", "method", "ownership", "title", "tool", "numerical", "side_project"] },
+        "truth_status": { "enum": ["accurate", "compressed", "overclaim", "understates", "needs_correction", "ambiguous"] },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "risk_if_overread": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hypothesis_id", "question", "why_it_matters", "evidence_needed", "failure_modes", "uncertain_if_unresolved"],
+      "properties": {
+        "hypothesis_id": { "$ref": "#/$defs/id" },
+        "question": { "$ref": "#/$defs/citedText" },
+        "why_it_matters": { "$ref": "#/$defs/citedText" },
+        "evidence_needed": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/factIdArray" } },
+        "failure_modes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "uncertain_if_unresolved": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "capabilityProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strengths", "weaknesses", "unknowns", "communication_effects"],
+      "properties": {
+        "strengths": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/capability" } },
+        "weaknesses": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/capability" } },
+        "unknowns": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/unknown" } },
+        "communication_effects": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/citedText" } }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_id", "label", "description", "level", "fact_ids", "confidence", "how_it_can_be_misread"],
+      "properties": {
+        "capability_id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "description": { "$ref": "#/$defs/citedText" },
+        "level": { "enum": ["strong", "solid", "mixed", "weak", "unknown"] },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "how_it_can_be_misread": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unknown_id", "label", "why_unknown", "fact_ids", "fair_test"],
+      "properties": {
+        "unknown_id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "why_unknown": { "$ref": "#/$defs/citedText" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "fair_test": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "evidenceUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fact_id", "label", "statement", "category", "truth_status", "confidence", "ownership", "role_relevance", "discriminative_value", "evidence_properties", "disclosure", "relations", "evaluator_note"],
+      "properties": {
+        "fact_id": { "$ref": "#/$defs/factId" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "statement": { "$ref": "#/$defs/citedText" },
+        "category": { "enum": ["identity", "scope", "method", "mechanism", "outcome", "ownership", "boundary", "behavior", "correction", "incident", "side_project", "unknown"] },
+        "truth_status": { "enum": ["true", "true_but_qualified", "false_as_stated", "superseded", "unknown", "protected", "unavailable"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ownership": { "$ref": "#/$defs/ownership" },
+        "role_relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "discriminative_value": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence_properties": { "$ref": "#/$defs/evidenceProperties" },
+        "disclosure": { "$ref": "#/$defs/disclosure" },
+        "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } },
+        "evaluator_note": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "scope", "boundary_text", "owned_by", "ownership_evidence_ids"],
+      "properties": {
+        "status": { "enum": ["owned", "partial", "team_owned", "not_owned", "ambiguous", "unknown", "protected"] },
+        "scope": { "$ref": "#/$defs/nonEmptyString" },
+        "boundary_text": { "$ref": "#/$defs/nonEmptyString" },
+        "owned_by": { "$ref": "#/$defs/nonEmptyString" },
+        "ownership_evidence_ids": { "$ref": "#/$defs/factIdArray" }
+      }
+    },
+    "evidenceProperties": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["specificity", "observability", "mechanism_strength", "outcome_strength", "causal_strength"],
+      "properties": {
+        "specificity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "observability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mechanism_strength": { "type": "number", "minimum": 0, "maximum": 1 },
+        "outcome_strength": { "type": "number", "minimum": 0, "maximum": 1 },
+        "causal_strength": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligibility", "prerequisite_fact_ids", "prohibited_reveal_conditions", "earliest_turn", "reveal_trigger", "candidate_can_volunteer", "allowed_summary", "prohibited_expansion"],
+      "properties": {
+        "eligibility": { "enum": ["eligible", "conditional", "protected", "unavailable"] },
+        "prerequisite_fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "prohibited_reveal_conditions": { "type": "array", "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "earliest_turn": { "type": "integer", "minimum": 0, "maximum": 40 },
+        "reveal_trigger": { "$ref": "#/$defs/nonEmptyString" },
+        "candidate_can_volunteer": { "type": "boolean" },
+        "allowed_summary": { "$ref": "#/$defs/nonEmptyString" },
+        "prohibited_expansion": { "type": "array", "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "target_fact_id", "reason"],
+      "properties": {
+        "type": { "enum": ["supports", "contradicts", "qualifies", "supersedes", "adjacent_to", "depends_on", "absorbs", "protected_by"] },
+        "target_fact_id": { "$ref": "#/$defs/factId" },
+        "reason": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "protectedBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boundary_id", "description", "fact_ids", "eligible_behavior", "interviewer_rule", "report_effect"],
+      "properties": {
+        "boundary_id": { "$ref": "#/$defs/id" },
+        "description": { "$ref": "#/$defs/citedText" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "eligible_behavior": { "$ref": "#/$defs/nonEmptyString" },
+        "interviewer_rule": { "$ref": "#/$defs/nonEmptyString" },
+        "report_effect": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "emergentSurface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "label", "origin", "fact_ids", "role_relevance", "discriminative_value", "opportunity_cost", "ownership_status", "prerequisite_fact_ids", "valid_action_families", "absorb_if_covered", "rotate_conditions", "invalid_pursuit_conditions"],
+      "properties": {
+        "surface_id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "origin": { "$ref": "#/$defs/nonEmptyString" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "role_relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "discriminative_value": { "type": "number", "minimum": 0, "maximum": 1 },
+        "opportunity_cost": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ownership_status": { "enum": ["owned", "partial", "team_owned", "not_owned", "ambiguous", "unknown", "protected"] },
+        "prerequisite_fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "valid_action_families": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } },
+        "absorb_if_covered": { "type": "boolean" },
+        "rotate_conditions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "invalid_pursuit_conditions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "temptation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["temptation_id", "label", "why_interesting", "why_low_value", "fact_ids", "fair_response", "gameable_failure"],
+      "properties": {
+        "temptation_id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "why_interesting": { "$ref": "#/$defs/citedText" },
+        "why_low_value": { "$ref": "#/$defs/citedText" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "fair_response": { "$ref": "#/$defs/nonEmptyString" },
+        "gameable_failure": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "absorptionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["absorption_id", "trigger", "fact_ids", "no_new_question_needed", "allowed_inference", "do_not_overread"],
+      "properties": {
+        "absorption_id": { "$ref": "#/$defs/id" },
+        "trigger": { "$ref": "#/$defs/nonEmptyString" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "no_new_question_needed": { "$ref": "#/$defs/nonEmptyString" },
+        "allowed_inference": { "$ref": "#/$defs/nonEmptyString" },
+        "do_not_overread": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "behaviorProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "speaking_pattern", "short_answer_behavior", "response_policies", "correction_behavior", "contradiction_behavior", "fatigue_evolution", "fairness_notes"],
+      "properties": {
+        "baseline": { "$ref": "#/$defs/citedText" },
+        "speaking_pattern": { "$ref": "#/$defs/nonEmptyString" },
+        "short_answer_behavior": { "$ref": "#/$defs/behaviorRule" },
+        "response_policies": { "type": "array", "minItems": 6, "items": { "$ref": "#/$defs/responsePolicy" } },
+        "correction_behavior": { "$ref": "#/$defs/behaviorRule" },
+        "contradiction_behavior": { "$ref": "#/$defs/behaviorRule" },
+        "fatigue_evolution": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/fatiguePhase" } },
+        "fairness_notes": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "behaviorRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["condition", "behavior", "fact_ids", "actor_must_not_infer"],
+      "properties": {
+        "condition": { "$ref": "#/$defs/nonEmptyString" },
+        "behavior": { "$ref": "#/$defs/nonEmptyString" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "actor_must_not_infer": { "type": "array", "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "responsePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "question_class", "condition", "answer_shape", "fact_ids", "allowed_disclosure", "must_not_do"],
+      "properties": {
+        "policy_id": { "$ref": "#/$defs/id" },
+        "question_class": { "enum": ["broad", "sharp", "repeated", "unfair", "ambiguous", "compound", "factual", "ownership", "causal", "protected"] },
+        "condition": { "$ref": "#/$defs/nonEmptyString" },
+        "answer_shape": { "$ref": "#/$defs/nonEmptyString" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "allowed_disclosure": { "$ref": "#/$defs/factIdArray" },
+        "must_not_do": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "fatiguePhase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "observable_behavior", "fact_ids", "fair_interviewer_response", "invalid_interviewer_response"],
+      "properties": {
+        "phase": { "enum": ["early", "middle", "late"] },
+        "observable_behavior": { "$ref": "#/$defs/citedText" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "fair_interviewer_response": { "$ref": "#/$defs/nonEmptyString" },
+        "invalid_interviewer_response": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "answerRealization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["answer_id", "question_shape", "answer_text", "behavior_label", "fact_ids", "disclosure_event", "notes"],
+      "properties": {
+        "answer_id": { "$ref": "#/$defs/id" },
+        "question_shape": { "$ref": "#/$defs/nonEmptyString" },
+        "answer_text": { "$ref": "#/$defs/nonEmptyString" },
+        "behavior_label": { "enum": ["strong", "partial", "weak", "concise", "nervous", "defensive", "correction", "contradiction", "protected_boundary", "irrelevant_detour", "honest_gap", "ambiguous"] },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "disclosure_event": { "$ref": "#/$defs/id" },
+        "notes": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "junction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["junction_id", "state", "observed_fact_ids", "reasonable_move_family_ids", "tradeoffs", "not_gold_note"],
+      "properties": {
+        "junction_id": { "$ref": "#/$defs/id" },
+        "state": { "$ref": "#/$defs/nonEmptyString" },
+        "observed_fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "reasonable_move_family_ids": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/id" } },
+        "tradeoffs": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "not_gold_note": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "moveFamily": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family_id", "label", "when_legal", "value_tradeoff", "prerequisite_fact_ids", "acceptable_variants", "hard_invalid_move_ids"],
+      "properties": {
+        "family_id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "when_legal": { "$ref": "#/$defs/nonEmptyString" },
+        "value_tradeoff": { "$ref": "#/$defs/nonEmptyString" },
+        "prerequisite_fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "acceptable_variants": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "hard_invalid_move_ids": { "type": "array", "items": { "$ref": "#/$defs/id" } }
+      }
+    },
+    "invalidMove": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["move_id", "action", "why_invalid", "fair_alternative_family_ids", "candidate_harm"],
+      "properties": {
+        "move_id": { "$ref": "#/$defs/id" },
+        "action": { "$ref": "#/$defs/nonEmptyString" },
+        "why_invalid": { "$ref": "#/$defs/nonEmptyString" },
+        "fair_alternative_family_ids": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/id" } },
+        "candidate_harm": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "evidenceSufficiency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_turn_shape", "conditions", "report_requirements", "stop_rules", "expected_residual_uncertainty"],
+      "properties": {
+        "minimum_turn_shape": { "$ref": "#/$defs/nonEmptyString" },
+        "conditions": { "type": "array", "minItems": 5, "items": { "$ref": "#/$defs/sufficiencyCondition" } },
+        "report_requirements": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "stop_rules": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "expected_residual_uncertainty": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "sufficiencyCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["condition_id", "label", "fact_ids", "satisfied_when", "not_satisfied_when", "status_if_missing"],
+      "properties": {
+        "condition_id": { "$ref": "#/$defs/id" },
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "satisfied_when": { "$ref": "#/$defs/nonEmptyString" },
+        "not_satisfied_when": { "$ref": "#/$defs/nonEmptyString" },
+        "status_if_missing": { "enum": ["weak", "mixed", "untested", "interviewer_failure", "not_role_required"] }
+      }
+    },
+    "hiddenTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_must_never_receive", "correct_evidence_profile", "uncertainty_map", "interviewer_failure_conditions", "likely_traps", "gold_rejection_reasons"],
+      "properties": {
+        "actor_must_never_receive": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "correct_evidence_profile": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/hiddenDimension" } },
+        "uncertainty_map": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/uncertainty" } },
+        "interviewer_failure_conditions": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "likely_traps": { "type": "array", "minItems": 4, "items": { "$ref": "#/$defs/nonEmptyString" } },
+        "gold_rejection_reasons": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/nonEmptyString" } }
+      }
+    },
+    "hiddenDimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dimension_id", "truth_status", "fact_ids", "confidence", "rationale"],
+      "properties": {
+        "dimension_id": { "$ref": "#/$defs/id" },
+        "truth_status": { "enum": ["supported", "mixed", "weak", "untested", "interviewer_failure", "not_role_required"] },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rationale": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uncertainty_id", "question", "fact_ids", "why_it_remains", "fair_next_test", "do_not_convert_to"],
+      "properties": {
+        "uncertainty_id": { "$ref": "#/$defs/id" },
+        "question": { "$ref": "#/$defs/nonEmptyString" },
+        "fact_ids": { "$ref": "#/$defs/factIdArray" },
+        "why_it_remains": { "$ref": "#/$defs/nonEmptyString" },
+        "fair_next_test": { "$ref": "#/$defs/nonEmptyString" },
+        "do_not_convert_to": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    }
+  }
+}

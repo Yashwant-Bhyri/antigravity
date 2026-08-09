@@ -1,0 +1,31 @@
+{
+  "projection_schema_version": "candidate_projection_v1",
+  "projection_type": "interviewer_visible",
+  "world_id": "world_03_data_scientist",
+  "resume": {
+    "text": "AMINA OKAFOR\nData Scientist | Python, LightGBM, PyTorch, causal inference, experimentation\n\nMarketBasket — Data Scientist (2022–present)\n• Built a demand-forecasting ensemble that reduced weighted forecast error by 14%.\n• Developed merchant ranking models and experimentation strategy, increasing accepted recommendations by 9%.\n• Applied uplift modeling and heterogeneous treatment-effect analysis to promotion targeting.\n\nSelected project\n• Built a multimodal wardrobe recommender using image embeddings and a conversational interface.\n\nEarlier: Operations Research Analyst, route and inventory optimization.",
+    "claims": [
+      {
+        "claim_id": "claim_forecast_model",
+        "claim_text": "Built a demand-forecasting ensemble that reduced weighted forecast error by 14%.",
+        "claim_type": "outcome"
+      },
+      {
+        "claim_id": "claim_experiment_strategy",
+        "claim_text": "Developed merchant ranking models and experimentation strategy, increasing accepted recommendations by 9%.",
+        "claim_type": "ownership"
+      },
+      {
+        "claim_id": "claim_uplift",
+        "claim_text": "Applied uplift modeling and heterogeneous treatment-effect analysis to promotion targeting.",
+        "claim_type": "method"
+      },
+      {
+        "claim_id": "claim_wardrobe_project",
+        "claim_text": "Built a multimodal wardrobe recommender using image embeddings and a conversational interface.",
+        "claim_type": "side_project"
+      }
+    ]
+  },
+  "conversation_events": []
+}

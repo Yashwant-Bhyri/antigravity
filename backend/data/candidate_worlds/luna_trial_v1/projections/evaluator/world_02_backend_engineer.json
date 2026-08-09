@@ -1,0 +1,3276 @@
+{
+  "projection_schema_version": "candidate_projection_v1",
+  "projection_type": "evaluator_only",
+  "world_id": "world_02_backend_engineer",
+  "frozen_truth": {
+    "schema_version": "candidate_world_v1",
+    "world_id": "world_02_backend_engineer",
+    "title": "Miguel Santos — honest backend engineer behind an over-broad architecture label",
+    "authoring_metadata": {
+      "trial_id": "luna_trial_v1",
+      "authored_by": "GPT-5.6 Luna",
+      "status": "exploratory_non_gold",
+      "authored_on": "2026-08-09",
+      "source_basis": "A fictional backend engineer whose resume compresses team architecture into personal language, with strong idempotency and tenant-isolation ownership, one incident, an unowned infrastructure layer, and a protected production boundary.",
+      "non_gold_reason": "The world has not been calibrated with senior backend reviewers or real hiring outcomes and must not be used as an accepted benchmark.",
+      "paid_provider_calls": false
+    },
+    "identity": {
+      "name": "Miguel Santos",
+      "pronouns": "he/him",
+      "location": "Austin, United States",
+      "years_experience": 7.0,
+      "current_title": "Backend Engineer",
+      "biography": {
+        "text": "Miguel is a backend engineer at a logistics software company. He grew from maintaining billing integrations into owning reliability-heavy services. He likes systems where ambiguous external outcomes are made auditable, but he is less comfortable presenting work that was genuinely collective as his own.",
+        "fact_ids": [
+          "fact_identity_role",
+          "fact_career_growth",
+          "fact_team_context"
+        ]
+      },
+      "non_evaluative_identity_note": "Name, pronouns, and location are fictional context and must not influence assessment."
+    },
+    "target_role": {
+      "title": "Backend Engineer",
+      "level": "Mid-to-senior individual contributor",
+      "role_family": "Distributed services and reliability",
+      "hiring_context": {
+        "text": "The hiring team needs a backend engineer who can reason about retries, state transitions, isolation, observability, and incident recovery while being precise about the boundary of personal ownership.",
+        "fact_ids": [
+          "fact_idempotency",
+          "fact_tenant_isolation",
+          "fact_incident",
+          "fact_architecture_boundary"
+        ]
+      },
+      "responsibilities": [
+        {
+          "text": "Design and maintain reliable service behavior when external calls have ambiguous outcomes.",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_incident"
+          ]
+        },
+        {
+          "text": "Protect tenant data and prevent cross-tenant effects through explicit boundaries.",
+          "fact_ids": [
+            "fact_tenant_isolation"
+          ]
+        },
+        {
+          "text": "Collaborate on architecture without claiming decisions made by a team.",
+          "fact_ids": [
+            "fact_architecture_boundary",
+            "fact_team_context"
+          ]
+        },
+        {
+          "text": "Learn from production incidents and improve detection and recovery.",
+          "fact_ids": [
+            "fact_incident",
+            "fact_reliability_practice"
+          ]
+        }
+      ],
+      "must_test_dimensions": [
+        {
+          "dimension_id": "distributed_correctness",
+          "label": "Distributed correctness",
+          "why_it_matters": {
+            "text": "Retries and ambiguous external outcomes are central to the services Miguel actually owned.",
+            "fact_ids": [
+              "fact_idempotency",
+              "fact_incident"
+            ]
+          },
+          "minimum_evidence": [
+            "State or dedupe mechanism",
+            "Failure case and recovery behavior"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested"
+          ]
+        },
+        {
+          "dimension_id": "tenant_isolation",
+          "label": "Tenant isolation",
+          "why_it_matters": {
+            "text": "The role requires preventing one customer's state or authorization from affecting another.",
+            "fact_ids": [
+              "fact_tenant_isolation"
+            ]
+          },
+          "minimum_evidence": [
+            "Isolation boundary",
+            "Test or observability evidence"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested"
+          ]
+        },
+        {
+          "dimension_id": "incident_learning",
+          "label": "Incident learning",
+          "why_it_matters": {
+            "text": "A real production incident can reveal whether the candidate reasons beyond the happy path.",
+            "fact_ids": [
+              "fact_incident",
+              "fact_reliability_practice"
+            ]
+          },
+          "minimum_evidence": [
+            "Timeline and failure mechanism",
+            "Durable corrective action"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested"
+          ]
+        },
+        {
+          "dimension_id": "ownership_precision",
+          "label": "Ownership precision",
+          "why_it_matters": {
+            "text": "The resume's word architected compresses a team decision into an individual claim.",
+            "fact_ids": [
+              "fact_resume_architected",
+              "fact_architecture_boundary"
+            ]
+          },
+          "minimum_evidence": [
+            "A truthful personal boundary",
+            "A meaningful adjacent owned layer"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested"
+          ]
+        },
+        {
+          "dimension_id": "operational_scope",
+          "label": "Operational scope",
+          "why_it_matters": {
+            "text": "Miguel's experience with service correctness should not be confused with ownership of cluster operations or every platform layer.",
+            "fact_ids": [
+              "fact_unowned_infrastructure",
+              "fact_idempotency"
+            ]
+          },
+          "minimum_evidence": [
+            "What he can operate",
+            "What the platform team owns"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested",
+            "not_role_required"
+          ]
+        }
+      ],
+      "do_not_assume": [
+        "A team architecture decision was Miguel's sole design.",
+        "Defensive tone means dishonesty.",
+        "Not owning Kubernetes or network policy means he cannot reason about backend reliability."
+      ]
+    },
+    "resume": {
+      "text": "MIGUEL SANTOS\nBackend Engineer | Go, Java, Postgres, Kafka, Kubernetes\n\nParcelGrid — Backend Engineer (2020–present)\n• Architected a multi-tenant shipment and billing platform processing 18M events/day.\n• Designed distributed retry and idempotency strategy for carrier and payment integrations.\n• Improved duplicate-charge incidents by 80% and reduced reconciliation time.\n\nEarlier work\n• Built Java services for inventory reservation and customer notifications.\n• Led on-call improvements and incident reviews across the backend group.",
+      "claims": [
+        {
+          "claim_id": "claim_architected_platform",
+          "claim_text": "Architected a multi-tenant shipment and billing platform processing 18M events/day.",
+          "claim_type": "ownership",
+          "truth_status": "overclaim",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary",
+            "fact_platform_scale"
+          ],
+          "risk_if_overread": "The platform architecture was team-owned; Miguel owned important reliability components rather than the complete architecture."
+        },
+        {
+          "claim_id": "claim_retry_idempotency",
+          "claim_text": "Designed the distributed retry and idempotency strategy for carrier and payment integrations.",
+          "claim_type": "method",
+          "truth_status": "accurate",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_incident"
+          ],
+          "risk_if_overread": "The strategy covered integration state and reconciliation, not every service or queue in the platform."
+        },
+        {
+          "claim_id": "claim_duplicate_charge",
+          "claim_text": "Improved duplicate-charge incidents by 80%.",
+          "claim_type": "outcome",
+          "truth_status": "compressed",
+          "fact_ids": [
+            "fact_incident",
+            "fact_idempotency"
+          ],
+          "risk_if_overread": "The reduction followed one remediation slice and is not a guarantee of zero duplicates."
+        },
+        {
+          "claim_id": "claim_oncall",
+          "claim_text": "Led on-call improvements and incident reviews across the backend group.",
+          "claim_type": "scope",
+          "truth_status": "accurate",
+          "fact_ids": [
+            "fact_reliability_practice",
+            "fact_team_context"
+          ],
+          "risk_if_overread": "Leadership of review practice is not the same as owning infrastructure operations."
+        }
+      ],
+      "resume_limits": [
+        {
+          "text": "Architected is broader than the personal scope Miguel can defend; the architecture review was collaborative.",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ]
+        },
+        {
+          "text": "The resume omits the exact production incident and the tenant-isolation subsystem that best show his personal engineering judgment.",
+          "fact_ids": [
+            "fact_incident",
+            "fact_tenant_isolation"
+          ]
+        }
+      ]
+    },
+    "hiring_hypotheses": [
+      {
+        "hypothesis_id": "hyp_boundary_then_depth",
+        "question": {
+          "text": "Can Miguel correct the architecture claim and still demonstrate substantial backend ownership?",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_idempotency",
+            "fact_tenant_isolation"
+          ]
+        },
+        "why_it_matters": {
+          "text": "A fair hiring read must distinguish over-broad wording from lack of meaningful contribution.",
+          "fact_ids": [
+            "fact_architecture_boundary",
+            "fact_idempotency"
+          ]
+        },
+        "evidence_needed": [
+          [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ],
+          [
+            "fact_idempotency",
+            "fact_tenant_isolation"
+          ]
+        ],
+        "failure_modes": [
+          "Re-prosecuting the resume wording after the boundary is clear",
+          "Treating a narrower subsystem as trivial"
+        ],
+        "uncertain_if_unresolved": "The reviewer cannot tell whether the claim was a harmless compression or a pattern of ownership inflation."
+      },
+      {
+        "hypothesis_id": "hyp_retry_reasoning",
+        "question": {
+          "text": "Does Miguel understand how idempotency, retries, and reconciliation interact under ambiguous outcomes?",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_incident"
+          ]
+        },
+        "why_it_matters": {
+          "text": "This is the strongest role-relevant evidence of personal backend depth.",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_incident"
+          ]
+        },
+        "evidence_needed": [
+          [
+            "fact_idempotency"
+          ],
+          [
+            "fact_incident"
+          ]
+        ],
+        "failure_modes": [
+          "Buzzword-level exactly-once language",
+          "A solution that retries side effects without durable state"
+        ],
+        "uncertain_if_unresolved": "Backend correctness remains partly untested even if the ownership boundary is fair."
+      },
+      {
+        "hypothesis_id": "hyp_tenant_safety",
+        "question": {
+          "text": "Can he explain and defend a tenant-isolation boundary without relying on platform slogans?",
+          "fact_ids": [
+            "fact_tenant_isolation"
+          ]
+        },
+        "why_it_matters": {
+          "text": "The service handles shared infrastructure where authorization and data partitioning must survive retries and operational mistakes.",
+          "fact_ids": [
+            "fact_tenant_isolation",
+            "fact_unowned_infrastructure"
+          ]
+        },
+        "evidence_needed": [
+          [
+            "fact_tenant_isolation"
+          ],
+          [
+            "fact_reliability_practice"
+          ]
+        ],
+        "failure_modes": [
+          "Only naming row-level security without failure analysis",
+          "Assuming tenant IDs are sufficient protection"
+        ],
+        "uncertain_if_unresolved": "Isolation may be strong in practice but not observable from the interview."
+      },
+      {
+        "hypothesis_id": "hyp_incident_learning",
+        "question": {
+          "text": "Does Miguel turn an incident into a durable system and process improvement?",
+          "fact_ids": [
+            "fact_incident",
+            "fact_reliability_practice"
+          ]
+        },
+        "why_it_matters": {
+          "text": "The incident is a real test of diagnosis, ownership, and follow-through.",
+          "fact_ids": [
+            "fact_incident"
+          ]
+        },
+        "evidence_needed": [
+          [
+            "fact_incident"
+          ],
+          [
+            "fact_reliability_practice"
+          ]
+        ],
+        "failure_modes": [
+          "Blaming a dependency without explaining recovery",
+          "Calling a dashboard an improvement without a detection or prevention change"
+        ],
+        "uncertain_if_unresolved": "Operational judgment is not sufficiently separated from resume claims."
+      }
+    ],
+    "latent_capability_profile": {
+      "strengths": [
+        {
+          "capability_id": "cap_idempotent_workflows",
+          "label": "Idempotent integration workflows",
+          "description": {
+            "text": "Miguel can reason concretely about event identity, durable state, retry classes, and reconciliation when an external outcome is ambiguous.",
+            "fact_ids": [
+              "fact_idempotency",
+              "fact_incident"
+            ]
+          },
+          "level": "strong",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_incident"
+          ],
+          "confidence": 0.89,
+          "how_it_can_be_misread": "A reviewer focused on the resume overclaim may under-credit the subsystem depth."
+        },
+        {
+          "capability_id": "cap_tenant_boundary",
+          "label": "Tenant isolation",
+          "description": {
+            "text": "He personally designed a tenant-context boundary and negative tests for cross-tenant access in a shared service.",
+            "fact_ids": [
+              "fact_tenant_isolation"
+            ]
+          },
+          "level": "solid",
+          "fact_ids": [
+            "fact_tenant_isolation"
+          ],
+          "confidence": 0.81,
+          "how_it_can_be_misread": "The word multi-tenant can make the reviewer assume he owned the whole platform."
+        }
+      ],
+      "weaknesses": [
+        {
+          "capability_id": "cap_architecture_communication",
+          "label": "Scope communication and architecture narrative",
+          "description": {
+            "text": "Miguel allowed the resume to say architected and becomes defensive when the phrase is challenged, even though he can state a narrower truthful boundary.",
+            "fact_ids": [
+              "fact_resume_architected",
+              "fact_architecture_boundary"
+            ]
+          },
+          "level": "mixed",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ],
+          "confidence": 0.76,
+          "how_it_can_be_misread": "Defensiveness can be read as deception, or the corrected boundary can be treated as evidence that the subsystem was unimportant."
+        }
+      ],
+      "unknowns": [
+        {
+          "unknown_id": "unknown_capacity_planning",
+          "label": "Capacity planning at larger scale",
+          "why_unknown": {
+            "text": "The world establishes event volume but not Miguel's personal ownership of capacity forecasts or partition planning.",
+            "fact_ids": [
+              "fact_platform_scale",
+              "fact_architecture_boundary"
+            ]
+          },
+          "fact_ids": [
+            "fact_platform_scale",
+            "fact_architecture_boundary"
+          ],
+          "fair_test": "Ask how he would identify a saturation risk in the owned workflow without demanding an architecture lecture."
+        },
+        {
+          "unknown_id": "unknown_security_operations",
+          "label": "Security operations and secrets management",
+          "why_unknown": {
+            "text": "Tenant isolation is evidenced, but secrets rotation and incident access processes belong partly to another team.",
+            "fact_ids": [
+              "fact_tenant_isolation",
+              "fact_unowned_infrastructure"
+            ]
+          },
+          "fact_ids": [
+            "fact_tenant_isolation",
+            "fact_unowned_infrastructure"
+          ],
+          "fair_test": "Ask for a conceptual threat or boundary, not proprietary controls."
+        },
+        {
+          "unknown_id": "unknown_people_leadership",
+          "label": "Formal people management",
+          "why_unknown": {
+            "text": "Miguel led review practice but has no evidence of performance management or team staffing responsibility.",
+            "fact_ids": [
+              "fact_reliability_practice",
+              "fact_team_context"
+            ]
+          },
+          "fact_ids": [
+            "fact_reliability_practice",
+            "fact_team_context"
+          ],
+          "fair_test": "Do not test unless the role requires it; otherwise mark not role required."
+        }
+      ],
+      "communication_effects": [
+        {
+          "text": "Miguel explains mechanisms clearly after the question is concrete, but a broad challenge to the resume makes him defensive for one or two turns.",
+          "fact_ids": [
+            "fact_architecture_boundary",
+            "fact_idempotency"
+          ]
+        },
+        {
+          "text": "He uses precise reliability vocabulary, yet will explicitly say when he does not own a layer or cannot disclose a provider detail.",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_protected_detail"
+          ]
+        }
+      ]
+    },
+    "evidence_units": [
+      {
+        "fact_id": "fact_identity_role",
+        "label": "Current backend role",
+        "statement": {
+          "text": "Miguel is a backend engineer at ParcelGrid, a logistics software company with shipment and billing integrations.",
+          "fact_ids": [
+            "fact_identity_role"
+          ]
+        },
+        "category": "identity",
+        "truth_status": "true",
+        "confidence": 0.99,
+        "ownership": {
+          "status": "owned",
+          "scope": "His role and employment context",
+          "boundary_text": "Role context is not proof of architecture ownership.",
+          "owned_by": "Miguel",
+          "ownership_evidence_ids": [
+            "fact_identity_role"
+          ]
+        },
+        "role_relevance": 0.6,
+        "discriminative_value": 0.18,
+        "evidence_properties": {
+          "specificity": 0.77,
+          "observability": 0.78,
+          "mechanism_strength": 0.15,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Introduction",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Backend role and logistics domain",
+          "prohibited_expansion": [
+            "Do not assume every platform layer was personal."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_context",
+            "reason": "The role sits in a cross-functional backend group."
+          }
+        ],
+        "evaluator_note": "Neutral grounding context."
+      },
+      {
+        "fact_id": "fact_career_growth",
+        "label": "Growth toward reliability work",
+        "statement": {
+          "text": "Miguel moved from maintaining integrations into reliability-heavy ownership because he enjoyed making ambiguous external outcomes auditable.",
+          "fact_ids": [
+            "fact_career_growth"
+          ]
+        },
+        "category": "identity",
+        "truth_status": "true",
+        "confidence": 0.84,
+        "ownership": {
+          "status": "owned",
+          "scope": "Career motivation",
+          "boundary_text": "Motivation is not a substitute for technical evidence.",
+          "owned_by": "Miguel",
+          "ownership_evidence_ids": [
+            "fact_career_growth"
+          ]
+        },
+        "role_relevance": 0.53,
+        "discriminative_value": 0.39,
+        "evidence_properties": {
+          "specificity": 0.58,
+          "observability": 0.57,
+          "mechanism_strength": 0.25,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Career-history question",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Why reliability work became his focus",
+          "prohibited_expansion": [
+            "Do not infer seniority from motivation alone."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Ordinary context that helps the human story."
+      },
+      {
+        "fact_id": "fact_team_context",
+        "label": "Architecture review environment",
+        "statement": {
+          "text": "ParcelGrid has a backend group, a platform team, and a security team; architecture decisions are reviewed in design documents, while individual engineers own specific services or reliability slices.",
+          "fact_ids": [
+            "fact_team_context"
+          ]
+        },
+        "category": "scope",
+        "truth_status": "true",
+        "confidence": 0.94,
+        "ownership": {
+          "status": "team_owned",
+          "scope": "Team process and organizational boundary",
+          "boundary_text": "Architecture review is collective even when a person authors a proposal.",
+          "owned_by": "Backend and platform organization",
+          "ownership_evidence_ids": [
+            "fact_team_context"
+          ]
+        },
+        "role_relevance": 0.77,
+        "discriminative_value": 0.69,
+        "evidence_properties": {
+          "specificity": 0.79,
+          "observability": 0.72,
+          "mechanism_strength": 0.54,
+          "outcome_strength": 0.18,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about design ownership or collaboration",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "How architecture and service ownership were divided",
+          "prohibited_expansion": [
+            "Do not disclose internal project names or security details."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_resume_architected",
+            "reason": "The process makes sole architecture ownership unlikely."
+          }
+        ],
+        "evaluator_note": "Critical context for a fair overclaim read."
+      },
+      {
+        "fact_id": "fact_resume_architected",
+        "label": "Over-broad architected resume wording",
+        "statement": {
+          "text": "Miguel's resume says he architected the multi-tenant shipment and billing platform, but the architecture was produced through a team design process and he did not own every subsystem.",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_team_context",
+            "fact_architecture_boundary"
+          ]
+        },
+        "category": "ownership",
+        "truth_status": "false_as_stated",
+        "confidence": 0.96,
+        "ownership": {
+          "status": "ambiguous",
+          "scope": "Resume narrative about the complete platform",
+          "boundary_text": "The word architected is broader than Miguel's actual contribution.",
+          "owned_by": "Team for platform architecture; Miguel for selected subsystems",
+          "ownership_evidence_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ]
+        },
+        "role_relevance": 0.9,
+        "discriminative_value": 0.91,
+        "evidence_properties": {
+          "specificity": 0.92,
+          "observability": 0.75,
+          "mechanism_strength": 0.25,
+          "outcome_strength": 0.2,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Resume claim is discussed",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team-owned architecture with a narrower personal subsystem",
+          "prohibited_expansion": [
+            "Do not force a binary liar/not-liar interpretation."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_idempotency",
+            "reason": "The over-broad label sits above genuine owned reliability work."
+          }
+        ],
+        "evaluator_note": "A correction point, not an automatic hiring verdict."
+      },
+      {
+        "fact_id": "fact_architecture_boundary",
+        "label": "Team-owned architecture boundary",
+        "statement": {
+          "text": "The architecture was agreed by a small backend group; Miguel authored the retry and state-transition sections and implemented the idempotency and tenant-context components, but did not choose the whole service decomposition.",
+          "fact_ids": [
+            "fact_architecture_boundary",
+            "fact_resume_architected",
+            "fact_idempotency",
+            "fact_tenant_isolation"
+          ]
+        },
+        "category": "ownership",
+        "truth_status": "true",
+        "confidence": 0.95,
+        "ownership": {
+          "status": "partial",
+          "scope": "Specific design sections and implementations",
+          "boundary_text": "Miguel owned reliability components, not the complete architecture.",
+          "owned_by": "Miguel for retry, idempotency, and tenant-context sections; team for decomposition",
+          "ownership_evidence_ids": [
+            "fact_architecture_boundary"
+          ]
+        },
+        "role_relevance": 0.94,
+        "discriminative_value": 0.94,
+        "evidence_properties": {
+          "specificity": 0.95,
+          "observability": 0.86,
+          "mechanism_strength": 0.82,
+          "outcome_strength": 0.35,
+          "causal_strength": 0.22
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_resume_architected"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Candidate is asked to separate the team architecture from personal decisions",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team architecture with personally owned reliability slices",
+          "prohibited_expansion": [
+            "Do not shrink the owned slices into mere participation."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_idempotency",
+            "reason": "The boundary identifies the genuine owned subsystem."
+          },
+          {
+            "type": "supports",
+            "target_fact_id": "fact_tenant_isolation",
+            "reason": "Tenant context was one owned slice."
+          }
+        ],
+        "evaluator_note": "Once established, the interviewer should move to substance rather than revisit the label."
+      },
+      {
+        "fact_id": "fact_platform_scale",
+        "label": "Platform event volume",
+        "statement": {
+          "text": "The platform handled approximately 18 million shipment and billing events per day during Miguel's tenure, with traffic patterns varying by carrier and customer seasonality.",
+          "fact_ids": [
+            "fact_platform_scale"
+          ]
+        },
+        "category": "outcome",
+        "truth_status": "true",
+        "confidence": 0.82,
+        "ownership": {
+          "status": "team_owned",
+          "scope": "Platform-wide operating scale",
+          "boundary_text": "Miguel contributed to services operating at this scale but did not own all capacity planning.",
+          "owned_by": "ParcelGrid backend and platform teams",
+          "ownership_evidence_ids": [
+            "fact_platform_scale"
+          ]
+        },
+        "role_relevance": 0.71,
+        "discriminative_value": 0.52,
+        "evidence_properties": {
+          "specificity": 0.78,
+          "observability": 0.72,
+          "mechanism_strength": 0.24,
+          "outcome_strength": 0.67,
+          "causal_strength": 0.2
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_identity_role"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about operating context",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Approximate event volume and seasonality",
+          "prohibited_expansion": [
+            "Do not use volume as a substitute for mechanism evidence."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Scale is context, not an automatic complexity score."
+      },
+      {
+        "fact_id": "fact_idempotency",
+        "label": "Idempotency and retry subsystem",
+        "statement": {
+          "text": "Miguel designed an integration state machine keyed by a stable operation identity, persisted the last known external outcome, separated retryable transport failures from ambiguous side effects, and sent unresolved cases to reconciliation instead of blindly retrying.",
+          "fact_ids": [
+            "fact_idempotency"
+          ]
+        },
+        "category": "mechanism",
+        "truth_status": "true",
+        "confidence": 0.91,
+        "ownership": {
+          "status": "owned",
+          "scope": "Integration idempotency, retry classification, and reconciliation handoff",
+          "boundary_text": "He owned this subsystem and its service-level behavior, not all platform queues or deployments.",
+          "owned_by": "Miguel",
+          "ownership_evidence_ids": [
+            "fact_idempotency"
+          ]
+        },
+        "role_relevance": 0.98,
+        "discriminative_value": 0.96,
+        "evidence_properties": {
+          "specificity": 0.97,
+          "observability": 0.88,
+          "mechanism_strength": 0.96,
+          "outcome_strength": 0.72,
+          "causal_strength": 0.61
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_architecture_boundary"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Candidate names the owned reliability slice",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Stable operation identity, retry classification, and reconciliation",
+          "prohibited_expansion": [
+            "Do not ask for provider-specific secrets or internal code names."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_incident",
+            "reason": "The subsystem was shaped by the production incident."
+          },
+          {
+            "type": "adjacent_to",
+            "target_fact_id": "fact_unowned_infrastructure",
+            "reason": "Service correctness and cluster operations were adjacent but separately owned."
+          }
+        ],
+        "evaluator_note": "Strong adjacent substance that should be tested once or twice, not used to justify replaying the overclaim."
+      },
+      {
+        "fact_id": "fact_tenant_isolation",
+        "label": "Tenant-isolation subsystem",
+        "statement": {
+          "text": "Miguel owned the tenant-context middleware and negative tests that prevented a request or replayed message from using another customer's authorization scope; he also added audit fields for rejected cross-tenant attempts.",
+          "fact_ids": [
+            "fact_tenant_isolation"
+          ]
+        },
+        "category": "mechanism",
+        "truth_status": "true",
+        "confidence": 0.87,
+        "ownership": {
+          "status": "owned",
+          "scope": "Tenant context propagation, authorization checks, and negative tests",
+          "boundary_text": "Database administration and platform identity infrastructure were not his ownership.",
+          "owned_by": "Miguel for service boundary and tests",
+          "ownership_evidence_ids": [
+            "fact_tenant_isolation"
+          ]
+        },
+        "role_relevance": 0.96,
+        "discriminative_value": 0.9,
+        "evidence_properties": {
+          "specificity": 0.95,
+          "observability": 0.83,
+          "mechanism_strength": 0.91,
+          "outcome_strength": 0.57,
+          "causal_strength": 0.42
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_architecture_boundary"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Question about the multi-tenant claim or safety boundary",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Tenant-context boundary, negative tests, and rejection audit",
+          "prohibited_expansion": [
+            "Do not ask for customer identifiers or exact security controls."
+          ]
+        },
+        "relations": [
+          {
+            "type": "adjacent_to",
+            "target_fact_id": "fact_idempotency",
+            "reason": "Both are owned correctness slices in the shared architecture."
+          }
+        ],
+        "evaluator_note": "Meaningful adjacent strength, not a consolation prize."
+      },
+      {
+        "fact_id": "fact_incident",
+        "label": "Duplicate-charge production incident",
+        "statement": {
+          "text": "A carrier-payment adapter acknowledged a request after a timeout, then a retry created a second side effect because the earlier operation identity was not persisted across a migration path; Miguel traced the sequence and led the remediation.",
+          "fact_ids": [
+            "fact_incident",
+            "fact_idempotency"
+          ]
+        },
+        "category": "incident",
+        "truth_status": "true",
+        "confidence": 0.9,
+        "ownership": {
+          "status": "partial",
+          "scope": "Diagnosis, state-machine remediation, and review; payment provider and migration platform were shared",
+          "boundary_text": "Miguel did not control every dependency that contributed to the incident.",
+          "owned_by": "Miguel for diagnosis and integration remediation; team for migration and provider boundary",
+          "ownership_evidence_ids": [
+            "fact_incident"
+          ]
+        },
+        "role_relevance": 0.97,
+        "discriminative_value": 0.94,
+        "evidence_properties": {
+          "specificity": 0.94,
+          "observability": 0.85,
+          "mechanism_strength": 0.93,
+          "outcome_strength": 0.76,
+          "causal_strength": 0.7
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_idempotency"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 3,
+          "reveal_trigger": "Question asks for a production failure or the origin of the retry design",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Timeout acknowledgment, migration path, duplicate side effect, and remediation",
+          "prohibited_expansion": [
+            "Do not request provider contracts or customer billing identifiers."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_reliability_practice",
+            "reason": "The incident led to durable review and monitoring changes."
+          },
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_resume_architected",
+            "reason": "The incident demonstrates a subsystem, not whole-platform ownership."
+          }
+        ],
+        "evaluator_note": "Real incident evidence with a shared boundary."
+      },
+      {
+        "fact_id": "fact_reliability_practice",
+        "label": "Durable incident practice",
+        "statement": {
+          "text": "After the incident, Miguel added a replayable failure test, an explicit reconciliation queue state, and a review checklist that asks whether every external side effect has a stable operation identity.",
+          "fact_ids": [
+            "fact_reliability_practice",
+            "fact_incident"
+          ]
+        },
+        "category": "method",
+        "truth_status": "true",
+        "confidence": 0.88,
+        "ownership": {
+          "status": "partial",
+          "scope": "Tests, queue-state design, and review practice",
+          "boundary_text": "The organization adopted the review checklist; Miguel did not own all on-call process policy.",
+          "owned_by": "Miguel for technical changes; backend group for process",
+          "ownership_evidence_ids": [
+            "fact_reliability_practice"
+          ]
+        },
+        "role_relevance": 0.93,
+        "discriminative_value": 0.87,
+        "evidence_properties": {
+          "specificity": 0.9,
+          "observability": 0.8,
+          "mechanism_strength": 0.83,
+          "outcome_strength": 0.63,
+          "causal_strength": 0.53
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_incident"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 3,
+          "reveal_trigger": "Question asks what changed after the incident",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Replay test, reconciliation state, and review checklist",
+          "prohibited_expansion": [
+            "Do not claim the change guarantees no future incidents."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_incident",
+            "reason": "It is the durable consequence of the incident."
+          }
+        ],
+        "evaluator_note": "Useful consequence evidence; stop after the mechanism is clear."
+      },
+      {
+        "fact_id": "fact_unowned_infrastructure",
+        "label": "Unowned cluster and network operations",
+        "statement": {
+          "text": "The platform team owned Kubernetes upgrades, network policy, cluster capacity, and secret rotation; Miguel consumed those interfaces and raised service requirements but did not operate them.",
+          "fact_ids": [
+            "fact_unowned_infrastructure",
+            "fact_team_context"
+          ]
+        },
+        "category": "boundary",
+        "truth_status": "true",
+        "confidence": 0.97,
+        "ownership": {
+          "status": "not_owned",
+          "scope": "Cluster, network policy, capacity, and secrets operations",
+          "boundary_text": "Miguel's service ownership did not include platform operations.",
+          "owned_by": "Platform team",
+          "ownership_evidence_ids": [
+            "fact_unowned_infrastructure"
+          ]
+        },
+        "role_relevance": 0.68,
+        "discriminative_value": 0.64,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.9,
+          "mechanism_strength": 0.46,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_team_context"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Question asks about the platform or deployment boundary",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Platform-owned operations and Miguel's service interface",
+          "prohibited_expansion": [
+            "Do not turn this boundary into an infrastructure trivia exam."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_idempotency",
+            "reason": "Service correctness and platform operations are distinct scopes."
+          }
+        ],
+        "evaluator_note": "Should be recorded and moved past if the role does not require cluster operation."
+      },
+      {
+        "fact_id": "fact_protected_detail",
+        "label": "Protected provider and customer details",
+        "statement": {
+          "text": "Miguel cannot disclose exact payment-provider retry windows, customer identifiers, or internal fraud thresholds; he can describe generic state transitions, failure classes, and safeguards.",
+          "fact_ids": [
+            "fact_protected_detail",
+            "fact_incident",
+            "fact_idempotency"
+          ]
+        },
+        "category": "boundary",
+        "truth_status": "protected",
+        "confidence": 0.99,
+        "ownership": {
+          "status": "protected",
+          "scope": "Provider, customer, and fraud-control specifics",
+          "boundary_text": "Generic correctness reasoning remains available without proprietary details.",
+          "owned_by": "ParcelGrid and its customers",
+          "ownership_evidence_ids": [
+            "fact_protected_detail"
+          ]
+        },
+        "role_relevance": 0.44,
+        "discriminative_value": 0.48,
+        "evidence_properties": {
+          "specificity": 0.7,
+          "observability": 0.92,
+          "mechanism_strength": 0.2,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "protected",
+          "prerequisite_fact_ids": [
+            "fact_incident"
+          ],
+          "prohibited_reveal_conditions": [
+            "Any request for exact provider timings, customer IDs, or fraud thresholds."
+          ],
+          "earliest_turn": 3,
+          "reveal_trigger": "Candidate states a confidentiality boundary",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Generic retry and reconciliation behavior",
+          "prohibited_expansion": [
+            "Never disclose exact values or identities."
+          ]
+        },
+        "relations": [
+          {
+            "type": "protected_by",
+            "target_fact_id": "fact_incident",
+            "reason": "The protected details surround the incident context."
+          }
+        ],
+        "evaluator_note": "Refusal is appropriate and should not lower the technical assessment."
+      },
+      {
+        "fact_id": "fact_ordinary_mentoring",
+        "label": "Ordinary mentoring practice",
+        "statement": {
+          "text": "Miguel informally reviews onboarding pull requests twice a week and prefers written examples over live whiteboard explanations.",
+          "fact_ids": [
+            "fact_ordinary_mentoring"
+          ]
+        },
+        "category": "behavior",
+        "truth_status": "true",
+        "confidence": 0.8,
+        "ownership": {
+          "status": "owned",
+          "scope": "Informal review habit",
+          "boundary_text": "This is not formal people management.",
+          "owned_by": "Miguel",
+          "ownership_evidence_ids": [
+            "fact_ordinary_mentoring"
+          ]
+        },
+        "role_relevance": 0.46,
+        "discriminative_value": 0.33,
+        "evidence_properties": {
+          "specificity": 0.7,
+          "observability": 0.65,
+          "mechanism_strength": 0.3,
+          "outcome_strength": 0.2,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Question about collaboration or routine",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Informal onboarding review habit",
+          "prohibited_expansion": [
+            "Do not infer management ability."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Neutral human detail that keeps the world from being only incident facts."
+      }
+    ],
+    "protected_boundaries": [
+      {
+        "boundary_id": "boundary_provider_confidentiality",
+        "description": {
+          "text": "Miguel can explain the integration failure and generic safeguards but cannot provide exact provider windows, customer identifiers, or fraud thresholds.",
+          "fact_ids": [
+            "fact_protected_detail",
+            "fact_incident"
+          ]
+        },
+        "fact_ids": [
+          "fact_protected_detail",
+          "fact_incident"
+        ],
+        "eligible_behavior": "State the boundary and replace proprietary values with abstract timing and state categories.",
+        "interviewer_rule": "Do not keep demanding confidential specifics after a technically meaningful abstraction is offered.",
+        "report_effect": "Mark provider-specific operational details unavailable while assessing generic distributed correctness."
+      }
+    ],
+    "emergent_surfaces": [
+      {
+        "surface_id": "surface_tenant_isolation",
+        "label": "Tenant-context isolation and auditability",
+        "origin": "Surfaced while correcting the resume's whole-platform architecture claim",
+        "fact_ids": [
+          "fact_tenant_isolation",
+          "fact_architecture_boundary",
+          "fact_unowned_infrastructure"
+        ],
+        "role_relevance": 0.96,
+        "discriminative_value": 0.9,
+        "opportunity_cost": 0.42,
+        "ownership_status": "owned",
+        "prerequisite_fact_ids": [
+          "fact_architecture_boundary"
+        ],
+        "valid_action_families": [
+          "adjacent_contribution",
+          "failure_boundary",
+          "coverage_rotation"
+        ],
+        "absorb_if_covered": true,
+        "rotate_conditions": [
+          "One isolation boundary and one negative test or failure case are clear",
+          "Retry and incident evidence remains less tested",
+          "The role does not require deeper security operations"
+        ],
+        "invalid_pursuit_conditions": [
+          "Treating tenant isolation as proof of full platform architecture ownership",
+          "Drilling into unowned cluster or secret-management internals",
+          "Re-prosecuting the resume label instead of testing the subsystem"
+        ]
+      }
+    ],
+    "irrelevant_temptations": [
+      {
+        "temptation_id": "temptation_kafka_trivia",
+        "label": "Kafka and Kubernetes trivia",
+        "why_interesting": {
+          "text": "Miguel uses familiar distributed-systems tools and can name many implementation terms.",
+          "fact_ids": [
+            "fact_platform_scale",
+            "fact_unowned_infrastructure"
+          ]
+        },
+        "why_low_value": {
+          "text": "Tool recall is less discriminative than the state, failure, and ownership reasoning the role actually needs.",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_unowned_infrastructure"
+          ]
+        },
+        "fact_ids": [
+          "fact_platform_scale",
+          "fact_unowned_infrastructure"
+        ],
+        "fair_response": "Ask about a concrete failure boundary or mark platform internals unowned.",
+        "gameable_failure": "An interviewer can reward vocabulary while never testing whether a retry is safe."
+      }
+    ],
+    "absorption_rules": [
+      {
+        "absorption_id": "absorb_architecture_correction",
+        "trigger": "Miguel has stated that the architecture was team-owned and named his reliability slices.",
+        "fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "no_new_question_needed": "Update the ownership record and move once to substance; do not ask the same architect question again.",
+        "allowed_inference": "The resume wording was over-broad but a meaningful subsystem may still be his.",
+        "do_not_overread": "Do not turn defensiveness into dishonesty or narrow scope into triviality."
+      },
+      {
+        "absorption_id": "absorb_unowned_platform",
+        "trigger": "The platform team's cluster, network, and secret ownership is clear.",
+        "fact_ids": [
+          "fact_unowned_infrastructure"
+        ],
+        "no_new_question_needed": "Record the boundary and return to service behavior or role coverage.",
+        "allowed_inference": "Miguel can state the interface between service and platform teams.",
+        "do_not_overread": "Do not score absent cluster-operation knowledge as a backend failure unless the role requires it."
+      },
+      {
+        "absorption_id": "absorb_incident_consequence",
+        "trigger": "The incident mechanism and at least one durable test or reconciliation change are concrete.",
+        "fact_ids": [
+          "fact_incident",
+          "fact_reliability_practice"
+        ],
+        "no_new_question_needed": "Treat the incident as evidence and rotate unless a materially different uncertainty remains.",
+        "allowed_inference": "He learned from a real failure at his owned boundary.",
+        "do_not_overread": "Do not infer zero future incidents or complete production maturity."
+      }
+    ],
+    "candidate_behavior_profile": {
+      "baseline": {
+        "text": "Miguel is technically direct once the question is concrete. He becomes defensive for a short period when challenged on the word architected, then usually corrects the boundary and offers the idempotency or tenant-isolation subsystem.",
+        "fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary",
+          "fact_idempotency"
+        ]
+      },
+      "speaking_pattern": "Detailed on failure mechanics; guarded on the resume wording and proprietary production details.",
+      "short_answer_behavior": {
+        "condition": "The interviewer asks whether he architected the entire system.",
+        "behavior": "He initially says yes in a qualified but incomplete way, then names the team process when pressed.",
+        "fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "actor_must_not_infer": [
+          "A defensive first answer is not permission to invent a larger lie."
+        ]
+      },
+      "response_policies": [
+        {
+          "policy_id": "policy_broad",
+          "question_class": "broad",
+          "condition": "Asked to walk through the platform he architected.",
+          "answer_shape": "Describe the overall problem and the reliability area he drove; do not claim sole decomposition.",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ],
+          "allowed_disclosure": [
+            "fact_resume_architected",
+            "fact_architecture_boundary",
+            "fact_idempotency"
+          ],
+          "must_not_do": [
+            "Do not name every team decision as personal."
+          ]
+        },
+        {
+          "policy_id": "policy_sharp",
+          "question_class": "sharp",
+          "condition": "Asked which design decision was personally his.",
+          "answer_shape": "Name stable operation identity, retry classification, or tenant-context isolation.",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_tenant_isolation"
+          ],
+          "allowed_disclosure": [
+            "fact_architecture_boundary",
+            "fact_idempotency",
+            "fact_tenant_isolation"
+          ],
+          "must_not_do": [
+            "Do not shrink the subsystem into a minor code change."
+          ]
+        },
+        {
+          "policy_id": "policy_repeated",
+          "question_class": "repeated",
+          "condition": "The interviewer asks again whether he was the architect after the boundary is clear.",
+          "answer_shape": "Say the team owned architecture and offer to discuss his reliability slice.",
+          "fact_ids": [
+            "fact_architecture_boundary",
+            "fact_idempotency"
+          ],
+          "allowed_disclosure": [
+            "fact_architecture_boundary",
+            "fact_idempotency"
+          ],
+          "must_not_do": [
+            "Do not keep escalating the claim to appease repetition."
+          ]
+        },
+        {
+          "policy_id": "policy_unfair",
+          "question_class": "unfair",
+          "condition": "Asked for exact provider retry windows or fraud thresholds.",
+          "answer_shape": "Refuse the exact value and describe generic state and safety logic.",
+          "fact_ids": [
+            "fact_protected_detail",
+            "fact_idempotency"
+          ],
+          "allowed_disclosure": [
+            "fact_protected_detail",
+            "fact_idempotency",
+            "fact_incident"
+          ],
+          "must_not_do": [
+            "Do not disclose secrets or customer details."
+          ]
+        },
+        {
+          "policy_id": "policy_ambiguous",
+          "question_class": "ambiguous",
+          "condition": "Asked whether the system is exactly once.",
+          "answer_shape": "Clarify that external side effects are not magically exactly once; explain idempotency and reconciliation.",
+          "fact_ids": [
+            "fact_idempotency"
+          ],
+          "allowed_disclosure": [
+            "fact_idempotency",
+            "fact_incident"
+          ],
+          "must_not_do": [
+            "Do not accept an imprecise guarantee."
+          ]
+        },
+        {
+          "policy_id": "policy_compound",
+          "question_class": "compound",
+          "condition": "Asked about architecture, Kubernetes, tenant isolation, and incident response together.",
+          "answer_shape": "Answer the owned service boundary first, separate platform ownership, and offer one incident mechanism.",
+          "fact_ids": [
+            "fact_tenant_isolation",
+            "fact_unowned_infrastructure",
+            "fact_incident"
+          ],
+          "allowed_disclosure": [
+            "fact_tenant_isolation",
+            "fact_unowned_infrastructure",
+            "fact_incident"
+          ],
+          "must_not_do": [
+            "Do not pretend to know unowned cluster operations."
+          ]
+        },
+        {
+          "policy_id": "policy_ownership",
+          "question_class": "ownership",
+          "condition": "Asked who decided the architecture.",
+          "answer_shape": "Acknowledge group design review and name the sections he authored and implemented.",
+          "fact_ids": [
+            "fact_team_context",
+            "fact_architecture_boundary"
+          ],
+          "allowed_disclosure": [
+            "fact_team_context",
+            "fact_architecture_boundary"
+          ],
+          "must_not_do": [
+            "Do not convert authorship of a document into sole authority."
+          ]
+        }
+      ],
+      "correction_behavior": {
+        "condition": "The interviewer quotes architected back and asks for a personal boundary.",
+        "behavior": "Miguel admits the resume wording is too broad, explains the team design process, and redirects to the idempotency and tenant-isolation work he actually owned.",
+        "fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary",
+          "fact_idempotency"
+        ],
+        "actor_must_not_infer": [
+          "Correction is candid boundary repair, not automatic deception."
+        ]
+      },
+      "contradiction_behavior": {
+        "condition": "The interviewer says he owned Kubernetes, fraud policy, or the entire billing architecture.",
+        "behavior": "He corrects the ownership claim, becomes briefly guarded, and offers a generic service-level explanation.",
+        "fact_ids": [
+          "fact_unowned_infrastructure",
+          "fact_protected_detail",
+          "fact_architecture_boundary"
+        ],
+        "actor_must_not_infer": [
+          "Do not reveal proprietary details to prove credibility."
+        ]
+      },
+      "fatigue_evolution": [
+        {
+          "phase": "early",
+          "observable_behavior": {
+            "text": "He is slightly guarded about the resume but answers concrete backend questions with detail.",
+            "fact_ids": [
+              "fact_resume_architected",
+              "fact_idempotency"
+            ]
+          },
+          "fact_ids": [
+            "fact_idempotency"
+          ],
+          "fair_interviewer_response": "Separate the wording issue from the technical test.",
+          "invalid_interviewer_response": "Treat the first defensive answer as the entire assessment."
+        },
+        {
+          "phase": "middle",
+          "observable_behavior": {
+            "text": "After a fair boundary reset, he becomes more engaged when discussing the incident and failure sequence.",
+            "fact_ids": [
+              "fact_architecture_boundary",
+              "fact_incident"
+            ]
+          },
+          "fact_ids": [
+            "fact_incident"
+          ],
+          "fair_interviewer_response": "Test one mechanism and one consequence, then rotate.",
+          "invalid_interviewer_response": "Return to the resume label after every answer."
+        },
+        {
+          "phase": "late",
+          "observable_behavior": {
+            "text": "If pressed for protected values or unowned infrastructure trivia, he becomes terse and repeats the boundary.",
+            "fact_ids": [
+              "fact_protected_detail",
+              "fact_unowned_infrastructure"
+            ]
+          },
+          "fact_ids": [
+            "fact_protected_detail"
+          ],
+          "fair_interviewer_response": "Accept the boundary and assess the generic engineering reasoning.",
+          "invalid_interviewer_response": "Call confidentiality or scope discipline evasiveness."
+        }
+      ],
+      "fairness_notes": [
+        "The interviewer must give Miguel one fair opportunity to correct the broad resume claim before interpreting defensiveness.",
+        "The owned subsystem is a genuine strength, not an apology for the resume wording."
+      ]
+    },
+    "answer_realizations": [
+      {
+        "answer_id": "answer_platform_open",
+        "question_shape": "Tell me about the platform you architected.",
+        "answer_text": "It is a multi-tenant shipment and billing platform. I led the retry and idempotency part of the design; the service decomposition was a backend-group decision.",
+        "behavior_label": "defensive",
+        "fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "disclosure_event": "event_architecture_boundary",
+        "notes": "A broad opener elicits a partially corrected claim."
+      },
+      {
+        "answer_id": "answer_scope_correction",
+        "question_shape": "Which architecture decisions were actually yours?",
+        "answer_text": "The resume says architected too broadly. The group chose the overall decomposition. I owned the operation identity, retry classification, reconciliation handoff, and tenant context in two services.",
+        "behavior_label": "correction",
+        "fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary",
+          "fact_idempotency",
+          "fact_tenant_isolation"
+        ],
+        "disclosure_event": "event_scope_correction",
+        "notes": "Candid correction followed by adjacent strength."
+      },
+      {
+        "answer_id": "answer_idempotency",
+        "question_shape": "How did your retry strategy prevent duplicate side effects?",
+        "answer_text": "We persisted a stable operation identity before the external call. A transport failure could retry, but an ambiguous side effect went to reconciliation instead of being replayed blindly.",
+        "behavior_label": "strong",
+        "fact_ids": [
+          "fact_idempotency",
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "disclosure_event": "event_idempotency",
+        "notes": "Concrete distributed reasoning."
+      },
+      {
+        "answer_id": "answer_incident",
+        "question_shape": "Tell me about a production failure.",
+        "answer_text": "A provider acknowledged after our timeout, and a migration path lost the operation identity. The retry created a second side effect. I traced the sequence, restored the state transition, and added a replay test and reconciliation state.",
+        "behavior_label": "strong",
+        "fact_ids": [
+          "fact_incident",
+          "fact_idempotency",
+          "fact_reliability_practice",
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "disclosure_event": "event_incident",
+        "notes": "Real incident with mechanism and durable consequence."
+      },
+      {
+        "answer_id": "answer_tenant",
+        "question_shape": "How did you protect tenants in a shared service?",
+        "answer_text": "Tenant context was established at the request boundary and carried through the message. We had negative tests for replayed context and logged rejected cross-tenant attempts.",
+        "behavior_label": "strong",
+        "fact_ids": [
+          "fact_tenant_isolation",
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "disclosure_event": "event_tenant_isolation",
+        "notes": "A distinct owned surface."
+      },
+      {
+        "answer_id": "answer_unowned",
+        "question_shape": "How did you manage Kubernetes capacity and network policy?",
+        "answer_text": "I did not own those. Platform handled upgrades, network policy, and capacity. I provided service requirements and consumed the interface.",
+        "behavior_label": "honest_gap",
+        "fact_ids": [
+          "fact_unowned_infrastructure",
+          "fact_team_context"
+        ],
+        "disclosure_event": "event_unowned_boundary",
+        "notes": "An honest scope boundary, not a technical failure."
+      },
+      {
+        "answer_id": "answer_protected",
+        "question_shape": "What exact provider timeout and fraud threshold did you use?",
+        "answer_text": "I cannot share those exact values. I can explain the state categories: known success, known failure, ambiguous outcome, retry eligibility, and reconciliation.",
+        "behavior_label": "protected_boundary",
+        "fact_ids": [
+          "fact_protected_detail",
+          "fact_idempotency",
+          "fact_resume_architected",
+          "fact_architecture_boundary",
+          "fact_incident"
+        ],
+        "disclosure_event": "event_protected_detail",
+        "notes": "Fair abstraction after a secret request."
+      },
+      {
+        "answer_id": "answer_repeated_architecture",
+        "question_shape": "But were you the architect, yes or no?",
+        "answer_text": "No, not of the whole platform. I owned the reliability slices I described. I am happy to go deeper on those rather than relabel the team design.",
+        "behavior_label": "defensive",
+        "fact_ids": [
+          "fact_architecture_boundary",
+          "fact_idempotency",
+          "fact_resume_architected"
+        ],
+        "disclosure_event": "event_repeated_boundary",
+        "notes": "Repeated prosecution should not create a new fact."
+      },
+      {
+        "answer_id": "answer_mentoring",
+        "question_shape": "How do you help newer engineers?",
+        "answer_text": "I review onboarding pull requests twice a week and leave written examples. It is informal; I have not managed people.",
+        "behavior_label": "concise",
+        "fact_ids": [
+          "fact_ordinary_mentoring"
+        ],
+        "disclosure_event": "event_mentoring",
+        "notes": "Ordinary human detail and scope clarity."
+      }
+    ],
+    "representative_junctions": [
+      {
+        "junction_id": "junction_architecture_overclaim",
+        "state": "The resume wording is too broad, but Miguel has acknowledged team design and named a potential owned reliability slice.",
+        "observed_fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "reasonable_move_family_ids": [
+          "ownership_reset",
+          "adjacent_contribution",
+          "coverage_rotation"
+        ],
+        "tradeoffs": [
+          "One scope reset is needed for fairness; repeating it has low value.",
+          "Testing the idempotency slice can recover meaningful backend signal.",
+          "Rotation is reasonable if other dimensions are more uncertain."
+        ],
+        "not_gold_note": "The world does not require the reviewer to pursue idempotency specifically; tenant isolation or incident learning can also be legitimate."
+      },
+      {
+        "junction_id": "junction_incident_depth",
+        "state": "The incident mechanism and operation-identity fix are clear, while tenant isolation remains untested.",
+        "observed_fact_ids": [
+          "fact_incident",
+          "fact_idempotency",
+          "fact_reliability_practice"
+        ],
+        "reasonable_move_family_ids": [
+          "failure_boundary",
+          "consequence_tradeoff",
+          "coverage_rotation"
+        ],
+        "tradeoffs": [
+          "A counterfactual can test whether the design generalizes.",
+          "A second incident question risks overfitting to one failure.",
+          "Tenant coverage may offer more independent signal."
+        ],
+        "not_gold_note": "More than one sensible move exists after a strong incident answer."
+      },
+      {
+        "junction_id": "junction_platform_boundary",
+        "state": "Miguel clearly states platform ownership for Kubernetes, network policy, and secrets while the target role emphasizes backend services.",
+        "observed_fact_ids": [
+          "fact_unowned_infrastructure",
+          "fact_idempotency"
+        ],
+        "reasonable_move_family_ids": [
+          "record_boundary",
+          "coverage_rotation",
+          "failure_boundary"
+        ],
+        "tradeoffs": [
+          "Recording the boundary preserves scope accuracy.",
+          "A conceptual interface question may be fair if operations matter for the role.",
+          "Endless infrastructure trivia would substitute a different role."
+        ],
+        "not_gold_note": "The candidate's honest gap must remain distinct from a demonstrated weakness."
+      }
+    ],
+    "acceptable_move_families": [
+      {
+        "family_id": "ownership_reset",
+        "label": "One-time ownership reset",
+        "when_legal": "The resume claim is broader than the candidate's stated personal scope and the boundary has not yet been made explicit.",
+        "value_tradeoff": "High fairness value once; little value after a truthful boundary is recorded.",
+        "prerequisite_fact_ids": [
+          "fact_resume_architected"
+        ],
+        "acceptable_variants": [
+          "Ask which design section was personal.",
+          "Ask what the candidate implemented versus reviewed.",
+          "Ask who made the final decomposition decision."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_reprosecute_claim"
+        ]
+      },
+      {
+        "family_id": "adjacent_contribution",
+        "label": "Test meaningful adjacent ownership",
+        "when_legal": "A concrete owned subsystem is named after the broader claim is corrected.",
+        "value_tradeoff": "High backend signal; should not be framed as consolation or expanded into the whole platform.",
+        "prerequisite_fact_ids": [
+          "fact_architecture_boundary"
+        ],
+        "acceptable_variants": [
+          "Probe operation identity and retries.",
+          "Probe tenant-context isolation.",
+          "Ask for a concrete artifact or negative test."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_widen_scope"
+        ]
+      },
+      {
+        "family_id": "failure_boundary",
+        "label": "Falsifiable failure scenario",
+        "when_legal": "A mechanism has been established and the interviewer wants to see whether it survives a changed condition.",
+        "value_tradeoff": "High discriminative value if bounded; can become a trivia contest if it asks for unowned internals.",
+        "prerequisite_fact_ids": [
+          "fact_idempotency"
+        ],
+        "acceptable_variants": [
+          "Change timeout ordering.",
+          "Ask what state is persisted before and after an ambiguous response.",
+          "Ask what would make reconciliation unsafe."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_provider_secret"
+        ]
+      },
+      {
+        "family_id": "consequence_tradeoff",
+        "label": "Incident consequence and tradeoff",
+        "when_legal": "A production failure or subsystem is clear but the improvement's operational effect is not.",
+        "value_tradeoff": "Tests learning and judgment without requiring a second unrelated architecture tour.",
+        "prerequisite_fact_ids": [
+          "fact_incident"
+        ],
+        "acceptable_variants": [
+          "Ask what changed in tests.",
+          "Ask what new failure mode the fix accepted.",
+          "Ask how the team detects unresolved state."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "record_boundary",
+        "label": "Record an unowned area",
+        "when_legal": "The candidate has explicitly named platform or proprietary boundaries.",
+        "value_tradeoff": "Protects fairness and time; leaves an honest unknown when the role does not require that layer.",
+        "prerequisite_fact_ids": [
+          "fact_unowned_infrastructure"
+        ],
+        "acceptable_variants": [
+          "Mark cluster operations untested.",
+          "Ask only about service/platform interface.",
+          "Rotate to an owned backend surface."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "coverage_rotation",
+        "label": "Rotate to independent backend evidence",
+        "when_legal": "The current surface is sufficiently understood or another dimension has more expected value.",
+        "value_tradeoff": "Protects breadth; may leave some depth uncertainty that should be named.",
+        "prerequisite_fact_ids": [],
+        "acceptable_variants": [
+          "Move from retries to isolation.",
+          "Move from incident to design tradeoff.",
+          "Close with a scoped uncertainty."
+        ],
+        "hard_invalid_move_ids": []
+      }
+    ],
+    "hard_invalid_moves": [
+      {
+        "move_id": "invalid_reprosecute_claim",
+        "action": "Ask whether Miguel was the architect after he has explicitly corrected the team boundary.",
+        "why_invalid": "It adds no new ownership evidence and makes the candidate defend wording instead of demonstrating backend skill.",
+        "fair_alternative_family_ids": [
+          "adjacent_contribution",
+          "coverage_rotation"
+        ],
+        "candidate_harm": "Turns a resume compression into an endless character trial."
+      },
+      {
+        "move_id": "invalid_widen_scope",
+        "action": "Treat idempotency or tenant isolation ownership as ownership of the entire architecture.",
+        "why_invalid": "The facts explicitly separate a subsystem from team decomposition.",
+        "fair_alternative_family_ids": [
+          "adjacent_contribution",
+          "failure_boundary"
+        ],
+        "candidate_harm": "Either inflates the candidate unfairly or later punishes him for an interviewer-created claim."
+      },
+      {
+        "move_id": "invalid_provider_secret",
+        "action": "Demand exact provider timeout, fraud, or customer identifiers to validate the incident.",
+        "why_invalid": "The details are protected and generic state reasoning is available.",
+        "fair_alternative_family_ids": [
+          "failure_boundary",
+          "consequence_tradeoff"
+        ],
+        "candidate_harm": "Rewards confidentiality violations and mislabels refusal as evasiveness."
+      },
+      {
+        "move_id": "invalid_platform_trivia",
+        "action": "Run a Kubernetes or network-policy trivia exam after the candidate states the platform boundary.",
+        "why_invalid": "The world does not give him ownership or memory of those internals, and the target role is service-focused.",
+        "fair_alternative_family_ids": [
+          "record_boundary",
+          "coverage_rotation"
+        ],
+        "candidate_harm": "Converts an unowned area into a false backend weakness."
+      },
+      {
+        "move_id": "invalid_exact_once",
+        "action": "Require a yes/no exactly-once guarantee without allowing a distinction between local state and external side effects.",
+        "why_invalid": "The relevant engineering truth is conditional idempotency plus reconciliation, not a slogan.",
+        "fair_alternative_family_ids": [
+          "failure_boundary",
+          "consequence_tradeoff"
+        ],
+        "candidate_harm": "Penalizes precise systems reasoning for refusing an impossible guarantee."
+      }
+    ],
+    "evidence_sufficiency": {
+      "minimum_turn_shape": "A good interview should establish the architecture boundary once, then obtain one owned correctness mechanism, one incident or counterfactual, and a scoped read on tenant isolation or another independent dimension.",
+      "conditions": [
+        {
+          "condition_id": "suff_scope",
+          "label": "Architecture scope is calibrated",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ],
+          "satisfied_when": "The report distinguishes team architecture from Miguel's owned slices.",
+          "not_satisfied_when": "The report repeats the resume word as either full truth or proof of dishonesty.",
+          "status_if_missing": "interviewer_failure"
+        },
+        {
+          "condition_id": "suff_correctness",
+          "label": "Retry correctness is evidenced",
+          "fact_ids": [
+            "fact_idempotency"
+          ],
+          "satisfied_when": "Stable identity, retry classes, and ambiguous outcomes are concrete.",
+          "not_satisfied_when": "The report relies on terms such as exactly once without a state mechanism.",
+          "status_if_missing": "untested"
+        },
+        {
+          "condition_id": "suff_incident",
+          "label": "Incident learning is evidenced",
+          "fact_ids": [
+            "fact_incident",
+            "fact_reliability_practice"
+          ],
+          "satisfied_when": "The failure sequence and at least one durable change are clear.",
+          "not_satisfied_when": "The incident is reduced to blame or outcome percentage.",
+          "status_if_missing": "untested"
+        },
+        {
+          "condition_id": "suff_isolation",
+          "label": "Isolation is independently assessed",
+          "fact_ids": [
+            "fact_tenant_isolation"
+          ],
+          "satisfied_when": "A tenant-context boundary and negative test or rejection signal are described.",
+          "not_satisfied_when": "Multi-tenant is accepted as a title without mechanism.",
+          "status_if_missing": "untested"
+        },
+        {
+          "condition_id": "suff_protected",
+          "label": "Protected details are handled fairly",
+          "fact_ids": [
+            "fact_protected_detail"
+          ],
+          "satisfied_when": "The report marks exact provider details unavailable and uses generic reasoning.",
+          "not_satisfied_when": "Refusal is scored as evasiveness.",
+          "status_if_missing": "interviewer_failure"
+        }
+      ],
+      "report_requirements": [
+        "State the corrected ownership boundary.",
+        "Score idempotency and incident learning separately.",
+        "Mark platform operations as unowned or untested rather than weak by default.",
+        "Document any interviewer-created repetition or secret request."
+      ],
+      "stop_rules": [
+        "Stop ownership prosecution after one explicit correction.",
+        "Stop retry drilling once state and failure tradeoff are concrete.",
+        "Stop protected-detail requests immediately after the boundary is stated."
+      ],
+      "expected_residual_uncertainty": [
+        "Capacity planning ownership is unclear.",
+        "Security operations beyond service boundaries remain unknown.",
+        "Formal leadership is not evidenced and may be irrelevant to the role."
+      ]
+    },
+    "evaluator_hidden_truth": {
+      "actor_must_never_receive": [
+        "The fact that the resume wording is an overclaim.",
+        "The calibrated view that Miguel is strong on owned reliability slices.",
+        "Any route or move-family judgment from the reviewer.",
+        "The expected final hiring assessment."
+      ],
+      "correct_evidence_profile": [
+        {
+          "dimension_id": "distributed_correctness",
+          "truth_status": "supported",
+          "fact_ids": [
+            "fact_idempotency",
+            "fact_incident"
+          ],
+          "confidence": 0.9,
+          "rationale": "The owned subsystem and real incident provide mechanism-level evidence."
+        },
+        {
+          "dimension_id": "tenant_isolation",
+          "truth_status": "supported",
+          "fact_ids": [
+            "fact_tenant_isolation"
+          ],
+          "confidence": 0.82,
+          "rationale": "The world contains a concrete boundary and negative tests."
+        },
+        {
+          "dimension_id": "incident_learning",
+          "truth_status": "supported",
+          "fact_ids": [
+            "fact_incident",
+            "fact_reliability_practice"
+          ],
+          "confidence": 0.84,
+          "rationale": "The incident led to a replay test and reconciliation change."
+        },
+        {
+          "dimension_id": "ownership_precision",
+          "truth_status": "mixed",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ],
+          "confidence": 0.83,
+          "rationale": "Resume language is over-broad, but correction is candid and adjacent ownership is substantial."
+        },
+        {
+          "dimension_id": "operational_scope",
+          "truth_status": "untested",
+          "fact_ids": [
+            "fact_unowned_infrastructure"
+          ],
+          "confidence": 0.6,
+          "rationale": "Platform operations are explicitly unowned rather than weakly demonstrated."
+        }
+      ],
+      "uncertainty_map": [
+        {
+          "uncertainty_id": "uncertainty_capacity",
+          "question": "Can Miguel reason about capacity and partitions beyond his service slice?",
+          "fact_ids": [
+            "fact_platform_scale",
+            "fact_architecture_boundary"
+          ],
+          "why_it_remains": "The platform scale is contextual and team-owned.",
+          "fair_next_test": "Ask about one saturation signal at the owned boundary.",
+          "do_not_convert_to": "Do not infer weakness from not owning the whole architecture."
+        },
+        {
+          "uncertainty_id": "uncertainty_security",
+          "question": "How would he coordinate a security issue crossing service and platform boundaries?",
+          "fact_ids": [
+            "fact_tenant_isolation",
+            "fact_unowned_infrastructure"
+          ],
+          "why_it_remains": "The service boundary is strong, but platform security is not his area.",
+          "fair_next_test": "Use a conceptual interface and escalation scenario.",
+          "do_not_convert_to": "Do not demand protected controls or secrets."
+        },
+        {
+          "uncertainty_id": "uncertainty_resume_pattern",
+          "question": "Was architected a one-time shorthand or a recurring pattern?",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ],
+          "why_it_remains": "One corrected claim cannot establish a broader integrity pattern.",
+          "fair_next_test": "Ask for another project with the same ownership precision.",
+          "do_not_convert_to": "Do not treat one resume verb as a character verdict."
+        }
+      ],
+      "interviewer_failure_conditions": [
+        "Continuing to prosecute the word architected after correction.",
+        "Failing to probe the adjacent subsystem because the resume claim was imperfect.",
+        "Testing platform operations as if they were personally owned.",
+        "Requesting proprietary provider details.",
+        "Accepting exactly-once language without failure mechanics."
+      ],
+      "likely_traps": [
+        "The resume's architecture verb is salient.",
+        "Miguel's defensive tone can bias the reviewer.",
+        "Tool names can invite trivia.",
+        "The 80% incident reduction can distract from the actual mechanism."
+      ],
+      "gold_rejection_reasons": [
+        "If the world forces the candidate to answer the architecture correction in one scripted way.",
+        "If alternate questions about retries, isolation, or incidents produce inconsistent personal scope.",
+        "If the interviewer cannot distinguish unowned platform work from weak backend reasoning.",
+        "If the incident exists only to prove the candidate is strong rather than to leave meaningful uncertainty."
+      ]
+    }
+  },
+  "evidence_graph": {
+    "fact_ids": [
+      "fact_identity_role",
+      "fact_career_growth",
+      "fact_team_context",
+      "fact_resume_architected",
+      "fact_architecture_boundary",
+      "fact_platform_scale",
+      "fact_idempotency",
+      "fact_tenant_isolation",
+      "fact_incident",
+      "fact_reliability_practice",
+      "fact_unowned_infrastructure",
+      "fact_protected_detail",
+      "fact_ordinary_mentoring"
+    ],
+    "evidence_units": [
+      {
+        "fact_id": "fact_identity_role",
+        "label": "Current backend role",
+        "statement": {
+          "text": "Miguel is a backend engineer at ParcelGrid, a logistics software company with shipment and billing integrations.",
+          "fact_ids": [
+            "fact_identity_role"
+          ]
+        },
+        "category": "identity",
+        "truth_status": "true",
+        "confidence": 0.99,
+        "ownership": {
+          "status": "owned",
+          "scope": "His role and employment context",
+          "boundary_text": "Role context is not proof of architecture ownership.",
+          "owned_by": "Miguel",
+          "ownership_evidence_ids": [
+            "fact_identity_role"
+          ]
+        },
+        "role_relevance": 0.6,
+        "discriminative_value": 0.18,
+        "evidence_properties": {
+          "specificity": 0.77,
+          "observability": 0.78,
+          "mechanism_strength": 0.15,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Introduction",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Backend role and logistics domain",
+          "prohibited_expansion": [
+            "Do not assume every platform layer was personal."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_context",
+            "reason": "The role sits in a cross-functional backend group."
+          }
+        ],
+        "evaluator_note": "Neutral grounding context."
+      },
+      {
+        "fact_id": "fact_career_growth",
+        "label": "Growth toward reliability work",
+        "statement": {
+          "text": "Miguel moved from maintaining integrations into reliability-heavy ownership because he enjoyed making ambiguous external outcomes auditable.",
+          "fact_ids": [
+            "fact_career_growth"
+          ]
+        },
+        "category": "identity",
+        "truth_status": "true",
+        "confidence": 0.84,
+        "ownership": {
+          "status": "owned",
+          "scope": "Career motivation",
+          "boundary_text": "Motivation is not a substitute for technical evidence.",
+          "owned_by": "Miguel",
+          "ownership_evidence_ids": [
+            "fact_career_growth"
+          ]
+        },
+        "role_relevance": 0.53,
+        "discriminative_value": 0.39,
+        "evidence_properties": {
+          "specificity": 0.58,
+          "observability": 0.57,
+          "mechanism_strength": 0.25,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Career-history question",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Why reliability work became his focus",
+          "prohibited_expansion": [
+            "Do not infer seniority from motivation alone."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Ordinary context that helps the human story."
+      },
+      {
+        "fact_id": "fact_team_context",
+        "label": "Architecture review environment",
+        "statement": {
+          "text": "ParcelGrid has a backend group, a platform team, and a security team; architecture decisions are reviewed in design documents, while individual engineers own specific services or reliability slices.",
+          "fact_ids": [
+            "fact_team_context"
+          ]
+        },
+        "category": "scope",
+        "truth_status": "true",
+        "confidence": 0.94,
+        "ownership": {
+          "status": "team_owned",
+          "scope": "Team process and organizational boundary",
+          "boundary_text": "Architecture review is collective even when a person authors a proposal.",
+          "owned_by": "Backend and platform organization",
+          "ownership_evidence_ids": [
+            "fact_team_context"
+          ]
+        },
+        "role_relevance": 0.77,
+        "discriminative_value": 0.69,
+        "evidence_properties": {
+          "specificity": 0.79,
+          "observability": 0.72,
+          "mechanism_strength": 0.54,
+          "outcome_strength": 0.18,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about design ownership or collaboration",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "How architecture and service ownership were divided",
+          "prohibited_expansion": [
+            "Do not disclose internal project names or security details."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_resume_architected",
+            "reason": "The process makes sole architecture ownership unlikely."
+          }
+        ],
+        "evaluator_note": "Critical context for a fair overclaim read."
+      },
+      {
+        "fact_id": "fact_resume_architected",
+        "label": "Over-broad architected resume wording",
+        "statement": {
+          "text": "Miguel's resume says he architected the multi-tenant shipment and billing platform, but the architecture was produced through a team design process and he did not own every subsystem.",
+          "fact_ids": [
+            "fact_resume_architected",
+            "fact_team_context",
+            "fact_architecture_boundary"
+          ]
+        },
+        "category": "ownership",
+        "truth_status": "false_as_stated",
+        "confidence": 0.96,
+        "ownership": {
+          "status": "ambiguous",
+          "scope": "Resume narrative about the complete platform",
+          "boundary_text": "The word architected is broader than Miguel's actual contribution.",
+          "owned_by": "Team for platform architecture; Miguel for selected subsystems",
+          "ownership_evidence_ids": [
+            "fact_resume_architected",
+            "fact_architecture_boundary"
+          ]
+        },
+        "role_relevance": 0.9,
+        "discriminative_value": 0.91,
+        "evidence_properties": {
+          "specificity": 0.92,
+          "observability": 0.75,
+          "mechanism_strength": 0.25,
+          "outcome_strength": 0.2,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Resume claim is discussed",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team-owned architecture with a narrower personal subsystem",
+          "prohibited_expansion": [
+            "Do not force a binary liar/not-liar interpretation."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_idempotency",
+            "reason": "The over-broad label sits above genuine owned reliability work."
+          }
+        ],
+        "evaluator_note": "A correction point, not an automatic hiring verdict."
+      },
+      {
+        "fact_id": "fact_architecture_boundary",
+        "label": "Team-owned architecture boundary",
+        "statement": {
+          "text": "The architecture was agreed by a small backend group; Miguel authored the retry and state-transition sections and implemented the idempotency and tenant-context components, but did not choose the whole service decomposition.",
+          "fact_ids": [
+            "fact_architecture_boundary",
+            "fact_resume_architected",
+            "fact_idempotency",
+            "fact_tenant_isolation"
+          ]
+        },
+        "category": "ownership",
+        "truth_status": "true",
+        "confidence": 0.95,
+        "ownership": {
+          "status": "partial",
+          "scope": "Specific design sections and implementations",
+          "boundary_text": "Miguel owned reliability components, not the complete architecture.",
+          "owned_by": "Miguel for retry, idempotency, and tenant-context sections; team for decomposition",
+          "ownership_evidence_ids": [
+            "fact_architecture_boundary"
+          ]
+        },
+        "role_relevance": 0.94,
+        "discriminative_value": 0.94,
+        "evidence_properties": {
+          "specificity": 0.95,
+          "observability": 0.86,
+          "mechanism_strength": 0.82,
+          "outcome_strength": 0.35,
+          "causal_strength": 0.22
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_resume_architected"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Candidate is asked to separate the team architecture from personal decisions",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team architecture with personally owned reliability slices",
+          "prohibited_expansion": [
+            "Do not shrink the owned slices into mere participation."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_idempotency",
+            "reason": "The boundary identifies the genuine owned subsystem."
+          },
+          {
+            "type": "supports",
+            "target_fact_id": "fact_tenant_isolation",
+            "reason": "Tenant context was one owned slice."
+          }
+        ],
+        "evaluator_note": "Once established, the interviewer should move to substance rather than revisit the label."
+      },
+      {
+        "fact_id": "fact_platform_scale",
+        "label": "Platform event volume",
+        "statement": {
+          "text": "The platform handled approximately 18 million shipment and billing events per day during Miguel's tenure, with traffic patterns varying by carrier and customer seasonality.",
+          "fact_ids": [
+            "fact_platform_scale"
+          ]
+        },
+        "category": "outcome",
+        "truth_status": "true",
+        "confidence": 0.82,
+        "ownership": {
+          "status": "team_owned",
+          "scope": "Platform-wide operating scale",
+          "boundary_text": "Miguel contributed to services operating at this scale but did not own all capacity planning.",
+          "owned_by": "ParcelGrid backend and platform teams",
+          "ownership_evidence_ids": [
+            "fact_platform_scale"
+          ]
+        },
+        "role_relevance": 0.71,
+        "discriminative_value": 0.52,
+        "evidence_properties": {
+          "specificity": 0.78,
+          "observability": 0.72,
+          "mechanism_strength": 0.24,
+          "outcome_strength": 0.67,
+          "causal_strength": 0.2
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_identity_role"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about operating context",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Approximate event volume and seasonality",
+          "prohibited_expansion": [
+            "Do not use volume as a substitute for mechanism evidence."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Scale is context, not an automatic complexity score."
+      },
+      {
+        "fact_id": "fact_idempotency",
+        "label": "Idempotency and retry subsystem",
+        "statement": {
+          "text": "Miguel designed an integration state machine keyed by a stable operation identity, persisted the last known external outcome, separated retryable transport failures from ambiguous side effects, and sent unresolved cases to reconciliation instead of blindly retrying.",
+          "fact_ids": [
+            "fact_idempotency"
+          ]
+        },
+        "category": "mechanism",
+        "truth_status": "true",
+        "confidence": 0.91,
+        "ownership": {
+          "status": "owned",
+          "scope": "Integration idempotency, retry classification, and reconciliation handoff",
+          "boundary_text": "He owned this subsystem and its service-level behavior, not all platform queues or deployments.",
+          "owned_by": "Miguel",
+          "ownership_evidence_ids": [
+            "fact_idempotency"
+          ]
+        },
+        "role_relevance": 0.98,
+        "discriminative_value": 0.96,
+        "evidence_properties": {
+          "specificity": 0.97,
+          "observability": 0.88,
+          "mechanism_strength": 0.96,
+          "outcome_strength": 0.72,
+          "causal_strength": 0.61
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_architecture_boundary"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Candidate names the owned reliability slice",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Stable operation identity, retry classification, and reconciliation",
+          "prohibited_expansion": [
+            "Do not ask for provider-specific secrets or internal code names."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_incident",
+            "reason": "The subsystem was shaped by the production incident."
+          },
+          {
+            "type": "adjacent_to",
+            "target_fact_id": "fact_unowned_infrastructure",
+            "reason": "Service correctness and cluster operations were adjacent but separately owned."
+          }
+        ],
+        "evaluator_note": "Strong adjacent substance that should be tested once or twice, not used to justify replaying the overclaim."
+      },
+      {
+        "fact_id": "fact_tenant_isolation",
+        "label": "Tenant-isolation subsystem",
+        "statement": {
+          "text": "Miguel owned the tenant-context middleware and negative tests that prevented a request or replayed message from using another customer's authorization scope; he also added audit fields for rejected cross-tenant attempts.",
+          "fact_ids": [
+            "fact_tenant_isolation"
+          ]
+        },
+        "category": "mechanism",
+        "truth_status": "true",
+        "confidence": 0.87,
+        "ownership": {
+          "status": "owned",
+          "scope": "Tenant context propagation, authorization checks, and negative tests",
+          "boundary_text": "Database administration and platform identity infrastructure were not his ownership.",
+          "owned_by": "Miguel for service boundary and tests",
+          "ownership_evidence_ids": [
+            "fact_tenant_isolation"
+          ]
+        },
+        "role_relevance": 0.96,
+        "discriminative_value": 0.9,
+        "evidence_properties": {
+          "specificity": 0.95,
+          "observability": 0.83,
+          "mechanism_strength": 0.91,
+          "outcome_strength": 0.57,
+          "causal_strength": 0.42
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_architecture_boundary"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Question about the multi-tenant claim or safety boundary",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Tenant-context boundary, negative tests, and rejection audit",
+          "prohibited_expansion": [
+            "Do not ask for customer identifiers or exact security controls."
+          ]
+        },
+        "relations": [
+          {
+            "type": "adjacent_to",
+            "target_fact_id": "fact_idempotency",
+            "reason": "Both are owned correctness slices in the shared architecture."
+          }
+        ],
+        "evaluator_note": "Meaningful adjacent strength, not a consolation prize."
+      },
+      {
+        "fact_id": "fact_incident",
+        "label": "Duplicate-charge production incident",
+        "statement": {
+          "text": "A carrier-payment adapter acknowledged a request after a timeout, then a retry created a second side effect because the earlier operation identity was not persisted across a migration path; Miguel traced the sequence and led the remediation.",
+          "fact_ids": [
+            "fact_incident",
+            "fact_idempotency"
+          ]
+        },
+        "category": "incident",
+        "truth_status": "true",
+        "confidence": 0.9,
+        "ownership": {
+          "status": "partial",
+          "scope": "Diagnosis, state-machine remediation, and review; payment provider and migration platform were shared",
+          "boundary_text": "Miguel did not control every dependency that contributed to the incident.",
+          "owned_by": "Miguel for diagnosis and integration remediation; team for migration and provider boundary",
+          "ownership_evidence_ids": [
+            "fact_incident"
+          ]
+        },
+        "role_relevance": 0.97,
+        "discriminative_value": 0.94,
+        "evidence_properties": {
+          "specificity": 0.94,
+          "observability": 0.85,
+          "mechanism_strength": 0.93,
+          "outcome_strength": 0.76,
+          "causal_strength": 0.7
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_idempotency"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 3,
+          "reveal_trigger": "Question asks for a production failure or the origin of the retry design",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Timeout acknowledgment, migration path, duplicate side effect, and remediation",
+          "prohibited_expansion": [
+            "Do not request provider contracts or customer billing identifiers."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_reliability_practice",
+            "reason": "The incident led to durable review and monitoring changes."
+          },
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_resume_architected",
+            "reason": "The incident demonstrates a subsystem, not whole-platform ownership."
+          }
+        ],
+        "evaluator_note": "Real incident evidence with a shared boundary."
+      },
+      {
+        "fact_id": "fact_reliability_practice",
+        "label": "Durable incident practice",
+        "statement": {
+          "text": "After the incident, Miguel added a replayable failure test, an explicit reconciliation queue state, and a review checklist that asks whether every external side effect has a stable operation identity.",
+          "fact_ids": [
+            "fact_reliability_practice",
+            "fact_incident"
+          ]
+        },
+        "category": "method",
+        "truth_status": "true",
+        "confidence": 0.88,
+        "ownership": {
+          "status": "partial",
+          "scope": "Tests, queue-state design, and review practice",
+          "boundary_text": "The organization adopted the review checklist; Miguel did not own all on-call process policy.",
+          "owned_by": "Miguel for technical changes; backend group for process",
+          "ownership_evidence_ids": [
+            "fact_reliability_practice"
+          ]
+        },
+        "role_relevance": 0.93,
+        "discriminative_value": 0.87,
+        "evidence_properties": {
+          "specificity": 0.9,
+          "observability": 0.8,
+          "mechanism_strength": 0.83,
+          "outcome_strength": 0.63,
+          "causal_strength": 0.53
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_incident"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 3,
+          "reveal_trigger": "Question asks what changed after the incident",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Replay test, reconciliation state, and review checklist",
+          "prohibited_expansion": [
+            "Do not claim the change guarantees no future incidents."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_incident",
+            "reason": "It is the durable consequence of the incident."
+          }
+        ],
+        "evaluator_note": "Useful consequence evidence; stop after the mechanism is clear."
+      },
+      {
+        "fact_id": "fact_unowned_infrastructure",
+        "label": "Unowned cluster and network operations",
+        "statement": {
+          "text": "The platform team owned Kubernetes upgrades, network policy, cluster capacity, and secret rotation; Miguel consumed those interfaces and raised service requirements but did not operate them.",
+          "fact_ids": [
+            "fact_unowned_infrastructure",
+            "fact_team_context"
+          ]
+        },
+        "category": "boundary",
+        "truth_status": "true",
+        "confidence": 0.97,
+        "ownership": {
+          "status": "not_owned",
+          "scope": "Cluster, network policy, capacity, and secrets operations",
+          "boundary_text": "Miguel's service ownership did not include platform operations.",
+          "owned_by": "Platform team",
+          "ownership_evidence_ids": [
+            "fact_unowned_infrastructure"
+          ]
+        },
+        "role_relevance": 0.68,
+        "discriminative_value": 0.64,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.9,
+          "mechanism_strength": 0.46,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_team_context"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Question asks about the platform or deployment boundary",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Platform-owned operations and Miguel's service interface",
+          "prohibited_expansion": [
+            "Do not turn this boundary into an infrastructure trivia exam."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_idempotency",
+            "reason": "Service correctness and platform operations are distinct scopes."
+          }
+        ],
+        "evaluator_note": "Should be recorded and moved past if the role does not require cluster operation."
+      },
+      {
+        "fact_id": "fact_protected_detail",
+        "label": "Protected provider and customer details",
+        "statement": {
+          "text": "Miguel cannot disclose exact payment-provider retry windows, customer identifiers, or internal fraud thresholds; he can describe generic state transitions, failure classes, and safeguards.",
+          "fact_ids": [
+            "fact_protected_detail",
+            "fact_incident",
+            "fact_idempotency"
+          ]
+        },
+        "category": "boundary",
+        "truth_status": "protected",
+        "confidence": 0.99,
+        "ownership": {
+          "status": "protected",
+          "scope": "Provider, customer, and fraud-control specifics",
+          "boundary_text": "Generic correctness reasoning remains available without proprietary details.",
+          "owned_by": "ParcelGrid and its customers",
+          "ownership_evidence_ids": [
+            "fact_protected_detail"
+          ]
+        },
+        "role_relevance": 0.44,
+        "discriminative_value": 0.48,
+        "evidence_properties": {
+          "specificity": 0.7,
+          "observability": 0.92,
+          "mechanism_strength": 0.2,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "protected",
+          "prerequisite_fact_ids": [
+            "fact_incident"
+          ],
+          "prohibited_reveal_conditions": [
+            "Any request for exact provider timings, customer IDs, or fraud thresholds."
+          ],
+          "earliest_turn": 3,
+          "reveal_trigger": "Candidate states a confidentiality boundary",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Generic retry and reconciliation behavior",
+          "prohibited_expansion": [
+            "Never disclose exact values or identities."
+          ]
+        },
+        "relations": [
+          {
+            "type": "protected_by",
+            "target_fact_id": "fact_incident",
+            "reason": "The protected details surround the incident context."
+          }
+        ],
+        "evaluator_note": "Refusal is appropriate and should not lower the technical assessment."
+      },
+      {
+        "fact_id": "fact_ordinary_mentoring",
+        "label": "Ordinary mentoring practice",
+        "statement": {
+          "text": "Miguel informally reviews onboarding pull requests twice a week and prefers written examples over live whiteboard explanations.",
+          "fact_ids": [
+            "fact_ordinary_mentoring"
+          ]
+        },
+        "category": "behavior",
+        "truth_status": "true",
+        "confidence": 0.8,
+        "ownership": {
+          "status": "owned",
+          "scope": "Informal review habit",
+          "boundary_text": "This is not formal people management.",
+          "owned_by": "Miguel",
+          "ownership_evidence_ids": [
+            "fact_ordinary_mentoring"
+          ]
+        },
+        "role_relevance": 0.46,
+        "discriminative_value": 0.33,
+        "evidence_properties": {
+          "specificity": 0.7,
+          "observability": 0.65,
+          "mechanism_strength": 0.3,
+          "outcome_strength": 0.2,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Question about collaboration or routine",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Informal onboarding review habit",
+          "prohibited_expansion": [
+            "Do not infer management ability."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Neutral human detail that keeps the world from being only incident facts."
+      }
+    ],
+    "relationships": [
+      {
+        "source_fact_id": "fact_identity_role",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_context",
+            "reason": "The role sits in a cross-functional backend group."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_career_growth",
+        "relations": []
+      },
+      {
+        "source_fact_id": "fact_team_context",
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_resume_architected",
+            "reason": "The process makes sole architecture ownership unlikely."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_resume_architected",
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_idempotency",
+            "reason": "The over-broad label sits above genuine owned reliability work."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_architecture_boundary",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_idempotency",
+            "reason": "The boundary identifies the genuine owned subsystem."
+          },
+          {
+            "type": "supports",
+            "target_fact_id": "fact_tenant_isolation",
+            "reason": "Tenant context was one owned slice."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_platform_scale",
+        "relations": []
+      },
+      {
+        "source_fact_id": "fact_idempotency",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_incident",
+            "reason": "The subsystem was shaped by the production incident."
+          },
+          {
+            "type": "adjacent_to",
+            "target_fact_id": "fact_unowned_infrastructure",
+            "reason": "Service correctness and cluster operations were adjacent but separately owned."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_tenant_isolation",
+        "relations": [
+          {
+            "type": "adjacent_to",
+            "target_fact_id": "fact_idempotency",
+            "reason": "Both are owned correctness slices in the shared architecture."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_incident",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_reliability_practice",
+            "reason": "The incident led to durable review and monitoring changes."
+          },
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_resume_architected",
+            "reason": "The incident demonstrates a subsystem, not whole-platform ownership."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_reliability_practice",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_incident",
+            "reason": "It is the durable consequence of the incident."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_unowned_infrastructure",
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_idempotency",
+            "reason": "Service correctness and platform operations are distinct scopes."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_protected_detail",
+        "relations": [
+          {
+            "type": "protected_by",
+            "target_fact_id": "fact_incident",
+            "reason": "The protected details surround the incident context."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_ordinary_mentoring",
+        "relations": []
+      }
+    ]
+  },
+  "attribution_rules": [
+    {
+      "rule_id": "ownership_is_fact_scoped",
+      "text": "Use each evidence unit's ownership status, scope, boundary, and owner exactly; paraphrase cannot widen it.",
+      "fact_ids": [
+        "fact_identity_role",
+        "fact_career_growth",
+        "fact_team_context",
+        "fact_resume_architected",
+        "fact_architecture_boundary",
+        "fact_platform_scale",
+        "fact_idempotency",
+        "fact_tenant_isolation",
+        "fact_incident",
+        "fact_reliability_practice",
+        "fact_unowned_infrastructure",
+        "fact_protected_detail",
+        "fact_ordinary_mentoring"
+      ]
+    },
+    {
+      "rule_id": "truth_status_is_typed",
+      "text": "Distinguish true, qualified, protected, unavailable, unknown, and superseded evidence rather than collapsing them into a verdict.",
+      "fact_ids": [
+        "fact_identity_role",
+        "fact_career_growth",
+        "fact_team_context",
+        "fact_resume_architected",
+        "fact_architecture_boundary",
+        "fact_platform_scale",
+        "fact_idempotency",
+        "fact_tenant_isolation",
+        "fact_incident",
+        "fact_reliability_practice",
+        "fact_unowned_infrastructure",
+        "fact_protected_detail",
+        "fact_ordinary_mentoring"
+      ]
+    },
+    {
+      "rule_id": "correction_updates_active_truth",
+      "text": "Apply explicit correction and supersession relationships before interpreting a contradiction; a candid correction is not automatically deception.",
+      "fact_ids": [
+        "fact_identity_role",
+        "fact_career_growth",
+        "fact_team_context",
+        "fact_resume_architected",
+        "fact_architecture_boundary",
+        "fact_platform_scale",
+        "fact_idempotency",
+        "fact_tenant_isolation",
+        "fact_incident",
+        "fact_reliability_practice",
+        "fact_unowned_infrastructure",
+        "fact_protected_detail",
+        "fact_ordinary_mentoring"
+      ]
+    },
+    {
+      "rule_id": "interviewer_failure_is_separate",
+      "text": "When the frozen world marks an area protected, unowned, untested, or missed because of interviewer behavior, preserve that distinction in the evidence profile.",
+      "fact_ids": [
+        "fact_identity_role",
+        "fact_career_growth",
+        "fact_team_context",
+        "fact_resume_architected",
+        "fact_architecture_boundary",
+        "fact_platform_scale",
+        "fact_idempotency",
+        "fact_tenant_isolation",
+        "fact_incident",
+        "fact_reliability_practice",
+        "fact_unowned_infrastructure",
+        "fact_protected_detail",
+        "fact_ordinary_mentoring"
+      ]
+    }
+  ],
+  "acceptable_move_sets": {
+    "families": [
+      {
+        "family_id": "ownership_reset",
+        "label": "One-time ownership reset",
+        "when_legal": "The resume claim is broader than the candidate's stated personal scope and the boundary has not yet been made explicit.",
+        "value_tradeoff": "High fairness value once; little value after a truthful boundary is recorded.",
+        "prerequisite_fact_ids": [
+          "fact_resume_architected"
+        ],
+        "acceptable_variants": [
+          "Ask which design section was personal.",
+          "Ask what the candidate implemented versus reviewed.",
+          "Ask who made the final decomposition decision."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_reprosecute_claim"
+        ]
+      },
+      {
+        "family_id": "adjacent_contribution",
+        "label": "Test meaningful adjacent ownership",
+        "when_legal": "A concrete owned subsystem is named after the broader claim is corrected.",
+        "value_tradeoff": "High backend signal; should not be framed as consolation or expanded into the whole platform.",
+        "prerequisite_fact_ids": [
+          "fact_architecture_boundary"
+        ],
+        "acceptable_variants": [
+          "Probe operation identity and retries.",
+          "Probe tenant-context isolation.",
+          "Ask for a concrete artifact or negative test."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_widen_scope"
+        ]
+      },
+      {
+        "family_id": "failure_boundary",
+        "label": "Falsifiable failure scenario",
+        "when_legal": "A mechanism has been established and the interviewer wants to see whether it survives a changed condition.",
+        "value_tradeoff": "High discriminative value if bounded; can become a trivia contest if it asks for unowned internals.",
+        "prerequisite_fact_ids": [
+          "fact_idempotency"
+        ],
+        "acceptable_variants": [
+          "Change timeout ordering.",
+          "Ask what state is persisted before and after an ambiguous response.",
+          "Ask what would make reconciliation unsafe."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_provider_secret"
+        ]
+      },
+      {
+        "family_id": "consequence_tradeoff",
+        "label": "Incident consequence and tradeoff",
+        "when_legal": "A production failure or subsystem is clear but the improvement's operational effect is not.",
+        "value_tradeoff": "Tests learning and judgment without requiring a second unrelated architecture tour.",
+        "prerequisite_fact_ids": [
+          "fact_incident"
+        ],
+        "acceptable_variants": [
+          "Ask what changed in tests.",
+          "Ask what new failure mode the fix accepted.",
+          "Ask how the team detects unresolved state."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "record_boundary",
+        "label": "Record an unowned area",
+        "when_legal": "The candidate has explicitly named platform or proprietary boundaries.",
+        "value_tradeoff": "Protects fairness and time; leaves an honest unknown when the role does not require that layer.",
+        "prerequisite_fact_ids": [
+          "fact_unowned_infrastructure"
+        ],
+        "acceptable_variants": [
+          "Mark cluster operations untested.",
+          "Ask only about service/platform interface.",
+          "Rotate to an owned backend surface."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "coverage_rotation",
+        "label": "Rotate to independent backend evidence",
+        "when_legal": "The current surface is sufficiently understood or another dimension has more expected value.",
+        "value_tradeoff": "Protects breadth; may leave some depth uncertainty that should be named.",
+        "prerequisite_fact_ids": [],
+        "acceptable_variants": [
+          "Move from retries to isolation.",
+          "Move from incident to design tradeoff.",
+          "Close with a scoped uncertainty."
+        ],
+        "hard_invalid_move_ids": []
+      }
+    ],
+    "junctions": [
+      {
+        "junction_id": "junction_architecture_overclaim",
+        "state": "The resume wording is too broad, but Miguel has acknowledged team design and named a potential owned reliability slice.",
+        "observed_fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "reasonable_move_family_ids": [
+          "ownership_reset",
+          "adjacent_contribution",
+          "coverage_rotation"
+        ],
+        "tradeoffs": [
+          "One scope reset is needed for fairness; repeating it has low value.",
+          "Testing the idempotency slice can recover meaningful backend signal.",
+          "Rotation is reasonable if other dimensions are more uncertain."
+        ],
+        "not_gold_note": "The world does not require the reviewer to pursue idempotency specifically; tenant isolation or incident learning can also be legitimate."
+      },
+      {
+        "junction_id": "junction_incident_depth",
+        "state": "The incident mechanism and operation-identity fix are clear, while tenant isolation remains untested.",
+        "observed_fact_ids": [
+          "fact_incident",
+          "fact_idempotency",
+          "fact_reliability_practice"
+        ],
+        "reasonable_move_family_ids": [
+          "failure_boundary",
+          "consequence_tradeoff",
+          "coverage_rotation"
+        ],
+        "tradeoffs": [
+          "A counterfactual can test whether the design generalizes.",
+          "A second incident question risks overfitting to one failure.",
+          "Tenant coverage may offer more independent signal."
+        ],
+        "not_gold_note": "More than one sensible move exists after a strong incident answer."
+      },
+      {
+        "junction_id": "junction_platform_boundary",
+        "state": "Miguel clearly states platform ownership for Kubernetes, network policy, and secrets while the target role emphasizes backend services.",
+        "observed_fact_ids": [
+          "fact_unowned_infrastructure",
+          "fact_idempotency"
+        ],
+        "reasonable_move_family_ids": [
+          "record_boundary",
+          "coverage_rotation",
+          "failure_boundary"
+        ],
+        "tradeoffs": [
+          "Recording the boundary preserves scope accuracy.",
+          "A conceptual interface question may be fair if operations matter for the role.",
+          "Endless infrastructure trivia would substitute a different role."
+        ],
+        "not_gold_note": "The candidate's honest gap must remain distinct from a demonstrated weakness."
+      }
+    ],
+    "emergent_surfaces": [
+      {
+        "surface_id": "surface_tenant_isolation",
+        "label": "Tenant-context isolation and auditability",
+        "origin": "Surfaced while correcting the resume's whole-platform architecture claim",
+        "fact_ids": [
+          "fact_tenant_isolation",
+          "fact_architecture_boundary",
+          "fact_unowned_infrastructure"
+        ],
+        "role_relevance": 0.96,
+        "discriminative_value": 0.9,
+        "opportunity_cost": 0.42,
+        "ownership_status": "owned",
+        "prerequisite_fact_ids": [
+          "fact_architecture_boundary"
+        ],
+        "valid_action_families": [
+          "adjacent_contribution",
+          "failure_boundary",
+          "coverage_rotation"
+        ],
+        "absorb_if_covered": true,
+        "rotate_conditions": [
+          "One isolation boundary and one negative test or failure case are clear",
+          "Retry and incident evidence remains less tested",
+          "The role does not require deeper security operations"
+        ],
+        "invalid_pursuit_conditions": [
+          "Treating tenant isolation as proof of full platform architecture ownership",
+          "Drilling into unowned cluster or secret-management internals",
+          "Re-prosecuting the resume label instead of testing the subsystem"
+        ]
+      }
+    ]
+  },
+  "invalid_reality_violations": [
+    {
+      "move_id": "invalid_reprosecute_claim",
+      "action": "Ask whether Miguel was the architect after he has explicitly corrected the team boundary.",
+      "why_invalid": "It adds no new ownership evidence and makes the candidate defend wording instead of demonstrating backend skill.",
+      "fair_alternative_family_ids": [
+        "adjacent_contribution",
+        "coverage_rotation"
+      ],
+      "candidate_harm": "Turns a resume compression into an endless character trial."
+    },
+    {
+      "move_id": "invalid_widen_scope",
+      "action": "Treat idempotency or tenant isolation ownership as ownership of the entire architecture.",
+      "why_invalid": "The facts explicitly separate a subsystem from team decomposition.",
+      "fair_alternative_family_ids": [
+        "adjacent_contribution",
+        "failure_boundary"
+      ],
+      "candidate_harm": "Either inflates the candidate unfairly or later punishes him for an interviewer-created claim."
+    },
+    {
+      "move_id": "invalid_provider_secret",
+      "action": "Demand exact provider timeout, fraud, or customer identifiers to validate the incident.",
+      "why_invalid": "The details are protected and generic state reasoning is available.",
+      "fair_alternative_family_ids": [
+        "failure_boundary",
+        "consequence_tradeoff"
+      ],
+      "candidate_harm": "Rewards confidentiality violations and mislabels refusal as evasiveness."
+    },
+    {
+      "move_id": "invalid_platform_trivia",
+      "action": "Run a Kubernetes or network-policy trivia exam after the candidate states the platform boundary.",
+      "why_invalid": "The world does not give him ownership or memory of those internals, and the target role is service-focused.",
+      "fair_alternative_family_ids": [
+        "record_boundary",
+        "coverage_rotation"
+      ],
+      "candidate_harm": "Converts an unowned area into a false backend weakness."
+    },
+    {
+      "move_id": "invalid_exact_once",
+      "action": "Require a yes/no exactly-once guarantee without allowing a distinction between local state and external side effects.",
+      "why_invalid": "The relevant engineering truth is conditional idempotency plus reconciliation, not a slogan.",
+      "fair_alternative_family_ids": [
+        "failure_boundary",
+        "consequence_tradeoff"
+      ],
+      "candidate_harm": "Penalizes precise systems reasoning for refusing an impossible guarantee."
+    }
+  ],
+  "sufficiency_conditions": {
+    "minimum_turn_shape": "A good interview should establish the architecture boundary once, then obtain one owned correctness mechanism, one incident or counterfactual, and a scoped read on tenant isolation or another independent dimension.",
+    "conditions": [
+      {
+        "condition_id": "suff_scope",
+        "label": "Architecture scope is calibrated",
+        "fact_ids": [
+          "fact_resume_architected",
+          "fact_architecture_boundary"
+        ],
+        "satisfied_when": "The report distinguishes team architecture from Miguel's owned slices.",
+        "not_satisfied_when": "The report repeats the resume word as either full truth or proof of dishonesty.",
+        "status_if_missing": "interviewer_failure"
+      },
+      {
+        "condition_id": "suff_correctness",
+        "label": "Retry correctness is evidenced",
+        "fact_ids": [
+          "fact_idempotency"
+        ],
+        "satisfied_when": "Stable identity, retry classes, and ambiguous outcomes are concrete.",
+        "not_satisfied_when": "The report relies on terms such as exactly once without a state mechanism.",
+        "status_if_missing": "untested"
+      },
+      {
+        "condition_id": "suff_incident",
+        "label": "Incident learning is evidenced",
+        "fact_ids": [
+          "fact_incident",
+          "fact_reliability_practice"
+        ],
+        "satisfied_when": "The failure sequence and at least one durable change are clear.",
+        "not_satisfied_when": "The incident is reduced to blame or outcome percentage.",
+        "status_if_missing": "untested"
+      },
+      {
+        "condition_id": "suff_isolation",
+        "label": "Isolation is independently assessed",
+        "fact_ids": [
+          "fact_tenant_isolation"
+        ],
+        "satisfied_when": "A tenant-context boundary and negative test or rejection signal are described.",
+        "not_satisfied_when": "Multi-tenant is accepted as a title without mechanism.",
+        "status_if_missing": "untested"
+      },
+      {
+        "condition_id": "suff_protected",
+        "label": "Protected details are handled fairly",
+        "fact_ids": [
+          "fact_protected_detail"
+        ],
+        "satisfied_when": "The report marks exact provider details unavailable and uses generic reasoning.",
+        "not_satisfied_when": "Refusal is scored as evasiveness.",
+        "status_if_missing": "interviewer_failure"
+      }
+    ],
+    "report_requirements": [
+      "State the corrected ownership boundary.",
+      "Score idempotency and incident learning separately.",
+      "Mark platform operations as unowned or untested rather than weak by default.",
+      "Document any interviewer-created repetition or secret request."
+    ],
+    "stop_rules": [
+      "Stop ownership prosecution after one explicit correction.",
+      "Stop retry drilling once state and failure tradeoff are concrete.",
+      "Stop protected-detail requests immediately after the boundary is stated."
+    ],
+    "expected_residual_uncertainty": [
+      "Capacity planning ownership is unclear.",
+      "Security operations beyond service boundaries remain unknown.",
+      "Formal leadership is not evidenced and may be irrelevant to the role."
+    ]
+  }
+}

@@ -1,0 +1,3759 @@
+{
+  "projection_schema_version": "candidate_projection_v1",
+  "projection_type": "evaluator_only",
+  "world_id": "world_04_junior_fullstack",
+  "frozen_truth": {
+    "schema_version": "candidate_world_v1",
+    "world_id": "world_04_junior_fullstack",
+    "title": "Leo Chen — early-career engineer learning through product defects and small owned surfaces",
+    "authoring_metadata": {
+      "trial_id": "luna_trial_v1",
+      "authored_by": "GPT-5.6 Luna",
+      "status": "exploratory_non_gold",
+      "authored_on": "2026-08-09",
+      "source_basis": "A fictional junior full-stack engineer with severe interview nervousness, bounded real competence, an ownership correction, a team feature, one individually driven debugging story, honest infrastructure gaps, and protected health-product data.",
+      "non_gold_reason": "The world has not been validated by junior-candidate interviewers, accessibility experts, or human studies of nervous speech and must not be treated as a gold fairness benchmark.",
+      "paid_provider_calls": false
+    },
+    "identity": {
+      "name": "Leo Chen",
+      "pronouns": "he/him",
+      "location": "Vancouver, Canada",
+      "years_experience": 1.6,
+      "current_title": "Junior Software Engineer",
+      "biography": {
+        "text": "Leo joined a small clinic-scheduling startup after a co-op and bootstrapped much of his React and TypeScript knowledge on the job. He is proudest when he can reproduce a user-visible defect and turn it into a regression test. He has limited exposure to infrastructure and becomes extremely terse in formal interviews.",
+        "fact_ids": [
+          "fact_identity_role",
+          "fact_career_context",
+          "fact_debugging_strength",
+          "fact_infrastructure_gap",
+          "fact_nervous_behavior"
+        ]
+      },
+      "non_evaluative_identity_note": "Name, pronouns, and location are fictional context and must not influence assessment."
+    },
+    "target_role": {
+      "title": "Junior Full-Stack Engineer",
+      "level": "Junior / 1–2 years",
+      "role_family": "Product engineering",
+      "hiring_context": {
+        "text": "The team needs a junior engineer who can debug web behavior, learn from feedback, make safe small changes across client and API boundaries, ask for help appropriately, and state genuine gaps without being judged against senior infrastructure expectations.",
+        "fact_ids": [
+          "fact_debugging_strength",
+          "fact_learning_strength",
+          "fact_team_feature",
+          "fact_infrastructure_gap"
+        ]
+      },
+      "responsibilities": [
+        {
+          "text": "Reproduce and diagnose user-visible defects before changing code.",
+          "fact_ids": [
+            "fact_debugging_strength",
+            "fact_timezone_bug"
+          ]
+        },
+        {
+          "text": "Implement bounded frontend and API changes with tests and review.",
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_team_feature"
+          ]
+        },
+        {
+          "text": "Learn unfamiliar tools and communicate when help is needed.",
+          "fact_ids": [
+            "fact_learning_strength",
+            "fact_infrastructure_gap"
+          ]
+        },
+        {
+          "text": "Respect privacy constraints in a health-product environment.",
+          "fact_ids": [
+            "fact_protected_health_data"
+          ]
+        }
+      ],
+      "must_test_dimensions": [
+        {
+          "dimension_id": "debugging",
+          "label": "Debugging process",
+          "why_it_matters": {
+            "text": "Leo's strongest evidence is a patient-scheduling date defect he reproduced, isolated, and converted into a regression test.",
+            "fact_ids": [
+              "fact_debugging_strength",
+              "fact_timezone_bug"
+            ]
+          },
+          "minimum_evidence": [
+            "A reproduction or narrowing step",
+            "A fix and regression check"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested",
+            "interviewer_failure"
+          ]
+        },
+        {
+          "dimension_id": "web_fundamentals",
+          "label": "Web fundamentals",
+          "why_it_matters": {
+            "text": "His owned work spans React form state, date serialization, validation, and a shared API contract at junior scope.",
+            "fact_ids": [
+              "fact_form_ownership",
+              "fact_timezone_bug"
+            ]
+          },
+          "minimum_evidence": [
+            "State or data-flow reasoning",
+            "A boundary between client and server"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested"
+          ]
+        },
+        {
+          "dimension_id": "learning",
+          "label": "Learning and feedback",
+          "why_it_matters": {
+            "text": "At junior level, how Leo learns and seeks review is as important as broad prior exposure.",
+            "fact_ids": [
+              "fact_learning_strength",
+              "fact_ordinary_work"
+            ]
+          },
+          "minimum_evidence": [
+            "A concrete learning loop",
+            "Use of review, documentation, or tests"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested"
+          ]
+        },
+        {
+          "dimension_id": "ownership_precision",
+          "label": "Ownership precision",
+          "why_it_matters": {
+            "text": "The scheduling feature was team-owned, while Leo personally owned a narrower form and bug-fix slice.",
+            "fact_ids": [
+              "fact_team_feature",
+              "fact_form_ownership",
+              "fact_ownership_correction"
+            ]
+          },
+          "minimum_evidence": [
+            "One team boundary",
+            "One personal artifact"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "weak",
+            "untested"
+          ]
+        },
+        {
+          "dimension_id": "communication_fairness",
+          "label": "Communication under pressure",
+          "why_it_matters": {
+            "text": "Two- to five-word answers can hide real competence unless questions are bounded and concrete.",
+            "fact_ids": [
+              "fact_nervous_behavior",
+              "fact_bounded_recovery"
+            ]
+          },
+          "minimum_evidence": [
+            "At least one fair bounded prompt",
+            "Separation of speech difficulty from technical result"
+          ],
+          "possible_statuses": [
+            "supported",
+            "mixed",
+            "untested",
+            "interviewer_failure"
+          ]
+        }
+      ],
+      "do_not_assume": [
+        "A two-word answer proves the candidate cannot reason.",
+        "The phrase built scheduling means sole ownership of frontend, API, database, and deployment.",
+        "A junior engineer should know Kubernetes, incident command, or distributed-systems design at senior depth."
+      ]
+    },
+    "resume": {
+      "text": "LEO CHEN\nJunior Software Engineer | React, TypeScript, Node.js, PostgreSQL\n\nCarePath — Junior Software Engineer (2025–present)\n• Built patient scheduling and intake features used by 40 clinics.\n• Fixed a timezone defect that caused appointments to appear on the wrong day.\n• Added frontend validation, API tests, and accessibility improvements.\n• Supported deployments and monitored production issues.\n\nCo-op project\n• Built a small Minecraft inventory mod in Java.",
+      "claims": [
+        {
+          "claim_id": "claim_scheduling_feature",
+          "claim_text": "Built patient scheduling and intake features used by 40 clinics.",
+          "claim_type": "ownership",
+          "truth_status": "compressed",
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ],
+          "risk_if_overread": "The feature was team-owned; Leo owned the React form, validation, and parts of the date contract rather than the complete system."
+        },
+        {
+          "claim_id": "claim_timezone_fix",
+          "claim_text": "Fixed a timezone defect that caused appointments to appear on the wrong day.",
+          "claim_type": "method",
+          "truth_status": "accurate",
+          "fact_ids": [
+            "fact_timezone_bug",
+            "fact_debugging_strength"
+          ],
+          "risk_if_overread": "The backend engineer changed one API behavior; Leo drove diagnosis and the client-side fix but did not own every layer."
+        },
+        {
+          "claim_id": "claim_accessibility",
+          "claim_text": "Added accessibility improvements.",
+          "claim_type": "method",
+          "truth_status": "accurate",
+          "fact_ids": [
+            "fact_accessibility_surface"
+          ],
+          "risk_if_overread": "The work was a focused keyboard and error-announcement repair, not an organization-wide accessibility program."
+        },
+        {
+          "claim_id": "claim_deployments",
+          "claim_text": "Supported deployments and monitored production issues.",
+          "claim_type": "scope",
+          "truth_status": "compressed",
+          "fact_ids": [
+            "fact_infrastructure_gap",
+            "fact_ordinary_work"
+          ],
+          "risk_if_overread": "Leo watched dashboards, verified releases, and escalated; he did not own cloud infrastructure or deployment pipelines."
+        },
+        {
+          "claim_id": "claim_minecraft",
+          "claim_text": "Built a Minecraft inventory mod in Java.",
+          "claim_type": "side_project",
+          "truth_status": "accurate",
+          "fact_ids": [
+            "fact_side_project"
+          ],
+          "risk_if_overread": "The project shows persistence but is weak evidence for production full-stack judgment."
+        }
+      ],
+      "resume_limits": [
+        {
+          "text": "The resume uses team-level verbs and does not show the narrow personal boundary until Leo corrects it.",
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ]
+        },
+        {
+          "text": "The resume understates how severely interview nervousness affects Leo's spoken answer length.",
+          "fact_ids": [
+            "fact_nervous_behavior",
+            "fact_bounded_recovery"
+          ]
+        }
+      ]
+    },
+    "hiring_hypotheses": [
+      {
+        "hypothesis_id": "hyp_debugging",
+        "question": {
+          "text": "Can Leo demonstrate a reproducible debugging process when the question is concrete enough for him to speak?",
+          "fact_ids": [
+            "fact_debugging_strength",
+            "fact_timezone_bug",
+            "fact_bounded_recovery"
+          ]
+        },
+        "why_it_matters": {
+          "text": "A junior engineer with a reliable debugging loop can grow even with limited system breadth.",
+          "fact_ids": [
+            "fact_debugging_strength",
+            "fact_learning_strength"
+          ]
+        },
+        "evidence_needed": [
+          [
+            "fact_timezone_bug",
+            "fact_debugging_strength"
+          ],
+          [
+            "fact_learning_strength"
+          ]
+        ],
+        "failure_modes": [
+          "Mistaking silence for absence of skill",
+          "Accepting a fix story without reproduction or regression evidence"
+        ],
+        "uncertain_if_unresolved": "The report cannot separate communication difficulty from technical incapacity."
+      },
+      {
+        "hypothesis_id": "hyp_level_calibration",
+        "question": {
+          "text": "Does Leo meet junior expectations without being scored against senior infrastructure topics?",
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_learning_strength",
+            "fact_infrastructure_gap"
+          ]
+        },
+        "why_it_matters": {
+          "text": "The target role values bounded product work and learning, not broad operations ownership.",
+          "fact_ids": [
+            "fact_identity_role",
+            "fact_infrastructure_gap"
+          ]
+        },
+        "evidence_needed": [
+          [
+            "fact_form_ownership",
+            "fact_timezone_bug"
+          ],
+          [
+            "fact_learning_strength",
+            "fact_infrastructure_gap"
+          ]
+        ],
+        "failure_modes": [
+          "Infrastructure trivia dominates the interview",
+          "An honest gap becomes a global no-hire signal"
+        ],
+        "uncertain_if_unresolved": "Level fit remains unfairly under-tested."
+      },
+      {
+        "hypothesis_id": "hyp_scope_correction",
+        "question": {
+          "text": "Can Leo correct team-level resume language without losing credit for a real individual contribution?",
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ]
+        },
+        "why_it_matters": {
+          "text": "Junior resumes often compress collaborative features, and the relevant evidence is whether personal artifacts can be named accurately.",
+          "fact_ids": [
+            "fact_ownership_correction"
+          ]
+        },
+        "evidence_needed": [
+          [
+            "fact_team_feature",
+            "fact_ownership_correction"
+          ],
+          [
+            "fact_form_ownership"
+          ]
+        ],
+        "failure_modes": [
+          "Treating the correction as deception",
+          "Giving credit for the entire feature"
+        ],
+        "uncertain_if_unresolved": "Ownership precision is unknown and technical evidence may be misattributed."
+      },
+      {
+        "hypothesis_id": "hyp_recovery_fairness",
+        "question": {
+          "text": "Can the interviewer recover a useful conversation after two-word answers without repeating or coaching the content?",
+          "fact_ids": [
+            "fact_nervous_behavior",
+            "fact_bounded_recovery"
+          ]
+        },
+        "why_it_matters": {
+          "text": "A bounded prompt changes answerability, while leading prompts could manufacture evidence.",
+          "fact_ids": [
+            "fact_bounded_recovery"
+          ]
+        },
+        "evidence_needed": [
+          [
+            "fact_nervous_behavior",
+            "fact_bounded_recovery"
+          ],
+          [
+            "fact_timezone_bug"
+          ]
+        ],
+        "failure_modes": [
+          "Repeating the same broad question",
+          "Supplying the technical answer inside the prompt"
+        ],
+        "uncertain_if_unresolved": "A poor conversation can be falsely reported as a candidate knowledge failure."
+      }
+    ],
+    "latent_capability_profile": {
+      "strengths": [
+        {
+          "capability_id": "cap_debugging",
+          "label": "Concrete debugging",
+          "description": {
+            "text": "Leo can reproduce a browser/server mismatch, isolate a serialization boundary, inspect a network payload, and add a regression test.",
+            "fact_ids": [
+              "fact_debugging_strength",
+              "fact_timezone_bug"
+            ]
+          },
+          "level": "solid",
+          "fact_ids": [
+            "fact_debugging_strength",
+            "fact_timezone_bug"
+          ],
+          "confidence": 0.88,
+          "how_it_can_be_misread": "The story may never emerge if the interviewer keeps asking broad questions."
+        },
+        {
+          "capability_id": "cap_learning",
+          "label": "Learning with feedback",
+          "description": {
+            "text": "He uses small experiments, documentation, tests, and code review to learn unfamiliar TypeScript and accessibility behavior.",
+            "fact_ids": [
+              "fact_learning_strength",
+              "fact_accessibility_surface"
+            ]
+          },
+          "level": "solid",
+          "fact_ids": [
+            "fact_learning_strength",
+            "fact_accessibility_surface"
+          ],
+          "confidence": 0.82,
+          "how_it_can_be_misread": "Needing review may be interpreted as dependency rather than appropriate junior practice."
+        }
+      ],
+      "weaknesses": [
+        {
+          "capability_id": "cap_infrastructure",
+          "label": "Infrastructure knowledge",
+          "description": {
+            "text": "Leo does not understand Kubernetes scheduling, network policy, database failover, or cloud capacity beyond basic application-level symptoms and escalation.",
+            "fact_ids": [
+              "fact_infrastructure_gap"
+            ]
+          },
+          "level": "weak",
+          "fact_ids": [
+            "fact_infrastructure_gap"
+          ],
+          "confidence": 0.93,
+          "how_it_can_be_misread": "The weakness is real but may be irrelevant or appropriately junior depending on the role."
+        }
+      ],
+      "unknowns": [
+        {
+          "unknown_id": "unknown_api_design",
+          "label": "Independent API design",
+          "why_unknown": {
+            "text": "Leo has modified contracts and tests but has not independently designed a durable public API.",
+            "fact_ids": [
+              "fact_form_ownership",
+              "fact_timezone_bug",
+              "fact_team_feature"
+            ]
+          },
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_timezone_bug",
+            "fact_team_feature"
+          ],
+          "fair_test": "Ask for a small endpoint or validation contract at junior scope."
+        },
+        {
+          "unknown_id": "unknown_database_reasoning",
+          "label": "Database reasoning",
+          "why_unknown": {
+            "text": "The world contains no personally owned query, migration, index, or transaction decision.",
+            "fact_ids": [
+              "fact_team_feature",
+              "fact_infrastructure_gap"
+            ]
+          },
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_infrastructure_gap"
+          ],
+          "fair_test": "Use a simple application data scenario; mark untested if time is short."
+        },
+        {
+          "unknown_id": "unknown_collaboration_conflict",
+          "label": "Disagreement with a teammate",
+          "why_unknown": {
+            "text": "Leo seeks review and escalates appropriately, but no disagreement episode is frozen in the world.",
+            "fact_ids": [
+              "fact_learning_strength",
+              "fact_ordinary_work"
+            ]
+          },
+          "fact_ids": [
+            "fact_learning_strength",
+            "fact_ordinary_work"
+          ],
+          "fair_test": "Ask about feedback he changed his mind on, without inventing conflict."
+        }
+      ],
+      "communication_effects": [
+        {
+          "text": "In formal interviews Leo often begins with two- to five-word answers, pauses, and loses access to details he can explain in ordinary work conversation.",
+          "fact_ids": [
+            "fact_nervous_behavior"
+          ]
+        },
+        {
+          "text": "A bounded prompt naming one artifact, screenshot, payload, or first debugging step lets him produce coherent technical evidence without changing the underlying truth.",
+          "fact_ids": [
+            "fact_bounded_recovery",
+            "fact_timezone_bug"
+          ]
+        }
+      ]
+    },
+    "evidence_units": [
+      {
+        "fact_id": "fact_identity_role",
+        "label": "Current junior role",
+        "statement": {
+          "text": "Leo is a junior software engineer at CarePath, a small clinic-scheduling company, with about nineteen months of full-time experience after a co-op.",
+          "fact_ids": [
+            "fact_identity_role"
+          ]
+        },
+        "category": "identity",
+        "truth_status": "true",
+        "confidence": 0.99,
+        "ownership": {
+          "status": "owned",
+          "scope": "His role and experience level",
+          "boundary_text": "The role level constrains fair expectations but does not guarantee competence.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_identity_role"
+          ]
+        },
+        "role_relevance": 0.72,
+        "discriminative_value": 0.3,
+        "evidence_properties": {
+          "specificity": 0.82,
+          "observability": 0.83,
+          "mechanism_strength": 0.1,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Introduction",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Role, company context, and experience level",
+          "prohibited_expansion": [
+            "Do not infer senior responsibilities."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_context",
+            "reason": "The role is embedded in a small product team."
+          }
+        ],
+        "evaluator_note": "Essential level calibration."
+      },
+      {
+        "fact_id": "fact_career_context",
+        "label": "On-the-job learning path",
+        "statement": {
+          "text": "Leo learned most of his React and TypeScript practice after joining CarePath and chose product engineering because seeing a defect fixed for a user felt more motivating than coursework projects.",
+          "fact_ids": [
+            "fact_career_context"
+          ]
+        },
+        "category": "identity",
+        "truth_status": "true",
+        "confidence": 0.86,
+        "ownership": {
+          "status": "owned",
+          "scope": "Career history and motivation",
+          "boundary_text": "Motivation is not technical evidence.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_career_context"
+          ]
+        },
+        "role_relevance": 0.5,
+        "discriminative_value": 0.31,
+        "evidence_properties": {
+          "specificity": 0.62,
+          "observability": 0.56,
+          "mechanism_strength": 0.2,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Career or motivation question",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Transition into product engineering",
+          "prohibited_expansion": [
+            "Do not over-credit enthusiasm."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Human context."
+      },
+      {
+        "fact_id": "fact_team_context",
+        "label": "Small-team collaboration",
+        "statement": {
+          "text": "CarePath's scheduling feature was built by a product manager, a designer, Leo, a senior frontend engineer, and a backend engineer; code review and release approval were shared.",
+          "fact_ids": [
+            "fact_team_context"
+          ]
+        },
+        "category": "scope",
+        "truth_status": "true",
+        "confidence": 0.96,
+        "ownership": {
+          "status": "team_owned",
+          "scope": "The complete scheduling feature",
+          "boundary_text": "Leo's personal work must be separated from the team outcome.",
+          "owned_by": "Cross-functional CarePath team",
+          "ownership_evidence_ids": [
+            "fact_team_context"
+          ]
+        },
+        "role_relevance": 0.84,
+        "discriminative_value": 0.72,
+        "evidence_properties": {
+          "specificity": 0.85,
+          "observability": 0.8,
+          "mechanism_strength": 0.4,
+          "outcome_strength": 0.2,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about feature ownership or collaboration",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team composition and shared review",
+          "prohibited_expansion": [
+            "Do not name clinics or patient data."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_feature",
+            "reason": "The feature was collaborative."
+          }
+        ],
+        "evaluator_note": "Ownership context that should be absorbed after one clarification."
+      },
+      {
+        "fact_id": "fact_nervous_behavior",
+        "label": "Severe interview nervousness",
+        "statement": {
+          "text": "In formal interviews Leo's first answers are commonly two to five words, his voice becomes quiet, and broad or multi-part questions can make him blank even when he knows the underlying work.",
+          "fact_ids": [
+            "fact_nervous_behavior"
+          ]
+        },
+        "category": "behavior",
+        "truth_status": "true",
+        "confidence": 0.94,
+        "ownership": {
+          "status": "owned",
+          "scope": "Observed communication behavior",
+          "boundary_text": "Nervousness changes access to speech, not frozen competence.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_nervous_behavior"
+          ]
+        },
+        "role_relevance": 0.82,
+        "discriminative_value": 0.88,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.9,
+          "mechanism_strength": 0.25,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Observed interaction",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "He may say that he is nervous and ask for a moment",
+          "prohibited_expansion": [
+            "Do not expose evaluator labels or assume a medical condition."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_bounded_recovery",
+            "reason": "Question shape changes verbal access."
+          }
+        ],
+        "evaluator_note": "Central fairness variable, not a protected diagnosis."
+      },
+      {
+        "fact_id": "fact_bounded_recovery",
+        "label": "Recovery under bounded prompts",
+        "statement": {
+          "text": "When a question asks for one concrete first step, payload, test, or file, Leo can expand into a coherent six- to ten-sentence explanation and answer follow-ups accurately.",
+          "fact_ids": [
+            "fact_bounded_recovery",
+            "fact_nervous_behavior"
+          ]
+        },
+        "category": "behavior",
+        "truth_status": "true",
+        "confidence": 0.91,
+        "ownership": {
+          "status": "owned",
+          "scope": "Communication response to question shape",
+          "boundary_text": "The prompt may bound the task but must not supply the technical answer.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_bounded_recovery"
+          ]
+        },
+        "role_relevance": 0.89,
+        "discriminative_value": 0.93,
+        "evidence_properties": {
+          "specificity": 0.86,
+          "observability": 0.88,
+          "mechanism_strength": 0.4,
+          "outcome_strength": 0.25,
+          "causal_strength": 0.25
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_nervous_behavior"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "A bounded, non-leading recovery question",
+          "candidate_can_volunteer": false,
+          "allowed_summary": "Observable expansion after bounded prompts",
+          "prohibited_expansion": [
+            "Do not coach the solution inside the question."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_debugging_strength",
+            "reason": "The debugging story becomes answerable under a bounded prompt."
+          }
+        ],
+        "evaluator_note": "A good interviewer should create one fair chance, not endless rescue."
+      },
+      {
+        "fact_id": "fact_team_feature",
+        "label": "Team-owned scheduling feature",
+        "statement": {
+          "text": "The patient-scheduling and intake feature was designed and delivered by the team; Leo did not own the API service, database schema, product requirements, or final release decision.",
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_team_context"
+          ]
+        },
+        "category": "ownership",
+        "truth_status": "true",
+        "confidence": 0.98,
+        "ownership": {
+          "status": "team_owned",
+          "scope": "End-to-end scheduling feature",
+          "boundary_text": "Leo owned a frontend form and specific defects within the team feature.",
+          "owned_by": "Cross-functional team",
+          "ownership_evidence_ids": [
+            "fact_team_feature"
+          ]
+        },
+        "role_relevance": 0.88,
+        "discriminative_value": 0.82,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.84,
+          "mechanism_strength": 0.4,
+          "outcome_strength": 0.35,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_team_context"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question asks what built means on the resume",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team ownership and excluded layers",
+          "prohibited_expansion": [
+            "Do not turn team ownership into no contribution."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_form_ownership",
+            "reason": "The personal contribution sits inside the team feature."
+          }
+        ],
+        "evaluator_note": "Clear boundary; should not be re-litigated."
+      },
+      {
+        "fact_id": "fact_form_ownership",
+        "label": "Owned scheduling-form slice",
+        "statement": {
+          "text": "Leo personally implemented the React scheduling form state, client validation, error messages, and part of the date-serialization contract, with review from a senior engineer.",
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_team_feature"
+          ]
+        },
+        "category": "ownership",
+        "truth_status": "true",
+        "confidence": 0.94,
+        "ownership": {
+          "status": "owned",
+          "scope": "React form, client validation, errors, and client-side date contract",
+          "boundary_text": "Review and a team context do not erase personal implementation; backend and database remained partner-owned.",
+          "owned_by": "Leo for the frontend slice",
+          "ownership_evidence_ids": [
+            "fact_form_ownership"
+          ]
+        },
+        "role_relevance": 0.94,
+        "discriminative_value": 0.87,
+        "evidence_properties": {
+          "specificity": 0.94,
+          "observability": 0.86,
+          "mechanism_strength": 0.86,
+          "outcome_strength": 0.48,
+          "causal_strength": 0.28
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_team_feature"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "A concrete personal-artifact question",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Frontend state, validation, errors, and date contract",
+          "prohibited_expansion": [
+            "Do not claim API, database, or release ownership."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_timezone_bug",
+            "reason": "The defect occurred at the owned client date boundary."
+          }
+        ],
+        "evaluator_note": "Meaningful junior-level contribution."
+      },
+      {
+        "fact_id": "fact_ownership_correction",
+        "label": "Correction of built wording",
+        "statement": {
+          "text": "Leo initially says he built scheduling, then corrects himself: the team built the feature and he owned the React form, validation, and the client side of the date fix.",
+          "fact_ids": [
+            "fact_ownership_correction",
+            "fact_team_feature",
+            "fact_form_ownership"
+          ]
+        },
+        "category": "correction",
+        "truth_status": "true",
+        "confidence": 0.95,
+        "ownership": {
+          "status": "owned",
+          "scope": "His wording and corrected personal boundary",
+          "boundary_text": "The correction supersedes the broad spoken claim without implying deception.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_ownership_correction"
+          ]
+        },
+        "role_relevance": 0.9,
+        "discriminative_value": 0.9,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.88,
+          "mechanism_strength": 0.52,
+          "outcome_strength": 0.2,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_team_feature",
+            "fact_form_ownership"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Interviewer asks who did which part or Leo notices the broad wording",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team feature and narrow personal slice",
+          "prohibited_expansion": [
+            "Do not preserve the superseded broad ownership claim."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supersedes",
+            "target_fact_id": "fact_team_feature",
+            "reason": "It corrects how Leo verbally framed the team feature while preserving the team fact."
+          }
+        ],
+        "evaluator_note": "Correction should update truth cleanly."
+      },
+      {
+        "fact_id": "fact_timezone_bug",
+        "label": "Wrong-day scheduling defect",
+        "statement": {
+          "text": "A date-only value from the browser was converted through UTC and rendered as the previous day for some western time zones; Leo reproduced it by changing browser timezone, compared the network payload with rendered state, and fixed the client serialization while a backend engineer clarified the API contract.",
+          "fact_ids": [
+            "fact_timezone_bug",
+            "fact_form_ownership"
+          ]
+        },
+        "category": "incident",
+        "truth_status": "true",
+        "confidence": 0.96,
+        "ownership": {
+          "status": "partial",
+          "scope": "Reproduction, client diagnosis, serialization fix, and regression test",
+          "boundary_text": "The backend engineer owned the server contract change; Leo drove the client-side investigation and fix.",
+          "owned_by": "Leo for client diagnosis and fix; backend engineer for server clarification",
+          "ownership_evidence_ids": [
+            "fact_timezone_bug"
+          ]
+        },
+        "role_relevance": 0.98,
+        "discriminative_value": 0.97,
+        "evidence_properties": {
+          "specificity": 0.98,
+          "observability": 0.9,
+          "mechanism_strength": 0.96,
+          "outcome_strength": 0.74,
+          "causal_strength": 0.72
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_form_ownership"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Question asks for a bug, first debugging step, or date-handling decision",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Timezone reproduction, payload comparison, client fix, and backend boundary",
+          "prohibited_expansion": [
+            "Do not claim sole full-stack ownership."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_debugging_strength",
+            "reason": "The incident is the primary evidence for the capability."
+          }
+        ],
+        "evaluator_note": "Strong junior debugging story."
+      },
+      {
+        "fact_id": "fact_debugging_strength",
+        "label": "Debugging capability",
+        "statement": {
+          "text": "Leo's stable debugging pattern is to reproduce the defect, reduce it to one boundary, inspect actual data, make a small change, and add a regression test before asking for review.",
+          "fact_ids": [
+            "fact_debugging_strength",
+            "fact_timezone_bug"
+          ]
+        },
+        "category": "method",
+        "truth_status": "true",
+        "confidence": 0.9,
+        "ownership": {
+          "status": "owned",
+          "scope": "His debugging process",
+          "boundary_text": "The process is evidenced in one strong story and smaller routine defects, not every system class.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_debugging_strength"
+          ]
+        },
+        "role_relevance": 0.98,
+        "discriminative_value": 0.96,
+        "evidence_properties": {
+          "specificity": 0.9,
+          "observability": 0.87,
+          "mechanism_strength": 0.92,
+          "outcome_strength": 0.68,
+          "causal_strength": 0.62
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_timezone_bug"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 3,
+          "reveal_trigger": "Candidate synthesizes the debugging approach after the concrete story",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Reproduce, narrow, inspect, change, test, review",
+          "prohibited_expansion": [
+            "Do not generalize to infrastructure incidents."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_learning_strength",
+            "reason": "The process includes tests and review as learning tools."
+          }
+        ],
+        "evaluator_note": "A strong level-appropriate capability."
+      },
+      {
+        "fact_id": "fact_learning_strength",
+        "label": "Learning through experiments and review",
+        "statement": {
+          "text": "When Leo encounters an unfamiliar browser or TypeScript behavior, he writes a minimal reproduction, reads the relevant documentation, adds a focused test, and asks a senior engineer to review his reasoning rather than only the patch.",
+          "fact_ids": [
+            "fact_learning_strength"
+          ]
+        },
+        "category": "method",
+        "truth_status": "true",
+        "confidence": 0.88,
+        "ownership": {
+          "status": "owned",
+          "scope": "Learning and review practice",
+          "boundary_text": "Seeking review is expected at his level and does not imply inability to work independently.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_learning_strength"
+          ]
+        },
+        "role_relevance": 0.95,
+        "discriminative_value": 0.89,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.82,
+          "mechanism_strength": 0.84,
+          "outcome_strength": 0.5,
+          "causal_strength": 0.4
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_identity_role"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about learning, feedback, or an unfamiliar problem",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Minimal reproduction, documentation, test, and reasoning review",
+          "prohibited_expansion": [
+            "Do not invent formal mentorship outcomes."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_accessibility_surface",
+            "reason": "The accessibility work used this learning loop."
+          }
+        ],
+        "evaluator_note": "High-value junior signal."
+      },
+      {
+        "fact_id": "fact_infrastructure_gap",
+        "label": "Genuine infrastructure gap",
+        "statement": {
+          "text": "Leo does not know how Kubernetes schedules pods, how network policy is enforced, how database failover works, or how to size cloud capacity; he can verify application health and escalate symptoms.",
+          "fact_ids": [
+            "fact_infrastructure_gap"
+          ]
+        },
+        "category": "unknown",
+        "truth_status": "true",
+        "confidence": 0.98,
+        "ownership": {
+          "status": "not_owned",
+          "scope": "Infrastructure design and operations",
+          "boundary_text": "The gap is real and should be judged against junior role requirements.",
+          "owned_by": "Platform and senior engineers",
+          "ownership_evidence_ids": [
+            "fact_infrastructure_gap"
+          ]
+        },
+        "role_relevance": 0.55,
+        "discriminative_value": 0.63,
+        "evidence_properties": {
+          "specificity": 0.92,
+          "observability": 0.9,
+          "mechanism_strength": 0.15,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question asks infrastructure knowledge",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Honest gap and application-level escalation ability",
+          "prohibited_expansion": [
+            "Do not invent partial Kubernetes knowledge."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_ordinary_work",
+            "reason": "Release support was observation and verification, not infrastructure ownership."
+          }
+        ],
+        "evaluator_note": "True weakness or untested area depending on role weighting."
+      },
+      {
+        "fact_id": "fact_accessibility_surface",
+        "label": "Keyboard and error-announcement repair",
+        "statement": {
+          "text": "Leo noticed that keyboard focus skipped the scheduling error summary and that screen readers did not announce a date conflict; he learned the relevant ARIA behavior, changed focus handling, and added a browser test with review.",
+          "fact_ids": [
+            "fact_accessibility_surface",
+            "fact_learning_strength"
+          ]
+        },
+        "category": "method",
+        "truth_status": "true",
+        "confidence": 0.88,
+        "ownership": {
+          "status": "owned",
+          "scope": "Focused accessibility diagnosis and implementation",
+          "boundary_text": "This was one repaired flow, not ownership of company accessibility strategy.",
+          "owned_by": "Leo for the repair",
+          "ownership_evidence_ids": [
+            "fact_accessibility_surface"
+          ]
+        },
+        "role_relevance": 0.84,
+        "discriminative_value": 0.78,
+        "evidence_properties": {
+          "specificity": 0.92,
+          "observability": 0.8,
+          "mechanism_strength": 0.86,
+          "outcome_strength": 0.5,
+          "causal_strength": 0.42
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_learning_strength"
+          ],
+          "prohibited_reveal_conditions": [
+            "Before accessibility, learning, or omitted contributions are discussed."
+          ],
+          "earliest_turn": 3,
+          "reveal_trigger": "Question asks what he learned outside his initial comfort zone",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Focus order, screen-reader announcement, and browser test",
+          "prohibited_expansion": [
+            "Do not claim broad accessibility expertise."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_learning_strength",
+            "reason": "The work demonstrates the learning loop."
+          }
+        ],
+        "evaluator_note": "A valuable but bounded emergent surface."
+      },
+      {
+        "fact_id": "fact_protected_health_data",
+        "label": "Protected clinic and patient details",
+        "statement": {
+          "text": "Leo cannot disclose patient names, clinic identities, appointment contents, or screenshots from production; he can use synthetic dates, anonymized payload shapes, and generic defect behavior.",
+          "fact_ids": [
+            "fact_protected_health_data"
+          ]
+        },
+        "category": "boundary",
+        "truth_status": "protected",
+        "confidence": 0.99,
+        "ownership": {
+          "status": "protected",
+          "scope": "Health and customer data",
+          "boundary_text": "Technical reasoning remains available with synthetic examples.",
+          "owned_by": "CarePath, clinics, and patients",
+          "ownership_evidence_ids": [
+            "fact_protected_health_data"
+          ]
+        },
+        "role_relevance": 0.52,
+        "discriminative_value": 0.5,
+        "evidence_properties": {
+          "specificity": 0.82,
+          "observability": 0.94,
+          "mechanism_strength": 0.2,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "protected",
+          "prerequisite_fact_ids": [
+            "fact_identity_role"
+          ],
+          "prohibited_reveal_conditions": [
+            "Any request for patient, clinic, screenshot, or production appointment detail."
+          ],
+          "earliest_turn": 1,
+          "reveal_trigger": "Candidate states privacy boundary",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Synthetic dates, payload shape, and generic defect",
+          "prohibited_expansion": [
+            "Never disclose protected health or customer data."
+          ]
+        },
+        "relations": [
+          {
+            "type": "protected_by",
+            "target_fact_id": "fact_timezone_bug",
+            "reason": "The bug can be explained without real patient data."
+          }
+        ],
+        "evaluator_note": "Privacy discipline should be respected."
+      },
+      {
+        "fact_id": "fact_ordinary_work",
+        "label": "Routine release support",
+        "statement": {
+          "text": "On release days Leo checks the application dashboard, runs a smoke test, and tells a senior engineer when a client error rate changes; he does not control the deployment pipeline.",
+          "fact_ids": [
+            "fact_ordinary_work"
+          ]
+        },
+        "category": "scope",
+        "truth_status": "true",
+        "confidence": 0.9,
+        "ownership": {
+          "status": "partial",
+          "scope": "Application verification and escalation",
+          "boundary_text": "Release support is not deployment or infrastructure ownership.",
+          "owned_by": "Leo for smoke verification; senior and platform engineers for deployment",
+          "ownership_evidence_ids": [
+            "fact_ordinary_work"
+          ]
+        },
+        "role_relevance": 0.62,
+        "discriminative_value": 0.42,
+        "evidence_properties": {
+          "specificity": 0.8,
+          "observability": 0.78,
+          "mechanism_strength": 0.4,
+          "outcome_strength": 0.25,
+          "causal_strength": 0.15
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_identity_role"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about routine operations or release support",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Smoke test, dashboard observation, and escalation",
+          "prohibited_expansion": [
+            "Do not claim pipeline ownership."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_infrastructure_gap",
+            "reason": "He can support a release without knowing infrastructure internals."
+          }
+        ],
+        "evaluator_note": "Ordinary neutral fact."
+      },
+      {
+        "fact_id": "fact_side_project",
+        "label": "Minecraft inventory mod",
+        "statement": {
+          "text": "Leo built a small Java mod that sorts a Minecraft inventory and learned event callbacks by reading community documentation; it has no production users or team-review history.",
+          "fact_ids": [
+            "fact_side_project"
+          ]
+        },
+        "category": "side_project",
+        "truth_status": "true",
+        "confidence": 0.94,
+        "ownership": {
+          "status": "owned",
+          "scope": "Personal hobby project",
+          "boundary_text": "It shows persistence but not production engineering maturity.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_side_project"
+          ]
+        },
+        "role_relevance": 0.27,
+        "discriminative_value": 0.2,
+        "evidence_properties": {
+          "specificity": 0.78,
+          "observability": 0.58,
+          "mechanism_strength": 0.5,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.05
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Question about hobby projects",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Inventory sorting and learning callbacks",
+          "prohibited_expansion": [
+            "Do not invent users or production constraints."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Low-value but plausible temptation."
+      }
+    ],
+    "protected_boundaries": [
+      {
+        "boundary_id": "boundary_health_privacy",
+        "description": {
+          "text": "Patient, clinic, screenshot, and production appointment details are unavailable, while synthetic dates and payload shapes are sufficient to explain the bug.",
+          "fact_ids": [
+            "fact_protected_health_data",
+            "fact_timezone_bug"
+          ]
+        },
+        "fact_ids": [
+          "fact_protected_health_data",
+          "fact_timezone_bug"
+        ],
+        "eligible_behavior": "State the privacy boundary and use a synthetic example.",
+        "interviewer_rule": "Do not require protected data or screenshots for credibility.",
+        "report_effect": "Assess debugging mechanism from the anonymized explanation and mark production identifiers unavailable."
+      }
+    ],
+    "emergent_surfaces": [
+      {
+        "surface_id": "surface_accessibility_learning",
+        "label": "Accessibility learning through a concrete scheduling-flow repair",
+        "origin": "Leo mentions an unlisted learning example after the main bug story",
+        "fact_ids": [
+          "fact_learning_strength",
+          "fact_accessibility_surface"
+        ],
+        "role_relevance": 0.84,
+        "discriminative_value": 0.79,
+        "opportunity_cost": 0.55,
+        "ownership_status": "owned",
+        "prerequisite_fact_ids": [
+          "fact_learning_strength"
+        ],
+        "valid_action_families": [
+          "learning_evidence",
+          "consequence_check",
+          "coverage_rotation",
+          "record_and_defer"
+        ],
+        "absorb_if_covered": true,
+        "rotate_conditions": [
+          "The learning loop and one accessibility mechanism are already concrete",
+          "Core web or API fundamentals remain untested",
+          "The interviewer would only ask accessibility trivia beyond the candidate's scope"
+        ],
+        "invalid_pursuit_conditions": [
+          "Treating one repair as broad accessibility expertise",
+          "Pursuing it only because it was unlisted",
+          "Using the topic to avoid testing core junior web work"
+        ]
+      }
+    ],
+    "irrelevant_temptations": [
+      {
+        "temptation_id": "temptation_minecraft_mod",
+        "label": "Minecraft inventory mod",
+        "why_interesting": {
+          "text": "The hobby project is easy for Leo to discuss and can temporarily reduce his nervousness.",
+          "fact_ids": [
+            "fact_side_project",
+            "fact_nervous_behavior"
+          ]
+        },
+        "why_low_value": {
+          "text": "It lacks production users, code review, and the web-system boundaries needed for the target role.",
+          "fact_ids": [
+            "fact_side_project"
+          ]
+        },
+        "fact_ids": [
+          "fact_side_project"
+        ],
+        "fair_response": "Use it briefly as a communication warm-up or learning example, then return to work evidence.",
+        "gameable_failure": "An interviewer can mistake comfort and enthusiasm for stronger role evidence than the production bug."
+      }
+    ],
+    "absorption_rules": [
+      {
+        "absorption_id": "absorb_team_boundary",
+        "trigger": "Leo has corrected built to the team feature and named his React form slice.",
+        "fact_ids": [
+          "fact_team_feature",
+          "fact_form_ownership",
+          "fact_ownership_correction"
+        ],
+        "no_new_question_needed": "Record the boundary and stop re-asking who built the whole feature.",
+        "allowed_inference": "He can identify a real junior-level personal contribution.",
+        "do_not_overread": "Do not label the initial shorthand dishonest or grant end-to-end ownership."
+      },
+      {
+        "absorption_id": "absorb_infrastructure_gap",
+        "trigger": "Leo says he does not know Kubernetes, network policy, or failover and accurately describes application-level escalation.",
+        "fact_ids": [
+          "fact_infrastructure_gap",
+          "fact_ordinary_work"
+        ],
+        "no_new_question_needed": "Record the gap against role requirements and return to a fair junior dimension.",
+        "allowed_inference": "Infrastructure depth is absent; release-support scope is limited.",
+        "do_not_overread": "Do not convert the gap into global technical incapacity."
+      },
+      {
+        "absorption_id": "absorb_debugging_story",
+        "trigger": "The timezone reproduction, payload comparison, ownership split, fix, and regression test are concrete.",
+        "fact_ids": [
+          "fact_form_ownership",
+          "fact_timezone_bug",
+          "fact_debugging_strength"
+        ],
+        "no_new_question_needed": "Count debugging evidence and rotate rather than asking for the same story in new words.",
+        "allowed_inference": "Debugging is supported at junior web-application scope.",
+        "do_not_overread": "Do not infer distributed or infrastructure debugging."
+      }
+    ],
+    "candidate_behavior_profile": {
+      "baseline": {
+        "text": "Leo is severely nervous in formal interviews and often starts with two- to five-word answers. He is honest about gaps and can explain real work when a question is bounded to one concrete step or artifact.",
+        "fact_ids": [
+          "fact_nervous_behavior",
+          "fact_bounded_recovery",
+          "fact_infrastructure_gap"
+        ]
+      },
+      "speaking_pattern": "Very short early answers, long pauses, then coherent detail after a bounded non-leading prompt; late repetition causes shutdown rather than invention.",
+      "short_answer_behavior": {
+        "condition": "The interviewer asks a broad, abstract, or multi-part question early.",
+        "behavior": "Answer in two to five words, often naming only the surface: date bug, form state, or not sure.",
+        "fact_ids": [
+          "fact_nervous_behavior"
+        ],
+        "actor_must_not_infer": [
+          "Do not use hidden facts until a fair trigger is present.",
+          "Do not expand merely because the evaluator wants evidence."
+        ]
+      },
+      "response_policies": [
+        {
+          "policy_id": "policy_broad",
+          "question_class": "broad",
+          "condition": "Asked to explain the most complex system he built.",
+          "answer_shape": "Give a short team-feature answer and pause; expand only after a bounded prompt.",
+          "fact_ids": [
+            "fact_nervous_behavior",
+            "fact_team_feature"
+          ],
+          "allowed_disclosure": [
+            "fact_team_context",
+            "fact_team_feature",
+            "fact_nervous_behavior"
+          ],
+          "must_not_do": [
+            "Do not claim the whole system."
+          ]
+        },
+        {
+          "policy_id": "policy_sharp",
+          "question_class": "sharp",
+          "condition": "Asked for the first debugging step, observed payload, or test.",
+          "answer_shape": "Explain the timezone reproduction and client/server boundary in sequence.",
+          "fact_ids": [
+            "fact_bounded_recovery",
+            "fact_timezone_bug"
+          ],
+          "allowed_disclosure": [
+            "fact_nervous_behavior",
+            "fact_bounded_recovery",
+            "fact_team_context",
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_timezone_bug",
+            "fact_debugging_strength"
+          ],
+          "must_not_do": [
+            "Do not invent backend ownership."
+          ]
+        },
+        {
+          "policy_id": "policy_repeated",
+          "question_class": "repeated",
+          "condition": "The interviewer repeats a broad question after a short answer without narrowing it.",
+          "answer_shape": "Repeat the short surface answer, become quieter, and possibly say he is not sure what detail is wanted.",
+          "fact_ids": [
+            "fact_nervous_behavior"
+          ],
+          "allowed_disclosure": [
+            "fact_nervous_behavior"
+          ],
+          "must_not_do": [
+            "Do not produce new technical facts without a valid reveal trigger."
+          ]
+        },
+        {
+          "policy_id": "policy_unfair",
+          "question_class": "unfair",
+          "condition": "Asked senior infrastructure trivia or protected patient details.",
+          "answer_shape": "State not knowing the infrastructure topic or refuse the private detail; offer application-level behavior if possible.",
+          "fact_ids": [
+            "fact_infrastructure_gap",
+            "fact_protected_health_data"
+          ],
+          "allowed_disclosure": [
+            "fact_infrastructure_gap",
+            "fact_identity_role",
+            "fact_protected_health_data",
+            "fact_ordinary_work"
+          ],
+          "must_not_do": [
+            "Do not guess or reveal private data."
+          ]
+        },
+        {
+          "policy_id": "policy_ambiguous",
+          "question_class": "ambiguous",
+          "condition": "Asked what he did on scheduling without specifying personal or team scope.",
+          "answer_shape": "Initially say built the form, then correct to the team feature and personal slice if ownership is asked.",
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ],
+          "allowed_disclosure": [
+            "fact_team_context",
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ],
+          "must_not_do": [
+            "Do not preserve the broad team-level claim after correction."
+          ]
+        },
+        {
+          "policy_id": "policy_compound",
+          "question_class": "compound",
+          "condition": "Asked about frontend, API, database, deployment, and impact together.",
+          "answer_shape": "Answer the frontend form part, say the rest was team-owned or unknown, and ask which part to continue.",
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_team_feature",
+            "fact_infrastructure_gap"
+          ],
+          "allowed_disclosure": [
+            "fact_team_context",
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_infrastructure_gap"
+          ],
+          "must_not_do": [
+            "Do not answer every layer as personal."
+          ]
+        },
+        {
+          "policy_id": "policy_ownership",
+          "question_class": "ownership",
+          "condition": "Asked exactly which artifact was his.",
+          "answer_shape": "Name React state, validation, errors, and client date serialization, including senior review.",
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ],
+          "allowed_disclosure": [
+            "fact_team_context",
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ],
+          "must_not_do": [
+            "Do not hide review or expand to the API service."
+          ]
+        }
+      ],
+      "correction_behavior": {
+        "condition": "Leo realizes that built sounds like sole ownership or the interviewer asks who did which layer.",
+        "behavior": "He corrects himself: the team built scheduling, while he owned the React form, validation, and client side of the date fix.",
+        "fact_ids": [
+          "fact_team_feature",
+          "fact_form_ownership",
+          "fact_ownership_correction"
+        ],
+        "actor_must_not_infer": [
+          "The correction is not an integrity confession."
+        ]
+      },
+      "contradiction_behavior": {
+        "condition": "The interviewer says he owned the API, database, deployment, or infrastructure.",
+        "behavior": "He says no, names the teammate or team boundary generically, and returns to the client work he remembers.",
+        "fact_ids": [
+          "fact_team_feature",
+          "fact_infrastructure_gap",
+          "fact_ordinary_work"
+        ],
+        "actor_must_not_infer": [
+          "Do not invent teammate names or internal architecture."
+        ]
+      },
+      "fatigue_evolution": [
+        {
+          "phase": "early",
+          "observable_behavior": {
+            "text": "Leo is visibly nervous, pauses, and answers in fragments even on familiar work.",
+            "fact_ids": [
+              "fact_nervous_behavior"
+            ]
+          },
+          "fact_ids": [
+            "fact_nervous_behavior"
+          ],
+          "fair_interviewer_response": "Acknowledge the pause and ask for one concrete first step.",
+          "invalid_interviewer_response": "Repeat the same broad question or label the fragment non-knowledge."
+        },
+        {
+          "phase": "middle",
+          "observable_behavior": {
+            "text": "After one successful bounded question, he speaks more fully and can follow a technical sequence.",
+            "fact_ids": [
+              "fact_bounded_recovery",
+              "fact_timezone_bug"
+            ]
+          },
+          "fact_ids": [
+            "fact_bounded_recovery"
+          ],
+          "fair_interviewer_response": "Use short single-focus follow-ups and preserve normal coverage.",
+          "invalid_interviewer_response": "Turn recovery into constant coaching or leading questions."
+        },
+        {
+          "phase": "late",
+          "observable_behavior": {
+            "text": "If questions repeat or move into senior infrastructure, his answers shrink again and he may say I do not know even when only one part is unfamiliar.",
+            "fact_ids": [
+              "fact_nervous_behavior",
+              "fact_infrastructure_gap"
+            ]
+          },
+          "fact_ids": [
+            "fact_nervous_behavior",
+            "fact_infrastructure_gap"
+          ],
+          "fair_interviewer_response": "Separate the known application layer from the honest gap and close fairly.",
+          "invalid_interviewer_response": "Use fatigue-induced shutdown as evidence that earlier technical details were coached."
+        }
+      ],
+      "fairness_notes": [
+        "One bounded recovery opportunity is necessary; repeated rescue that supplies the answer is not fair evidence.",
+        "Junior-level evaluation should credit review-seeking and narrow ownership while preserving genuine knowledge gaps."
+      ]
+    },
+    "answer_realizations": [
+      {
+        "answer_id": "answer_two_word_open",
+        "question_shape": "Tell me about your most complex project.",
+        "answer_text": "Patient scheduling.",
+        "behavior_label": "nervous",
+        "fact_ids": [
+          "fact_nervous_behavior",
+          "fact_team_context",
+          "fact_team_feature"
+        ],
+        "disclosure_event": "event_short_open",
+        "notes": "Truthful but nearly evidence-free."
+      },
+      {
+        "answer_id": "answer_first_step",
+        "question_shape": "What was the first thing you did when the wrong-day bug was reported?",
+        "answer_text": "I changed my browser timezone until I could reproduce it, then compared the network payload with the React state. The date-only value was going through UTC and rendering as the previous day.",
+        "behavior_label": "strong",
+        "fact_ids": [
+          "fact_nervous_behavior",
+          "fact_bounded_recovery",
+          "fact_team_context",
+          "fact_team_feature",
+          "fact_form_ownership",
+          "fact_timezone_bug"
+        ],
+        "disclosure_event": "event_debug_first_step",
+        "notes": "A bounded prompt unlocks real evidence."
+      },
+      {
+        "answer_id": "answer_bug_fix",
+        "question_shape": "What did you personally change and how did you prevent recurrence?",
+        "answer_text": "I changed the client serialization so a date-only value stayed a date, added timezone cases to the browser test, and asked the backend engineer to clarify the API contract. They changed the server side; I did not.",
+        "behavior_label": "strong",
+        "fact_ids": [
+          "fact_team_context",
+          "fact_team_feature",
+          "fact_form_ownership",
+          "fact_timezone_bug",
+          "fact_debugging_strength"
+        ],
+        "disclosure_event": "event_bug_fix",
+        "notes": "Mechanism, test, and boundary."
+      },
+      {
+        "answer_id": "answer_scope_initial",
+        "question_shape": "Did you build the scheduling feature?",
+        "answer_text": "Yes. Mostly the form.",
+        "behavior_label": "nervous",
+        "fact_ids": [
+          "fact_team_context",
+          "fact_team_feature",
+          "fact_form_ownership"
+        ],
+        "disclosure_event": "event_scope_initial",
+        "notes": "Broad shorthand followed by a partial qualifier."
+      },
+      {
+        "answer_id": "answer_scope_correction",
+        "question_shape": "Which parts were actually yours?",
+        "answer_text": "Sorry—the team built the feature. I owned the React form state, client validation, error messages, and the client side of the date fix. The API and database were my teammates' work.",
+        "behavior_label": "correction",
+        "fact_ids": [
+          "fact_team_context",
+          "fact_team_feature",
+          "fact_form_ownership",
+          "fact_ownership_correction"
+        ],
+        "disclosure_event": "event_scope_correction",
+        "notes": "Correction supersedes broad spoken ownership."
+      },
+      {
+        "answer_id": "answer_infra_gap",
+        "question_shape": "How does Kubernetes schedule your service and recover the database?",
+        "answer_text": "I don't know. I can check the app health and escalate, but I haven't worked on scheduling or failover.",
+        "behavior_label": "honest_gap",
+        "fact_ids": [
+          "fact_infrastructure_gap",
+          "fact_identity_role",
+          "fact_ordinary_work"
+        ],
+        "disclosure_event": "event_infra_gap",
+        "notes": "Real gap at a potentially mismatched level."
+      },
+      {
+        "answer_id": "answer_learning",
+        "question_shape": "How do you learn something unfamiliar?",
+        "answer_text": "Small reproduction first. Then docs, one test, and I ask for review of why I think it works—not just whether the code passes.",
+        "behavior_label": "concise",
+        "fact_ids": [
+          "fact_identity_role",
+          "fact_learning_strength"
+        ],
+        "disclosure_event": "event_learning",
+        "notes": "Short but substantive junior learning signal."
+      },
+      {
+        "answer_id": "answer_accessibility",
+        "question_shape": "Give me an example of something you learned outside your comfort zone.",
+        "answer_text": "Screen-reader errors. Focus skipped the summary, so I learned the ARIA behavior, changed focus handling, and added a browser test. A senior reviewed it.",
+        "behavior_label": "strong",
+        "fact_ids": [
+          "fact_identity_role",
+          "fact_learning_strength",
+          "fact_accessibility_surface"
+        ],
+        "disclosure_event": "event_accessibility",
+        "notes": "Bounded emergent learning evidence."
+      },
+      {
+        "answer_id": "answer_protected",
+        "question_shape": "Show me the real patient screenshot and clinic payload.",
+        "answer_text": "I can't share patient or clinic data. I can use a fake date and the same payload shape to explain the bug.",
+        "behavior_label": "protected_boundary",
+        "fact_ids": [
+          "fact_identity_role",
+          "fact_protected_health_data"
+        ],
+        "disclosure_event": "event_privacy",
+        "notes": "Appropriate privacy boundary."
+      },
+      {
+        "answer_id": "answer_repeat_shutdown",
+        "question_shape": "Explain your complex project again without narrowing the question.",
+        "answer_text": "The scheduling form. Sorry.",
+        "behavior_label": "nervous",
+        "fact_ids": [
+          "fact_nervous_behavior",
+          "fact_team_context",
+          "fact_team_feature",
+          "fact_form_ownership"
+        ],
+        "disclosure_event": "event_repeat_shutdown",
+        "notes": "Poor interviewer behavior does not unlock more truth."
+      }
+    ],
+    "representative_junctions": [
+      {
+        "junction_id": "junction_short_open",
+        "state": "Leo has answered a broad project question with two words and no technical mechanism.",
+        "observed_fact_ids": [
+          "fact_nervous_behavior",
+          "fact_team_feature"
+        ],
+        "reasonable_move_family_ids": [
+          "bounded_recovery",
+          "ownership_scope",
+          "coverage_rotation"
+        ],
+        "tradeoffs": [
+          "A bounded first-step question may reveal competence without leading the answer.",
+          "A simple ownership question can establish a fair surface before depth.",
+          "Rotation can reduce pressure but risks leaving core evidence inaccessible."
+        ],
+        "not_gold_note": "Several humane moves are defensible; the world does not prescribe one recovery phrase."
+      },
+      {
+        "junction_id": "junction_bug_evidence",
+        "state": "Leo has explained reproduction, payload comparison, client fix, and regression test, while broader web and database knowledge remain uncertain.",
+        "observed_fact_ids": [
+          "fact_form_ownership",
+          "fact_timezone_bug",
+          "fact_debugging_strength"
+        ],
+        "reasonable_move_family_ids": [
+          "consequence_check",
+          "coverage_rotation",
+          "record_and_defer"
+        ],
+        "tradeoffs": [
+          "One consequence question can test user and rollout judgment.",
+          "Another bug question may repeat already-established process.",
+          "Rotation can test an independent junior dimension."
+        ],
+        "not_gold_note": "Strong debugging evidence does not require exhausting the story."
+      },
+      {
+        "junction_id": "junction_infra_gap",
+        "state": "Leo has honestly said he does not know Kubernetes scheduling or failover and can only verify application health and escalate.",
+        "observed_fact_ids": [
+          "fact_infrastructure_gap",
+          "fact_ordinary_work"
+        ],
+        "reasonable_move_family_ids": [
+          "record_gap",
+          "level_calibrated_fundamentals",
+          "coverage_rotation"
+        ],
+        "tradeoffs": [
+          "Recording a genuine gap preserves truth.",
+          "A simpler application boundary can test adjacent knowledge without pretending the gap disappeared.",
+          "Rotation is fair when infrastructure is not central to the junior role."
+        ],
+        "not_gold_note": "The world neither requires forgiveness nor mandates rejection; relevance and role level control the tradeoff."
+      }
+    ],
+    "acceptable_move_families": [
+      {
+        "family_id": "bounded_recovery",
+        "label": "Bounded non-leading recovery",
+        "when_legal": "A broad question produces a very short answer and no fair concrete prompt has been offered.",
+        "value_tradeoff": "High fairness and signal value once; repeated rescue or embedded solutions can contaminate evidence.",
+        "prerequisite_fact_ids": [
+          "fact_nervous_behavior"
+        ],
+        "acceptable_variants": [
+          "Ask for the first debugging step.",
+          "Ask what was visible on screen.",
+          "Ask which file or artifact was personally changed."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_repeat_broad",
+          "invalid_leading_rescue"
+        ]
+      },
+      {
+        "family_id": "ownership_scope",
+        "label": "Team and personal scope",
+        "when_legal": "The resume or answer uses a team-level verb and the personal artifact is unclear.",
+        "value_tradeoff": "Necessary once; low value after the correction is explicit.",
+        "prerequisite_fact_ids": [
+          "fact_team_feature"
+        ],
+        "acceptable_variants": [
+          "Ask which layer was his.",
+          "Ask who owned API and database work.",
+          "Ask what he changed in code."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_reprosecute_correction"
+        ]
+      },
+      {
+        "family_id": "level_calibrated_fundamentals",
+        "label": "Level-calibrated application fundamentals",
+        "when_legal": "A junior application concept remains untested and the question can be grounded in familiar work.",
+        "value_tradeoff": "Tests role fit without importing senior system-design expectations.",
+        "prerequisite_fact_ids": [
+          "fact_identity_role"
+        ],
+        "acceptable_variants": [
+          "Ask how form state reaches an API.",
+          "Ask where validation belongs.",
+          "Ask how a date-only value should be represented."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_senior_infra_exam"
+        ]
+      },
+      {
+        "family_id": "learning_evidence",
+        "label": "Learning-loop evidence",
+        "when_legal": "The role level makes learning behavior material and a concrete unfamiliar task is available.",
+        "value_tradeoff": "High junior signal; should not become praise for curiosity without an artifact or test.",
+        "prerequisite_fact_ids": [
+          "fact_learning_strength"
+        ],
+        "acceptable_variants": [
+          "Ask for a minimal reproduction.",
+          "Ask what documentation changed his approach.",
+          "Ask how review altered the patch."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "consequence_check",
+        "label": "User or release consequence",
+        "when_legal": "A technical fix is clear but its effect or safety check is not.",
+        "value_tradeoff": "Connects junior implementation to product responsibility; lower value after regression and rollout checks are established.",
+        "prerequisite_fact_ids": [
+          "fact_timezone_bug"
+        ],
+        "acceptable_variants": [
+          "Ask how the fix was verified.",
+          "Ask which users were affected generically.",
+          "Ask what would have made him roll back."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_private_data"
+        ]
+      },
+      {
+        "family_id": "record_gap",
+        "label": "Record a genuine knowledge gap",
+        "when_legal": "Leo explicitly does not know a topic and it is not necessary to unlock another owned surface.",
+        "value_tradeoff": "Preserves honesty and time; relevance must be stated rather than silently scored.",
+        "prerequisite_fact_ids": [
+          "fact_infrastructure_gap"
+        ],
+        "acceptable_variants": [
+          "Mark infrastructure weak or untested by role need.",
+          "Ask only about escalation interface.",
+          "Move to an application-level dimension."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "coverage_rotation",
+        "label": "Rotate to a distinct junior dimension",
+        "when_legal": "The current evidence is sufficient or continued pressure reduces answerability.",
+        "value_tradeoff": "Protects breadth and fairness; may leave a real gap unresolved and should name it.",
+        "prerequisite_fact_ids": [],
+        "acceptable_variants": [
+          "Move from debugging to learning.",
+          "Move from ownership to web fundamentals.",
+          "Close with explicit untested dimensions."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "record_and_defer",
+        "label": "Record and defer",
+        "when_legal": "A bounded emergent fact is credible but lower-value than core coverage.",
+        "value_tradeoff": "Avoids making every interesting junior story a new branch.",
+        "prerequisite_fact_ids": [],
+        "acceptable_variants": [
+          "Record accessibility learning.",
+          "Return if learning remains uncertain.",
+          "Mark the surface partially tested."
+        ],
+        "hard_invalid_move_ids": []
+      }
+    ],
+    "hard_invalid_moves": [
+      {
+        "move_id": "invalid_repeat_broad",
+        "action": "Repeat the same broad question after a two-word answer without narrowing or acknowledging it.",
+        "why_invalid": "The world predicts repeated shutdown, not additional evidence.",
+        "fair_alternative_family_ids": [
+          "bounded_recovery",
+          "coverage_rotation"
+        ],
+        "candidate_harm": "Converts question-design failure into candidate failure."
+      },
+      {
+        "move_id": "invalid_leading_rescue",
+        "action": "Supply the timezone or serialization diagnosis inside the recovery question.",
+        "why_invalid": "That would contaminate the evidence and make the actor echo interviewer truth.",
+        "fair_alternative_family_ids": [
+          "bounded_recovery",
+          "level_calibrated_fundamentals"
+        ],
+        "candidate_harm": "Produces false competence evidence."
+      },
+      {
+        "move_id": "invalid_reprosecute_correction",
+        "action": "Keep challenging built after Leo has corrected the team and personal boundaries.",
+        "why_invalid": "The correction supersedes the broad claim and further prosecution adds no ownership truth.",
+        "fair_alternative_family_ids": [
+          "level_calibrated_fundamentals",
+          "coverage_rotation"
+        ],
+        "candidate_harm": "Turns junior shorthand into an integrity verdict."
+      },
+      {
+        "move_id": "invalid_senior_infra_exam",
+        "action": "Use Kubernetes, network policy, failover, or capacity design as the dominant junior assessment.",
+        "why_invalid": "The gap is real but mismatched to the target role unless explicitly required.",
+        "fair_alternative_family_ids": [
+          "record_gap",
+          "level_calibrated_fundamentals"
+        ],
+        "candidate_harm": "Mistakes limited exposure for global inability."
+      },
+      {
+        "move_id": "invalid_private_data",
+        "action": "Request patient names, clinic identity, production screenshots, or appointment contents.",
+        "why_invalid": "Synthetic data fully supports the debugging assessment.",
+        "fair_alternative_family_ids": [
+          "consequence_check",
+          "record_and_defer"
+        ],
+        "candidate_harm": "Rewards privacy violations or punishes appropriate refusal."
+      },
+      {
+        "move_id": "invalid_nervousness_score",
+        "action": "Score technical incapacity from speech length without one bounded non-leading opportunity.",
+        "why_invalid": "Communication behavior and competence are separate frozen variables.",
+        "fair_alternative_family_ids": [
+          "bounded_recovery",
+          "coverage_rotation"
+        ],
+        "candidate_harm": "Makes interviewer accommodation failure look like candidate weakness."
+      }
+    ],
+    "evidence_sufficiency": {
+      "minimum_turn_shape": "A fair 15–30 minute interview should provide at least one bounded recovery, establish one personal artifact and team boundary, obtain a complete debugging sequence, test one learning or web-fundamentals dimension, and record infrastructure gaps at junior relevance.",
+      "conditions": [
+        {
+          "condition_id": "suff_recovery",
+          "label": "Communication recovery is fair",
+          "fact_ids": [
+            "fact_nervous_behavior",
+            "fact_bounded_recovery"
+          ],
+          "satisfied_when": "At least one bounded non-leading question is offered after a short answer.",
+          "not_satisfied_when": "Only broad repeats or leading prompts are used.",
+          "status_if_missing": "interviewer_failure"
+        },
+        {
+          "condition_id": "suff_debugging",
+          "label": "Debugging is evidenced",
+          "fact_ids": [
+            "fact_timezone_bug",
+            "fact_debugging_strength"
+          ],
+          "satisfied_when": "Reproduction, boundary isolation, actual data, fix, and regression check are concrete.",
+          "not_satisfied_when": "The report relies only on the resume claim fixed a bug.",
+          "status_if_missing": "untested"
+        },
+        {
+          "condition_id": "suff_scope",
+          "label": "Ownership correction is applied",
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ],
+          "satisfied_when": "Team and personal layers remain separate in the report.",
+          "not_satisfied_when": "The broad claim remains active or the personal slice is erased.",
+          "status_if_missing": "interviewer_failure"
+        },
+        {
+          "condition_id": "suff_learning",
+          "label": "Learning is tested",
+          "fact_ids": [
+            "fact_learning_strength",
+            "fact_accessibility_surface"
+          ],
+          "satisfied_when": "A concrete learning loop or unfamiliar task is evidenced.",
+          "not_satisfied_when": "Curiosity is inferred from enthusiasm alone.",
+          "status_if_missing": "untested"
+        },
+        {
+          "condition_id": "suff_level",
+          "label": "Gaps are level-calibrated",
+          "fact_ids": [
+            "fact_infrastructure_gap",
+            "fact_identity_role"
+          ],
+          "satisfied_when": "Infrastructure weakness is reported with role relevance and does not erase application evidence.",
+          "not_satisfied_when": "Senior expectations dominate the assessment.",
+          "status_if_missing": "interviewer_failure"
+        }
+      ],
+      "report_requirements": [
+        "Separate nervous speech from technical evidence.",
+        "Name the exact team and personal ownership boundaries.",
+        "Cite the full debugging sequence rather than the resume bullet.",
+        "Mark infrastructure as weak, untested, or not role required with explicit rationale.",
+        "Attribute missing evidence to interviewer failure when no fair recovery was offered."
+      ],
+      "stop_rules": [
+        "Stop broad repetition after one failed attempt and change question shape or rotate.",
+        "Stop ownership clarification after the correction.",
+        "Stop the bug story after mechanism and regression evidence are established.",
+        "Stop senior infrastructure drilling after the honest gap."
+      ],
+      "expected_residual_uncertainty": [
+        "Independent API design may remain untested.",
+        "Database reasoning is likely unknown.",
+        "Communication in a less formal work setting is stronger than the interview can fully observe.",
+        "Long-term growth rate cannot be established in one interview."
+      ]
+    },
+    "evaluator_hidden_truth": {
+      "actor_must_never_receive": [
+        "That bounded questions are an evaluation control.",
+        "The latent strong debugging label.",
+        "Which infrastructure gaps are considered role-mismatched.",
+        "Any sufficiency or hiring conclusion."
+      ],
+      "correct_evidence_profile": [
+        {
+          "dimension_id": "debugging",
+          "truth_status": "supported",
+          "fact_ids": [
+            "fact_timezone_bug",
+            "fact_debugging_strength"
+          ],
+          "confidence": 0.91,
+          "rationale": "The reproduction, payload comparison, fix, and regression test are coherent and personally scoped."
+        },
+        {
+          "dimension_id": "web_fundamentals",
+          "truth_status": "supported",
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_timezone_bug"
+          ],
+          "confidence": 0.78,
+          "rationale": "Client state, validation, serialization, and an API boundary are demonstrated at junior scope."
+        },
+        {
+          "dimension_id": "learning",
+          "truth_status": "supported",
+          "fact_ids": [
+            "fact_learning_strength",
+            "fact_accessibility_surface"
+          ],
+          "confidence": 0.84,
+          "rationale": "The learning loop and accessibility repair are concrete."
+        },
+        {
+          "dimension_id": "ownership_precision",
+          "truth_status": "mixed",
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_form_ownership",
+            "fact_ownership_correction"
+          ],
+          "confidence": 0.82,
+          "rationale": "Initial shorthand is broad, but correction is candid and stable."
+        },
+        {
+          "dimension_id": "communication_fairness",
+          "truth_status": "mixed",
+          "fact_ids": [
+            "fact_nervous_behavior",
+            "fact_bounded_recovery"
+          ],
+          "confidence": 0.86,
+          "rationale": "Formal speech is impaired, while bounded technical communication is coherent."
+        }
+      ],
+      "uncertainty_map": [
+        {
+          "uncertainty_id": "uncertainty_api",
+          "question": "Can Leo design a small API independently?",
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_team_feature"
+          ],
+          "why_it_remains": "He modified a contract but did not own API design.",
+          "fair_next_test": "Use a small validation endpoint at junior scope.",
+          "do_not_convert_to": "Do not infer failure from team ownership."
+        },
+        {
+          "uncertainty_id": "uncertainty_database",
+          "question": "What database fundamentals can Leo apply?",
+          "fact_ids": [
+            "fact_infrastructure_gap",
+            "fact_team_feature"
+          ],
+          "why_it_remains": "No database artifact is frozen in the world.",
+          "fair_next_test": "Ask one simple query, transaction, or data-model question.",
+          "do_not_convert_to": "Do not mark weak if the interviewer never tests it."
+        },
+        {
+          "uncertainty_id": "uncertainty_communication",
+          "question": "How will severe interview nervousness map to team communication?",
+          "fact_ids": [
+            "fact_nervous_behavior",
+            "fact_bounded_recovery",
+            "fact_ordinary_work"
+          ],
+          "why_it_remains": "Work behavior and formal interview behavior differ.",
+          "fair_next_test": "Use a collaborative artifact review or work sample.",
+          "do_not_convert_to": "Do not assume formal interview shutdown equals everyday communication failure."
+        }
+      ],
+      "interviewer_failure_conditions": [
+        "Never offering a bounded non-leading recovery.",
+        "Repeating broad questions and scoring the repeated short answer.",
+        "Using senior infrastructure trivia as the main bar.",
+        "Ignoring the ownership correction or the personal slice.",
+        "Requesting protected health data.",
+        "Letting the comfortable hobby project outweigh production debugging."
+      ],
+      "likely_traps": [
+        "Two-word answers are easy to score as non-knowledge.",
+        "The resume's built wording can be overread.",
+        "The strong bug story can be hidden by poor question shape.",
+        "The real infrastructure gap can be generalized too far.",
+        "Supportive prompts can become leading if they contain the answer."
+      ],
+      "gold_rejection_reasons": [
+        "If the world assumes all nervous candidates recover under the same wording.",
+        "If a reviewer cannot distinguish accommodation from coaching.",
+        "If the debugging story is too polished or unusual for the stated experience level.",
+        "If the world makes every junior gap irrelevant.",
+        "If alternate interview trajectories cannot yield both supported and untested dimensions."
+      ]
+    }
+  },
+  "evidence_graph": {
+    "fact_ids": [
+      "fact_identity_role",
+      "fact_career_context",
+      "fact_team_context",
+      "fact_nervous_behavior",
+      "fact_bounded_recovery",
+      "fact_team_feature",
+      "fact_form_ownership",
+      "fact_ownership_correction",
+      "fact_timezone_bug",
+      "fact_debugging_strength",
+      "fact_learning_strength",
+      "fact_infrastructure_gap",
+      "fact_accessibility_surface",
+      "fact_protected_health_data",
+      "fact_ordinary_work",
+      "fact_side_project"
+    ],
+    "evidence_units": [
+      {
+        "fact_id": "fact_identity_role",
+        "label": "Current junior role",
+        "statement": {
+          "text": "Leo is a junior software engineer at CarePath, a small clinic-scheduling company, with about nineteen months of full-time experience after a co-op.",
+          "fact_ids": [
+            "fact_identity_role"
+          ]
+        },
+        "category": "identity",
+        "truth_status": "true",
+        "confidence": 0.99,
+        "ownership": {
+          "status": "owned",
+          "scope": "His role and experience level",
+          "boundary_text": "The role level constrains fair expectations but does not guarantee competence.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_identity_role"
+          ]
+        },
+        "role_relevance": 0.72,
+        "discriminative_value": 0.3,
+        "evidence_properties": {
+          "specificity": 0.82,
+          "observability": 0.83,
+          "mechanism_strength": 0.1,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Introduction",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Role, company context, and experience level",
+          "prohibited_expansion": [
+            "Do not infer senior responsibilities."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_context",
+            "reason": "The role is embedded in a small product team."
+          }
+        ],
+        "evaluator_note": "Essential level calibration."
+      },
+      {
+        "fact_id": "fact_career_context",
+        "label": "On-the-job learning path",
+        "statement": {
+          "text": "Leo learned most of his React and TypeScript practice after joining CarePath and chose product engineering because seeing a defect fixed for a user felt more motivating than coursework projects.",
+          "fact_ids": [
+            "fact_career_context"
+          ]
+        },
+        "category": "identity",
+        "truth_status": "true",
+        "confidence": 0.86,
+        "ownership": {
+          "status": "owned",
+          "scope": "Career history and motivation",
+          "boundary_text": "Motivation is not technical evidence.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_career_context"
+          ]
+        },
+        "role_relevance": 0.5,
+        "discriminative_value": 0.31,
+        "evidence_properties": {
+          "specificity": 0.62,
+          "observability": 0.56,
+          "mechanism_strength": 0.2,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Career or motivation question",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Transition into product engineering",
+          "prohibited_expansion": [
+            "Do not over-credit enthusiasm."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Human context."
+      },
+      {
+        "fact_id": "fact_team_context",
+        "label": "Small-team collaboration",
+        "statement": {
+          "text": "CarePath's scheduling feature was built by a product manager, a designer, Leo, a senior frontend engineer, and a backend engineer; code review and release approval were shared.",
+          "fact_ids": [
+            "fact_team_context"
+          ]
+        },
+        "category": "scope",
+        "truth_status": "true",
+        "confidence": 0.96,
+        "ownership": {
+          "status": "team_owned",
+          "scope": "The complete scheduling feature",
+          "boundary_text": "Leo's personal work must be separated from the team outcome.",
+          "owned_by": "Cross-functional CarePath team",
+          "ownership_evidence_ids": [
+            "fact_team_context"
+          ]
+        },
+        "role_relevance": 0.84,
+        "discriminative_value": 0.72,
+        "evidence_properties": {
+          "specificity": 0.85,
+          "observability": 0.8,
+          "mechanism_strength": 0.4,
+          "outcome_strength": 0.2,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about feature ownership or collaboration",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team composition and shared review",
+          "prohibited_expansion": [
+            "Do not name clinics or patient data."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_feature",
+            "reason": "The feature was collaborative."
+          }
+        ],
+        "evaluator_note": "Ownership context that should be absorbed after one clarification."
+      },
+      {
+        "fact_id": "fact_nervous_behavior",
+        "label": "Severe interview nervousness",
+        "statement": {
+          "text": "In formal interviews Leo's first answers are commonly two to five words, his voice becomes quiet, and broad or multi-part questions can make him blank even when he knows the underlying work.",
+          "fact_ids": [
+            "fact_nervous_behavior"
+          ]
+        },
+        "category": "behavior",
+        "truth_status": "true",
+        "confidence": 0.94,
+        "ownership": {
+          "status": "owned",
+          "scope": "Observed communication behavior",
+          "boundary_text": "Nervousness changes access to speech, not frozen competence.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_nervous_behavior"
+          ]
+        },
+        "role_relevance": 0.82,
+        "discriminative_value": 0.88,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.9,
+          "mechanism_strength": 0.25,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Observed interaction",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "He may say that he is nervous and ask for a moment",
+          "prohibited_expansion": [
+            "Do not expose evaluator labels or assume a medical condition."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_bounded_recovery",
+            "reason": "Question shape changes verbal access."
+          }
+        ],
+        "evaluator_note": "Central fairness variable, not a protected diagnosis."
+      },
+      {
+        "fact_id": "fact_bounded_recovery",
+        "label": "Recovery under bounded prompts",
+        "statement": {
+          "text": "When a question asks for one concrete first step, payload, test, or file, Leo can expand into a coherent six- to ten-sentence explanation and answer follow-ups accurately.",
+          "fact_ids": [
+            "fact_bounded_recovery",
+            "fact_nervous_behavior"
+          ]
+        },
+        "category": "behavior",
+        "truth_status": "true",
+        "confidence": 0.91,
+        "ownership": {
+          "status": "owned",
+          "scope": "Communication response to question shape",
+          "boundary_text": "The prompt may bound the task but must not supply the technical answer.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_bounded_recovery"
+          ]
+        },
+        "role_relevance": 0.89,
+        "discriminative_value": 0.93,
+        "evidence_properties": {
+          "specificity": 0.86,
+          "observability": 0.88,
+          "mechanism_strength": 0.4,
+          "outcome_strength": 0.25,
+          "causal_strength": 0.25
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_nervous_behavior"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "A bounded, non-leading recovery question",
+          "candidate_can_volunteer": false,
+          "allowed_summary": "Observable expansion after bounded prompts",
+          "prohibited_expansion": [
+            "Do not coach the solution inside the question."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_debugging_strength",
+            "reason": "The debugging story becomes answerable under a bounded prompt."
+          }
+        ],
+        "evaluator_note": "A good interviewer should create one fair chance, not endless rescue."
+      },
+      {
+        "fact_id": "fact_team_feature",
+        "label": "Team-owned scheduling feature",
+        "statement": {
+          "text": "The patient-scheduling and intake feature was designed and delivered by the team; Leo did not own the API service, database schema, product requirements, or final release decision.",
+          "fact_ids": [
+            "fact_team_feature",
+            "fact_team_context"
+          ]
+        },
+        "category": "ownership",
+        "truth_status": "true",
+        "confidence": 0.98,
+        "ownership": {
+          "status": "team_owned",
+          "scope": "End-to-end scheduling feature",
+          "boundary_text": "Leo owned a frontend form and specific defects within the team feature.",
+          "owned_by": "Cross-functional team",
+          "ownership_evidence_ids": [
+            "fact_team_feature"
+          ]
+        },
+        "role_relevance": 0.88,
+        "discriminative_value": 0.82,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.84,
+          "mechanism_strength": 0.4,
+          "outcome_strength": 0.35,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_team_context"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question asks what built means on the resume",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team ownership and excluded layers",
+          "prohibited_expansion": [
+            "Do not turn team ownership into no contribution."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_form_ownership",
+            "reason": "The personal contribution sits inside the team feature."
+          }
+        ],
+        "evaluator_note": "Clear boundary; should not be re-litigated."
+      },
+      {
+        "fact_id": "fact_form_ownership",
+        "label": "Owned scheduling-form slice",
+        "statement": {
+          "text": "Leo personally implemented the React scheduling form state, client validation, error messages, and part of the date-serialization contract, with review from a senior engineer.",
+          "fact_ids": [
+            "fact_form_ownership",
+            "fact_team_feature"
+          ]
+        },
+        "category": "ownership",
+        "truth_status": "true",
+        "confidence": 0.94,
+        "ownership": {
+          "status": "owned",
+          "scope": "React form, client validation, errors, and client-side date contract",
+          "boundary_text": "Review and a team context do not erase personal implementation; backend and database remained partner-owned.",
+          "owned_by": "Leo for the frontend slice",
+          "ownership_evidence_ids": [
+            "fact_form_ownership"
+          ]
+        },
+        "role_relevance": 0.94,
+        "discriminative_value": 0.87,
+        "evidence_properties": {
+          "specificity": 0.94,
+          "observability": 0.86,
+          "mechanism_strength": 0.86,
+          "outcome_strength": 0.48,
+          "causal_strength": 0.28
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_team_feature"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "A concrete personal-artifact question",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Frontend state, validation, errors, and date contract",
+          "prohibited_expansion": [
+            "Do not claim API, database, or release ownership."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_timezone_bug",
+            "reason": "The defect occurred at the owned client date boundary."
+          }
+        ],
+        "evaluator_note": "Meaningful junior-level contribution."
+      },
+      {
+        "fact_id": "fact_ownership_correction",
+        "label": "Correction of built wording",
+        "statement": {
+          "text": "Leo initially says he built scheduling, then corrects himself: the team built the feature and he owned the React form, validation, and the client side of the date fix.",
+          "fact_ids": [
+            "fact_ownership_correction",
+            "fact_team_feature",
+            "fact_form_ownership"
+          ]
+        },
+        "category": "correction",
+        "truth_status": "true",
+        "confidence": 0.95,
+        "ownership": {
+          "status": "owned",
+          "scope": "His wording and corrected personal boundary",
+          "boundary_text": "The correction supersedes the broad spoken claim without implying deception.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_ownership_correction"
+          ]
+        },
+        "role_relevance": 0.9,
+        "discriminative_value": 0.9,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.88,
+          "mechanism_strength": 0.52,
+          "outcome_strength": 0.2,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_team_feature",
+            "fact_form_ownership"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Interviewer asks who did which part or Leo notices the broad wording",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Team feature and narrow personal slice",
+          "prohibited_expansion": [
+            "Do not preserve the superseded broad ownership claim."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supersedes",
+            "target_fact_id": "fact_team_feature",
+            "reason": "It corrects how Leo verbally framed the team feature while preserving the team fact."
+          }
+        ],
+        "evaluator_note": "Correction should update truth cleanly."
+      },
+      {
+        "fact_id": "fact_timezone_bug",
+        "label": "Wrong-day scheduling defect",
+        "statement": {
+          "text": "A date-only value from the browser was converted through UTC and rendered as the previous day for some western time zones; Leo reproduced it by changing browser timezone, compared the network payload with rendered state, and fixed the client serialization while a backend engineer clarified the API contract.",
+          "fact_ids": [
+            "fact_timezone_bug",
+            "fact_form_ownership"
+          ]
+        },
+        "category": "incident",
+        "truth_status": "true",
+        "confidence": 0.96,
+        "ownership": {
+          "status": "partial",
+          "scope": "Reproduction, client diagnosis, serialization fix, and regression test",
+          "boundary_text": "The backend engineer owned the server contract change; Leo drove the client-side investigation and fix.",
+          "owned_by": "Leo for client diagnosis and fix; backend engineer for server clarification",
+          "ownership_evidence_ids": [
+            "fact_timezone_bug"
+          ]
+        },
+        "role_relevance": 0.98,
+        "discriminative_value": 0.97,
+        "evidence_properties": {
+          "specificity": 0.98,
+          "observability": 0.9,
+          "mechanism_strength": 0.96,
+          "outcome_strength": 0.74,
+          "causal_strength": 0.72
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_form_ownership"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 2,
+          "reveal_trigger": "Question asks for a bug, first debugging step, or date-handling decision",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Timezone reproduction, payload comparison, client fix, and backend boundary",
+          "prohibited_expansion": [
+            "Do not claim sole full-stack ownership."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_debugging_strength",
+            "reason": "The incident is the primary evidence for the capability."
+          }
+        ],
+        "evaluator_note": "Strong junior debugging story."
+      },
+      {
+        "fact_id": "fact_debugging_strength",
+        "label": "Debugging capability",
+        "statement": {
+          "text": "Leo's stable debugging pattern is to reproduce the defect, reduce it to one boundary, inspect actual data, make a small change, and add a regression test before asking for review.",
+          "fact_ids": [
+            "fact_debugging_strength",
+            "fact_timezone_bug"
+          ]
+        },
+        "category": "method",
+        "truth_status": "true",
+        "confidence": 0.9,
+        "ownership": {
+          "status": "owned",
+          "scope": "His debugging process",
+          "boundary_text": "The process is evidenced in one strong story and smaller routine defects, not every system class.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_debugging_strength"
+          ]
+        },
+        "role_relevance": 0.98,
+        "discriminative_value": 0.96,
+        "evidence_properties": {
+          "specificity": 0.9,
+          "observability": 0.87,
+          "mechanism_strength": 0.92,
+          "outcome_strength": 0.68,
+          "causal_strength": 0.62
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_timezone_bug"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 3,
+          "reveal_trigger": "Candidate synthesizes the debugging approach after the concrete story",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Reproduce, narrow, inspect, change, test, review",
+          "prohibited_expansion": [
+            "Do not generalize to infrastructure incidents."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_learning_strength",
+            "reason": "The process includes tests and review as learning tools."
+          }
+        ],
+        "evaluator_note": "A strong level-appropriate capability."
+      },
+      {
+        "fact_id": "fact_learning_strength",
+        "label": "Learning through experiments and review",
+        "statement": {
+          "text": "When Leo encounters an unfamiliar browser or TypeScript behavior, he writes a minimal reproduction, reads the relevant documentation, adds a focused test, and asks a senior engineer to review his reasoning rather than only the patch.",
+          "fact_ids": [
+            "fact_learning_strength"
+          ]
+        },
+        "category": "method",
+        "truth_status": "true",
+        "confidence": 0.88,
+        "ownership": {
+          "status": "owned",
+          "scope": "Learning and review practice",
+          "boundary_text": "Seeking review is expected at his level and does not imply inability to work independently.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_learning_strength"
+          ]
+        },
+        "role_relevance": 0.95,
+        "discriminative_value": 0.89,
+        "evidence_properties": {
+          "specificity": 0.88,
+          "observability": 0.82,
+          "mechanism_strength": 0.84,
+          "outcome_strength": 0.5,
+          "causal_strength": 0.4
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_identity_role"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about learning, feedback, or an unfamiliar problem",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Minimal reproduction, documentation, test, and reasoning review",
+          "prohibited_expansion": [
+            "Do not invent formal mentorship outcomes."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_accessibility_surface",
+            "reason": "The accessibility work used this learning loop."
+          }
+        ],
+        "evaluator_note": "High-value junior signal."
+      },
+      {
+        "fact_id": "fact_infrastructure_gap",
+        "label": "Genuine infrastructure gap",
+        "statement": {
+          "text": "Leo does not know how Kubernetes schedules pods, how network policy is enforced, how database failover works, or how to size cloud capacity; he can verify application health and escalate symptoms.",
+          "fact_ids": [
+            "fact_infrastructure_gap"
+          ]
+        },
+        "category": "unknown",
+        "truth_status": "true",
+        "confidence": 0.98,
+        "ownership": {
+          "status": "not_owned",
+          "scope": "Infrastructure design and operations",
+          "boundary_text": "The gap is real and should be judged against junior role requirements.",
+          "owned_by": "Platform and senior engineers",
+          "ownership_evidence_ids": [
+            "fact_infrastructure_gap"
+          ]
+        },
+        "role_relevance": 0.55,
+        "discriminative_value": 0.63,
+        "evidence_properties": {
+          "specificity": 0.92,
+          "observability": 0.9,
+          "mechanism_strength": 0.15,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question asks infrastructure knowledge",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Honest gap and application-level escalation ability",
+          "prohibited_expansion": [
+            "Do not invent partial Kubernetes knowledge."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_ordinary_work",
+            "reason": "Release support was observation and verification, not infrastructure ownership."
+          }
+        ],
+        "evaluator_note": "True weakness or untested area depending on role weighting."
+      },
+      {
+        "fact_id": "fact_accessibility_surface",
+        "label": "Keyboard and error-announcement repair",
+        "statement": {
+          "text": "Leo noticed that keyboard focus skipped the scheduling error summary and that screen readers did not announce a date conflict; he learned the relevant ARIA behavior, changed focus handling, and added a browser test with review.",
+          "fact_ids": [
+            "fact_accessibility_surface",
+            "fact_learning_strength"
+          ]
+        },
+        "category": "method",
+        "truth_status": "true",
+        "confidence": 0.88,
+        "ownership": {
+          "status": "owned",
+          "scope": "Focused accessibility diagnosis and implementation",
+          "boundary_text": "This was one repaired flow, not ownership of company accessibility strategy.",
+          "owned_by": "Leo for the repair",
+          "ownership_evidence_ids": [
+            "fact_accessibility_surface"
+          ]
+        },
+        "role_relevance": 0.84,
+        "discriminative_value": 0.78,
+        "evidence_properties": {
+          "specificity": 0.92,
+          "observability": 0.8,
+          "mechanism_strength": 0.86,
+          "outcome_strength": 0.5,
+          "causal_strength": 0.42
+        },
+        "disclosure": {
+          "eligibility": "conditional",
+          "prerequisite_fact_ids": [
+            "fact_learning_strength"
+          ],
+          "prohibited_reveal_conditions": [
+            "Before accessibility, learning, or omitted contributions are discussed."
+          ],
+          "earliest_turn": 3,
+          "reveal_trigger": "Question asks what he learned outside his initial comfort zone",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Focus order, screen-reader announcement, and browser test",
+          "prohibited_expansion": [
+            "Do not claim broad accessibility expertise."
+          ]
+        },
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_learning_strength",
+            "reason": "The work demonstrates the learning loop."
+          }
+        ],
+        "evaluator_note": "A valuable but bounded emergent surface."
+      },
+      {
+        "fact_id": "fact_protected_health_data",
+        "label": "Protected clinic and patient details",
+        "statement": {
+          "text": "Leo cannot disclose patient names, clinic identities, appointment contents, or screenshots from production; he can use synthetic dates, anonymized payload shapes, and generic defect behavior.",
+          "fact_ids": [
+            "fact_protected_health_data"
+          ]
+        },
+        "category": "boundary",
+        "truth_status": "protected",
+        "confidence": 0.99,
+        "ownership": {
+          "status": "protected",
+          "scope": "Health and customer data",
+          "boundary_text": "Technical reasoning remains available with synthetic examples.",
+          "owned_by": "CarePath, clinics, and patients",
+          "ownership_evidence_ids": [
+            "fact_protected_health_data"
+          ]
+        },
+        "role_relevance": 0.52,
+        "discriminative_value": 0.5,
+        "evidence_properties": {
+          "specificity": 0.82,
+          "observability": 0.94,
+          "mechanism_strength": 0.2,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.1
+        },
+        "disclosure": {
+          "eligibility": "protected",
+          "prerequisite_fact_ids": [
+            "fact_identity_role"
+          ],
+          "prohibited_reveal_conditions": [
+            "Any request for patient, clinic, screenshot, or production appointment detail."
+          ],
+          "earliest_turn": 1,
+          "reveal_trigger": "Candidate states privacy boundary",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Synthetic dates, payload shape, and generic defect",
+          "prohibited_expansion": [
+            "Never disclose protected health or customer data."
+          ]
+        },
+        "relations": [
+          {
+            "type": "protected_by",
+            "target_fact_id": "fact_timezone_bug",
+            "reason": "The bug can be explained without real patient data."
+          }
+        ],
+        "evaluator_note": "Privacy discipline should be respected."
+      },
+      {
+        "fact_id": "fact_ordinary_work",
+        "label": "Routine release support",
+        "statement": {
+          "text": "On release days Leo checks the application dashboard, runs a smoke test, and tells a senior engineer when a client error rate changes; he does not control the deployment pipeline.",
+          "fact_ids": [
+            "fact_ordinary_work"
+          ]
+        },
+        "category": "scope",
+        "truth_status": "true",
+        "confidence": 0.9,
+        "ownership": {
+          "status": "partial",
+          "scope": "Application verification and escalation",
+          "boundary_text": "Release support is not deployment or infrastructure ownership.",
+          "owned_by": "Leo for smoke verification; senior and platform engineers for deployment",
+          "ownership_evidence_ids": [
+            "fact_ordinary_work"
+          ]
+        },
+        "role_relevance": 0.62,
+        "discriminative_value": 0.42,
+        "evidence_properties": {
+          "specificity": 0.8,
+          "observability": 0.78,
+          "mechanism_strength": 0.4,
+          "outcome_strength": 0.25,
+          "causal_strength": 0.15
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [
+            "fact_identity_role"
+          ],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 1,
+          "reveal_trigger": "Question about routine operations or release support",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Smoke test, dashboard observation, and escalation",
+          "prohibited_expansion": [
+            "Do not claim pipeline ownership."
+          ]
+        },
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_infrastructure_gap",
+            "reason": "He can support a release without knowing infrastructure internals."
+          }
+        ],
+        "evaluator_note": "Ordinary neutral fact."
+      },
+      {
+        "fact_id": "fact_side_project",
+        "label": "Minecraft inventory mod",
+        "statement": {
+          "text": "Leo built a small Java mod that sorts a Minecraft inventory and learned event callbacks by reading community documentation; it has no production users or team-review history.",
+          "fact_ids": [
+            "fact_side_project"
+          ]
+        },
+        "category": "side_project",
+        "truth_status": "true",
+        "confidence": 0.94,
+        "ownership": {
+          "status": "owned",
+          "scope": "Personal hobby project",
+          "boundary_text": "It shows persistence but not production engineering maturity.",
+          "owned_by": "Leo",
+          "ownership_evidence_ids": [
+            "fact_side_project"
+          ]
+        },
+        "role_relevance": 0.27,
+        "discriminative_value": 0.2,
+        "evidence_properties": {
+          "specificity": 0.78,
+          "observability": 0.58,
+          "mechanism_strength": 0.5,
+          "outcome_strength": 0.1,
+          "causal_strength": 0.05
+        },
+        "disclosure": {
+          "eligibility": "eligible",
+          "prerequisite_fact_ids": [],
+          "prohibited_reveal_conditions": [],
+          "earliest_turn": 0,
+          "reveal_trigger": "Question about hobby projects",
+          "candidate_can_volunteer": true,
+          "allowed_summary": "Inventory sorting and learning callbacks",
+          "prohibited_expansion": [
+            "Do not invent users or production constraints."
+          ]
+        },
+        "relations": [],
+        "evaluator_note": "Low-value but plausible temptation."
+      }
+    ],
+    "relationships": [
+      {
+        "source_fact_id": "fact_identity_role",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_context",
+            "reason": "The role is embedded in a small product team."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_career_context",
+        "relations": []
+      },
+      {
+        "source_fact_id": "fact_team_context",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_team_feature",
+            "reason": "The feature was collaborative."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_nervous_behavior",
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_bounded_recovery",
+            "reason": "Question shape changes verbal access."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_bounded_recovery",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_debugging_strength",
+            "reason": "The debugging story becomes answerable under a bounded prompt."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_team_feature",
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_form_ownership",
+            "reason": "The personal contribution sits inside the team feature."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_form_ownership",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_timezone_bug",
+            "reason": "The defect occurred at the owned client date boundary."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_ownership_correction",
+        "relations": [
+          {
+            "type": "supersedes",
+            "target_fact_id": "fact_team_feature",
+            "reason": "It corrects how Leo verbally framed the team feature while preserving the team fact."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_timezone_bug",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_debugging_strength",
+            "reason": "The incident is the primary evidence for the capability."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_debugging_strength",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_learning_strength",
+            "reason": "The process includes tests and review as learning tools."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_learning_strength",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_accessibility_surface",
+            "reason": "The accessibility work used this learning loop."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_infrastructure_gap",
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_ordinary_work",
+            "reason": "Release support was observation and verification, not infrastructure ownership."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_accessibility_surface",
+        "relations": [
+          {
+            "type": "supports",
+            "target_fact_id": "fact_learning_strength",
+            "reason": "The work demonstrates the learning loop."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_protected_health_data",
+        "relations": [
+          {
+            "type": "protected_by",
+            "target_fact_id": "fact_timezone_bug",
+            "reason": "The bug can be explained without real patient data."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_ordinary_work",
+        "relations": [
+          {
+            "type": "qualifies",
+            "target_fact_id": "fact_infrastructure_gap",
+            "reason": "He can support a release without knowing infrastructure internals."
+          }
+        ]
+      },
+      {
+        "source_fact_id": "fact_side_project",
+        "relations": []
+      }
+    ]
+  },
+  "attribution_rules": [
+    {
+      "rule_id": "ownership_is_fact_scoped",
+      "text": "Use each evidence unit's ownership status, scope, boundary, and owner exactly; paraphrase cannot widen it.",
+      "fact_ids": [
+        "fact_identity_role",
+        "fact_career_context",
+        "fact_team_context",
+        "fact_nervous_behavior",
+        "fact_bounded_recovery",
+        "fact_team_feature",
+        "fact_form_ownership",
+        "fact_ownership_correction",
+        "fact_timezone_bug",
+        "fact_debugging_strength",
+        "fact_learning_strength",
+        "fact_infrastructure_gap",
+        "fact_accessibility_surface",
+        "fact_protected_health_data",
+        "fact_ordinary_work",
+        "fact_side_project"
+      ]
+    },
+    {
+      "rule_id": "truth_status_is_typed",
+      "text": "Distinguish true, qualified, protected, unavailable, unknown, and superseded evidence rather than collapsing them into a verdict.",
+      "fact_ids": [
+        "fact_identity_role",
+        "fact_career_context",
+        "fact_team_context",
+        "fact_nervous_behavior",
+        "fact_bounded_recovery",
+        "fact_team_feature",
+        "fact_form_ownership",
+        "fact_ownership_correction",
+        "fact_timezone_bug",
+        "fact_debugging_strength",
+        "fact_learning_strength",
+        "fact_infrastructure_gap",
+        "fact_accessibility_surface",
+        "fact_protected_health_data",
+        "fact_ordinary_work",
+        "fact_side_project"
+      ]
+    },
+    {
+      "rule_id": "correction_updates_active_truth",
+      "text": "Apply explicit correction and supersession relationships before interpreting a contradiction; a candid correction is not automatically deception.",
+      "fact_ids": [
+        "fact_identity_role",
+        "fact_career_context",
+        "fact_team_context",
+        "fact_nervous_behavior",
+        "fact_bounded_recovery",
+        "fact_team_feature",
+        "fact_form_ownership",
+        "fact_ownership_correction",
+        "fact_timezone_bug",
+        "fact_debugging_strength",
+        "fact_learning_strength",
+        "fact_infrastructure_gap",
+        "fact_accessibility_surface",
+        "fact_protected_health_data",
+        "fact_ordinary_work",
+        "fact_side_project"
+      ]
+    },
+    {
+      "rule_id": "interviewer_failure_is_separate",
+      "text": "When the frozen world marks an area protected, unowned, untested, or missed because of interviewer behavior, preserve that distinction in the evidence profile.",
+      "fact_ids": [
+        "fact_identity_role",
+        "fact_career_context",
+        "fact_team_context",
+        "fact_nervous_behavior",
+        "fact_bounded_recovery",
+        "fact_team_feature",
+        "fact_form_ownership",
+        "fact_ownership_correction",
+        "fact_timezone_bug",
+        "fact_debugging_strength",
+        "fact_learning_strength",
+        "fact_infrastructure_gap",
+        "fact_accessibility_surface",
+        "fact_protected_health_data",
+        "fact_ordinary_work",
+        "fact_side_project"
+      ]
+    }
+  ],
+  "acceptable_move_sets": {
+    "families": [
+      {
+        "family_id": "bounded_recovery",
+        "label": "Bounded non-leading recovery",
+        "when_legal": "A broad question produces a very short answer and no fair concrete prompt has been offered.",
+        "value_tradeoff": "High fairness and signal value once; repeated rescue or embedded solutions can contaminate evidence.",
+        "prerequisite_fact_ids": [
+          "fact_nervous_behavior"
+        ],
+        "acceptable_variants": [
+          "Ask for the first debugging step.",
+          "Ask what was visible on screen.",
+          "Ask which file or artifact was personally changed."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_repeat_broad",
+          "invalid_leading_rescue"
+        ]
+      },
+      {
+        "family_id": "ownership_scope",
+        "label": "Team and personal scope",
+        "when_legal": "The resume or answer uses a team-level verb and the personal artifact is unclear.",
+        "value_tradeoff": "Necessary once; low value after the correction is explicit.",
+        "prerequisite_fact_ids": [
+          "fact_team_feature"
+        ],
+        "acceptable_variants": [
+          "Ask which layer was his.",
+          "Ask who owned API and database work.",
+          "Ask what he changed in code."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_reprosecute_correction"
+        ]
+      },
+      {
+        "family_id": "level_calibrated_fundamentals",
+        "label": "Level-calibrated application fundamentals",
+        "when_legal": "A junior application concept remains untested and the question can be grounded in familiar work.",
+        "value_tradeoff": "Tests role fit without importing senior system-design expectations.",
+        "prerequisite_fact_ids": [
+          "fact_identity_role"
+        ],
+        "acceptable_variants": [
+          "Ask how form state reaches an API.",
+          "Ask where validation belongs.",
+          "Ask how a date-only value should be represented."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_senior_infra_exam"
+        ]
+      },
+      {
+        "family_id": "learning_evidence",
+        "label": "Learning-loop evidence",
+        "when_legal": "The role level makes learning behavior material and a concrete unfamiliar task is available.",
+        "value_tradeoff": "High junior signal; should not become praise for curiosity without an artifact or test.",
+        "prerequisite_fact_ids": [
+          "fact_learning_strength"
+        ],
+        "acceptable_variants": [
+          "Ask for a minimal reproduction.",
+          "Ask what documentation changed his approach.",
+          "Ask how review altered the patch."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "consequence_check",
+        "label": "User or release consequence",
+        "when_legal": "A technical fix is clear but its effect or safety check is not.",
+        "value_tradeoff": "Connects junior implementation to product responsibility; lower value after regression and rollout checks are established.",
+        "prerequisite_fact_ids": [
+          "fact_timezone_bug"
+        ],
+        "acceptable_variants": [
+          "Ask how the fix was verified.",
+          "Ask which users were affected generically.",
+          "Ask what would have made him roll back."
+        ],
+        "hard_invalid_move_ids": [
+          "invalid_private_data"
+        ]
+      },
+      {
+        "family_id": "record_gap",
+        "label": "Record a genuine knowledge gap",
+        "when_legal": "Leo explicitly does not know a topic and it is not necessary to unlock another owned surface.",
+        "value_tradeoff": "Preserves honesty and time; relevance must be stated rather than silently scored.",
+        "prerequisite_fact_ids": [
+          "fact_infrastructure_gap"
+        ],
+        "acceptable_variants": [
+          "Mark infrastructure weak or untested by role need.",
+          "Ask only about escalation interface.",
+          "Move to an application-level dimension."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "coverage_rotation",
+        "label": "Rotate to a distinct junior dimension",
+        "when_legal": "The current evidence is sufficient or continued pressure reduces answerability.",
+        "value_tradeoff": "Protects breadth and fairness; may leave a real gap unresolved and should name it.",
+        "prerequisite_fact_ids": [],
+        "acceptable_variants": [
+          "Move from debugging to learning.",
+          "Move from ownership to web fundamentals.",
+          "Close with explicit untested dimensions."
+        ],
+        "hard_invalid_move_ids": []
+      },
+      {
+        "family_id": "record_and_defer",
+        "label": "Record and defer",
+        "when_legal": "A bounded emergent fact is credible but lower-value than core coverage.",
+        "value_tradeoff": "Avoids making every interesting junior story a new branch.",
+        "prerequisite_fact_ids": [],
+        "acceptable_variants": [
+          "Record accessibility learning.",
+          "Return if learning remains uncertain.",
+          "Mark the surface partially tested."
+        ],
+        "hard_invalid_move_ids": []
+      }
+    ],
+    "junctions": [
+      {
+        "junction_id": "junction_short_open",
+        "state": "Leo has answered a broad project question with two words and no technical mechanism.",
+        "observed_fact_ids": [
+          "fact_nervous_behavior",
+          "fact_team_feature"
+        ],
+        "reasonable_move_family_ids": [
+          "bounded_recovery",
+          "ownership_scope",
+          "coverage_rotation"
+        ],
+        "tradeoffs": [
+          "A bounded first-step question may reveal competence without leading the answer.",
+          "A simple ownership question can establish a fair surface before depth.",
+          "Rotation can reduce pressure but risks leaving core evidence inaccessible."
+        ],
+        "not_gold_note": "Several humane moves are defensible; the world does not prescribe one recovery phrase."
+      },
+      {
+        "junction_id": "junction_bug_evidence",
+        "state": "Leo has explained reproduction, payload comparison, client fix, and regression test, while broader web and database knowledge remain uncertain.",
+        "observed_fact_ids": [
+          "fact_form_ownership",
+          "fact_timezone_bug",
+          "fact_debugging_strength"
+        ],
+        "reasonable_move_family_ids": [
+          "consequence_check",
+          "coverage_rotation",
+          "record_and_defer"
+        ],
+        "tradeoffs": [
+          "One consequence question can test user and rollout judgment.",
+          "Another bug question may repeat already-established process.",
+          "Rotation can test an independent junior dimension."
+        ],
+        "not_gold_note": "Strong debugging evidence does not require exhausting the story."
+      },
+      {
+        "junction_id": "junction_infra_gap",
+        "state": "Leo has honestly said he does not know Kubernetes scheduling or failover and can only verify application health and escalate.",
+        "observed_fact_ids": [
+          "fact_infrastructure_gap",
+          "fact_ordinary_work"
+        ],
+        "reasonable_move_family_ids": [
+          "record_gap",
+          "level_calibrated_fundamentals",
+          "coverage_rotation"
+        ],
+        "tradeoffs": [
+          "Recording a genuine gap preserves truth.",
+          "A simpler application boundary can test adjacent knowledge without pretending the gap disappeared.",
+          "Rotation is fair when infrastructure is not central to the junior role."
+        ],
+        "not_gold_note": "The world neither requires forgiveness nor mandates rejection; relevance and role level control the tradeoff."
+      }
+    ],
+    "emergent_surfaces": [
+      {
+        "surface_id": "surface_accessibility_learning",
+        "label": "Accessibility learning through a concrete scheduling-flow repair",
+        "origin": "Leo mentions an unlisted learning example after the main bug story",
+        "fact_ids": [
+          "fact_learning_strength",
+          "fact_accessibility_surface"
+        ],
+        "role_relevance": 0.84,
+        "discriminative_value": 0.79,
+        "opportunity_cost": 0.55,
+        "ownership_status": "owned",
+        "prerequisite_fact_ids": [
+          "fact_learning_strength"
+        ],
+        "valid_action_families": [
+          "learning_evidence",
+          "consequence_check",
+          "coverage_rotation",
+          "record_and_defer"
+        ],
+        "absorb_if_covered": true,
+        "rotate_conditions": [
+          "The learning loop and one accessibility mechanism are already concrete",
+          "Core web or API fundamentals remain untested",
+          "The interviewer would only ask accessibility trivia beyond the candidate's scope"
+        ],
+        "invalid_pursuit_conditions": [
+          "Treating one repair as broad accessibility expertise",
+          "Pursuing it only because it was unlisted",
+          "Using the topic to avoid testing core junior web work"
+        ]
+      }
+    ]
+  },
+  "invalid_reality_violations": [
+    {
+      "move_id": "invalid_repeat_broad",
+      "action": "Repeat the same broad question after a two-word answer without narrowing or acknowledging it.",
+      "why_invalid": "The world predicts repeated shutdown, not additional evidence.",
+      "fair_alternative_family_ids": [
+        "bounded_recovery",
+        "coverage_rotation"
+      ],
+      "candidate_harm": "Converts question-design failure into candidate failure."
+    },
+    {
+      "move_id": "invalid_leading_rescue",
+      "action": "Supply the timezone or serialization diagnosis inside the recovery question.",
+      "why_invalid": "That would contaminate the evidence and make the actor echo interviewer truth.",
+      "fair_alternative_family_ids": [
+        "bounded_recovery",
+        "level_calibrated_fundamentals"
+      ],
+      "candidate_harm": "Produces false competence evidence."
+    },
+    {
+      "move_id": "invalid_reprosecute_correction",
+      "action": "Keep challenging built after Leo has corrected the team and personal boundaries.",
+      "why_invalid": "The correction supersedes the broad claim and further prosecution adds no ownership truth.",
+      "fair_alternative_family_ids": [
+        "level_calibrated_fundamentals",
+        "coverage_rotation"
+      ],
+      "candidate_harm": "Turns junior shorthand into an integrity verdict."
+    },
+    {
+      "move_id": "invalid_senior_infra_exam",
+      "action": "Use Kubernetes, network policy, failover, or capacity design as the dominant junior assessment.",
+      "why_invalid": "The gap is real but mismatched to the target role unless explicitly required.",
+      "fair_alternative_family_ids": [
+        "record_gap",
+        "level_calibrated_fundamentals"
+      ],
+      "candidate_harm": "Mistakes limited exposure for global inability."
+    },
+    {
+      "move_id": "invalid_private_data",
+      "action": "Request patient names, clinic identity, production screenshots, or appointment contents.",
+      "why_invalid": "Synthetic data fully supports the debugging assessment.",
+      "fair_alternative_family_ids": [
+        "consequence_check",
+        "record_and_defer"
+      ],
+      "candidate_harm": "Rewards privacy violations or punishes appropriate refusal."
+    },
+    {
+      "move_id": "invalid_nervousness_score",
+      "action": "Score technical incapacity from speech length without one bounded non-leading opportunity.",
+      "why_invalid": "Communication behavior and competence are separate frozen variables.",
+      "fair_alternative_family_ids": [
+        "bounded_recovery",
+        "coverage_rotation"
+      ],
+      "candidate_harm": "Makes interviewer accommodation failure look like candidate weakness."
+    }
+  ],
+  "sufficiency_conditions": {
+    "minimum_turn_shape": "A fair 15–30 minute interview should provide at least one bounded recovery, establish one personal artifact and team boundary, obtain a complete debugging sequence, test one learning or web-fundamentals dimension, and record infrastructure gaps at junior relevance.",
+    "conditions": [
+      {
+        "condition_id": "suff_recovery",
+        "label": "Communication recovery is fair",
+        "fact_ids": [
+          "fact_nervous_behavior",
+          "fact_bounded_recovery"
+        ],
+        "satisfied_when": "At least one bounded non-leading question is offered after a short answer.",
+        "not_satisfied_when": "Only broad repeats or leading prompts are used.",
+        "status_if_missing": "interviewer_failure"
+      },
+      {
+        "condition_id": "suff_debugging",
+        "label": "Debugging is evidenced",
+        "fact_ids": [
+          "fact_timezone_bug",
+          "fact_debugging_strength"
+        ],
+        "satisfied_when": "Reproduction, boundary isolation, actual data, fix, and regression check are concrete.",
+        "not_satisfied_when": "The report relies only on the resume claim fixed a bug.",
+        "status_if_missing": "untested"
+      },
+      {
+        "condition_id": "suff_scope",
+        "label": "Ownership correction is applied",
+        "fact_ids": [
+          "fact_team_feature",
+          "fact_form_ownership",
+          "fact_ownership_correction"
+        ],
+        "satisfied_when": "Team and personal layers remain separate in the report.",
+        "not_satisfied_when": "The broad claim remains active or the personal slice is erased.",
+        "status_if_missing": "interviewer_failure"
+      },
+      {
+        "condition_id": "suff_learning",
+        "label": "Learning is tested",
+        "fact_ids": [
+          "fact_learning_strength",
+          "fact_accessibility_surface"
+        ],
+        "satisfied_when": "A concrete learning loop or unfamiliar task is evidenced.",
+        "not_satisfied_when": "Curiosity is inferred from enthusiasm alone.",
+        "status_if_missing": "untested"
+      },
+      {
+        "condition_id": "suff_level",
+        "label": "Gaps are level-calibrated",
+        "fact_ids": [
+          "fact_infrastructure_gap",
+          "fact_identity_role"
+        ],
+        "satisfied_when": "Infrastructure weakness is reported with role relevance and does not erase application evidence.",
+        "not_satisfied_when": "Senior expectations dominate the assessment.",
+        "status_if_missing": "interviewer_failure"
+      }
+    ],
+    "report_requirements": [
+      "Separate nervous speech from technical evidence.",
+      "Name the exact team and personal ownership boundaries.",
+      "Cite the full debugging sequence rather than the resume bullet.",
+      "Mark infrastructure as weak, untested, or not role required with explicit rationale.",
+      "Attribute missing evidence to interviewer failure when no fair recovery was offered."
+    ],
+    "stop_rules": [
+      "Stop broad repetition after one failed attempt and change question shape or rotate.",
+      "Stop ownership clarification after the correction.",
+      "Stop the bug story after mechanism and regression evidence are established.",
+      "Stop senior infrastructure drilling after the honest gap."
+    ],
+    "expected_residual_uncertainty": [
+      "Independent API design may remain untested.",
+      "Database reasoning is likely unknown.",
+      "Communication in a less formal work setting is stronger than the interview can fully observe.",
+      "Long-term growth rate cannot be established in one interview."
+    ]
+  }
+}

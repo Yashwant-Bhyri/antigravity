@@ -1,0 +1,31 @@
+{
+  "projection_schema_version": "candidate_projection_v1",
+  "projection_type": "interviewer_visible",
+  "world_id": "world_02_backend_engineer",
+  "resume": {
+    "text": "MIGUEL SANTOS\nBackend Engineer | Go, Java, Postgres, Kafka, Kubernetes\n\nParcelGrid — Backend Engineer (2020–present)\n• Architected a multi-tenant shipment and billing platform processing 18M events/day.\n• Designed distributed retry and idempotency strategy for carrier and payment integrations.\n• Improved duplicate-charge incidents by 80% and reduced reconciliation time.\n\nEarlier work\n• Built Java services for inventory reservation and customer notifications.\n• Led on-call improvements and incident reviews across the backend group.",
+    "claims": [
+      {
+        "claim_id": "claim_architected_platform",
+        "claim_text": "Architected a multi-tenant shipment and billing platform processing 18M events/day.",
+        "claim_type": "ownership"
+      },
+      {
+        "claim_id": "claim_retry_idempotency",
+        "claim_text": "Designed the distributed retry and idempotency strategy for carrier and payment integrations.",
+        "claim_type": "method"
+      },
+      {
+        "claim_id": "claim_duplicate_charge",
+        "claim_text": "Improved duplicate-charge incidents by 80%.",
+        "claim_type": "outcome"
+      },
+      {
+        "claim_id": "claim_oncall",
+        "claim_text": "Led on-call improvements and incident reviews across the backend group.",
+        "claim_type": "scope"
+      }
+    ]
+  },
+  "conversation_events": []
+}
