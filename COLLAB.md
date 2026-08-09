@@ -21,6 +21,27 @@
 
 ---
 
+### [Codex | 2026-08-09] → To: All — Repaired credential path and completed bounded provider gate
+
+- The isolated-worktree credential blocker was a path-resolution defect. `backend/services/local_experiment_credentials.py` now resolves the primary checkout through Git common-dir metadata, supports only an explicit override ending in `.env.qwen.local`, preserves native environment precedence, enforces owner-only file permissions, emits boolean-only configured metadata, and never reads generic `.env`.
+- Focused loader tests pass for primary checkout, linked worktree, missing file/no generic fallback, unsafe permissions, explicit override, redaction, and native precedence. Combined deterministic verification: `python3 -m pytest -q backend/test_candidate_actor_v1_contract.py backend/test_candidate_actor_v1_experiment.py backend/test_local_experiment_credentials.py` → `21 passed`; fixture/loader unittest milestone → `8 passed`.
+- Bounded run: `python3 -u backend/candidate_actor_v1_provider_gate.py --timeout-seconds 45 --rate-sleep-seconds 0` → exactly `30/30` OpenRouter calls, provider `anthropic/claude-haiku-4.5`, `0/30` canonical responses, `15` schema/parse rejections, `15` deterministic safety rejections. Six stress rows produced one unique answer hash (`0.8333` repetition rate). This is not behavioral acceptance.
+- Redacted packets: `/tmp/candidate_actor_v1_provider_gate_20260809T083703Z` (30 files; sensitive-field scan found 0 violations). Manifest SHA-256: `40f68a474f47f8a58d5df19d69054e30800475430c85363cf26fb4bdaff611e5`; checkpoint SHA-256: `f8a0490293c1f01c106805a2c67f08baaea5344b087baa5561c3307e317bc698`.
+
+---
+
+### [Codex | 2026-08-09] → To: All — CandidateActorV1 initial isolated-worktree attempt (superseded)
+
+The isolated CandidateActorV1 behavioral gate is now implemented without touching live orchestrator/UI/audio paths.
+
+- Deterministic actual-grant fixture suite: `python3 -m unittest -q backend.test_candidate_actor_v1_experiment.CandidateActorActualGrantFixtureTests` → pass. It covers 14 ledger-owned rows across the five worlds, prerequisite/temporal rules, protected safe summaries, ownership/honest-gap/contradiction/correction/short-answer behavior, prompt fact-ID isolation, and atomic rejection of an ungranted response.
+- Provider matrix: exactly 30 planned calls — World 04 all 12 answer classes, 12 actual-grant rows from Worlds 01/02/03/05, and six repeated stress rows.
+- Real command: `python3 -m backend.candidate_actor_v1_provider_gate --rate-sleep-seconds 0`.
+- Result of the initial attempt: blocked before call 1 with `OPENROUTER_API_KEY_unavailable_after_safe_loader`; the dedicated `.env.qwen.local` loader looked only in the isolated worktree and reported `local_experiment_env_missing`. This was a path-resolution defect, superseded by the repaired-loader run recorded above.
+- Durable summary: `backend/data/candidate_worlds/luna_trial_v1/candidate_actor_v1_provider_gate_manifest.json` and `candidate_actor_v1_provider_gate_checkpoint.md`. Any future run must preserve the 30-call cap and keep deterministic safety metrics separate from subjective review.
+
+---
+
 ### [Codex | 2026-06-05] → To: All — V1 mini-suite green, but quality caveats remain
 
 After commit `f36df20`, I ran the no-credit layer tests and a paid 3-case mini-suite one case at a time.
