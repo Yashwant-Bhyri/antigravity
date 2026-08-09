@@ -1,41 +1,53 @@
 {
-  "manifest_version": "interview_trace_v1_checkpoint_manifest_v1",
+  "manifest_version": "interview_trace_v1_checkpoint_manifest_v2",
   "date": "2026-08-09",
   "scope": "isolated_contract_no_live_behavior_change",
   "files": [
     {
       "path": "backend/services/interview_trace_v1.py",
-      "sha256": "10fd5392235e2d962c127513223082bf9132fab961b23106c2374fd06b3e3232"
+      "sha256": "936c1c38df68b2898ffc2f6d49cb50980301f1edee85299cf87b7658447c3aee"
     },
     {
       "path": "backend/test_interview_trace_v1_contract.py",
-      "sha256": "4262e1117b6067126c1b85c98ca22a7b8df9c6b6a15f20800ef15d1421d6837c"
+      "sha256": "1e923e5104935a47a3f2ebe48bebbb8ba13715cb776b8e9864dcb7ea81bbd1c1"
     },
     {
       "path": "INTERVIEW_TRACE_V1_CHECKPOINT.md",
-      "sha256": "702fe9ef3527f8a14effc5b84333f9b55d5f440610092915f4c633b02d1c6cdd"
+      "sha256": "9daa40feaaa3f538f860863f645f9575ebbb96489e5a1506f4140b88a8835bc5"
     }
   ],
   "commands": [
     "python3 -m py_compile backend/services/interview_trace_v1.py backend/test_interview_trace_v1_contract.py",
-    "python3 -m unittest -v backend.test_interview_trace_v1_contract"
+    "python3 -m unittest -v backend.test_interview_trace_v1_contract",
+    "python3 -m pytest -q backend/test_interview_trace_v1_contract.py",
+    "python3 -m pytest -q"
   ],
   "results": {
     "compile": "pass",
-    "tests_run": 13,
+    "focused_pytest": "28 passed",
+    "tests_run": 28,
     "tests_failed": 0,
-    "provider_calls": 0
+    "provider_calls": 0,
+    "repository_pytest": "blocked during collection: OPENROUTER_API_KEY is absent; no .env read"
   },
   "proven_invariants": [
     "playback_ack_precedes_spoken_commit",
+    "completed_only_playback_ack",
     "delivery_failure_does_not_advance_candidate_truth",
-    "idempotent_duplicate_retry",
+    "exact_operation_idempotency_and_logical_conflicts",
+    "atomic_exception_rollback_and_domain_rejection_receipts",
+    "exactly_once_lifecycle_identities",
     "stale_epoch_and_version_rejection",
+    "future_version_gap_rejection",
     "rejected_validation_has_no_visible_route_commit",
     "decision_semantics_immutable_shadow_separate",
     "exact_action_and_question_provenance",
+    "typed_report_and_final_evidence_lineage",
     "view_scoped_projection_and_redaction",
+    "candidate_actor_sequence_omission",
     "nested_payload_immutability",
+    "schema_genesis_parent_hash_decision_provenance_import_verification",
+    "canonical_index_rebuild_equivalence",
     "hash_chain_tamper_and_reorder_detection",
     "stable_export_reload_spoken_history"
   ],
@@ -45,6 +57,8 @@
     "no_concurrent_writer_or_durable_transaction_proof",
     "hash_chain_not_cryptographically_signed",
     "pattern_redaction_requires_production_schema_privacy_review",
+    "tail_truncation_requires_external_durable_seal",
+    "repository_provider_backed_tests_not_run_without_credentials",
     "contract_tests_do_not_prove_interview_quality"
   ]
 }

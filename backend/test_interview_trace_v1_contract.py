@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -13,21 +15,27 @@ from pathlib import Path
 try:
     from backend.services.interview_trace_v1 import (
         InterviewTraceV1,
+        PlaybackAckStatus,
         TraceEventType,
+        TraceConflictError,
         TraceImmutableDecisionError,
         TraceIntegrityError,
         TraceInvariantError,
         TraceReferenceError,
+        TraceStaleError,
         TraceView,
     )
 except ModuleNotFoundError:  # direct execution from the backend directory
     from services.interview_trace_v1 import (
         InterviewTraceV1,
+        PlaybackAckStatus,
         TraceEventType,
+        TraceConflictError,
         TraceImmutableDecisionError,
         TraceIntegrityError,
         TraceInvariantError,
         TraceReferenceError,
+        TraceStaleError,
         TraceView,
     )
 
@@ -51,6 +59,33 @@ def _keys(value: object) -> set[str]:
         for child in value:
             result.update(_keys(child))
     return result
+
+
+def _rehash_record(record: dict[str, object]) -> None:
+    body = copy.deepcopy(record)
+    body.pop("event_hash", None)
+    record["event_hash"] = hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    ).hexdigest()
+
+
+def _rehash_contract_record(record: dict[str, object]) -> None:
+    record["decision_hash"] = InterviewTraceV1._decision_hash(
+        str(record["event_type"]), record["payload"]
+    )
+    record["provenance_hash"] = InterviewTraceV1._provenance_hash(
+        tuple(str(item) for item in record["causal_parent_ids"]), record["payload"]
+    )
+    _rehash_record(record)
+
+
+def _rechain_records(records: list[dict[str, object]]) -> None:
+    previous = "0" * 64
+    for sequence, record in enumerate(records, start=1):
+        record["sequence"] = sequence
+        record["previous_event_hash"] = previous
+        _rehash_record(record)
+        previous = str(record["event_hash"])
 
 
 class InterviewTraceV1ContractTests(unittest.TestCase):
@@ -271,11 +306,11 @@ class InterviewTraceV1ContractTests(unittest.TestCase):
         )
         claim = trace.record_report_claim_emitted(
             claim_id="claim-1", claim_text="Candidate articulated a bounded retry trade-off.",
-            source_evidence_event_ids=[source["evidence"].event_id, semantic.event_id], idempotency_key="claim:1",
+            source_evidence_event_ids=[source["evidence"].event_id], idempotency_key="claim:1",
         )
         final = trace.record_final_evaluation_completed(
             evaluation_id="evaluation-1", report_claim_event_ids=[claim.event_id],
-            evidence_event_ids=[source["evidence"].event_id, semantic.event_id],
+            evidence_event_ids=[source["evidence"].event_id],
             evaluation_summary={"coverage": "complete"}, idempotency_key="evaluation:1",
         )
         self.assertTrue(final.accepted)
@@ -311,6 +346,222 @@ class InterviewTraceV1ContractTests(unittest.TestCase):
         self.assertTrue(second.idempotent)
         self.assertEqual(first.event_id, second.event_id)
         self.assertEqual(sum(event.event_type == TraceEventType.ANSWER_RECEIVED.value for event in trace.events), 1)
+
+    def test_same_idempotency_key_with_changed_answer_is_conflict(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        trace.record_answer_received(
+            turn_id="turn-1", answer_version=1, spoken_question_event_id=opening["spoken"].event_id,
+            answer_text="first answer", idempotency_key="answer:same-key",
+        )
+        before = trace.export_records()
+        with self.assertRaises(TraceConflictError):
+            trace.record_answer_received(
+                turn_id="turn-1", answer_version=1, spoken_question_event_id=opening["spoken"].event_id,
+                answer_text="changed answer", idempotency_key="answer:same-key",
+            )
+        self.assertEqual(before, trace.export_records())
+
+    def test_alternate_key_logical_duplicates_are_conflicts(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        source = self.answer_inventory(trace, opening)
+        grant = trace.record_action_grant_selected(
+            turn_id="turn-2", answer_version=1, opportunity_inventory_event_id=source["inventory"].event_id,
+            opportunity_id="opp-next", source_evidence_event_ids=[source["semantic"].event_id],
+            prior_spoken_question_event_id=opening["spoken"].event_id, action="probe-boundary", idempotency_key="grant:alt",
+        )
+        trace.record_state_transition_validated(
+            turn_id="turn-2", answer_version=1, decision="accepted", visible_route_commit_allowed=True,
+            source_opportunity_id="opp-next", source_evidence_event_ids=[source["semantic"].event_id],
+            prior_spoken_question_event_id=opening["spoken"].event_id, action_grant_event_id=grant.event_id,
+            idempotency_key="validation:alt",
+        )
+        materialized = trace.record_question_materialized(
+            turn_id="turn-2", answer_version=1, question_id="question-turn-2",
+            visible_text="What trade-off did you make in turn-2?", source_opportunity_id="opp-next",
+            source_evidence_event_ids=[source["semantic"].event_id],
+            prior_spoken_question_event_id=opening["spoken"].event_id, action_grant_event_id=grant.event_id,
+            idempotency_key="materialized:canonical",
+        )
+        with self.assertRaises(TraceConflictError):
+            trace.record_question_materialized(
+                turn_id="turn-2", answer_version=1, question_id="question-turn-2",
+                visible_text="changed materialization", source_opportunity_id="opp-next",
+                source_evidence_event_ids=[source["semantic"].event_id],
+                prior_spoken_question_event_id=opening["spoken"].event_id,
+                action_grant_event_id=grant.event_id, idempotency_key="materialized:alternate",
+            )
+        prepared = trace.record_question_prepared(
+            turn_id="turn-2", answer_version=1, question_id="question-turn-2",
+            materialized_event_id=materialized.event_id, source_opportunity_id="opp-next",
+            source_evidence_event_ids=[source["semantic"].event_id],
+            prior_spoken_question_event_id=opening["spoken"].event_id, idempotency_key="prepared:canonical",
+        )
+        with self.assertRaises(TraceConflictError):
+            trace.record_question_prepared(
+                turn_id="turn-2", answer_version=1, question_id="question-turn-2",
+                materialized_event_id=materialized.event_id, source_opportunity_id="opp-next",
+                source_evidence_event_ids=[source["semantic"].event_id],
+                prior_spoken_question_event_id=opening["spoken"].event_id,
+                idempotency_key="prepared:alternate",
+            )
+        started = trace.record_question_delivery_started(
+            turn_id="turn-2", answer_version=1, question_prepared_event_id=prepared.event_id,
+            delivery_attempt_id="attempt-turn-2-1", idempotency_key="delivery-start:canonical",
+        )
+        with self.assertRaises(TraceConflictError):
+            trace.record_question_delivery_started(
+                turn_id="turn-2", answer_version=1, question_prepared_event_id=prepared.event_id,
+                delivery_attempt_id="attempt-turn-2-1", idempotency_key="delivery-start:alternate",
+            )
+        ack = trace.record_playback_acknowledged(
+            turn_id="turn-2", answer_version=1, delivery_attempt_id="attempt-turn-2-1",
+            delivery_started_event_id=started.event_id, client_ack=PlaybackAckStatus.COMPLETED,
+            idempotency_key="playback-ack:canonical",
+        )
+        with self.assertRaises(TraceConflictError):
+            trace.record_playback_acknowledged(
+                turn_id="turn-2", answer_version=1, delivery_attempt_id="attempt-turn-2-1",
+                delivery_started_event_id=started.event_id,
+                client_ack=PlaybackAckStatus.COMPLETED, idempotency_key="playback-ack:alternate",
+            )
+        spoken = trace.record_spoken_question_committed(
+            turn_id="turn-2", answer_version=1, question_id="question-turn-2",
+            visible_text="What trade-off did you make in turn-2?",
+            question_materialized_event_id=materialized.event_id, playback_ack_event_id=ack.event_id,
+            delivery_attempt_id="attempt-turn-2-1", prior_spoken_question_event_id=opening["spoken"].event_id,
+            source_opportunity_id="opp-next", source_evidence_event_ids=[source["semantic"].event_id],
+            idempotency_key="spoken:canonical",
+        )
+        with self.assertRaises(TraceConflictError):
+            trace.record_spoken_question_committed(
+                turn_id="turn-2", answer_version=1, question_id="question-turn-2",
+                visible_text="What trade-off did you make in turn-2?",
+                question_materialized_event_id=materialized.event_id,
+                playback_ack_event_id=ack.event_id, delivery_attempt_id="attempt-turn-2-1",
+                prior_spoken_question_event_id=opening["spoken"].event_id,
+                source_opportunity_id="opp-next", source_evidence_event_ids=[source["semantic"].event_id],
+                idempotency_key="spoken:alternate",
+            )
+        answer = trace.record_answer_received(
+            turn_id="turn-2", answer_version=1, spoken_question_event_id=spoken.event_id,
+            answer_text="canonical answer", idempotency_key="answer:canonical",
+        )
+        with self.assertRaises(TraceConflictError):
+            trace.record_answer_received(
+                turn_id="turn-2", answer_version=1, spoken_question_event_id=spoken.event_id,
+                answer_text="changed answer", idempotency_key="answer:alternate",
+            )
+        semantic = trace.record_semantic_interpretation_finalized(
+            turn_id="turn-2", answer_version=1, answer_event_id=answer.event_id,
+            interpretation={"meaning": "canonical"}, idempotency_key="semantic:canonical",
+        )
+        with self.assertRaises(TraceImmutableDecisionError):
+            trace.record_semantic_interpretation_finalized(
+                turn_id="turn-2", answer_version=1, answer_event_id=answer.event_id,
+                interpretation={"meaning": "changed"}, idempotency_key="semantic:alternate",
+            )
+
+    def test_playback_ack_requires_completed_and_is_exactly_once(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        source = self.answer_inventory(trace, opening)
+        grant = trace.record_action_grant_selected(
+            turn_id="turn-2", answer_version=1, opportunity_inventory_event_id=source["inventory"].event_id,
+            opportunity_id="opp-next", source_evidence_event_ids=[source["semantic"].event_id],
+            prior_spoken_question_event_id=opening["spoken"].event_id, action="probe-boundary", idempotency_key="grant:ack",
+        )
+        trace.record_state_transition_validated(
+            turn_id="turn-2", answer_version=1, decision="accepted", visible_route_commit_allowed=True,
+            source_opportunity_id="opp-next", source_evidence_event_ids=[source["semantic"].event_id],
+            prior_spoken_question_event_id=opening["spoken"].event_id, action_grant_event_id=grant.event_id,
+            idempotency_key="validation:ack",
+        )
+        materialized = trace.record_question_materialized(
+            turn_id="turn-2", answer_version=1, question_id="question-turn-2",
+            visible_text="What trade-off did you make in turn-2?", source_opportunity_id="opp-next",
+            source_evidence_event_ids=[source["semantic"].event_id],
+            prior_spoken_question_event_id=opening["spoken"].event_id, action_grant_event_id=grant.event_id,
+            idempotency_key="materialized:ack",
+        )
+        prepared = trace.record_question_prepared(
+            turn_id="turn-2", answer_version=1, question_id="question-turn-2",
+            materialized_event_id=materialized.event_id, source_opportunity_id="opp-next",
+            source_evidence_event_ids=[source["semantic"].event_id],
+            prior_spoken_question_event_id=opening["spoken"].event_id, idempotency_key="prepared:ack",
+        )
+        started = trace.record_question_delivery_started(
+            turn_id="turn-2", answer_version=1, question_prepared_event_id=prepared.event_id,
+            delivery_attempt_id="attempt-turn-2-1", idempotency_key="delivery:ack",
+        )
+        with self.assertRaises(TraceInvariantError):
+            trace.record_playback_acknowledged(
+                turn_id="turn-2", answer_version=1, delivery_attempt_id="attempt-turn-2-1",
+                delivery_started_event_id=started.event_id, client_ack="playback_failed",
+                idempotency_key="ack:negative",
+            )
+        ack = trace.record_playback_acknowledged(
+            turn_id="turn-2", answer_version=1, delivery_attempt_id="attempt-turn-2-1",
+            delivery_started_event_id=started.event_id,
+            client_ack=PlaybackAckStatus.COMPLETED, idempotency_key="ack:positive",
+        )
+        with self.assertRaises(TraceConflictError):
+            trace.record_playback_acknowledged(
+                turn_id="turn-2", answer_version=1, delivery_attempt_id="attempt-turn-2-1",
+                delivery_started_event_id=started.event_id,
+                client_ack=PlaybackAckStatus.COMPLETED, idempotency_key="ack:alternate",
+            )
+        self.assertEqual(
+            1,
+            sum(event.event_id == ack.event_id for event in trace.events),
+        )
+
+    def test_failed_public_operations_are_atomic(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        before_events = trace.export_records()
+        before_turns = copy.deepcopy(trace._turns)
+
+        trace._clock = lambda: (_ for _ in ()).throw(RuntimeError("clock failed"))
+        with self.assertRaises(RuntimeError):
+            trace.record_state_transition_validated(
+                turn_id="turn-clock", answer_version=1, decision="accepted",
+                visible_route_commit_allowed=True, source_opportunity_id="opening",
+                source_evidence_event_ids=[opening["session"].event_id], idempotency_key="clock-failure",
+            )
+        self.assertEqual(before_events, trace.export_records())
+        self.assertEqual(before_turns, trace._turns)
+
+        trace._clock = _Clock()
+        with self.assertRaises(TraceInvariantError):
+            trace.record_answer_received(
+                turn_id="turn-1", answer_version=2, spoken_question_event_id=opening["spoken"].event_id,
+                answer_text="", idempotency_key="empty-answer",
+            )
+        self.assertEqual(before_events, trace.export_records())
+        self.assertEqual(before_turns, trace._turns)
+
+    def test_domain_rejection_is_receipt_and_validation_error_is_not_event(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        before = len(trace.events)
+        rejected = trace.record_state_transition_validated(
+            turn_id="turn-rejected", answer_version=1, decision="rejected",
+            visible_route_commit_allowed=True, source_opportunity_id="opening",
+            source_evidence_event_ids=[opening["session"].event_id], reason="not eligible",
+            idempotency_key="validation:domain-rejected",
+        )
+        self.assertFalse(rejected.accepted)
+        self.assertIsNotNone(rejected.event)
+        self.assertEqual(len(trace.events), before + 1)
+        with self.assertRaises(TraceInvariantError):
+            trace.record_question_materialized(
+                turn_id="turn-rejected", answer_version=1, question_id="q",
+                visible_text="must not show", source_opportunity_id="opening",
+                source_evidence_event_ids=[opening["session"].event_id], idempotency_key="materialized:no",
+            )
+        self.assertEqual(len(trace.events), before + 1)
 
     def test_first_and_repeated_stale_attempts_are_rejected(self) -> None:
         trace = self.trace()
@@ -580,6 +831,261 @@ class InterviewTraceV1ContractTests(unittest.TestCase):
         exported["payload"]["views"][TraceView.CANDIDATE.value]["session_started"] = False
         self.assertTrue(trace.verify_integrity())
         self.assertEqual(before, trace.canonical_spoken_history())
+
+    def test_import_rejects_unknown_future_duplicate_and_tampered_lineage(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        records = trace.export_records()
+
+        future_parent = copy.deepcopy(records)
+        future_parent[-1]["causal_parent_ids"].append("future-event")
+        _rehash_record(future_parent[-1])
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(future_parent)
+
+        duplicate_parent = copy.deepcopy(records)
+        duplicate_parent[-1]["causal_parent_ids"].append(duplicate_parent[-1]["causal_parent_ids"][0])
+        _rehash_record(duplicate_parent[-1])
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(duplicate_parent)
+
+        unknown_type = copy.deepcopy(records)
+        unknown_type[-1]["event_type"] = "unknown_event_type"
+        _rehash_record(unknown_type[-1])
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(unknown_type)
+
+        decision_tamper = copy.deepcopy(records)
+        decision_tamper[-1]["decision_hash"] = "tampered-decision"
+        _rehash_record(decision_tamper[-1])
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(decision_tamper)
+
+        provenance_tamper = copy.deepcopy(records)
+        provenance_tamper[-1]["provenance_hash"] = "tampered-provenance"
+        _rehash_record(provenance_tamper[-1])
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(provenance_tamper)
+
+        missing_genesis = copy.deepcopy(records[1:])
+        _rechain_records(missing_genesis)
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(missing_genesis)
+
+        bad_epoch = copy.deepcopy(records)
+        bad_epoch[-1]["runtime_epoch"] = 99
+        _rehash_record(bad_epoch[-1])
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(bad_epoch)
+
+        bad_schema = copy.deepcopy(records)
+        bad_schema[0]["schema_version"] = "interview_trace_v0"
+        _rehash_record(bad_schema[0])
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(bad_schema)
+
+        bad_payload_schema = copy.deepcopy(records)
+        bad_payload_schema[0]["payload_schema_version"] = "payload_v0"
+        _rehash_record(bad_payload_schema[0])
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(bad_payload_schema)
+
+    def test_import_rejects_rehashed_playback_and_report_lineage_tampering(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        records = trace.export_records()
+        ack_index = next(
+            index for index, record in enumerate(records)
+            if record["event_type"] == TraceEventType.PLAYBACK_ACKNOWLEDGED.value
+        )
+        negative_ack = copy.deepcopy(records)
+        ack = negative_ack[ack_index]
+        ack["payload"]["views"][TraceView.EVALUATOR.value]["client_ack"] = "playback_failed"
+        ack["payload"]["views"][TraceView.EVALUATOR.value]["acknowledged"] = False
+        ack["payload"]["views"][TraceView.ACTOR.value]["acknowledged"] = False
+        ack["payload"]["views"][TraceView.INTERVIEWER.value]["acknowledged"] = False
+        ack["payload"]["views"][TraceView.CANDIDATE.value]["acknowledged"] = False
+        _rehash_contract_record(ack)
+        _rechain_records(negative_ack)
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(negative_ack)
+
+        source = self.answer_inventory(trace, opening)
+        claim = trace.record_report_claim_emitted(
+            claim_id="claim-tamper",
+            claim_text="grounded",
+            source_evidence_event_ids=[source["evidence"].event_id],
+            idempotency_key="claim:tamper",
+        )
+        report_records = trace.export_records()
+        claim_record = next(record for record in report_records if record["event_id"] == claim.event_id)
+        claim_record["causal_parent_ids"] = [opening["session"].event_id]
+        claim_record["payload"]["views"][TraceView.EVALUATOR.value]["source_evidence_event_ids"] = [opening["session"].event_id]
+        _rehash_contract_record(claim_record)
+        _rechain_records(report_records)
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(report_records)
+
+        final = trace.record_final_evaluation_completed(
+            evaluation_id="final-tamper",
+            report_claim_event_ids=[claim.event_id],
+            evidence_event_ids=[source["evidence"].event_id],
+            evaluation_summary={},
+            idempotency_key="final:tamper",
+        )
+        final_records = trace.export_records()
+        final_record = next(record for record in final_records if record["event_id"] == final.event_id)
+        final_record["causal_parent_ids"] = [claim.event_id, source["semantic"].event_id]
+        final_record["payload"]["views"][TraceView.EVALUATOR.value]["evidence_event_ids"] = [source["semantic"].event_id]
+        _rehash_contract_record(final_record)
+        _rechain_records(final_records)
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(final_records)
+
+    def test_nonzero_initial_epoch_and_rejected_telemetry_reload_without_ghost_turn(self) -> None:
+        nonzero = InterviewTraceV1("nonzero-epoch", runtime_epoch=4, clock=_Clock())
+        self.assertTrue(nonzero.verify_integrity())
+        reloaded_nonzero = InterviewTraceV1.from_records(nonzero.export_records(), clock=_Clock())
+        self.assertEqual(4, reloaded_nonzero.runtime_epoch)
+
+        trace = self.trace()
+        opening = self.opening(trace)
+        rejected = trace.record_state_transition_validated(
+            turn_id="ghost-turn",
+            answer_version=1,
+            decision="rejected",
+            visible_route_commit_allowed=True,
+            source_opportunity_id="opening-question",
+            source_evidence_event_ids=[opening["session"].event_id],
+            reason="not eligible",
+            idempotency_key="validation:ghost-turn",
+        )
+        self.assertFalse(rejected.accepted)
+        reloaded = InterviewTraceV1.from_records(trace.export_records(), clock=_Clock())
+        self.assertNotIn("ghost-turn", trace._turns)
+        self.assertNotIn("ghost-turn", reloaded._turns)
+        self.assertEqual(trace._turns, reloaded._turns)
+
+    def test_new_turn_future_answer_version_is_rejected_without_ledger(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        rejected = trace.record_state_transition_validated(
+            turn_id="future-turn",
+            answer_version=3,
+            decision="accepted",
+            visible_route_commit_allowed=True,
+            source_opportunity_id="opening-question",
+            source_evidence_event_ids=[opening["session"].event_id],
+            idempotency_key="validation:future-turn",
+        )
+        self.assertFalse(rejected.accepted)
+        self.assertEqual("answer_version_gap", rejected.reason)
+        self.assertNotIn("future-turn", trace._turns)
+
+    def test_session_and_epoch_retries_are_exactly_once(self) -> None:
+        trace = self.trace()
+        started = trace.start_session()
+        self.assertTrue(started.idempotent)
+        advanced = trace.advance_runtime_epoch(1)
+        repeated = trace.advance_runtime_epoch(1)
+        self.assertTrue(repeated.idempotent)
+        self.assertEqual(advanced.event_id, repeated.event_id)
+        self.assertTrue(trace.start_session().idempotent)
+        with self.assertRaises(TraceConflictError):
+            trace.start_session(producer="different.session", idempotency_key="alternate-session-key")
+
+    def test_report_and_final_evaluation_require_evidence_lineage_and_are_exactly_once(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        source = self.answer_inventory(trace, opening)
+        with self.assertRaises(TraceReferenceError):
+            trace.record_report_claim_emitted(
+                claim_id="bad-claim", claim_text="bad", source_evidence_event_ids=[opening["session"].event_id],
+                idempotency_key="claim:bad-source",
+            )
+        claim = trace.record_report_claim_emitted(
+            claim_id="claim-exact", claim_text="grounded", source_evidence_event_ids=[source["evidence"].event_id],
+            idempotency_key="claim:exact",
+        )
+        with self.assertRaises(TraceReferenceError):
+            trace.record_final_evaluation_completed(
+                evaluation_id="bad-final", report_claim_event_ids=[claim.event_id],
+                evidence_event_ids=[source["semantic"].event_id], evaluation_summary={}, idempotency_key="final:bad",
+            )
+        final = trace.record_final_evaluation_completed(
+            evaluation_id="final-exact", report_claim_event_ids=[claim.event_id],
+            evidence_event_ids=[source["evidence"].event_id], evaluation_summary={}, idempotency_key="final:exact",
+        )
+        with self.assertRaises(TraceConflictError):
+            trace.record_report_claim_emitted(
+                claim_id="claim-exact", claim_text="changed", source_evidence_event_ids=[source["evidence"].event_id],
+                idempotency_key="claim:alternate",
+            )
+        with self.assertRaises(TraceConflictError):
+            trace.record_final_evaluation_completed(
+                evaluation_id="final-other", report_claim_event_ids=[claim.event_id],
+                evidence_event_ids=[source["evidence"].event_id], evaluation_summary={"changed": True},
+                idempotency_key="final:alternate",
+            )
+        self.assertEqual(final.event_id, trace._final_evaluation_event_id)
+
+    def test_report_and_final_evaluation_require_current_runtime_epoch(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        source = self.answer_inventory(trace, opening)
+        trace.advance_runtime_epoch(1)
+        with self.assertRaises(TraceStaleError):
+            trace.record_report_claim_emitted(
+                claim_id="stale-claim", claim_text="stale", source_evidence_event_ids=[source["evidence"].event_id],
+                runtime_epoch=0, idempotency_key="claim:stale",
+            )
+
+    def test_redaction_covers_prompt_and_secret_value_forms(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        answer = trace.record_answer_received(
+            turn_id="turn-1", answer_version=1, spoken_question_event_id=opening["spoken"].event_id,
+            answer_text="redaction", idempotency_key="answer:redaction-new",
+        )
+        semantic = trace.record_semantic_interpretation_finalized(
+            turn_id="turn-1", answer_version=1, answer_event_id=answer.event_id,
+            interpretation={
+                "prompt": "TOP-SECRET-PROMPT",
+                "developer_message": "HIDDEN-INSTRUCTION",
+                "accessToken": "ghp_1234567890abcdef",
+                "connection": "postgresql://user:password@example.test/db",
+            }, idempotency_key="semantic:redaction-new",
+        )
+        interpretation = semantic.event.payload["views"][TraceView.EVALUATOR.value]["interpretation"]
+        self.assertEqual(interpretation["prompt"], "[REDACTED]")
+        self.assertEqual(interpretation["developer_message"], "[REDACTED]")
+        self.assertEqual(interpretation["accessToken"], "[REDACTED]")
+        self.assertEqual(interpretation["connection"], "[REDACTED]")
+
+    def test_candidate_and_actor_projection_do_not_expose_global_sequence(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        candidate = trace.project(TraceView.CANDIDATE)
+        actor = trace.project(TraceView.ACTOR)
+        self.assertTrue(candidate)
+        self.assertTrue(actor)
+        self.assertTrue(all("sequence" not in item for item in candidate))
+        self.assertTrue(all("sequence" not in item for item in actor))
+        self.assertEqual(opening["session"].event_id, candidate[0]["event_id"])
+
+    def test_reload_rebuilds_indexes_and_projections_exactly(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        source = self.answer_inventory(trace, opening)
+        self.next_question(trace, source)
+        trace.advance_runtime_epoch(1)
+        reloaded = InterviewTraceV1.from_records(trace.export_records())
+        self.assertEqual(trace.runtime_epoch, reloaded.runtime_epoch)
+        self.assertEqual(trace.last_spoken_question_event_id, reloaded.last_spoken_question_event_id)
+        self.assertEqual(trace.canonical_spoken_history(), reloaded.canonical_spoken_history())
+        self.assertEqual(trace.project(TraceView.CANDIDATE), reloaded.project(TraceView.CANDIDATE))
+        self.assertEqual(trace.project(TraceView.ACTOR), reloaded.project(TraceView.ACTOR))
+        self.assertEqual(trace._turns, reloaded._turns)
 
     def test_tamper_reorder_detection_and_stable_replay(self) -> None:
         trace = self.trace()

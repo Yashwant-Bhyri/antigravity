@@ -52,6 +52,9 @@ class TraceEventType(str, Enum):
     FINAL_EVALUATION_COMPLETED = "final_evaluation_completed"
 
 
+_TRACE_EVENT_NAMES = frozenset(event_type.value for event_type in TraceEventType)
+
+
 class PlaybackAckStatus(str, Enum):
     """The only browser acknowledgement that establishes positive playback truth."""
 
@@ -208,6 +211,29 @@ class TraceEvent:
             missing = sorted(required - set(record.keys()))
             if missing:
                 raise TraceIntegrityError(f"Trace event record is missing fields: {', '.join(missing)}")
+            string_fields = (
+                "schema_version", "event_id", "session_id", "turn_id", "event_type",
+                "producer", "payload_schema_version", "decision_hash", "provenance_hash",
+                "idempotency_key", "previous_event_hash", "event_hash",
+            )
+            for field_name in string_fields:
+                if not isinstance(record[field_name], str):
+                    raise TraceIntegrityError(f"Trace field {field_name} must be a string")
+            integer_fields = ("answer_version", "runtime_epoch", "sequence", "occurred_at_ms", "recorded_at_ms")
+            for field_name in integer_fields:
+                if isinstance(record[field_name], bool) or not isinstance(record[field_name], int):
+                    raise TraceIntegrityError(f"Trace field {field_name} must be an integer")
+            raw_parents = record["causal_parent_ids"]
+            if isinstance(raw_parents, (str, bytes)) or not isinstance(raw_parents, Sequence):
+                raise TraceIntegrityError("causal_parent_ids must be an array")
+            if any(not isinstance(item, str) for item in raw_parents):
+                raise TraceIntegrityError("causal_parent_ids entries must be strings")
+            raw_payload = record["payload"]
+            if not isinstance(raw_payload, Mapping):
+                raise TraceIntegrityError("payload must be an object")
+            raw_redaction = record["redaction"]
+            if not isinstance(raw_redaction, Mapping):
+                raise TraceIntegrityError("redaction must be an object")
             return cls(
                 schema_version=str(record["schema_version"]),
                 event_id=str(record["event_id"]),
@@ -217,15 +243,15 @@ class TraceEvent:
                 runtime_epoch=int(record.get("runtime_epoch", 0)),
                 sequence=int(record["sequence"]),
                 event_type=str(record["event_type"]),
-                causal_parent_ids=tuple(str(item) for item in record.get("causal_parent_ids", [])),
+                causal_parent_ids=tuple(str(item) for item in raw_parents),
                 occurred_at_ms=int(record["occurred_at_ms"]),
                 recorded_at_ms=int(record["recorded_at_ms"]),
                 producer=str(record["producer"]),
                 payload_schema_version=str(record["payload_schema_version"]),
-                payload=copy.deepcopy(dict(record.get("payload") or {})),
+                payload=copy.deepcopy(dict(raw_payload)),
                 decision_hash=str(record["decision_hash"]),
                 provenance_hash=str(record["provenance_hash"]),
-                redaction=copy.deepcopy(dict(record.get("redaction") or {})),
+                redaction=copy.deepcopy(dict(raw_redaction)),
                 idempotency_key=str(record["idempotency_key"]),
                 previous_event_hash=str(record["previous_event_hash"]),
                 event_hash=str(record["event_hash"]),
@@ -275,11 +301,26 @@ _SECRET_VALUE_RE = re.compile(
     r"(?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|credential)\s*[:=]\s*[^\s,;]+|"
     r"(?:sk|sk-ant|rk|ghp|github_pat|xox[baprs]-|AIza|AKIA)[A-Za-z0-9_\-]{8,}|"
     r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}|"
+    r"https?://[^\s/@:]+:[^\s/@]+@[^\s]+|"
     r"(?:postgres|postgresql|redis|rediss)://[^\s]+|"
     r"-----BEGIN [A-Z ]+ PRIVATE KEY-----)",
     re.IGNORECASE,
 )
 _VIEW_NAMES = {view.value for view in TraceView}
+
+
+def _is_sensitive_key(key: str) -> bool:
+    """Match secret/prompt keys even when separators or casing are altered."""
+    normalized = re.sub(r"[^a-z0-9]", "", str(key).lower())
+    return bool(_SENSITIVE_KEY_RE.search(key)) or any(
+        token in normalized
+        for token in (
+            "apikey", "accesstoken", "refreshtoken", "secret", "password",
+            "authorization", "cookie", "credential", "privatekey", "prompt",
+            "instruction", "systemmessage", "systemcontent", "developermessage",
+            "developercontent", "usermessage", "usercontent", "hiddenmessage",
+        )
+    )
 
 
 # Projection is a trust boundary, not a convenience serialization of the
@@ -430,7 +471,7 @@ def _redact_value(value: Any, path: str, redacted_paths: list[str]) -> Any:
         for raw_key, raw_value in value.items():
             key = str(raw_key)
             child_path = f"{path}.{key}" if path else key
-            if _SENSITIVE_KEY_RE.search(key):
+            if _is_sensitive_key(key):
                 result[key] = REDACTED
                 redacted_paths.append(child_path)
                 continue
@@ -622,6 +663,10 @@ class InterviewTraceV1:
         trace._events = parsed
         trace._events_by_id = {event.event_id: event for event in parsed}
         trace._events_by_idempotency = {event.idempotency_key: event for event in parsed}
+        # Seed the derived epoch index from the durable tail only so
+        # verify_integrity can compare it to the independently replayed
+        # canonical epoch before _rebuild_indexes runs.  The tail value is not
+        # trusted by itself: every epoch transition is validated below.
         trace._runtime_epoch = parsed[-1].runtime_epoch
         if verify:
             trace.verify_integrity()
@@ -724,11 +769,18 @@ class InterviewTraceV1:
         if answer_version < 0:
             raise TraceInvariantError("answer_version cannot be negative")
         record_epoch = self._runtime_epoch if runtime_epoch is None else int(runtime_epoch)
+        if record_epoch < 0:
+            raise TraceInvariantError("runtime_epoch cannot be negative")
         event_id_value = str(event_id or uuid.uuid4())
         idempotency = str(idempotency_key or "").strip()
         if not idempotency:
             raise TraceInvariantError("idempotency_key is required")
-        parents = _dedupe_ids(causal_parent_ids)
+        raw_parents = tuple(str(value or "").strip() for value in causal_parent_ids)
+        if any(not parent_id for parent_id in raw_parents):
+            raise TraceInvariantError("causal_parent_ids cannot contain empty ids")
+        if len(raw_parents) != len(set(raw_parents)):
+            raise TraceInvariantError("causal_parent_ids must not contain duplicates")
+        parents = raw_parents
         for parent_id in parents:
             if parent_id not in self._events_by_id:
                 raise TraceReferenceError(f"Unknown causal parent event: {parent_id}")
@@ -900,6 +952,16 @@ class InterviewTraceV1:
         if ledger is None:
             if not allow_new or answer_version < 1:
                 raise TraceInvariantError(f"Cannot create turn for {attempted_event_type}")
+            if answer_version != 1:
+                return None, self._reject_stale(
+                    attempted_event_type=attempted_event_type,
+                    turn_id=turn_key,
+                    answer_version=answer_version,
+                    runtime_epoch=runtime_epoch,
+                    idempotency_key=idempotency_key,
+                    causal_parent_ids=causal_parent_ids,
+                    reason="answer_version_gap",
+                )
             ledger = _TurnLedger(runtime_epoch=runtime_epoch, current_answer_version=answer_version)
             self._turns[turn_key] = ledger
             return ledger, None
@@ -1015,7 +1077,12 @@ class InterviewTraceV1:
         return event
 
     def _require_sources(self, event_ids: Sequence[str], *, label: str) -> tuple[str, ...]:
-        refs = _dedupe_ids(event_ids)
+        raw_refs = tuple(str(event_id or "").strip() for event_id in event_ids)
+        if any(not ref for ref in raw_refs):
+            raise TraceReferenceError(f"{label} cannot contain empty event ids")
+        if len(raw_refs) != len(set(raw_refs)):
+            raise TraceInvariantError(f"{label} cannot contain duplicate event ids")
+        refs = raw_refs
         if not refs:
             raise TraceReferenceError(f"{label} must contain at least one event id")
         for event_id in refs:
@@ -1054,12 +1121,12 @@ class InterviewTraceV1:
 
     @_atomic_public
     def start_session(self, *, producer: str = "backend.session", idempotency_key: str = "session-start") -> TraceReceipt:
-        if self._session_started_event_id:
-            event = self._event(self._session_started_event_id)
-            return TraceReceipt(accepted=True, event=event, idempotent=True)
+        existing_session_id = self._session_started_event_id
+        existing_session = self._event(existing_session_id) if existing_session_id else None
+        session_epoch = existing_session.runtime_epoch if existing_session is not None else self._runtime_epoch
         receipt = self._append_raw(
             TraceEventType.SESSION_STARTED,
-            runtime_epoch=self._runtime_epoch,
+            runtime_epoch=session_epoch,
             producer=producer,
             idempotency_key=idempotency_key,
             views={
@@ -1067,10 +1134,11 @@ class InterviewTraceV1:
                 TraceView.ACTOR: {"session_started": True},
                 TraceView.INTERVIEWER: {"session_started": True},
                 TraceView.EVALUATOR: {"session_started": True},
-                TraceView.OPERATOR: {"session_started": True, "runtime_epoch": self._runtime_epoch},
+                TraceView.OPERATOR: {"session_started": True, "runtime_epoch": session_epoch},
             },
             decision_material={"session_started": True},
             provenance_material={"session_id": self.session_id},
+            logical_existing_event_id=existing_session_id,
         )
         self._session_started_event_id = receipt.event.event_id
         return receipt
@@ -1078,6 +1146,13 @@ class InterviewTraceV1:
     @_atomic_public
     def advance_runtime_epoch(self, new_runtime_epoch: int, *, producer: str = "backend.runtime") -> TraceReceipt:
         next_epoch = int(new_runtime_epoch)
+        epoch_key = f"runtime-epoch:{next_epoch}"
+        if next_epoch == self._runtime_epoch:
+            existing = self._events_by_idempotency.get(epoch_key)
+            if existing is not None and existing.event_type == TraceEventType.RUNTIME_EPOCH_ADVANCED.value:
+                if existing.producer != producer:
+                    raise TraceConflictError("Runtime epoch idempotency key reused with a different producer")
+                return TraceReceipt(accepted=True, event=existing, idempotent=True)
         if next_epoch <= self._runtime_epoch:
             raise TraceInvariantError("runtime_epoch must advance monotonically")
         previous_epoch = self._runtime_epoch
@@ -1085,7 +1160,7 @@ class InterviewTraceV1:
             TraceEventType.RUNTIME_EPOCH_ADVANCED,
             runtime_epoch=next_epoch,
             producer=producer,
-            idempotency_key=f"runtime-epoch:{next_epoch}",
+            idempotency_key=epoch_key,
             causal_parent_ids=[self._events[-1].event_id] if self._events else [],
             views={
                 TraceView.CANDIDATE: {},
@@ -1453,6 +1528,16 @@ class InterviewTraceV1:
                 causal_parent_ids=[ledger.validation_event_id] if ledger.validation_event_id else [],
                 reason="stale_materialization_context",
             )
+        if answer_version > ledger.current_answer_version + 1:
+            return self._reject_stale(
+                attempted_event_type=TraceEventType.QUESTION_MATERIALIZED.value,
+                turn_id=turn_id,
+                answer_version=answer_version,
+                runtime_epoch=epoch,
+                idempotency_key=idempotency_key or f"materialized:{turn_id}:{answer_version}:{question_id}",
+                causal_parent_ids=[ledger.validation_event_id] if ledger.validation_event_id else [],
+                reason="answer_version_gap",
+            )
         if ledger.validation_status != "accepted" or not ledger.visible_route_commit_allowed:
             raise TraceInvariantError("Rejected validation cannot apply visible route commit")
         if ledger.source_opportunity_id != source_opportunity_id or ledger.source_evidence_event_ids != refs:
@@ -1506,6 +1591,7 @@ class InterviewTraceV1:
         )
         ledger.question_id = question_id
         ledger.materialized_event_id = receipt.event.event_id
+        ledger.current_answer_version = max(ledger.current_answer_version, answer_version)
         return receipt
 
     @_atomic_public
@@ -1544,7 +1630,10 @@ class InterviewTraceV1:
             raise TraceInvariantError("Prepared question id does not match materialization")
         if materialized_view.get("source_opportunity_id") != source_opportunity_id:
             raise TraceInvariantError("Prepared question opportunity does not match materialization")
-        refs = _dedupe_ids(source_evidence_event_ids)
+        refs = self._require_sources(
+            source_evidence_event_ids,
+            label="prepared source_evidence_event_ids",
+        )
         if tuple(materialized_view.get("source_evidence_event_ids") or []) != refs:
             raise TraceInvariantError("Prepared question evidence does not match materialization")
         if materialized_view.get("prior_spoken_question_event_id", "") != prior_spoken_question_event_id:
@@ -1709,6 +1798,8 @@ class InterviewTraceV1:
         epoch = self._runtime_epoch if runtime_epoch is None else int(runtime_epoch)
         started = self._require_event_type(delivery_started_event_id, TraceEventType.QUESTION_DELIVERY_STARTED)
         attempt = str(delivery_attempt_id or "").strip()
+        if not attempt:
+            raise TraceInvariantError("delivery_attempt_id is required")
         ledger, rejected = self._turn_for_new_or_existing(
             turn_id=turn_id,
             answer_version=answer_version,
@@ -1794,7 +1885,10 @@ class InterviewTraceV1:
         expected_prior = str(materialized_view.get("prior_spoken_question_event_id") or "")
         if expected_prior != str(prior_spoken_question_event_id or ""):
             raise TraceInvariantError("Spoken question prior reference must exactly match materialization")
-        refs = _dedupe_ids(source_evidence_event_ids)
+        refs = self._require_sources(
+            source_evidence_event_ids,
+            label="spoken source_evidence_event_ids",
+        )
         if tuple(materialized_view.get("source_evidence_event_ids") or []) != refs:
             raise TraceInvariantError("Spoken question evidence must exactly match materialization")
         if str(materialized_view.get("source_opportunity_id") or "") != str(source_opportunity_id or ""):
@@ -1932,6 +2026,18 @@ class InterviewTraceV1:
         if not isinstance(interpretation, Mapping):
             raise TraceInvariantError("interpretation must be an object")
         result = dict(interpretation)
+        semantic_key = idempotency_key or f"semantic-final:{turn_id}:{answer_version}:{answer_event_id}"
+        existing_final_id = ledger.semantic_final_by_version.get(answer_version, "")
+        if existing_final_id:
+            existing_final = self._event(existing_final_id)
+            existing_interpretation = _view(existing_final, TraceView.EVALUATOR).get("interpretation")
+            if existing_final.idempotency_key == semantic_key:
+                if existing_interpretation == result:
+                    return TraceReceipt(accepted=True, event=existing_final, idempotent=True)
+                raise TraceConflictError("Semantic final idempotency key reused with different content")
+            raise TraceImmutableDecisionError(
+                "Decision-time semantic output is immutable; append a semantic_interpretation_shadow event"
+            )
         receipt = self._append_raw(
             TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED,
             turn_id=turn_id,
@@ -1939,7 +2045,7 @@ class InterviewTraceV1:
             runtime_epoch=epoch,
             causal_parent_ids=[answer_event_id],
             producer=producer,
-            idempotency_key=idempotency_key or f"semantic-final:{turn_id}:{answer_version}:{answer_event_id}",
+            idempotency_key=semantic_key,
             views={
                 TraceView.CANDIDATE: {},
                 TraceView.ACTOR: {},
@@ -1953,7 +2059,7 @@ class InterviewTraceV1:
             },
             decision_material={"interpretation": result},
             provenance_material={"answer_event_id": answer_event_id},
-            logical_existing_event_id=ledger.semantic_final_by_version.get(answer_version, ""),
+            logical_existing_event_id=existing_final_id,
         )
         ledger.semantic_final_by_version[answer_version] = receipt.event.event_id
         return receipt
@@ -2271,45 +2377,441 @@ class InterviewTraceV1:
         return result
 
     def verify_integrity(self) -> bool:
-        """Verify sequence, hash-chain, event uniqueness, and session identity."""
+        """Verify the durable event contract before rebuilding derived indexes."""
         if not self._events:
             raise TraceIntegrityError("Trace is empty")
+        known_event_types = {item.value for item in TraceEventType}
         seen_ids: set[str] = set()
+        seen_events: dict[str, TraceEvent] = {}
         seen_keys: set[str] = set()
         previous_hash = GENESIS_HASH
+        canonical_runtime_epoch: int | None = None
+        session_start_count = 0
+        turn_max_answer_version: dict[str, int] = {}
+        turn_runtime_epoch: dict[str, int] = {}
+        logical_identities: dict[tuple[Any, ...], str] = {}
+
+        def record_logical_identity(identity: tuple[Any, ...], event: TraceEvent) -> None:
+            previous = logical_identities.get(identity)
+            if previous is not None:
+                raise TraceIntegrityError(
+                    f"Duplicate logical identity {identity!r}: {previous} and {event.event_id}"
+                )
+            logical_identities[identity] = event.event_id
+
         for expected_sequence, event in enumerate(self._events, start=1):
+            if event.schema_version != TRACE_SCHEMA_VERSION:
+                raise TraceIntegrityError(f"Unsupported trace schema at {event.event_id}: {event.schema_version}")
+            if event.payload_schema_version != PAYLOAD_SCHEMA_VERSION:
+                raise TraceIntegrityError(
+                    f"Unsupported payload schema at {event.event_id}: {event.payload_schema_version}"
+                )
+            if event.event_type not in known_event_types:
+                raise TraceIntegrityError(f"Unknown event type at {event.event_id}: {event.event_type}")
+            if not event.event_id or not event.idempotency_key:
+                raise TraceIntegrityError("Trace events require non-empty event and idempotency identities")
             if event.session_id != self.session_id:
                 raise TraceIntegrityError(f"Event {event.event_id} belongs to another session")
             if event.sequence != expected_sequence:
                 raise TraceIntegrityError(
                     f"Sequence mismatch at {event.event_id}: expected {expected_sequence}, got {event.sequence}"
                 )
+            if expected_sequence == 1:
+                if event.event_type != TraceEventType.SESSION_STARTED.value:
+                    raise TraceIntegrityError("Trace must begin with exactly one session_started genesis event")
+                if event.causal_parent_ids or event.turn_id or event.answer_version != 0:
+                    raise TraceIntegrityError("session_started genesis cannot have parents, turn, or answer version")
+            if event.event_type == TraceEventType.SESSION_STARTED.value:
+                session_start_count += 1
+                if expected_sequence != 1:
+                    raise TraceIntegrityError("session_started may only occur at sequence 1")
+                canonical_runtime_epoch = event.runtime_epoch
+            if event.answer_version < 0 or event.runtime_epoch < 0:
+                raise TraceIntegrityError(f"Negative version/epoch at {event.event_id}")
+            if event.event_type == TraceEventType.RUNTIME_EPOCH_ADVANCED.value:
+                epoch_view = _view(event, TraceView.EVALUATOR)
+                if event.turn_id or event.answer_version != 0 or len(event.causal_parent_ids) != 1:
+                    raise TraceIntegrityError(f"Invalid runtime epoch event shape at {event.event_id}")
+                if canonical_runtime_epoch is None:
+                    raise TraceIntegrityError(f"Runtime epoch advanced before session genesis at {event.event_id}")
+                try:
+                    previous_epoch = int(epoch_view.get("previous_runtime_epoch", -1))
+                    next_epoch = int(epoch_view.get("runtime_epoch", -1))
+                except (TypeError, ValueError) as exc:
+                    raise TraceIntegrityError(f"Malformed runtime epoch payload at {event.event_id}") from exc
+                if (
+                    previous_epoch != canonical_runtime_epoch
+                    or next_epoch != event.runtime_epoch
+                    or event.runtime_epoch <= canonical_runtime_epoch
+                    or event.causal_parent_ids[0] != self._events[expected_sequence - 2].event_id
+                ):
+                    raise TraceIntegrityError(f"Invalid runtime epoch transition at {event.event_id}")
+                canonical_runtime_epoch = event.runtime_epoch
+            elif canonical_runtime_epoch is None or event.runtime_epoch != canonical_runtime_epoch:
+                raise TraceIntegrityError(
+                    f"Event {event.event_id} uses epoch {event.runtime_epoch}, expected {canonical_runtime_epoch}"
+                )
             if event.event_id in seen_ids:
                 raise TraceIntegrityError(f"Duplicate event id: {event.event_id}")
             if event.idempotency_key in seen_keys:
                 raise TraceIntegrityError(f"Duplicate idempotency key: {event.idempotency_key}")
+            parents = tuple(event.causal_parent_ids)
+            if len(parents) != len(set(parents)):
+                raise TraceIntegrityError(f"Duplicate causal parent at {event.event_id}")
+            for parent_id in parents:
+                if parent_id not in seen_ids:
+                    raise TraceIntegrityError(
+                        f"Unknown or non-prior causal parent {parent_id} at {event.event_id}"
+                    )
             seen_ids.add(event.event_id)
             seen_keys.add(event.idempotency_key)
             if event.previous_event_hash != previous_hash:
                 raise TraceIntegrityError(f"Hash-chain predecessor mismatch at {event.event_id}")
+            expected_decision_hash = self._decision_hash(event.event_type, event.payload)
+            if event.decision_hash != expected_decision_hash:
+                raise TraceIntegrityError(f"Decision hash mismatch at {event.event_id}")
+            expected_provenance_hash = self._provenance_hash(parents, event.payload)
+            if event.provenance_hash != expected_provenance_hash:
+                raise TraceIntegrityError(f"Provenance hash mismatch at {event.event_id}")
+            payload_views = event.payload.get("views") if isinstance(event.payload, Mapping) else None
+            if not isinstance(payload_views, Mapping):
+                raise TraceIntegrityError(f"Event payload views must be an object at {event.event_id}")
+            try:
+                expected_safe_payload, _ = _safe_views(payload_views)
+            except TraceError as exc:
+                raise TraceIntegrityError(f"Invalid/redaction-unsafe payload at {event.event_id}") from exc
+            if _canonical(_thaw_value(expected_safe_payload)) != _canonical(_thaw_value(event.payload)):
+                raise TraceIntegrityError(f"Payload is not canonically redacted at {event.event_id}")
+            if (
+                event.redaction.get("policy") != TRACE_SCHEMA_VERSION
+                or event.redaction.get("raw_provider_payload_excluded") is not True
+                or event.redaction.get("raw_secrets_excluded") is not True
+            ):
+                raise TraceIntegrityError(f"Invalid redaction metadata at {event.event_id}")
+            is_rejection_diagnostic = (
+                event.event_type == TraceEventType.STATE_TRANSITION_VALIDATED.value
+                and bool(_view(event, TraceView.EVALUATOR).get("candidate_event_type"))
+            )
+            if event.event_type not in {
+                TraceEventType.SESSION_STARTED.value,
+                TraceEventType.RUNTIME_EPOCH_ADVANCED.value,
+                TraceEventType.REPORT_CLAIM_EMITTED.value,
+                TraceEventType.FINAL_EVALUATION_COMPLETED.value,
+            } and not is_rejection_diagnostic:
+                if not event.turn_id or event.answer_version < 1:
+                    raise TraceIntegrityError(f"Canonical turn event has invalid turn/version at {event.event_id}")
+                previous_version = turn_max_answer_version.get(event.turn_id, 0)
+                if event.answer_version < previous_version or event.answer_version > previous_version + 1:
+                    raise TraceIntegrityError(f"Answer version gap/regression at {event.event_id}")
+                turn_max_answer_version[event.turn_id] = max(previous_version, event.answer_version)
+                prior_epoch = turn_runtime_epoch.setdefault(event.turn_id, event.runtime_epoch)
+                if prior_epoch != event.runtime_epoch:
+                    raise TraceIntegrityError(f"Turn crosses runtime epochs at {event.event_id}")
+            elif is_rejection_diagnostic:
+                diagnostic_view = _view(event, TraceView.EVALUATOR)
+                if diagnostic_view.get("validation_status") != "rejected":
+                    raise TraceIntegrityError(f"Validation diagnostic must be rejected at {event.event_id}")
+                if event.turn_id and event.answer_version > turn_max_answer_version.get(event.turn_id, 0):
+                    raise TraceIntegrityError(f"Validation diagnostic advances answer version at {event.event_id}")
+            if event.event_type in {
+                TraceEventType.QUESTION_MATERIALIZED.value,
+                TraceEventType.QUESTION_PREPARED.value,
+                TraceEventType.SPOKEN_QUESTION_COMMITTED.value,
+                TraceEventType.ANSWER_RECEIVED.value,
+                TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED.value,
+                TraceEventType.OPPORTUNITY_INVENTORY_COMPILED.value,
+                TraceEventType.ACTION_GRANT_SELECTED.value,
+                TraceEventType.EVIDENCE_STATE_UPDATED.value,
+            } or (
+                event.event_type == TraceEventType.STATE_TRANSITION_VALIDATED.value
+                and not is_rejection_diagnostic
+            ):
+                record_logical_identity(
+                    (event.event_type, event.turn_id, event.answer_version),
+                    event,
+                )
+            elif event.event_type in {
+                TraceEventType.QUESTION_DELIVERY_STARTED.value,
+                TraceEventType.PLAYBACK_ACKNOWLEDGED.value,
+                TraceEventType.DELIVERY_FAILED.value,
+            }:
+                attempt = str(_view(event, TraceView.EVALUATOR).get("delivery_attempt_id") or "").strip()
+                if not attempt:
+                    raise TraceIntegrityError(f"Delivery event requires an attempt id at {event.event_id}")
+                record_logical_identity(
+                    (event.event_type, event.turn_id, event.answer_version, attempt),
+                    event,
+                )
+            elif event.event_type == TraceEventType.REPORT_CLAIM_EMITTED.value:
+                claim_id = str(_view(event, TraceView.EVALUATOR).get("claim_id") or "").strip()
+                if not claim_id:
+                    raise TraceIntegrityError(f"Report claim requires a claim id at {event.event_id}")
+                record_logical_identity((event.event_type, claim_id), event)
+            elif event.event_type == TraceEventType.FINAL_EVALUATION_COMPLETED.value:
+                record_logical_identity((event.event_type,), event)
+            self._verify_import_event_semantics(event, seen_events)
             body = event.to_record()
             supplied_hash = body.pop("event_hash")
             expected_hash = hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
             if supplied_hash != expected_hash:
                 raise TraceIntegrityError(f"Event hash mismatch at {event.event_id}")
+            seen_events[event.event_id] = event
             previous_hash = event.event_hash
+        if session_start_count != 1:
+            raise TraceIntegrityError("Trace must contain exactly one session_started genesis event")
+        if canonical_runtime_epoch is None:
+            raise TraceIntegrityError("Trace has no canonical runtime epoch")
         return True
+
+    def _verify_import_event_semantics(
+        self,
+        event: TraceEvent,
+        seen_events: Mapping[str, TraceEvent],
+    ) -> None:
+        """Verify typed causal lineage that hashes alone cannot establish."""
+
+        parents = tuple(event.causal_parent_ids)
+        evaluator = _view(event, TraceView.EVALUATOR)
+
+        def parent_event(
+            reference_id: str,
+            expected_type: TraceEventType,
+            *,
+            same_scope: bool = True,
+        ) -> TraceEvent:
+            reference = str(reference_id or "").strip()
+            if reference not in parents:
+                raise TraceIntegrityError(f"{reference} is not a parent of {event.event_id}")
+            try:
+                parent = seen_events[reference]
+            except KeyError as exc:
+                raise TraceIntegrityError(f"Unknown parent {reference} at {event.event_id}") from exc
+            if parent.event_type != expected_type.value:
+                raise TraceIntegrityError(
+                    f"{event.event_id} parent {reference} is {parent.event_type}, expected {expected_type.value}"
+                )
+            if same_scope and (parent.turn_id != event.turn_id or parent.answer_version != event.answer_version):
+                raise TraceIntegrityError(f"{event.event_id} parent {reference} crosses turn/version scope")
+            return parent
+
+        def refs_from_payload(
+            field_name: str,
+            *,
+            expected_type: TraceEventType | None = None,
+        ) -> tuple[str, ...]:
+            raw_refs = evaluator.get(field_name)
+            if isinstance(raw_refs, (str, bytes)) or not isinstance(raw_refs, Sequence):
+                raise TraceIntegrityError(f"{field_name} must be an array at {event.event_id}")
+            refs = tuple(str(item or "").strip() for item in raw_refs)
+            if any(not ref for ref in refs) or len(refs) != len(set(refs)):
+                raise TraceIntegrityError(f"{field_name} contains empty/duplicate ids at {event.event_id}")
+            for reference in refs:
+                try:
+                    referenced = seen_events[reference]
+                except KeyError as exc:
+                    raise TraceIntegrityError(f"{field_name} cites unknown/future event at {event.event_id}") from exc
+                if expected_type is not None and referenced.event_type != expected_type.value:
+                    raise TraceIntegrityError(
+                        f"{field_name} cites {referenced.event_type}, expected {expected_type.value} at {event.event_id}"
+                    )
+            return refs
+
+        if event.event_type == TraceEventType.QUESTION_MATERIALIZED.value:
+            if not str(evaluator.get("question_id") or "").strip() or not str(evaluator.get("question_text") or "").strip():
+                raise TraceIntegrityError(f"Question materialization lacks exact question identity/text at {event.event_id}")
+            validation_candidates = [
+                seen_events[parent_id]
+                for parent_id in parents
+                if seen_events[parent_id].event_type == TraceEventType.STATE_TRANSITION_VALIDATED.value
+                and not _view(seen_events[parent_id], TraceView.EVALUATOR).get("candidate_event_type")
+            ]
+            if len(validation_candidates) != 1:
+                raise TraceIntegrityError(f"Question materialization must have one accepted validation parent at {event.event_id}")
+            validation = validation_candidates[0]
+            validation_view = _view(validation, TraceView.EVALUATOR)
+            if validation_view.get("validation_status") != "accepted":
+                raise TraceIntegrityError(f"Question materialization is based on rejected validation at {event.event_id}")
+            materialized_refs = refs_from_payload("source_evidence_event_ids")
+            if tuple(parent_id for parent_id in parents if parent_id in materialized_refs) != materialized_refs:
+                raise TraceIntegrityError(f"Materialization evidence parents do not match payload at {event.event_id}")
+            for field_name in ("source_opportunity_id", "prior_spoken_question_event_id", "action_grant_event_id"):
+                if evaluator.get(field_name, "") != validation_view.get(field_name, ""):
+                    raise TraceIntegrityError(f"Materialization {field_name} disagrees with validation at {event.event_id}")
+            action_id = str(evaluator.get("action_grant_event_id") or "")
+            if action_id:
+                action = parent_event(action_id, TraceEventType.ACTION_GRANT_SELECTED)
+                action_view = _view(action, TraceView.EVALUATOR)
+                if action_view.get("opportunity_id") != evaluator.get("source_opportunity_id"):
+                    raise TraceIntegrityError(f"Materialization opportunity disagrees with action grant at {event.event_id}")
+                if tuple(action_view.get("source_evidence_event_ids") or ()) != materialized_refs:
+                    raise TraceIntegrityError(f"Materialization evidence disagrees with action grant at {event.event_id}")
+            prior_id = str(evaluator.get("prior_spoken_question_event_id") or "")
+            if prior_id:
+                parent_event(prior_id, TraceEventType.SPOKEN_QUESTION_COMMITTED, same_scope=False)
+        elif event.event_type == TraceEventType.QUESTION_PREPARED.value:
+            materialized_id = str(evaluator.get("materialized_event_id") or "")
+            if len(parents) != 1:
+                raise TraceIntegrityError(f"Question preparation must have one parent at {event.event_id}")
+            materialized = parent_event(materialized_id, TraceEventType.QUESTION_MATERIALIZED)
+            materialized_view = _view(materialized, TraceView.EVALUATOR)
+            for field_name in ("question_id", "source_opportunity_id", "prior_spoken_question_event_id"):
+                if evaluator.get(field_name, "") != materialized_view.get(field_name, ""):
+                    raise TraceIntegrityError(f"Prepared {field_name} mismatch at {event.event_id}")
+            if refs_from_payload("source_evidence_event_ids") != tuple(materialized_view.get("source_evidence_event_ids") or ()):
+                raise TraceIntegrityError(f"Prepared evidence mismatch at {event.event_id}")
+        elif event.event_type == TraceEventType.QUESTION_DELIVERY_STARTED.value:
+            prepared_id = str(evaluator.get("question_prepared_event_id") or "")
+            if len(parents) != 1:
+                raise TraceIntegrityError(f"Delivery start must have one parent at {event.event_id}")
+            parent_event(prepared_id, TraceEventType.QUESTION_PREPARED)
+            if not str(evaluator.get("delivery_attempt_id") or "").strip():
+                raise TraceIntegrityError(f"Delivery start has no attempt id at {event.event_id}")
+        elif event.event_type in {
+            TraceEventType.PLAYBACK_ACKNOWLEDGED.value,
+            TraceEventType.DELIVERY_FAILED.value,
+        }:
+            if len(parents) != 1:
+                raise TraceIntegrityError(f"{event.event_type} must have one delivery parent at {event.event_id}")
+            started = parent_event(parents[0], TraceEventType.QUESTION_DELIVERY_STARTED)
+            attempt = str(evaluator.get("delivery_attempt_id") or "")
+            started_attempt = str(_view(started, TraceView.EVALUATOR).get("delivery_attempt_id") or "")
+            if not attempt or attempt != started_attempt:
+                raise TraceIntegrityError(f"Delivery attempt mismatch at {event.event_id}")
+            if event.event_type == TraceEventType.PLAYBACK_ACKNOWLEDGED.value:
+                actor_view = _view(event, TraceView.ACTOR)
+                if (
+                    evaluator.get("client_ack") != PlaybackAckStatus.COMPLETED.value
+                    or evaluator.get("acknowledged") is not True
+                    or actor_view.get("delivery_attempt_id") != attempt
+                    or actor_view.get("acknowledged") is not True
+                ):
+                    raise TraceIntegrityError(f"Playback acknowledgement is not completed at {event.event_id}")
+            elif evaluator.get("delivery_failed") is not True or _view(event, TraceView.ACTOR).get("delivery_failed") is not True:
+                raise TraceIntegrityError(f"Delivery failure is not marked failed at {event.event_id}")
+        elif event.event_type == TraceEventType.SPOKEN_QUESTION_COMMITTED.value:
+            materialized_id = str(evaluator.get("question_materialized_event_id") or "")
+            ack_id = str(evaluator.get("playback_ack_event_id") or "")
+            if parents != (materialized_id, ack_id):
+                raise TraceIntegrityError(f"Spoken question parents do not match payload at {event.event_id}")
+            materialized = parent_event(materialized_id, TraceEventType.QUESTION_MATERIALIZED)
+            ack = parent_event(ack_id, TraceEventType.PLAYBACK_ACKNOWLEDGED)
+            if evaluator.get("delivery_attempt_id") != _view(ack, TraceView.EVALUATOR).get("delivery_attempt_id"):
+                raise TraceIntegrityError(f"Spoken question ACK attempt mismatch at {event.event_id}")
+            materialized_view = _view(materialized, TraceView.EVALUATOR)
+            for field_name in ("question_id", "question_text", "source_opportunity_id", "prior_spoken_question_event_id"):
+                if evaluator.get(field_name, "") != materialized_view.get(field_name, ""):
+                    raise TraceIntegrityError(f"Spoken {field_name} mismatch at {event.event_id}")
+            if refs_from_payload("source_evidence_event_ids") != tuple(materialized_view.get("source_evidence_event_ids") or ()):
+                raise TraceIntegrityError(f"Spoken evidence mismatch at {event.event_id}")
+        elif event.event_type == TraceEventType.ANSWER_RECEIVED.value:
+            spoken_id = str(evaluator.get("spoken_question_event_id") or "")
+            if parents != (spoken_id,):
+                raise TraceIntegrityError(f"Answer parent does not match payload at {event.event_id}")
+            parent_event(spoken_id, TraceEventType.SPOKEN_QUESTION_COMMITTED)
+            answer_text = evaluator.get("answer_text")
+            if answer_text is not None and str(evaluator.get("answer_text_hash") or "") != _sha256(str(answer_text).strip()):
+                raise TraceIntegrityError(f"Answer text hash mismatch at {event.event_id}")
+        elif event.event_type == TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED.value:
+            answer_id = str(evaluator.get("answer_event_id") or "")
+            if parents != (answer_id,):
+                raise TraceIntegrityError(f"Semantic final parent does not match payload at {event.event_id}")
+            parent_event(answer_id, TraceEventType.ANSWER_RECEIVED)
+            if evaluator.get("decision_immutable") is not True:
+                raise TraceIntegrityError(f"Semantic final is not immutable at {event.event_id}")
+        elif event.event_type == TraceEventType.SEMANTIC_INTERPRETATION_SHADOW.value:
+            answer_id = str(evaluator.get("answer_event_id") or "")
+            final_id = str(evaluator.get("shadow_of_event_id") or "")
+            if parents != (answer_id, final_id):
+                raise TraceIntegrityError(f"Semantic shadow parents do not match payload at {event.event_id}")
+            parent_event(answer_id, TraceEventType.ANSWER_RECEIVED)
+            parent_event(final_id, TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED)
+            if evaluator.get("does_not_overwrite_final") is not True:
+                raise TraceIntegrityError(f"Semantic shadow is not non-overwriting at {event.event_id}")
+        elif event.event_type == TraceEventType.OPPORTUNITY_INVENTORY_COMPILED.value:
+            semantic_id = str(evaluator.get("semantic_event_id") or "")
+            if parents != (semantic_id,):
+                raise TraceIntegrityError(f"Opportunity inventory parent does not match payload at {event.event_id}")
+            parent_event(semantic_id, TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED)
+        elif event.event_type == TraceEventType.ACTION_GRANT_SELECTED.value:
+            inventory_id = str(evaluator.get("opportunity_inventory_event_id") or "")
+            prior_id = str(evaluator.get("prior_spoken_question_event_id") or "")
+            grant_refs = refs_from_payload("source_evidence_event_ids")
+            if parents != (inventory_id, prior_id, *grant_refs):
+                raise TraceIntegrityError(f"Action grant parents do not match payload at {event.event_id}")
+            parent_event(inventory_id, TraceEventType.OPPORTUNITY_INVENTORY_COMPILED, same_scope=False)
+            parent_event(prior_id, TraceEventType.SPOKEN_QUESTION_COMMITTED, same_scope=False)
+            inventory_view = _view(seen_events[inventory_id], TraceView.EVALUATOR)
+            candidates = inventory_view.get("admitted_candidates") or ()
+            candidate = next(
+                (item for item in candidates if item.get("opportunity_id") == evaluator.get("opportunity_id")),
+                None,
+            )
+            if candidate is None or tuple(candidate.get("evidence_event_ids") or ()) != grant_refs:
+                raise TraceIntegrityError(f"Action grant opportunity/evidence mismatch at {event.event_id}")
+        elif event.event_type == TraceEventType.STATE_TRANSITION_VALIDATED.value:
+            if evaluator.get("candidate_event_type"):
+                return
+            action_id = str(evaluator.get("action_grant_event_id") or "")
+            prior_id = str(evaluator.get("prior_spoken_question_event_id") or "")
+            validation_refs = refs_from_payload("source_evidence_event_ids")
+            if tuple(parent_id for parent_id in parents if parent_id in validation_refs) != validation_refs:
+                raise TraceIntegrityError(f"Validation parents do not match payload at {event.event_id}")
+            if action_id:
+                parent_event(action_id, TraceEventType.ACTION_GRANT_SELECTED)
+            if prior_id:
+                parent_event(prior_id, TraceEventType.SPOKEN_QUESTION_COMMITTED, same_scope=False)
+        elif event.event_type == TraceEventType.EVIDENCE_STATE_UPDATED.value:
+            evidence_refs = refs_from_payload("source_event_ids")
+            if evidence_refs != parents:
+                raise TraceIntegrityError(f"Evidence parents do not match payload at {event.event_id}")
+            parent_event(str(evaluator.get("semantic_event_id") or ""), TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED)
+            parent_event(str(evaluator.get("opportunity_inventory_event_id") or ""), TraceEventType.OPPORTUNITY_INVENTORY_COMPILED)
+        elif event.event_type == TraceEventType.REPORT_CLAIM_EMITTED.value:
+            report_refs = refs_from_payload(
+                "source_evidence_event_ids",
+                expected_type=TraceEventType.EVIDENCE_STATE_UPDATED,
+            )
+            if report_refs != parents:
+                raise TraceIntegrityError(f"Report claim cites non-evidence parents at {event.event_id}")
+        elif event.event_type == TraceEventType.FINAL_EVALUATION_COMPLETED.value:
+            claim_refs = refs_from_payload(
+                "report_claim_event_ids",
+                expected_type=TraceEventType.REPORT_CLAIM_EMITTED,
+            )
+            evidence_refs = refs_from_payload(
+                "evidence_event_ids",
+                expected_type=TraceEventType.EVIDENCE_STATE_UPDATED,
+            )
+            if _dedupe_ids([*claim_refs, *evidence_refs]) != parents:
+                raise TraceIntegrityError(f"Final evaluation parents do not match lineage at {event.event_id}")
+            evidence_set = set(evidence_refs)
+            for claim_id in claim_refs:
+                claim_sources = tuple(
+                    str(item or "").strip()
+                    for item in _view(seen_events[claim_id], TraceView.EVALUATOR).get("source_evidence_event_ids", ())
+                )
+                if not set(claim_sources).issubset(evidence_set):
+                    raise TraceIntegrityError(f"Final evaluation cites unrelated evidence at {event.event_id}")
 
     def _rebuild_indexes(self) -> None:
         self._session_started_event_id = ""
         self._last_spoken_question_event_id = ""
         self._final_evaluation_event_id = ""
         self._turns = {}
+        self._runtime_epoch = self._events[0].runtime_epoch if self._events else 0
         for event in self._events:
             if event.event_type == TraceEventType.SESSION_STARTED.value:
                 self._session_started_event_id = event.event_id
             elif event.event_type == TraceEventType.RUNTIME_EPOCH_ADVANCED.value:
                 self._runtime_epoch = event.runtime_epoch
+            elif (
+                event.event_type == TraceEventType.STATE_TRANSITION_VALIDATED.value
+                and _view(event, TraceView.EVALUATOR).get("candidate_event_type")
+            ):
+                # Rejected/stale diagnostics are canonical telemetry, not a
+                # visible route transition.  They must not create a ghost
+                # _TurnLedger during replay.
+                continue
             elif event.turn_id:
                 ledger = self._turns.setdefault(
                     event.turn_id,
@@ -2404,9 +2906,11 @@ def _source_refs(payload: Mapping[str, Any]) -> list[str]:
 __all__ = [
     "InterviewTraceV1",
     "PAYLOAD_SCHEMA_VERSION",
+    "PlaybackAckStatus",
     "TraceError",
     "TraceEvent",
     "TraceEventType",
+    "TraceConflictError",
     "TraceImmutableDecisionError",
     "TraceInvariantError",
     "TraceIntegrityError",

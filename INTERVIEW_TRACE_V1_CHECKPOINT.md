@@ -22,17 +22,22 @@ The modeled lifecycle includes session/epoch changes; question materialization, 
 Hard behavior enforced by the API and tests:
 
 - no spoken commit without successful playback acknowledgement;
+- only explicit `PlaybackAckStatus.COMPLETED` establishes positive playback truth;
 - failed delivery does not become spoken, answer, semantic, opportunity, or evidence truth;
-- idempotent retries preserve one canonical event, while conflicting reuse fails;
-- stale epoch/version attempts append a rejected validation receipt and do not mutate the turn;
+- operation-level idempotent retries preserve one canonical event, while same-key content changes and alternate-key logical reuse fail;
+- mutation/clock/append exceptions restore canonical events, indexes, ledgers, and epoch state, while domain rejections return one canonical rejected-validation receipt;
+- materialization, preparation, delivery-attempt, ACK, failure, spoken, answer, semantic-final, evidence, report-claim, and final-evaluation identities are exactly once (distinct delivery attempts are the explicit retry unit);
+- stale epoch/version attempts append a rejected validation receipt and do not mutate the turn; future answer-version gaps do not create a turn ledger;
 - rejected validation cannot authorize a visible question;
 - final decision-time semantics cannot be overwritten by shadow interpretation;
 - action grants and spoken questions retain exact opportunity, evidence, and prior-spoken provenance;
+- report claims cite only typed evidence events, and final evaluations can cite only report claims whose evidence is included;
 - nested canonical payloads and causal-parent collections are immutable in memory;
-- candidate/actor/interviewer/evaluator/operator projections use explicit per-event allowlists;
-- secrets and raw provider/prompt payload fields are excluded or redacted;
-- mutation, truncation, and reorder are detected by integrity verification;
-- export/reload reconstructs the same canonical spoken history.
+- candidate/actor/interviewer/evaluator/operator projections use explicit per-event allowlists, with no global sequence in candidate/actor projections;
+- secrets, prompt variants, credentials, and raw provider payload fields are excluded or redacted;
+- import verifies schema/type/genesis, IDs and keys, unique earlier parents, sequence/hash-chain, decision/provenance recomputation, runtime epochs, answer-version continuity, typed lifecycle lineage, redaction metadata, and logical identity uniqueness;
+- export/reload rebuilds indexes from canonical events, including rejection telemetry without ghost turn ledgers, and reconstructs the same canonical spoken history;
+- mutation, reorder, invalid lineage, and invalid hash-chain records are rejected. Valid-tail truncation requires an external durable seal and cannot be detected from a prefix alone.
 
 ## View boundaries
 
@@ -48,9 +53,10 @@ Run from the project root:
 ```bash
 python3 -m py_compile backend/services/interview_trace_v1.py backend/test_interview_trace_v1_contract.py
 python3 -m unittest -v backend.test_interview_trace_v1_contract
+python3 -m pytest -q backend/test_interview_trace_v1_contract.py
 ```
 
-The accepted local run executes 13 deterministic tests covering happy path, delivery failure/retry, idempotency, stale attempts, validation rejection, semantic shadow disagreement, causal provenance, view isolation, nested immutability/redaction, import exports, tamper/reorder detection, and replay stability.
+The accepted local run executes 28 deterministic tests covering happy path, delivery failure/retry, exact idempotency/conflicts, atomic exceptions, stale and future-version attempts, validation rejection, semantic shadow disagreement, causal provenance, typed report/final lineage, view isolation, nested immutability/redaction, schema/genesis/type import checks, rehashed tamper detection, index rebuild equivalence, and replay stability.
 
 ## Future integration seams
 
@@ -67,6 +73,8 @@ The accepted local run executes 13 deterministic tests covering happy path, deli
 - The reference store is in memory; production durability, transaction boundaries, retention, and concurrent-writer behavior remain to be implemented.
 - The hash chain is tamper-evident for accidental or unsophisticated mutation, not a signed adversarial audit log.
 - Redaction is key/pattern based and must be paired with an explicit production payload schema and privacy review.
+- Tail completeness is not inferable from a valid prefix; an external durable end-of-trace seal/checkpoint is required to detect truncation.
+- The repository-wide pytest command cannot collect provider-backed modules in this clean environment without `OPENROUTER_API_KEY`; this checkpoint made no provider calls and does not claim those suites passed.
 - Contract tests prove lifecycle behavior, not interview quality or production-path fidelity.
 
 The next checkpoint should integrate this contract through a production-faithful complete-interview runner before any live authority change.
