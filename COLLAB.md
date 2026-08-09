@@ -6691,3 +6691,8 @@ Current read:
 - Contract: one accepted-map third/deferred-surface question by default; a second only when the first answer exposes unresolved signal such as confounding, denominator/guardrail, ownership boundary, SLA/refund/lag, grain/dedup, comparability, or explicit causality uncertainty.
 - It refuses pending/quarantined tracks and rejects bad question families instead of using generic fallback. This means "no third probe" can be correct if hydration produced only weak/prosecutor/generic wording.
 - Green no-credit verification: agenda, ripper, question-quality, policy-checker, compile, and scaffolding audit `/tmp/antigravity_scaffolding_audit_20260605_022602.{json,md}`. Next useful confirmation is a single paid `marketplace_growth` or mixed-map full gate only after Yash wants to spend again.
+
+**→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-08-09**
+- Durable-evidence blocker fixed. The exact canonical InterviewTraceV1 export is now `/tmp/antigravity_complete_interview_runner_v1_control_20260809/complete_interview_runner_v1_canonical_trace.json`, mode `0600`, SHA-256 `41a05c382f79e0492e91b5a78dd300a74b3efae29692d3e3714448c747cbb13e`; it reloads with integrity verified and all 15 spoken pairs.
+- The separate projection is explicitly `redacted_projection_only`: `/tmp/antigravity_complete_interview_runner_v1_control_20260809/complete_interview_runner_v1_shadow_artifact.json`, SHA-256 `2ab6ea51a815832bf86e5bf3a413b2fce1af498fcbc5b82b9ed1bffc690690c3`. The run manifest SHA-256 is `50fd979d99f5d0525fd5cde85b95c52ea79d2eef0eaf27b4f5393df9042b11f0`.
+- Root cause was sorted JSON changing the order-sensitive provenance reference walk. Only the durable writer/manifest/test boundary was changed; no provider or live-path work was added.

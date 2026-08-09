@@ -1,0 +1,79 @@
+{
+  "schema_version": "complete_interview_runner_v1_manifest",
+  "purpose": "Bounded one-world deterministic shadow control checkpoint; not interview-quality promotion evidence.",
+  "runner_schema_version": "complete_interview_runner_v1",
+  "accepted_trace_schema": "interview_trace_v1",
+  "world_scope": {
+    "world_id": "world_01_product_analyst",
+    "worlds_run": 1,
+    "parallel_five_world_run": false,
+    "max_turns": 15
+  },
+  "required_trace_event_types": [
+    "session_started",
+    "question_materialized",
+    "question_prepared",
+    "question_delivery_started",
+    "playback_acknowledged",
+    "spoken_question_committed",
+    "answer_received",
+    "semantic_interpretation_finalized",
+    "opportunity_inventory_compiled",
+    "action_grant_selected",
+    "evidence_state_updated",
+    "report_claim_emitted",
+    "final_evaluation_completed"
+  ],
+  "package_files": [
+    "backend/services/complete_interview_runner_v1.py",
+    "backend/test_complete_interview_runner_v1_contract.py",
+    "backend/test_complete_interview_runner_v1_control.py",
+    "COMPLETE_INTERVIEW_RUNNER_V1_CHECKPOINT.md"
+  ],
+  "production_path": [
+    "Orchestrator.prepare_session_map",
+    "Orchestrator.start_prepared_session",
+    "Orchestrator.handle_transcript",
+    "Orchestrator.end_session",
+    "InterviewTraceV1"
+  ],
+  "adapter_boundaries": [
+    "isolated ephemeral session store instead of Redis",
+    "isolated telemetry/report/handoff sinks",
+    "local TTS and explicit browser playback ACK",
+    "CandidateActorV1 deterministic actual-grant control boundary",
+    "local no-paid provider-boundary control responses"
+  ],
+  "forbidden_external_state": [
+    "developer Redis",
+    "Postgres",
+    "production telemetry/report files",
+    "Cartesia",
+    "ElevenLabs",
+    "Deepgram",
+    "OpenRouter and other paid LLM providers",
+    "live routes, UI, and audio runtime",
+    ".env contents"
+  ],
+  "actor_quality": "not_assessed; real-model CandidateActorV1 behavior is REJECT/pending calibration",
+  "verified_control": {
+    "status": "complete",
+    "turns_committed": 15,
+    "trace_events": 167,
+    "quiescence_boundaries": 16,
+    "canonical_trace_path": "/tmp/antigravity_complete_interview_runner_v1_control_20260809/complete_interview_runner_v1_canonical_trace.json",
+    "canonical_trace_file": "complete_interview_runner_v1_canonical_trace.json",
+    "canonical_trace_sha256": "41a05c382f79e0492e91b5a78dd300a74b3efae29692d3e3714448c747cbb13e",
+    "canonical_trace_mode": "0600",
+    "redacted_artifact_path": "/tmp/antigravity_complete_interview_runner_v1_control_20260809/complete_interview_runner_v1_shadow_artifact.json",
+    "redacted_artifact_file": "complete_interview_runner_v1_shadow_artifact.json",
+    "redacted_artifact_sha256": "2ab6ea51a815832bf86e5bf3a413b2fce1af498fcbc5b82b9ed1bffc690690c3",
+    "canonical_spoken_history_sha256": "786acc94f6a4ad60f8181a75e3cfe44905026607231e05bfdeaa27ea68a674ed",
+    "run_manifest_path": "/tmp/antigravity_complete_interview_runner_v1_control_20260809/complete_interview_runner_v1_shadow_manifest.json",
+    "run_manifest_sha256": "50fd979d99f5d0525fd5cde85b95c52ea79d2eef0eaf27b4f5393df9042b11f0",
+    "report_shadow_only": true,
+    "candidate_quality_claim": "not_assessed",
+    "blocker": null
+  },
+  "hash_policy": "Canonical trace and redacted artifact hashes are byte hashes of their separate files. The static manifest intentionally does not hash itself; its external SHA-256 is recorded after finalization."
+}
