@@ -480,6 +480,12 @@ def _dedupe_ids(values: Iterable[str]) -> tuple[str, ...]:
     return tuple(result)
 
 
+def _canonical_redacted_paths(paths: Iterable[str]) -> list[str]:
+    """Make redaction metadata independent of object insertion order."""
+
+    return sorted({str(path) for path in paths})
+
+
 def _redact_value(value: Any, path: str, redacted_paths: list[str]) -> Any:
     if isinstance(value, Mapping):
         result: dict[str, Any] = {}
@@ -497,9 +503,12 @@ def _redact_value(value: Any, path: str, redacted_paths: list[str]) -> Any:
             _redact_value(item, f"{path}[{index}]", redacted_paths)
             for index, item in enumerate(value)
         ]
-    if isinstance(value, str) and _SECRET_VALUE_RE.search(value):
-        redacted_paths.append(path or "value")
-        return REDACTED
+    if isinstance(value, str):
+        # A pre-sanitized marker is canonical redacted data.  Recording it
+        # here makes creation and verified import use the same path contract.
+        if value == REDACTED or _SECRET_VALUE_RE.search(value):
+            redacted_paths.append(path or "value")
+            return REDACTED
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return str(value)
@@ -532,9 +541,74 @@ def _safe_views(
                 for key in ("question_text", "visible_text", "answer_text", "claim_text")
             )
         ),
-        "redacted_paths": redacted_paths,
+        "redacted_paths": _canonical_redacted_paths(redacted_paths),
     }
     return payload, redaction
+
+
+def _redaction_metadata_for_sanitized_views(
+    views: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Derive redaction metadata from an already-sanitized payload.
+
+    Verified import cannot rediscover the original bytes that triggered a
+    value-pattern redaction.  The sanitized marker is therefore the canonical
+    evidence: every marker leaf must be listed, every sensitive-key child must
+    be a marker and listed, and no raw value-pattern secret may remain.
+    """
+
+    redacted_paths: list[str] = []
+    payload_views: dict[str, Any] = {}
+
+    def walk(value: Any, path: str) -> None:
+        if isinstance(value, Mapping):
+            for raw_key, raw_value in value.items():
+                key = str(raw_key)
+                child_path = f"{path}.{key}"
+                if _is_sensitive_key(key):
+                    if raw_value != REDACTED:
+                        raise TraceInvariantError(
+                            f"sensitive key {child_path} is not canonically redacted"
+                        )
+                    redacted_paths.append(child_path)
+                    continue
+                walk(raw_value, child_path)
+            return
+        if isinstance(value, (list, tuple)):
+            for index, item in enumerate(value):
+                walk(item, f"{path}[{index}]")
+            return
+        if isinstance(value, str):
+            if value == REDACTED:
+                redacted_paths.append(path or "value")
+                return
+            if _SECRET_VALUE_RE.search(value):
+                raise TraceInvariantError(f"raw secret value remains at {path}")
+
+    for raw_view, raw_payload in views.items():
+        view = raw_view.value if isinstance(raw_view, TraceView) else str(raw_view)
+        if view not in _VIEW_NAMES:
+            raise TraceInvariantError(f"Unknown trace projection view: {view}")
+        if not isinstance(raw_payload, Mapping):
+            raise TraceInvariantError(f"Payload for view '{view}' must be an object")
+        payload_view = dict(raw_payload)
+        payload_views[view] = payload_view
+        walk(payload_view, f"views.{view}")
+
+    return {
+        "policy": TRACE_SCHEMA_VERSION,
+        "raw_provider_payload_excluded": True,
+        "raw_secrets_excluded": True,
+        "exact_text_authorized_views": sorted(
+            view
+            for view, payload_view in payload_views.items()
+            if any(
+                key in payload_view
+                for key in ("question_text", "visible_text", "answer_text", "claim_text")
+            )
+        ),
+        "redacted_paths": _canonical_redacted_paths(redacted_paths),
+    }
 
 
 def _view(event: TraceEvent, view: TraceView | str) -> dict[str, Any]:
@@ -2598,7 +2672,8 @@ class InterviewTraceV1:
             if not isinstance(payload_views, Mapping):
                 raise TraceIntegrityError(f"Event payload views must be an object at {event.event_id}")
             try:
-                expected_safe_payload, expected_redaction = _safe_views(payload_views)
+                expected_safe_payload, _ = _safe_views(payload_views)
+                expected_redaction = _redaction_metadata_for_sanitized_views(payload_views)
             except TraceError as exc:
                 raise TraceIntegrityError(f"Invalid/redaction-unsafe payload at {event.event_id}") from exc
             if _canonical(_thaw_value(expected_safe_payload)) != _canonical(_thaw_value(event.payload)):
@@ -2691,6 +2766,18 @@ class InterviewTraceV1:
 
         parents = tuple(event.causal_parent_ids)
         evaluator = _view(event, TraceView.EVALUATOR)
+
+        if event.event_type == TraceEventType.STATE_TRANSITION_VALIDATED.value:
+            validation_statuses = tuple(
+                _view(event, view).get("validation_status")
+                for view in (TraceView.INTERVIEWER, TraceView.EVALUATOR, TraceView.OPERATOR)
+            )
+            if not (
+                validation_statuses[0] == validation_statuses[1] == validation_statuses[2]
+            ):
+                raise TraceIntegrityError(
+                    f"Validation status disagrees across views at {event.event_id}"
+                )
 
         def parent_event(
             reference_id: str,

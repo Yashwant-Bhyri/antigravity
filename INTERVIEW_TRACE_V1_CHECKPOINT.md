@@ -30,6 +30,7 @@ Hard behavior enforced by the API and tests:
 - stale epoch/version attempts append a rejected validation receipt and do not mutate the turn; future answer-version gaps do not create a turn ledger;
 - rejected validation cannot authorize a visible question;
 - imported materialization cannot follow an accepted validation unless that validation explicitly authorizes a visible route commit;
+- imported validation requires interviewer, evaluator, and operator `validation_status` values to be exactly equal;
 - a playback ACK and delivery failure are mutually exclusive for one delivery attempt, including when a later spoken record is present;
 - final decision-time semantics cannot be overwritten by shadow interpretation;
 - action grants, validations, materializations, and spoken questions retain one consistent immediately-prior spoken-question lineage;
@@ -39,7 +40,7 @@ Hard behavior enforced by the API and tests:
 - candidate/actor/interviewer/evaluator/operator projections use explicit per-event allowlists, with no global sequence in candidate/actor projections;
 - candidate/actor projections omit pre-playback materialized question text and producer/runtime/timestamp internals while evaluator/operator evidence remains available;
 - secrets, prompt variants, credentials, and raw provider payload fields are excluded or redacted;
-- import recomputes and verifies both sanitized payloads and complete redaction metadata;
+- import verifies canonical sanitized payloads and complete redaction metadata without requiring original secret bytes: every `[REDACTED]` marker leaf and sensitive-key redaction path must be enumerated exactly, and paths are sorted/deduplicated so legal JSON object-key reordering cannot change trace validity;
 - `from_records(..., verify=False)` is tainted/read-only until a complete `verify_integrity()` succeeds, so it cannot append canonical events or produce authority projections;
 - import verifies schema/type/genesis, IDs and keys, unique earlier parents, sequence/hash-chain, decision/provenance recomputation, runtime epochs, answer-version continuity, typed lifecycle lineage, redaction metadata, and logical identity uniqueness;
 - export/reload rebuilds indexes from canonical events, including rejection telemetry without ghost turn ledgers, and reconstructs the same canonical spoken history;
@@ -64,7 +65,7 @@ git diff --check
 python3 -c 'import hashlib, json; from pathlib import Path; manifest=json.loads(Path("backend/data/interview_trace_v1_checkpoint_manifest.json").read_text()); assert all(hashlib.sha256(Path(item["path"]).read_bytes()).hexdigest() == item["sha256"] for item in manifest["files"])'
 ```
 
-The accepted local run executes 35 deterministic tests covering happy path, delivery failure/retry, exact idempotency/conflicts, atomic exceptions, stale and future-version attempts, validation rejection, semantic shadow disagreement, causal provenance, typed report/final lineage, view isolation, nested immutability/redaction, schema/genesis/type import checks, rehashed tamper detection, visible-route authorization, ACK/failure exclusivity, immediate-prior lineage, tainted import isolation, opportunity normalization, redaction-metadata recomputation, candidate projection boundaries, index rebuild equivalence, and replay stability.
+The accepted local run executes 39 deterministic tests covering happy path, delivery failure/retry, exact idempotency/conflicts, atomic exceptions, stale and future-version attempts, validation rejection, semantic shadow disagreement, causal provenance, typed report/final lineage, view isolation, nested immutability/redaction, schema/genesis/type import checks, rehashed tamper detection, visible-route authorization, cross-view validation-status equality, ACK/failure exclusivity, immediate-prior lineage, tainted import isolation, opportunity normalization, idempotent value-pattern/key/mixed redaction round-trips, canonical redaction-path ordering under legal JSON object-key reordering, missing/fabricated redaction metadata rejection, candidate projection boundaries, index rebuild equivalence, and replay stability.
 
 ## Future integration seams
 
@@ -81,6 +82,8 @@ The accepted local run executes 35 deterministic tests covering happy path, deli
 - The reference store is in memory; production durability, transaction boundaries, retention, and concurrent-writer behavior remain to be implemented.
 - The hash chain is tamper-evident for accidental or unsophisticated mutation, not a signed adversarial audit log.
 - Redaction is key/pattern based and must be paired with an explicit production payload schema and privacy review.
+- The exact `[REDACTED]` marker is reserved as canonical redacted data; a literal caller value equal to that marker is intentionally indistinguishable from a redacted value and must remain reserved by the production schema.
+- Value-pattern import verification proves marker/path consistency and does not recover or independently attest the original secret bytes.
 - Tail completeness is not inferable from a valid prefix; an external durable end-of-trace seal/checkpoint is required to detect truncation.
 - The repository-wide pytest command cannot collect provider-backed modules in this clean environment without `OPENROUTER_API_KEY`; this checkpoint made no provider calls and does not claim those suites passed.
 - Contract tests prove lifecycle behavior, not interview quality or production-path fidelity.

@@ -1,19 +1,19 @@
 {
-  "manifest_version": "interview_trace_v1_checkpoint_manifest_v3",
+  "manifest_version": "interview_trace_v1_checkpoint_manifest_v4",
   "date": "2026-08-09",
   "scope": "isolated_contract_no_live_behavior_change",
   "files": [
     {
       "path": "backend/services/interview_trace_v1.py",
-      "sha256": "84f59f7e2af2a55e7972249ffba4934e4f34ffd7630fa0fee3a1048f8d3443c2"
+      "sha256": "4129206b67372fe5095bb7fc19df1e8e13d7a571c76c9af7b8459fcbb7f8b3a5"
     },
     {
       "path": "backend/test_interview_trace_v1_contract.py",
-      "sha256": "a8f9deecc680b2f3434a3c7576fe626383bf6cde94a0a72403600ec102b9108a"
+      "sha256": "1ef2a20139790451089438d9fc9f54763cf7aad00d7f2d9da324650a2c598ccf"
     },
     {
       "path": "INTERVIEW_TRACE_V1_CHECKPOINT.md",
-      "sha256": "d4ab283bb7debe1f16da1fe8d37b0bd43d4f59bcaae050218ac03d93f7423ea1"
+      "sha256": "67386f301426aecb6ddde6ebf3258cdd04a69c4574cc34ba7b6f91d083aa51ae"
     }
   ],
   "commands": [
@@ -25,9 +25,9 @@
   ],
   "results": {
     "compile": "pass",
-    "focused_unittest": "35 passed",
-    "focused_pytest": "35 passed",
-    "tests_run": 35,
+    "focused_unittest": "39 passed",
+    "focused_pytest": "39 passed",
+    "tests_run": 39,
     "tests_failed": 0,
     "diff_check": "pass",
     "manifest_hash_verification": "pass",
@@ -49,7 +49,10 @@
     "immediate_prior_spoken_lineage_for_grant_validation_materialization",
     "tainted_unverified_import_is_read_only_until_verified",
     "opportunity_inventory_import_normalization_and_typed_evidence",
-    "redaction_metadata_recomputation",
+    "idempotent_value_key_and_mixed_redaction_metadata",
+    "canonical_redaction_path_order_independent_of_json_object_order",
+    "redaction_metadata_missing_and_fabricated_path_rejection",
+    "cross_view_validation_status_equality",
     "candidate_projection_preplayback_and_internal_metadata_isolation",
     "decision_semantics_immutable_shadow_separate",
     "exact_action_and_question_provenance",
@@ -68,6 +71,8 @@
     "no_concurrent_writer_or_durable_transaction_proof",
     "hash_chain_not_cryptographically_signed",
     "pattern_redaction_requires_production_schema_privacy_review",
+    "redacted_marker_is_reserved_and_literal_marker_values_are_indistinguishable",
+    "value_pattern_metadata_consistency_does_not_recover_original_secret_bytes",
     "tail_truncation_requires_external_durable_seal",
     "repository_provider_backed_tests_not_run_without_credentials",
     "contract_tests_do_not_prove_interview_quality"

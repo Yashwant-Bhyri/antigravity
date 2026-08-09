@@ -963,6 +963,23 @@ class InterviewTraceV1ContractTests(unittest.TestCase):
         with self.assertRaises(TraceIntegrityError):
             InterviewTraceV1.from_records(records)
 
+    def test_import_rejects_rehashed_cross_view_validation_status_mismatch(self) -> None:
+        trace = self.trace()
+        self.opening(trace)
+        records = trace.export_records()
+        validation = next(
+            record
+            for record in records
+            if record["event_type"] == TraceEventType.STATE_TRANSITION_VALIDATED.value
+            and record["payload"]["views"][TraceView.EVALUATOR.value].get("validation_status") == "accepted"
+        )
+        for view_name in (TraceView.INTERVIEWER.value, TraceView.OPERATOR.value):
+            validation["payload"]["views"][view_name]["validation_status"] = "rejected"
+        _rehash_contract_record(validation)
+        _rechain_records(records)
+        with self.assertRaises(TraceIntegrityError):
+            InterviewTraceV1.from_records(records)
+
     def test_import_rejects_ack_failure_conflict_even_when_spoken_truth_follows(self) -> None:
         trace = self.trace()
         opening = self.opening(trace)
@@ -1161,6 +1178,122 @@ class InterviewTraceV1ContractTests(unittest.TestCase):
         assert_inventory_rejected(duplicate_id)
         assert_inventory_rejected(unknown_evidence)
         assert_inventory_rejected(wrong_evidence_type)
+
+    def test_verified_import_is_idempotent_for_value_key_and_mixed_redaction(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        answer = trace.record_answer_received(
+            turn_id="turn-1", answer_version=1,
+            spoken_question_event_id=opening["spoken"].event_id,
+            answer_text="redaction round trip", idempotency_key="answer:redaction-round-trip",
+        )
+        trace.record_semantic_interpretation_finalized(
+            turn_id="turn-1", answer_version=1, answer_event_id=answer.event_id,
+            interpretation={
+                "connection": "postgresql://user:password@example.test/db",
+                "api_key": "sk-secret-value",
+                "nested": {
+                    "connection": "postgresql://nested:password@example.test/db",
+                    "headers": [
+                        {"access_token": "token-secret-value"},
+                        {"safe": "keep"},
+                    ],
+                },
+            },
+            idempotency_key="semantic:redaction-round-trip",
+        )
+        records = trace.export_records()
+        semantic_record = next(
+            record
+            for record in records
+            if record["event_type"] == TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED.value
+        )
+        self.assertEqual(
+            [
+                "views.evaluator.interpretation.api_key",
+                "views.evaluator.interpretation.connection",
+                "views.evaluator.interpretation.nested.connection",
+                "views.evaluator.interpretation.nested.headers[0].access_token",
+            ],
+            semantic_record["redaction"]["redacted_paths"],
+        )
+        reloaded = InterviewTraceV1.from_records(records)
+        self.assertTrue(reloaded.is_authoritative)
+        self.assertEqual(records, reloaded.export_records())
+
+    def test_import_accepts_reordered_mixed_redaction_keys_without_rehash(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        answer = trace.record_answer_received(
+            turn_id="turn-1", answer_version=1,
+            spoken_question_event_id=opening["spoken"].event_id,
+            answer_text="redaction key order", idempotency_key="answer:redaction-key-order",
+        )
+        trace.record_semantic_interpretation_finalized(
+            turn_id="turn-1", answer_version=1, answer_event_id=answer.event_id,
+            interpretation={
+                "connection": "postgresql://user:password@example.test/db",
+                "api_key": "sk-secret-value",
+                "nested": {
+                    "connection": "postgresql://nested:password@example.test/db",
+                    "headers": [{"access_token": "token-secret-value"}],
+                },
+            },
+            idempotency_key="semantic:redaction-key-order",
+        )
+        records = trace.export_records()
+        target = next(
+            record
+            for record in records
+            if record["event_type"] == TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED.value
+        )
+        original_hashes = (
+            target["event_hash"],
+            target["decision_hash"],
+            target["provenance_hash"],
+        )
+        interpretation = target["payload"]["views"][TraceView.EVALUATOR.value]["interpretation"]
+        nested = interpretation["nested"]
+        target["payload"]["views"][TraceView.EVALUATOR.value]["interpretation"] = {
+            "nested": {
+                "headers": nested["headers"],
+                "connection": nested["connection"],
+            },
+            "api_key": interpretation["api_key"],
+            "connection": interpretation["connection"],
+        }
+        self.assertEqual(original_hashes[0], target["event_hash"])
+        self.assertEqual(original_hashes[1], target["decision_hash"])
+        self.assertEqual(original_hashes[2], target["provenance_hash"])
+        reloaded = InterviewTraceV1.from_records(records)
+        self.assertEqual(records, reloaded.export_records())
+
+    def test_import_rejects_missing_or_fabricated_value_redaction_metadata(self) -> None:
+        trace = self.trace()
+        opening = self.opening(trace)
+        answer = trace.record_answer_received(
+            turn_id="turn-1", answer_version=1,
+            spoken_question_event_id=opening["spoken"].event_id,
+            answer_text="redaction metadata", idempotency_key="answer:redaction-metadata",
+        )
+        trace.record_semantic_interpretation_finalized(
+            turn_id="turn-1", answer_version=1, answer_event_id=answer.event_id,
+            interpretation={"connection": "postgresql://user:password@example.test/db"},
+            idempotency_key="semantic:redaction-metadata",
+        )
+        base_records = trace.export_records()
+
+        for redacted_paths in ([], ["views.evaluator.interpretation.not_connection"]):
+            records = copy.deepcopy(base_records)
+            target = next(
+                record
+                for record in records
+                if record["event_type"] == TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED.value
+            )
+            target["redaction"]["redacted_paths"] = redacted_paths
+            _rechain_records(records)
+            with self.assertRaises(TraceIntegrityError):
+                InterviewTraceV1.from_records(records)
 
     def test_import_recomputes_redaction_metadata(self) -> None:
         trace = self.trace()
