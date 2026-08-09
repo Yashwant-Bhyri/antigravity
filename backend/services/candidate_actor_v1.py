@@ -72,10 +72,17 @@ _GENERIC_SUPPORT_TOKENS = {
     "system", "team", "process", "question", "answer", "details", "detail", "change",
     "changed", "used", "use", "made", "make", "did", "doing", "helped", "support",
 }
+_NUMBER_WORDS = {
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+    "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+    "eighty", "ninety", "hundred", "thousand", "million", "billion", "half", "quarter",
+}
 _SOCIAL_ONLY_RE = re.compile(
     r"^(?:could you repeat(?: that)?|please repeat(?: that)?|i need a moment|give me a second|"
     r"let me think|sorry|thanks|thank you|i'm not sure where to start|which part matters|"
-    r"can we move on|let's move on|i don't know)$",
+    r"can we move on|let's move on|i don't know|don't know|not sure|no experience|"
+    r"i need to think|one moment|yes|no|okay|ok|sure)$",
     re.I,
 )
 _PERSONAL_OWNERSHIP_RE = re.compile(
@@ -94,7 +101,7 @@ _NEGATIVE_BOUNDARY_RE = re.compile(
     re.I,
 )
 _BROAD_OWNERSHIP_RE = re.compile(
-    r"\b(?:entire|whole|all|every|full|solely|single[- ]handed|end[- ]to[- ]end|"
+    r"\b(?:entire|whole|all|every|full(?!-time)|solely|single[- ]handed|end[- ]to[- ]end|"
     r"the (?:whole|entire|full) (?:system|platform|feature|project))\b",
     re.I,
 )
@@ -178,7 +185,13 @@ def _contains_all_or_substantial(haystack: str, needle: str) -> bool:
 
 
 def _literal_tokens(value: str) -> set[str]:
-    return set(re.findall(r"\b\d+(?:\.\d+)?%?\b", value))
+    numeric = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", value))
+    number_words = {
+        token.lower()
+        for token in TOKEN_RE.findall(value)
+        if token.lower() in _NUMBER_WORDS
+    }
+    return numeric | number_words
 
 
 def _temporal_tokens(value: str) -> set[str]:
@@ -197,6 +210,17 @@ def _key_names(value: Any) -> Iterable[str]:
     elif isinstance(value, list):
         for child in value:
             yield from _key_names(child)
+
+
+def _fact_id_values(value: Any) -> Iterable[str]:
+    if isinstance(value, Mapping):
+        for child in value.values():
+            yield from _fact_id_values(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _fact_id_values(child)
+    elif isinstance(value, str) and FACT_ID_RE.fullmatch(value):
+        yield value
 
 
 def _assert_no_forbidden_keys(value: Any, *, label: str) -> None:
@@ -250,7 +274,12 @@ def load_actor_turn_projection(world_id: str) -> dict[str, Any]:
     return _load_json(ACTOR_PROJECTION_DIR / f"{world_id}.json")
 
 
-def _safe_turn_fact(fact: Mapping[str, Any], *, protected_summary: bool) -> dict[str, Any]:
+def _safe_turn_fact(
+    fact: Mapping[str, Any],
+    *,
+    protected_summary: bool,
+    visible_fact_ids: set[str] | None = None,
+) -> dict[str, Any]:
     statement = fact.get("statement")
     ownership = fact.get("ownership")
     disclosure = fact.get("disclosure")
@@ -263,7 +292,10 @@ def _safe_turn_fact(fact: Mapping[str, Any], *, protected_summary: bool) -> dict
             raise DisclosureGrantError(f"protected fact {fact['fact_id']} has no safe summary")
         safe_disclosure = {
             "eligibility": "protected_summary",
-            "prerequisite_fact_ids": list(disclosure.get("prerequisite_fact_ids", [])),
+            "prerequisite_fact_ids": [
+                fact_id for fact_id in disclosure.get("prerequisite_fact_ids", [])
+                if visible_fact_ids is None or fact_id in visible_fact_ids
+            ],
             "earliest_turn": disclosure.get("earliest_turn", 0),
             "reveal_trigger": disclosure.get("reveal_trigger", "Candidate states a boundary"),
             "candidate_can_volunteer": disclosure.get("candidate_can_volunteer", False),
@@ -281,6 +313,23 @@ def _safe_turn_fact(fact: Mapping[str, Any], *, protected_summary: bool) -> dict
         statement_text = str(statement.get("text", "")).strip()
         safe_disclosure = _deepcopy(disclosure)
         ownership_value = _deepcopy(ownership)
+
+    if isinstance(ownership_value, Mapping):
+        ownership_value = dict(ownership_value)
+        evidence_ids = ownership_value.get("ownership_evidence_ids", [])
+        if isinstance(evidence_ids, list):
+            ownership_value["ownership_evidence_ids"] = [
+                evidence_id for evidence_id in evidence_ids
+                if visible_fact_ids is None or evidence_id in visible_fact_ids
+            ]
+    if isinstance(safe_disclosure, Mapping):
+        safe_disclosure = dict(safe_disclosure)
+        prerequisite_ids = safe_disclosure.get("prerequisite_fact_ids", [])
+        if isinstance(prerequisite_ids, list):
+            safe_disclosure["prerequisite_fact_ids"] = [
+                fact_id for fact_id in prerequisite_ids
+                if visible_fact_ids is None or fact_id in visible_fact_ids
+            ]
 
     if not statement_text:
         raise DisclosureGrantError(f"fact {fact['fact_id']} has empty statement text")
@@ -408,7 +457,11 @@ def _materialize_trusted_actor_turn_projection(
         "question_semantics_used": False,
     }
     projection["granted_facts"] = [
-        _safe_turn_fact(facts[fact_id], protected_summary=fact_id in set(grant["safe"]))
+        _safe_turn_fact(
+            facts[fact_id],
+            protected_summary=fact_id in set(grant["safe"]),
+            visible_fact_ids=granted_ids,
+        )
         for fact_id in sorted(granted_ids)
     ]
     # This is still an offline projection, but it must not carry the full
@@ -421,11 +474,11 @@ def _materialize_trusted_actor_turn_projection(
 def build_trusted_actor_turn_projection(
     world_id: str,
     *,
-    turn_number: int,
+    turn_number: int | None = None,
     requested_fact_ids: Sequence[str] = (),
     disclosure_ledger: "AppendOnlyDisclosureLedgerV1 | None" = None,
     request_kind: str = "interviewer",
-    trigger_satisfied_fact_ids: Sequence[str] = (),
+    trigger_satisfied_fact_ids: Sequence[str] | None = None,
     prohibited_reveal_fact_ids: Sequence[str] = (),
     authorized_safe_summary_fact_ids: Sequence[str] = (),
 ) -> dict[str, Any]:
@@ -809,7 +862,7 @@ class AppendOnlyDisclosureLedgerV1:
     def _reserve(
         self,
         *,
-        turn_number: int,
+        turn_number: int | None,
         requested_fact_ids: Sequence[str],
         request_kind: str,
         trigger_satisfied_fact_ids: Sequence[str] | None,
@@ -818,6 +871,8 @@ class AppendOnlyDisclosureLedgerV1:
     ) -> _DisclosureReservationV1:
         if self._pending is not None:
             raise DisclosureGrantError("a disclosure turn is already reserved; accept or release it first")
+        if turn_number is None:
+            turn_number = self.next_turn_number
         if not isinstance(turn_number, int) or turn_number != self.next_turn_number:
             raise DisclosureGrantError(
                 f"turn_number must be the next actor-owned turn {self.next_turn_number}; replay or gap rejected"
@@ -869,7 +924,7 @@ class AppendOnlyDisclosureLedgerV1:
     def reserve_projection(
         self,
         *,
-        turn_number: int,
+        turn_number: int | None = None,
         requested_fact_ids: Sequence[str],
         request_kind: str = "interviewer",
         trigger_satisfied_fact_ids: Sequence[str] | None = None,
@@ -888,7 +943,7 @@ class AppendOnlyDisclosureLedgerV1:
     def issue_turn(
         self,
         *,
-        turn_number: int,
+        turn_number: int | None = None,
         requested_fact_ids: Sequence[str],
         current_question: str,
         prior_candidate_visible_conversation: Sequence[CandidateVisibleTurnV1 | Mapping[str, Any]] = (),
@@ -906,17 +961,30 @@ class AppendOnlyDisclosureLedgerV1:
             prohibited_reveal_fact_ids=prohibited_reveal_fact_ids,
             authorized_safe_summary_fact_ids=authorized_safe_summary_fact_ids,
         )
-        state = _behavior_state(behavior_state)
-        if state.turn_number != turn_number:
-            raise ActorPromptError("behavior_state.turn_number must match actor-owned turn_number")
-        prompt = ActorTurnPromptV1(
-            actor_turn_projection=_deepcopy(dict(reservation.projection)),
-            current_question=current_question,
-            prior_candidate_visible_conversation=_conversation(prior_candidate_visible_conversation),
-            behavior_state=state,
-            actor_ledger=self.snapshot(turn_number=turn_number),
-            authorized_safe_summary_fact_ids=reservation.authorized_safe_summary_fact_ids,
-        ).to_dict()
+        try:
+            if behavior_state is None:
+                state = BehaviorStateV1(turn_number=reservation.turn_number)
+            elif isinstance(behavior_state, Mapping) and "turn_number" not in behavior_state:
+                state_input = dict(behavior_state)
+                state_input["turn_number"] = reservation.turn_number
+                state = _behavior_state(state_input)
+            else:
+                state = _behavior_state(behavior_state)
+            if state.turn_number != reservation.turn_number:
+                raise ActorPromptError("behavior_state.turn_number must match actor-owned turn_number")
+            prompt = ActorTurnPromptV1(
+                actor_turn_projection=_deepcopy(dict(reservation.projection)),
+                current_question=current_question,
+                prior_candidate_visible_conversation=_conversation(prior_candidate_visible_conversation),
+                behavior_state=state,
+                actor_ledger=self.snapshot(turn_number=reservation.turn_number),
+                authorized_safe_summary_fact_ids=reservation.authorized_safe_summary_fact_ids,
+            ).to_dict()
+        except Exception:
+            # Reservation is not disclosure.  If prompt construction fails,
+            # release it so the same monotonic turn may be retried safely.
+            self.release_pending(reason="prompt_materialization_failed")
+            raise
         self._pending = _DisclosureReservationV1(
             turn_number=reservation.turn_number,
             requested_fact_ids=reservation.requested_fact_ids,
@@ -1075,6 +1143,62 @@ def _assert_runtime_projection(projection: Mapping[str, Any]) -> None:
             raise ActorPromptError("runtime actor projection has an untyped resume claim")
 
 
+def assert_actor_prompt_semantic_manifest(projection: Mapping[str, Any]) -> None:
+    """Check semantic isolation against the frozen private source when present.
+
+    Key-name filtering catches accidental evaluator objects, but it cannot
+    catch a copied hidden fact under an innocent key.  This manifest check
+    allows only fact IDs in the current grant and rejects exact hidden fact
+    statements/labels from the actor-private source.  It intentionally uses
+    exact source strings rather than token redaction, preserving natural
+    biography and role prose.
+    """
+
+    if not isinstance(projection, Mapping):
+        raise ActorPromptError("semantic manifest requires an actor projection")
+    world_id = projection.get("world_id")
+    if not isinstance(world_id, str):
+        raise ActorPromptError("semantic manifest requires a world_id")
+    context = projection.get("turn_context", {})
+    if not isinstance(context, Mapping):
+        raise ActorPromptError("semantic manifest requires turn_context")
+    granted = set(context.get("granted_fact_ids", []))
+    observed_fact_ids = set(_fact_id_values(projection))
+    unexpected_ids = sorted(observed_fact_ids - granted)
+    if unexpected_ids:
+        raise ActorPromptError(
+            f"actor prompt contains fact IDs outside the current grant: {unexpected_ids}"
+        )
+
+    private_path = ACTOR_PRIVATE_DIR / f"{world_id}.json"
+    if not private_path.exists():
+        return
+    private_projection = _load_json(private_path)
+    private_facts = private_projection.get("factual_truth", [])
+    if not isinstance(private_facts, list):
+        raise ActorPromptError("actor-private semantic manifest has malformed factual_truth")
+    prompt_text = json.dumps(projection, ensure_ascii=False, sort_keys=True).casefold()
+    baseline_projection = load_actor_turn_projection(world_id)
+    baseline_text = json.dumps(baseline_projection, ensure_ascii=False, sort_keys=True).casefold()
+    leaked_texts: list[str] = []
+    for fact in private_facts:
+        if not isinstance(fact, Mapping) or fact.get("fact_id") in granted:
+            continue
+        statement = fact.get("statement", {})
+        statement_text = statement.get("text") if isinstance(statement, Mapping) else None
+        label = fact.get("label")
+        for candidate in (statement_text, label):
+            if isinstance(candidate, str) and len(candidate.strip()) >= 24 and candidate.casefold() in prompt_text:
+                if candidate.casefold() == str(label).casefold() and candidate.casefold() in baseline_text:
+                    continue
+                leaked_texts.append(str(candidate))
+    if leaked_texts:
+        raise ActorPromptError(
+            "actor prompt contains exact text from unrevealed facts: "
+            f"{[text[:80] for text in leaked_texts]}"
+        )
+
+
 @dataclass(frozen=True)
 class ActorTurnPromptV1:
     """Complete, actor-safe input delivered to a candidate generator."""
@@ -1197,6 +1321,7 @@ def assert_safe_actor_turn_projection(projection: Mapping[str, Any]) -> None:
             raise ActorPromptError(f"granted fact {fact_id} has invalid statement/disclosure")
         if disclosure.get("eligibility") == "protected" and fact_id not in set(context.get("granted_fact_ids", [])):
             raise ActorPromptError(f"protected fact {fact_id} is not in grant")
+    assert_actor_prompt_semantic_manifest(projection)
 
 
 def build_actor_turn_prompt(
@@ -1320,6 +1445,29 @@ def _response_shape_errors(payload: Mapping[str, Any]) -> list[str]:
         errors.append(f"response missing fields: {missing}")
     if extra:
         errors.append(f"response contains unsupported fields: {extra}")
+    clauses = payload.get("factual_clauses")
+    if isinstance(clauses, list):
+        for index, clause in enumerate(clauses):
+            if isinstance(clause, Mapping):
+                extra_clause = sorted(set(clause) - {"clause", "fact_ids"})
+                if extra_clause:
+                    errors.append(f"factual_clauses[{index}] contains unsupported fields: {extra_clause}")
+    correction = payload.get("correction")
+    if isinstance(correction, Mapping):
+        missing_correction = sorted({"is_correction", "superseded_fact_ids", "active_fact_ids"} - set(correction))
+        if missing_correction:
+            errors.append(f"correction missing fields: {missing_correction}")
+        extra_correction = sorted(set(correction) - {"is_correction", "superseded_fact_ids", "active_fact_ids"})
+        if extra_correction:
+            errors.append(f"correction contains unsupported fields: {extra_correction}")
+    uncertainty = payload.get("uncertainty")
+    if isinstance(uncertainty, Mapping):
+        missing_uncertainty = sorted({"kind", "text"} - set(uncertainty))
+        if missing_uncertainty:
+            errors.append(f"uncertainty missing fields: {missing_uncertainty}")
+        extra_uncertainty = sorted(set(uncertainty) - {"kind", "text"})
+        if extra_uncertainty:
+            errors.append(f"uncertainty contains unsupported fields: {extra_uncertainty}")
     return errors
 
 
@@ -1353,7 +1501,13 @@ def _named_atoms(value: str) -> set[str]:
         lower = token.lower()
         if token.isupper() and len(token) >= 2:
             atoms.add(lower)
-        if any(marker in lower for marker in ("api", "sql", "kubernetes", "react", "typescript", "java", "python", "kafka", "postgres", "lightgbm", "aria", "utc", "browser", "network", "database", "model")):
+        if any(marker in lower for marker in (
+            "api", "sql", "kubernetes", "react", "typescript", "javascript", "java", "python",
+            "kafka", "postgres", "postgresql", "mysql", "redis", "mongodb", "lightgbm", "pytorch",
+            "tensorflow", "dbt", "looker", "graphql", "node", "docker", "terraform", "aws", "gcp",
+            "azure", "spark", "airflow", "parquet", "aria", "utc", "browser", "network",
+            "database", "model", "frontend", "backend",
+        )):
             atoms.add(lower)
     return atoms
 
@@ -1417,19 +1571,22 @@ def _validate_resume_claim_references(
     answer_text: str,
     references: Any,
     prompt_projection: Mapping[str, Any],
-) -> tuple[list[str], set[str]]:
+) -> tuple[list[str], list[str]]:
     errors: list[str] = []
-    referenced_tokens: set[str] = set()
+    referenced_texts: list[str] = []
     if references is None:
-        return errors, referenced_tokens
+        return errors, referenced_texts
     if not isinstance(references, list):
-        return ["resume_claim_references must be an array"], referenced_tokens
+        return ["resume_claim_references must be an array"], referenced_texts
     claims = _resume_claims(prompt_projection)
     for index, reference in enumerate(references):
         if not isinstance(reference, Mapping):
             errors.append(f"resume_claim_references[{index}] must be an object")
             continue
         allowed = {"claim_id", "reference_text", "mode"}
+        missing = sorted(allowed - set(reference))
+        if missing:
+            errors.append(f"resume_claim_references[{index}] is missing fields: {missing}")
         extra = set(reference) - allowed
         if extra:
             errors.append(f"resume_claim_references[{index}] has unsupported keys: {sorted(extra)}")
@@ -1457,15 +1614,15 @@ def _validate_resume_claim_references(
                 )
         if not re.search(r"\b(?:resume|bullet|listed|document|claim|says|stated)\b", reference_text, re.I):
             errors.append(f"resume_claim_references[{index}] must preserve claim attribution in reference_text")
-        referenced_tokens |= _tokenize(reference_text)
-    return errors, referenced_tokens
+        referenced_texts.append(reference_text)
+    return errors, referenced_texts
 
 
 def _looks_non_factual_social(sentence: str) -> bool:
     normalized = " ".join(sentence.strip().split())
     if not normalized:
         return True
-    if _SOCIAL_ONLY_RE.fullmatch(normalized):
+    if _SOCIAL_ONLY_RE.fullmatch(normalized.rstrip(".!?")):
         return True
     if re.fullmatch(r"(?:uh+|um+|hmm+|okay|ok|right|yes|no)[.!?]*", normalized, re.I):
         return True
@@ -1478,10 +1635,17 @@ def _looks_factual(sentence: str) -> bool:
     tokens = _tokenize(sentence)
     if not tokens:
         return False
+    atoms = _claim_atoms(sentence)
+    # A one-token metric, date, technology, named entity, or ownership claim
+    # is still a proposition.  Without this branch an answer such as
+    # ``Kubernetes.`` or ``11%.`` could evade an empty factual_clauses list.
+    if any(atoms.values()):
+        return True
     if re.search(r"\b(?:i|we|my|our|the team|the api|the database|the feature)\b", sentence, re.I):
         return True
     if re.search(r"\b(?:built|owned|designed|implemented|fixed|changed|used|worked|deployed|"
-                 r"learned|reproduced|measured|increased|decreased|cannot|can't|don't know|did not)\b", sentence, re.I):
+                 r"learned|reproduced|measured|increased|decreased|cannot|can't|don't know|did not|"
+                 r"own|owns|owned|built|led|managed|deployed|worked)\b", sentence, re.I):
         return True
     return len(tokens) >= 2
 
@@ -1511,6 +1675,15 @@ def _ownership_finding(clause: str, fact: Mapping[str, Any]) -> tuple[dict[str, 
         issue = f"ownership widening: partial fact {fact.get('fact_id')} is presented as whole or sole ownership"
     elif status == "ambiguous" and broad and not negative:
         issue = f"ambiguous ownership fact {fact.get('fact_id')} needs a boundary qualifier"
+    elif broad and status == "owned" and not negative:
+        boundary_text = str(ownership.get("boundary_text", "")) if isinstance(ownership, Mapping) else ""
+        scope_text = str(ownership.get("scope", "")) if isinstance(ownership, Mapping) else ""
+        if re.search(r"\b(?:not|never|does not|did not|without|except|only)\b", boundary_text, re.I):
+            issue = f"ownership widening: broad scope language conflicts with the owned fact boundary {fact.get('fact_id')}"
+        elif re.search(r"\b(?:platform|system|product|project|feature)\b", clause, re.I) and not re.search(
+            r"\b(?:platform|system|product|project|feature)\b", scope_text, re.I
+        ):
+            issue = f"ownership widening: {fact.get('fact_id')} does not support ownership of the named broad artifact"
     elif broad and status != "owned" and not negative:
         issue = f"ownership widening: broad scope language conflicts with {status} fact {fact.get('fact_id')}"
     return finding, issue
@@ -1534,12 +1707,12 @@ def _protected_term_issue(answer_text: str, clause: str, fact: Mapping[str, Any]
 def _validate_text_clause_coverage(
     answer_text: str,
     clauses: Sequence[Mapping[str, Any]],
-    resume_reference_tokens: set[str] | None = None,
+    resume_reference_texts: Sequence[str] | None = None,
 ) -> list[str]:
     errors: list[str] = []
     if FACT_MARKER_RE.search(answer_text):
         errors.append("answer_text contains citation markers or fact IDs")
-    clause_tokens = set(resume_reference_tokens or ())
+    clause_tokens: set[str] = set()
     for index, clause in enumerate(clauses):
         text = clause.get("clause") if isinstance(clause, Mapping) else ""
         if not isinstance(text, str) or not text.strip():
@@ -1551,11 +1724,24 @@ def _validate_text_clause_coverage(
         sentence = sentence.strip()
         if not _looks_factual(sentence):
             continue
+        # A resume reference may explain why the candidate used a claim, but
+        # it is never evidence.  Permit a sentence that is wholly an explicit
+        # attribution to the resume; any extra proposition still needs a
+        # currently granted factual clause.
+        if resume_reference_texts and any(
+            re.search(r"\b(?:resume|bullet|listed|document|claim|says|stated)\b", reference, re.I)
+            and _tokenize(sentence) <= _tokenize(reference)
+            for reference in resume_reference_texts
+        ):
+            continue
         sentence_tokens = _tokenize(sentence)
         uncovered = sentence_tokens - clause_tokens
         # Function words and generic conversational verbs are deliberately
         # ignored; substantive nouns/verbs must appear in a cited clause.
-        substantive_uncovered = {token for token in uncovered if len(token) > 2}
+        substantive_uncovered = {
+            token for token in uncovered
+            if token not in _GENERIC_SUPPORT_TOKENS
+        }
         if substantive_uncovered:
             errors.append(f"answer contains an uncited factual fragment: {sorted(substantive_uncovered)}")
     return errors
@@ -1608,6 +1794,8 @@ def validate_actor_response_v1(
         disclosed_values = []
     if not isinstance(payload.get("behavior_mode"), str) or not payload.get("behavior_mode", "").strip():
         errors.append("behavior_mode must be a non-empty string")
+    elif _INTERNAL_SPEECH_RE.search(payload["behavior_mode"]):
+        errors.append("behavior_mode contains evaluator or prompt-internal language")
     if payload.get("boundary_action") not in BOUNDARY_ACTIONS:
         errors.append(f"boundary_action must be one of {sorted(BOUNDARY_ACTIONS)}")
     correction = payload.get("correction")
@@ -1615,6 +1803,8 @@ def validate_actor_response_v1(
     if not isinstance(correction, Mapping):
         errors.append("correction must be an object")
         correction = {}
+    elif not isinstance(correction.get("is_correction"), bool):
+        errors.append("correction.is_correction must be a boolean")
     if not isinstance(uncertainty, Mapping):
         errors.append("uncertainty must be an object")
         uncertainty = {}
@@ -1750,14 +1940,14 @@ def validate_actor_response_v1(
         warnings.append("honest_gap action has no explicitly not-owned or boundary fact")
 
     resume_references = payload.get("resume_claim_references")
-    resume_reference_errors, resume_reference_tokens = _validate_resume_claim_references(
+    resume_reference_errors, resume_reference_texts = _validate_resume_claim_references(
         answer_text if isinstance(answer_text, str) else "",
         resume_references,
         projection,
     )
     errors.extend(resume_reference_errors)
     if isinstance(answer_text, str):
-        errors.extend(_validate_text_clause_coverage(answer_text, clauses, resume_reference_tokens))
+        errors.extend(_validate_text_clause_coverage(answer_text, clauses, resume_reference_texts))
         if _INTERNAL_SPEECH_RE.search(answer_text):
             errors.append("answer_text contains evaluator or prompt-internal language")
     else:
@@ -2018,6 +2208,12 @@ class CandidateActorV1:
         self.generator = generator
         self.seed = seed
         self.world_id = world_id or ""
+        # A world-bound actor owns its disclosure lifecycle.  The private
+        # projection is held by the resolver inside this ledger, never by the
+        # generator-facing actor prompt.
+        self.disclosure_ledger = (
+            AppendOnlyDisclosureLedgerV1(self.world_id) if self.world_id else None
+        )
         self.accepted_responses: list[CandidateActorResponseV1] = []
 
     @classmethod
@@ -2033,6 +2229,42 @@ class CandidateActorV1:
         load_actor_private_projection(world_id)
         return cls(generator, seed=seed, world_id=world_id)
 
+    @property
+    def ledger(self) -> AppendOnlyDisclosureLedgerV1:
+        if self.disclosure_ledger is None:
+            raise DisclosureGrantError("this actor is not bound to a CandidateWorldV1")
+        return self.disclosure_ledger
+
+    def issue_turn(
+        self,
+        *,
+        requested_fact_ids: Sequence[str] = (),
+        current_question: str,
+        prior_candidate_visible_conversation: Sequence[CandidateVisibleTurnV1 | Mapping[str, Any]] = (),
+        behavior_state: BehaviorStateV1 | Mapping[str, Any] | None = None,
+        request_kind: str = "interviewer",
+        trigger_satisfied_fact_ids: Sequence[str] | None = None,
+        prohibited_reveal_fact_ids: Sequence[str] = (),
+        authorized_safe_summary_fact_ids: Sequence[str] = (),
+    ) -> dict[str, Any]:
+        """Issue the next actor turn using only a fact request.
+
+        Turn number, prior disclosure history, actual newly granted facts, and
+        the actor ledger are all derived inside ``self.ledger``.  They are not
+        accepted as caller-owned arguments.
+        """
+
+        return self.ledger.issue_turn(
+            requested_fact_ids=requested_fact_ids,
+            current_question=current_question,
+            prior_candidate_visible_conversation=prior_candidate_visible_conversation,
+            behavior_state=behavior_state,
+            request_kind=request_kind,
+            trigger_satisfied_fact_ids=trigger_satisfied_fact_ids,
+            prohibited_reveal_fact_ids=prohibited_reveal_fact_ids,
+            authorized_safe_summary_fact_ids=authorized_safe_summary_fact_ids,
+        )
+
     async def respond(
         self,
         prompt: ActorTurnPromptV1 | Mapping[str, Any] | None = None,
@@ -2041,10 +2273,14 @@ class CandidateActorV1:
         current_question: str | None = None,
         prior_candidate_visible_conversation: Sequence[CandidateVisibleTurnV1 | Mapping[str, Any]] = (),
         behavior_state: BehaviorStateV1 | Mapping[str, Any] | None = None,
-        actor_ledger: Mapping[str, Any] | None = None,
-        authorized_safe_summary_fact_ids: Sequence[str] = (),
     ) -> CandidateActorResponseV1:
+        owned_prompt = False
         if prompt is None:
+            if self.world_id:
+                raise DisclosureGrantError(
+                    "world-bound actors must receive a prompt from issue_turn; "
+                    "caller-supplied projections and ledger state are not supported"
+                )
             if actor_turn_projection is None or current_question is None:
                 raise ActorPromptError("respond requires an actor turn projection and exact current question")
             prompt_obj = build_actor_turn_prompt(
@@ -2052,12 +2288,13 @@ class CandidateActorV1:
                 current_question=current_question,
                 prior_candidate_visible_conversation=prior_candidate_visible_conversation,
                 behavior_state=behavior_state,
-                actor_ledger=actor_ledger,
-                authorized_safe_summary_fact_ids=authorized_safe_summary_fact_ids,
             )
             prompt_dict = prompt_obj.to_dict()
         elif isinstance(prompt, ActorTurnPromptV1):
             prompt_dict = prompt.to_dict()
+            if self.disclosure_ledger is not None:
+                self.disclosure_ledger.assert_owned_prompt(prompt_dict)
+                owned_prompt = True
         elif isinstance(prompt, Mapping):
             if prompt.get("prompt_type") == "candidate_actor_turn_input":
                 prompt_dict = _deepcopy(dict(prompt))
@@ -2065,14 +2302,19 @@ class CandidateActorV1:
                 # it to a generator.
                 _prompt_parts(prompt_dict)
                 _assert_no_forbidden_keys(prompt_dict, label="actor prompt")
+                if self.disclosure_ledger is not None:
+                    self.disclosure_ledger.assert_owned_prompt(prompt_dict)
+                    owned_prompt = True
             elif current_question is not None:
+                if self.world_id:
+                    raise DisclosureGrantError(
+                        "world-bound actors cannot compile caller-supplied projections; use issue_turn"
+                    )
                 prompt_dict = build_actor_turn_prompt(
                     prompt,
                     current_question=current_question,
                     prior_candidate_visible_conversation=prior_candidate_visible_conversation,
                     behavior_state=behavior_state,
-                    actor_ledger=actor_ledger,
-                    authorized_safe_summary_fact_ids=authorized_safe_summary_fact_ids,
                 ).to_dict()
             else:
                 raise ActorPromptError("a bare actor projection requires current_question")
@@ -2092,15 +2334,21 @@ class CandidateActorV1:
                 error_type=type(exc).__name__,
             )
             validation = CandidateActorValidationV1("rejected", False, (f"generator failed: {type(exc).__name__}",))
+            if owned_prompt:
+                self.ledger.release_pending(reason="generation_failed")
             return _empty_response(metadata, validation)
 
         metadata = _metadata_for_generator(self.generator, seed=self.seed, started=started, raw=raw)
         payload, parse_errors = _strict_payload(raw)
         if parse_errors or payload is None:
             validation = CandidateActorValidationV1("rejected", False, tuple(parse_errors or ["invalid generator output"]))
+            if owned_prompt:
+                self.ledger.release_pending(reason="response_parse_failed")
             return _empty_response(metadata, validation)
         validation = validate_actor_response_v1(prompt_dict, payload)
         if not validation.canonical:
+            if owned_prompt:
+                self.ledger.release_pending(reason="response_validation_failed")
             return _empty_response(metadata, validation)
 
         correction = dict(payload["correction"])
@@ -2116,40 +2364,59 @@ class CandidateActorV1:
             validation=validation.to_dict(),
             resume_claim_references=tuple(_deepcopy(payload.get("resume_claim_references", []))),
         )
+        if owned_prompt:
+            try:
+                self.ledger.accept_response(response, prompt=prompt_dict)
+            except CandidateActorError as exc:
+                self.ledger.release_pending(reason="disclosure_commit_failed")
+                commit_validation = CandidateActorValidationV1(
+                    status="rejected",
+                    canonical=False,
+                    errors=tuple(dict.fromkeys((*validation.errors, f"disclosure commit failed: {exc}"))),
+                    warnings=validation.warnings,
+                    cited_fact_ids=validation.cited_fact_ids,
+                    disclosed_fact_ids=validation.disclosed_fact_ids,
+                    ownership_findings=validation.ownership_findings,
+                    protected_findings=validation.protected_findings,
+                    temporal_findings=validation.temporal_findings,
+                )
+                return _empty_response(metadata, commit_validation)
         self.accepted_responses.append(response)
         return response
 
     async def respond_from_trusted_grant(
         self,
         *,
-        turn_number: int,
-        already_revealed_fact_ids: Sequence[str],
-        newly_granted_fact_ids: Sequence[str],
+        requested_fact_ids: Sequence[str] = (),
         current_question: str,
         prior_candidate_visible_conversation: Sequence[CandidateVisibleTurnV1 | Mapping[str, Any]] = (),
         behavior_state: BehaviorStateV1 | Mapping[str, Any] | None = None,
-        actor_ledger: Mapping[str, Any] | None = None,
+        request_kind: str = "interviewer",
+        trigger_satisfied_fact_ids: Sequence[str] | None = None,
+        prohibited_reveal_fact_ids: Sequence[str] = (),
         authorized_safe_summary_fact_ids: Sequence[str] = (),
     ) -> CandidateActorResponseV1:
-        """Convenience for a trusted offline harness; generator still sees only the final prompt."""
+        """Compatibility helper that accepts a request, never a grant.
+
+        The name is retained for isolated callers from the earlier snapshot,
+        but prior history, newly granted IDs, and actor ledger state are now
+        impossible to provide.  The actor owns the turn and commits only a
+        canonical response.
+        """
 
         if not self.world_id:
             raise DisclosureGrantError("respond_from_trusted_grant requires actor world_id")
-        projection = build_trusted_actor_turn_projection(
-            self.world_id,
-            turn_number=turn_number,
-            already_revealed_fact_ids=already_revealed_fact_ids,
-            newly_granted_fact_ids=newly_granted_fact_ids,
-            authorized_safe_summary_fact_ids=authorized_safe_summary_fact_ids,
-        )
-        return await self.respond(
-            actor_turn_projection=projection,
+        prompt = self.issue_turn(
+            requested_fact_ids=requested_fact_ids,
             current_question=current_question,
             prior_candidate_visible_conversation=prior_candidate_visible_conversation,
             behavior_state=behavior_state,
-            actor_ledger=actor_ledger,
+            request_kind=request_kind,
+            trigger_satisfied_fact_ids=trigger_satisfied_fact_ids,
+            prohibited_reveal_fact_ids=prohibited_reveal_fact_ids,
             authorized_safe_summary_fact_ids=authorized_safe_summary_fact_ids,
         )
+        return await self.respond(prompt)
 
 
 def build_review_packet(
@@ -2211,11 +2478,15 @@ __all__ = [
     "CandidateGenerator",
     "CandidateVisibleTurnV1",
     "DeterministicFixtureGenerator",
+    "AppendOnlyDisclosureLedgerV1",
+    "DisclosureRecordV1",
+    "DisclosureResolverV1",
     "DisclosureGrantError",
     "GenerationMetadataV1",
     "OpenRouterCandidateGenerator",
     "StaticActorGenerator",
     "assert_safe_actor_turn_projection",
+    "assert_actor_prompt_semantic_manifest",
     "build_actor_turn_prompt",
     "build_review_packet",
     "build_trusted_actor_turn_projection",
