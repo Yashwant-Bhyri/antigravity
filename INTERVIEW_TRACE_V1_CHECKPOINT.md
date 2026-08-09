@@ -29,19 +29,25 @@ Hard behavior enforced by the API and tests:
 - materialization, preparation, delivery-attempt, ACK, failure, spoken, answer, semantic-final, evidence, report-claim, and final-evaluation identities are exactly once (distinct delivery attempts are the explicit retry unit);
 - stale epoch/version attempts append a rejected validation receipt and do not mutate the turn; future answer-version gaps do not create a turn ledger;
 - rejected validation cannot authorize a visible question;
+- imported materialization cannot follow an accepted validation unless that validation explicitly authorizes a visible route commit;
+- a playback ACK and delivery failure are mutually exclusive for one delivery attempt, including when a later spoken record is present;
 - final decision-time semantics cannot be overwritten by shadow interpretation;
-- action grants and spoken questions retain exact opportunity, evidence, and prior-spoken provenance;
+- action grants, validations, materializations, and spoken questions retain one consistent immediately-prior spoken-question lineage;
+- opportunity inventory import re-normalizes unique IDs, admitted kinds, excluded reasons, and typed prior evidence references;
 - report claims cite only typed evidence events, and final evaluations can cite only report claims whose evidence is included;
 - nested canonical payloads and causal-parent collections are immutable in memory;
 - candidate/actor/interviewer/evaluator/operator projections use explicit per-event allowlists, with no global sequence in candidate/actor projections;
+- candidate/actor projections omit pre-playback materialized question text and producer/runtime/timestamp internals while evaluator/operator evidence remains available;
 - secrets, prompt variants, credentials, and raw provider payload fields are excluded or redacted;
+- import recomputes and verifies both sanitized payloads and complete redaction metadata;
+- `from_records(..., verify=False)` is tainted/read-only until a complete `verify_integrity()` succeeds, so it cannot append canonical events or produce authority projections;
 - import verifies schema/type/genesis, IDs and keys, unique earlier parents, sequence/hash-chain, decision/provenance recomputation, runtime epochs, answer-version continuity, typed lifecycle lineage, redaction metadata, and logical identity uniqueness;
 - export/reload rebuilds indexes from canonical events, including rejection telemetry without ghost turn ledgers, and reconstructs the same canonical spoken history;
 - mutation, reorder, invalid lineage, and invalid hash-chain records are rejected. Valid-tail truncation requires an external durable seal and cannot be detected from a prefix alone.
 
 ## View boundaries
 
-- Candidate and candidate actor receive only candidate-experienced lifecycle information. They do not receive semantic, opportunity, route, evidence, report, or evaluator truth.
+- Candidate and candidate actor receive only candidate-experienced lifecycle information after playback is proven. They do not receive pre-playback materialized text, semantic, opportunity, route, evidence, report, or evaluator truth.
 - Interviewer receives bounded operational decision context required to drive the interview, but not frozen CandidateWorld truth, excluded-option reasoning, full semantic/shadow payloads, evidence-state contents, report text, or evaluation summary.
 - Evaluator receives causal evidence required for postmortem and final attribution.
 - Operator receives bounded status/diagnostic metadata, not raw answers, full semantic judgments, or final evaluation content.
@@ -54,9 +60,11 @@ Run from the project root:
 python3 -m py_compile backend/services/interview_trace_v1.py backend/test_interview_trace_v1_contract.py
 python3 -m unittest -v backend.test_interview_trace_v1_contract
 python3 -m pytest -q backend/test_interview_trace_v1_contract.py
+git diff --check
+python3 -c 'import hashlib, json; from pathlib import Path; manifest=json.loads(Path("backend/data/interview_trace_v1_checkpoint_manifest.json").read_text()); assert all(hashlib.sha256(Path(item["path"]).read_bytes()).hexdigest() == item["sha256"] for item in manifest["files"])'
 ```
 
-The accepted local run executes 28 deterministic tests covering happy path, delivery failure/retry, exact idempotency/conflicts, atomic exceptions, stale and future-version attempts, validation rejection, semantic shadow disagreement, causal provenance, typed report/final lineage, view isolation, nested immutability/redaction, schema/genesis/type import checks, rehashed tamper detection, index rebuild equivalence, and replay stability.
+The accepted local run executes 35 deterministic tests covering happy path, delivery failure/retry, exact idempotency/conflicts, atomic exceptions, stale and future-version attempts, validation rejection, semantic shadow disagreement, causal provenance, typed report/final lineage, view isolation, nested immutability/redaction, schema/genesis/type import checks, rehashed tamper detection, visible-route authorization, ACK/failure exclusivity, immediate-prior lineage, tainted import isolation, opportunity normalization, redaction-metadata recomputation, candidate projection boundaries, index rebuild equivalence, and replay stability.
 
 ## Future integration seams
 

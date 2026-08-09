@@ -54,6 +54,18 @@ class TraceEventType(str, Enum):
 
 _TRACE_EVENT_NAMES = frozenset(event_type.value for event_type in TraceEventType)
 
+# Opportunity inventories are compiled from an immutable semantic decision.
+# Keep their evidence references typed to decision-bearing events so a
+# serialized inventory cannot smuggle in session/delivery/diagnostic events as
+# if they were candidate evidence.
+_OPPORTUNITY_EVIDENCE_EVENT_TYPES = frozenset(
+    {
+        TraceEventType.ANSWER_RECEIVED.value,
+        TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED.value,
+        TraceEventType.EVIDENCE_STATE_UPDATED.value,
+    }
+)
+
 
 class PlaybackAckStatus(str, Enum):
     """The only browser acknowledgement that establishes positive playback truth."""
@@ -333,7 +345,10 @@ _PROJECTION_ALLOWLISTS: dict[str, dict[str, frozenset[str]]] = {
     TraceView.CANDIDATE.value: {
         TraceEventType.SESSION_STARTED.value: frozenset({"session_started"}),
         TraceEventType.RUNTIME_EPOCH_ADVANCED.value: frozenset(),
-        TraceEventType.QUESTION_PREPARED.value: frozenset({"question_id"}),
+        # Preparation/materialization are pre-playback internal lifecycle
+        # events.  The candidate only receives the question after the spoken
+        # commit, never the text that was staged before playback succeeded.
+        TraceEventType.QUESTION_PREPARED.value: frozenset(),
         TraceEventType.QUESTION_DELIVERY_STARTED.value: frozenset({"delivery_attempt_id"}),
         TraceEventType.PLAYBACK_ACKNOWLEDGED.value: frozenset({"delivery_attempt_id", "acknowledged"}),
         TraceEventType.DELIVERY_FAILED.value: frozenset({"delivery_attempt_id", "delivery_failed"}),
@@ -343,7 +358,7 @@ _PROJECTION_ALLOWLISTS: dict[str, dict[str, frozenset[str]]] = {
         TraceEventType.SEMANTIC_INTERPRETATION_SHADOW.value: frozenset(),
         TraceEventType.OPPORTUNITY_INVENTORY_COMPILED.value: frozenset(),
         TraceEventType.ACTION_GRANT_SELECTED.value: frozenset(),
-        TraceEventType.QUESTION_MATERIALIZED.value: frozenset({"question_text"}),
+        TraceEventType.QUESTION_MATERIALIZED.value: frozenset(),
         TraceEventType.STATE_TRANSITION_VALIDATED.value: frozenset(),
         TraceEventType.EVIDENCE_STATE_UPDATED.value: frozenset(),
         TraceEventType.REPORT_CLAIM_EMITTED.value: frozenset({"claim_id", "claim_text"}),
@@ -550,6 +565,7 @@ def _atomic_public(method: Callable[..., Any]) -> Callable[..., Any]:
 
     @functools.wraps(method)
     def wrapped(self: "InterviewTraceV1", *args: Any, **kwargs: Any) -> Any:
+        self._ensure_authoritative()
         snapshot = self._snapshot_mutable_state()
         try:
             return method(self, *args, **kwargs)
@@ -585,6 +601,11 @@ class InterviewTraceV1:
         self._session_started_event_id = ""
         self._last_spoken_question_event_id = ""
         self._final_evaluation_event_id = ""
+        # A newly constructed trace is authoritative because all canonical
+        # events originate from this instance.  Imports explicitly taint the
+        # instance until a complete integrity verification succeeds.
+        self._authoritative = True
+        self._integrity_verified = True
         if auto_start:
             self.start_session()
 
@@ -593,12 +614,24 @@ class InterviewTraceV1:
         return self._runtime_epoch
 
     @property
+    def is_authoritative(self) -> bool:
+        """Whether canonical mutations/projections are currently permitted."""
+        return self._authoritative
+
+    @property
     def events(self) -> tuple[TraceEvent, ...]:
         return tuple(self._events)
 
     @property
     def last_spoken_question_event_id(self) -> str:
         return self._last_spoken_question_event_id
+
+    def _ensure_authoritative(self) -> None:
+        if not self._authoritative:
+            raise TraceIntegrityError(
+                "Trace loaded with verify=False is tainted/read-only; "
+                "successful verify_integrity() is required before canonical operations"
+            )
 
     def _snapshot_mutable_state(self) -> tuple[Any, ...]:
         """Capture every canonical/index field that a public operation can touch."""
@@ -660,6 +693,8 @@ class InterviewTraceV1:
             event_ids.add(event.event_id)
             idempotency_keys.add(event.idempotency_key)
         trace = cls(parsed[0].session_id, auto_start=False, clock=clock)
+        trace._authoritative = False
+        trace._integrity_verified = False
         trace._events = parsed
         trace._events_by_id = {event.event_id: event for event in parsed}
         trace._events_by_idempotency = {event.idempotency_key: event for event in parsed}
@@ -763,6 +798,7 @@ class InterviewTraceV1:
         provenance_material: Any = None,
         logical_existing_event_id: str = "",
     ) -> TraceReceipt:
+        self._ensure_authoritative()
         event_name = event_type.value if isinstance(event_type, TraceEventType) else str(event_type)
         if event_name not in {item.value for item in TraceEventType}:
             raise TraceInvariantError(f"Unknown event type: {event_name}")
@@ -1101,6 +1137,39 @@ class InterviewTraceV1:
             self._require_event_type(event_id, expected)
         return refs
 
+    def _require_opportunity_evidence_sources(
+        self,
+        event_ids: Sequence[str],
+        *,
+        label: str,
+        known_events: Mapping[str, TraceEvent] | None = None,
+    ) -> tuple[str, ...]:
+        """Require canonical, prior, decision-bearing opportunity evidence."""
+        if isinstance(event_ids, (str, bytes)) or not isinstance(event_ids, Sequence):
+            raise TraceReferenceError(f"{label} must be an array of event ids")
+        if any(not isinstance(event_id, str) for event_id in event_ids):
+            raise TraceReferenceError(f"{label} must contain string event ids")
+        refs = tuple(event_id.strip() for event_id in event_ids)
+        if any(not ref for ref in refs) or len(refs) != len(set(refs)):
+            raise TraceReferenceError(f"{label} contains empty/duplicate event ids")
+        if not refs:
+            raise TraceReferenceError(f"{label} must contain at least one event id")
+        for event_id in refs:
+            if known_events is None:
+                referenced = self._event(event_id)
+            else:
+                try:
+                    referenced = known_events[event_id]
+                except KeyError as exc:
+                    raise TraceReferenceError(
+                        f"{label} cites an unknown or future event: {event_id}"
+                    ) from exc
+            if referenced.event_type not in _OPPORTUNITY_EVIDENCE_EVENT_TYPES:
+                raise TraceReferenceError(
+                    f"{label} cites non-evidence event type {referenced.event_type}: {event_id}"
+                )
+        return refs
+
     def _find_logical_event(self, event_type: TraceEventType, field_name: str, value: str) -> str:
         needle = str(value or "")
         if not needle:
@@ -1118,6 +1187,23 @@ class InterviewTraceV1:
             raise TraceStaleError(
                 f"Operation runtime_epoch={epoch} does not match current runtime_epoch={self._runtime_epoch}"
             )
+
+    def _require_immediate_prior_spoken_question(
+        self,
+        prior_spoken_question_event_id: str,
+        *,
+        label: str,
+    ) -> str:
+        """Require the one spoken question immediately preceding this route."""
+        supplied = str(prior_spoken_question_event_id or "").strip()
+        expected = self._last_spoken_question_event_id
+        if supplied != expected:
+            raise TraceInvariantError(
+                f"{label} must reference the immediately prior spoken question"
+            )
+        if supplied:
+            self._require_event_type(supplied, TraceEventType.SPOKEN_QUESTION_COMMITTED)
+        return supplied
 
     @_atomic_public
     def start_session(self, *, producer: str = "backend.session", idempotency_key: str = "session-start") -> TraceReceipt:
@@ -1249,7 +1335,10 @@ class InterviewTraceV1:
         candidates: Sequence[Mapping[str, Any]],
         *,
         admitted: bool,
+        known_events: Mapping[str, TraceEvent] | None = None,
     ) -> list[dict[str, Any]]:
+        if isinstance(candidates, (str, bytes)) or not isinstance(candidates, Sequence):
+            raise TraceInvariantError("Opportunity candidates must be an array")
         result: list[dict[str, Any]] = []
         for raw in candidates:
             if not isinstance(raw, Mapping):
@@ -1257,9 +1346,10 @@ class InterviewTraceV1:
             opportunity_id = str(raw.get("opportunity_id") or raw.get("id") or "").strip()
             if not opportunity_id:
                 raise TraceInvariantError("Every opportunity must have an opportunity_id")
-            evidence_ids = self._require_sources(
+            evidence_ids = self._require_opportunity_evidence_sources(
                 raw.get("evidence_event_ids") or raw.get("source_evidence_event_ids") or [],
                 label=f"opportunity {opportunity_id} evidence_event_ids",
+                known_events=known_events,
             )
             item: dict[str, Any] = {
                 "opportunity_id": opportunity_id,
@@ -1301,8 +1391,6 @@ class InterviewTraceV1:
             prior_spoken_question_event_id,
             TraceEventType.SPOKEN_QUESTION_COMMITTED,
         )
-        if prior.event_id != self._last_spoken_question_event_id:
-            raise TraceInvariantError("Action grant must reference the immediately prior spoken question")
         refs = self._require_sources(source_evidence_event_ids, label="action grant source_evidence_event_ids")
         inventory_view = _view(inventory, TraceView.EVALUATOR)
         candidates = inventory_view.get("admitted_candidates") if isinstance(inventory_view, dict) else []
@@ -1328,6 +1416,11 @@ class InterviewTraceV1:
         if rejected:
             return rejected
         assert ledger is not None
+        if not ledger.action_grant_event_id:
+            self._require_immediate_prior_spoken_question(
+                prior.event_id,
+                label="Action grant",
+            )
         grant_key = idempotency_key or f"grant:{turn_id}:{answer_version}:{opportunity_id}"
         if ledger.action_grant_event_id:
             existing_grant = self._event(ledger.action_grant_event_id)
@@ -1481,6 +1574,15 @@ class InterviewTraceV1:
             },
             logical_existing_event_id=ledger.validation_event_id,
         )
+        # Run this final lineage gate after the append has exercised the clock
+        # and event path.  The public atomic wrapper rolls back the temporary
+        # append if the live route is stale/split, preserving the exact
+        # exception/rollback contract for late failures as well.
+        if not ledger.validation_event_id:
+            self._require_immediate_prior_spoken_question(
+                prior_spoken_question_event_id,
+                label="Validation",
+            )
         ledger.validation_event_id = receipt.event.event_id
         ledger.validation_status = normalized_decision
         ledger.visible_route_commit_allowed = bool(
@@ -1542,6 +1644,11 @@ class InterviewTraceV1:
             raise TraceInvariantError("Rejected validation cannot apply visible route commit")
         if ledger.source_opportunity_id != source_opportunity_id or ledger.source_evidence_event_ids != refs:
             raise TraceInvariantError("Materialized question provenance does not match the action grant")
+        if not ledger.materialized_event_id:
+            self._require_immediate_prior_spoken_question(
+                prior_spoken_question_event_id,
+                label="Materialized question",
+            )
         if ledger.prior_spoken_question_event_id != prior_spoken_question_event_id:
             raise TraceInvariantError("Materialized question must reference the exact prior spoken question")
         if action_grant_event_id and ledger.action_grant_event_id != action_grant_event_id:
@@ -1879,6 +1986,14 @@ class InterviewTraceV1:
             raise TraceReferenceError("Spoken question must reference the ACK for its delivery attempt")
         if delivery_attempt_id in ledger.delivery_failed_attempts:
             raise TraceInvariantError("A failed delivery attempt cannot become spoken")
+        # A repeat against an already committed logical spoken event should
+        # reach the exact-once/conflict fingerprint check below even though a
+        # later spoken question may now be the trace-wide latest event.
+        if not ledger.spoken_question_event_id:
+            self._require_immediate_prior_spoken_question(
+                prior_spoken_question_event_id,
+                label="Spoken question",
+            )
         materialized_view = _view(materialized, TraceView.EVALUATOR)
         if materialized_view.get("question_id") != question_id or materialized_view.get("question_text") != text:
             raise TraceInvariantError("Spoken question text/id must exactly match materialization")
@@ -2313,6 +2428,7 @@ class InterviewTraceV1:
         omits all internal decision, opportunity, semantic, evidence, report,
         and shadow truth.
         """
+        self._ensure_authoritative()
         view_name = view.value if isinstance(view, TraceView) else str(view)
         if view_name not in _VIEW_NAMES:
             raise TraceInvariantError(f"Unknown trace projection view: {view_name}")
@@ -2327,11 +2443,7 @@ class InterviewTraceV1:
                 "session_id": event.session_id,
                 "turn_id": event.turn_id,
                 "answer_version": event.answer_version,
-                "runtime_epoch": event.runtime_epoch,
                 "event_type": event.event_type,
-                "occurred_at_ms": event.occurred_at_ms,
-                "recorded_at_ms": event.recorded_at_ms,
-                "producer": event.producer,
                 "payload": payload,
                 "redaction": {
                     "policy": event.redaction.get("policy"),
@@ -2340,12 +2452,21 @@ class InterviewTraceV1:
                 },
             }
             if view_name not in {TraceView.CANDIDATE.value, TraceView.ACTOR.value}:
+                item.update(
+                    {
+                        "runtime_epoch": event.runtime_epoch,
+                        "occurred_at_ms": event.occurred_at_ms,
+                        "recorded_at_ms": event.recorded_at_ms,
+                        "producer": event.producer,
+                    }
+                )
                 item["sequence"] = event.sequence
             result.append(item)
         return result
 
     def canonical_spoken_history(self) -> list[dict[str, Any]]:
         """Replay the same canonical spoken questions and latest answers."""
+        self._ensure_authoritative()
         spoken: dict[str, dict[str, Any]] = {}
         answer_by_turn: dict[str, tuple[int, TraceEvent]] = {}
         for event in self._events:
@@ -2477,17 +2598,13 @@ class InterviewTraceV1:
             if not isinstance(payload_views, Mapping):
                 raise TraceIntegrityError(f"Event payload views must be an object at {event.event_id}")
             try:
-                expected_safe_payload, _ = _safe_views(payload_views)
+                expected_safe_payload, expected_redaction = _safe_views(payload_views)
             except TraceError as exc:
                 raise TraceIntegrityError(f"Invalid/redaction-unsafe payload at {event.event_id}") from exc
             if _canonical(_thaw_value(expected_safe_payload)) != _canonical(_thaw_value(event.payload)):
                 raise TraceIntegrityError(f"Payload is not canonically redacted at {event.event_id}")
-            if (
-                event.redaction.get("policy") != TRACE_SCHEMA_VERSION
-                or event.redaction.get("raw_provider_payload_excluded") is not True
-                or event.redaction.get("raw_secrets_excluded") is not True
-            ):
-                raise TraceIntegrityError(f"Invalid redaction metadata at {event.event_id}")
+            if _canonical(_thaw_value(expected_redaction)) != _canonical(_thaw_value(event.redaction)):
+                raise TraceIntegrityError(f"Redaction metadata mismatch at {event.event_id}")
             is_rejection_diagnostic = (
                 event.event_type == TraceEventType.STATE_TRANSITION_VALIDATED.value
                 and bool(_view(event, TraceView.EVALUATOR).get("candidate_event_type"))
@@ -2561,6 +2678,8 @@ class InterviewTraceV1:
             raise TraceIntegrityError("Trace must contain exactly one session_started genesis event")
         if canonical_runtime_epoch is None:
             raise TraceIntegrityError("Trace has no canonical runtime epoch")
+        self._authoritative = True
+        self._integrity_verified = True
         return True
 
     def _verify_import_event_semantics(
@@ -2616,6 +2735,47 @@ class InterviewTraceV1:
                     )
             return refs
 
+        def latest_prior_spoken_question_id() -> str:
+            for prior_event in reversed(tuple(seen_events.values())):
+                if prior_event.event_type == TraceEventType.SPOKEN_QUESTION_COMMITTED.value:
+                    return prior_event.event_id
+            return ""
+
+        def require_immediate_prior_spoken_question(field_name: str) -> str:
+            supplied = str(evaluator.get(field_name) or "").strip()
+            expected = latest_prior_spoken_question_id()
+            if supplied != expected:
+                raise TraceIntegrityError(
+                    f"{event.event_type} {field_name} is not the immediately prior spoken question "
+                    f"at {event.event_id}"
+                )
+            if supplied:
+                parent_event(supplied, TraceEventType.SPOKEN_QUESTION_COMMITTED, same_scope=False)
+            return supplied
+
+        def require_delivery_attempt_exclusive() -> None:
+            """ACK and failure are mutually exclusive for one delivery attempt."""
+            attempt = str(evaluator.get("delivery_attempt_id") or "").strip()
+            if not attempt:
+                return
+            opposite_type = (
+                TraceEventType.DELIVERY_FAILED.value
+                if event.event_type == TraceEventType.PLAYBACK_ACKNOWLEDGED.value
+                else TraceEventType.PLAYBACK_ACKNOWLEDGED.value
+            )
+            for prior_event in seen_events.values():
+                if prior_event.event_type != opposite_type:
+                    continue
+                prior_view = _view(prior_event, TraceView.EVALUATOR)
+                if (
+                    prior_event.turn_id == event.turn_id
+                    and prior_event.answer_version == event.answer_version
+                    and str(prior_view.get("delivery_attempt_id") or "").strip() == attempt
+                ):
+                    raise TraceIntegrityError(
+                        f"Delivery attempt {attempt} has mutually exclusive ACK/failure events"
+                    )
+
         if event.event_type == TraceEventType.QUESTION_MATERIALIZED.value:
             if not str(evaluator.get("question_id") or "").strip() or not str(evaluator.get("question_text") or "").strip():
                 raise TraceIntegrityError(f"Question materialization lacks exact question identity/text at {event.event_id}")
@@ -2629,11 +2789,15 @@ class InterviewTraceV1:
                 raise TraceIntegrityError(f"Question materialization must have one accepted validation parent at {event.event_id}")
             validation = validation_candidates[0]
             validation_view = _view(validation, TraceView.EVALUATOR)
-            if validation_view.get("validation_status") != "accepted":
-                raise TraceIntegrityError(f"Question materialization is based on rejected validation at {event.event_id}")
+            if (
+                validation_view.get("validation_status") != "accepted"
+                or validation_view.get("visible_route_commit_allowed") is not True
+            ):
+                raise TraceIntegrityError(
+                    f"Question materialization is based on a validation that cannot authorize visible commit "
+                    f"at {event.event_id}"
+                )
             materialized_refs = refs_from_payload("source_evidence_event_ids")
-            if tuple(parent_id for parent_id in parents if parent_id in materialized_refs) != materialized_refs:
-                raise TraceIntegrityError(f"Materialization evidence parents do not match payload at {event.event_id}")
             for field_name in ("source_opportunity_id", "prior_spoken_question_event_id", "action_grant_event_id"):
                 if evaluator.get(field_name, "") != validation_view.get(field_name, ""):
                     raise TraceIntegrityError(f"Materialization {field_name} disagrees with validation at {event.event_id}")
@@ -2646,8 +2810,14 @@ class InterviewTraceV1:
                 if tuple(action_view.get("source_evidence_event_ids") or ()) != materialized_refs:
                     raise TraceIntegrityError(f"Materialization evidence disagrees with action grant at {event.event_id}")
             prior_id = str(evaluator.get("prior_spoken_question_event_id") or "")
-            if prior_id:
-                parent_event(prior_id, TraceEventType.SPOKEN_QUESTION_COMMITTED, same_scope=False)
+            require_immediate_prior_spoken_question("prior_spoken_question_event_id")
+            expected_parents = tuple(
+                item
+                for item in (validation.event_id, action_id, prior_id, *materialized_refs)
+                if item
+            )
+            if parents != expected_parents:
+                raise TraceIntegrityError(f"Materialization parents do not match payload at {event.event_id}")
         elif event.event_type == TraceEventType.QUESTION_PREPARED.value:
             materialized_id = str(evaluator.get("materialized_event_id") or "")
             if len(parents) != 1:
@@ -2677,6 +2847,7 @@ class InterviewTraceV1:
             started_attempt = str(_view(started, TraceView.EVALUATOR).get("delivery_attempt_id") or "")
             if not attempt or attempt != started_attempt:
                 raise TraceIntegrityError(f"Delivery attempt mismatch at {event.event_id}")
+            require_delivery_attempt_exclusive()
             if event.event_type == TraceEventType.PLAYBACK_ACKNOWLEDGED.value:
                 actor_view = _view(event, TraceView.ACTOR)
                 if (
@@ -2732,6 +2903,37 @@ class InterviewTraceV1:
             if parents != (semantic_id,):
                 raise TraceIntegrityError(f"Opportunity inventory parent does not match payload at {event.event_id}")
             parent_event(semantic_id, TraceEventType.SEMANTIC_INTERPRETATION_FINALIZED)
+            try:
+                normalized_admitted = self._normalize_opportunities(
+                    evaluator.get("admitted_candidates"),
+                    admitted=True,
+                    known_events=seen_events,
+                )
+                normalized_excluded = self._normalize_opportunities(
+                    evaluator.get("excluded_candidates"),
+                    admitted=False,
+                    known_events=seen_events,
+                )
+            except TraceError as exc:
+                raise TraceIntegrityError(
+                    f"Opportunity inventory normalization failed at {event.event_id}"
+                ) from exc
+            all_ids = [
+                item["opportunity_id"]
+                for item in [*normalized_admitted, *normalized_excluded]
+            ]
+            if len(all_ids) != len(set(all_ids)):
+                raise TraceIntegrityError(
+                    f"Opportunity ids are not unique at {event.event_id}"
+                )
+            if _canonical(normalized_admitted) != _canonical(evaluator.get("admitted_candidates")):
+                raise TraceIntegrityError(
+                    f"Admitted opportunity inventory is not canonically normalized at {event.event_id}"
+                )
+            if _canonical(normalized_excluded) != _canonical(evaluator.get("excluded_candidates")):
+                raise TraceIntegrityError(
+                    f"Excluded opportunity inventory is not canonically normalized at {event.event_id}"
+                )
         elif event.event_type == TraceEventType.ACTION_GRANT_SELECTED.value:
             inventory_id = str(evaluator.get("opportunity_inventory_event_id") or "")
             prior_id = str(evaluator.get("prior_spoken_question_event_id") or "")
@@ -2739,6 +2941,7 @@ class InterviewTraceV1:
             if parents != (inventory_id, prior_id, *grant_refs):
                 raise TraceIntegrityError(f"Action grant parents do not match payload at {event.event_id}")
             parent_event(inventory_id, TraceEventType.OPPORTUNITY_INVENTORY_COMPILED, same_scope=False)
+            require_immediate_prior_spoken_question("prior_spoken_question_event_id")
             parent_event(prior_id, TraceEventType.SPOKEN_QUESTION_COMMITTED, same_scope=False)
             inventory_view = _view(seen_events[inventory_id], TraceView.EVALUATOR)
             candidates = inventory_view.get("admitted_candidates") or ()
@@ -2754,10 +2957,39 @@ class InterviewTraceV1:
             action_id = str(evaluator.get("action_grant_event_id") or "")
             prior_id = str(evaluator.get("prior_spoken_question_event_id") or "")
             validation_refs = refs_from_payload("source_evidence_event_ids")
-            if tuple(parent_id for parent_id in parents if parent_id in validation_refs) != validation_refs:
+            expected_parents = tuple(
+                item for item in (action_id, prior_id, *validation_refs) if item
+            )
+            if parents != expected_parents:
                 raise TraceIntegrityError(f"Validation parents do not match payload at {event.event_id}")
+            if evaluator.get("validation_status") != "accepted":
+                raise TraceIntegrityError(f"Canonical validation is not accepted at {event.event_id}")
+            visible_route_commit_allowed = evaluator.get("visible_route_commit_allowed")
+            if not isinstance(visible_route_commit_allowed, bool):
+                raise TraceIntegrityError(
+                    f"Validation visible-route authorization must be boolean at {event.event_id}"
+                )
+            for view_name in (TraceView.INTERVIEWER, TraceView.OPERATOR):
+                if _view(event, view_name).get("visible_route_commit_allowed") != visible_route_commit_allowed:
+                    raise TraceIntegrityError(
+                        f"Validation visible-route authorization disagrees across views at {event.event_id}"
+                    )
             if action_id:
-                parent_event(action_id, TraceEventType.ACTION_GRANT_SELECTED)
+                action = parent_event(action_id, TraceEventType.ACTION_GRANT_SELECTED)
+                action_view = _view(action, TraceView.EVALUATOR)
+                for field_name in (
+                    "source_opportunity_id",
+                    "source_evidence_event_ids",
+                    "prior_spoken_question_event_id",
+                ):
+                    expected = action_view.get(
+                        "opportunity_id" if field_name == "source_opportunity_id" else field_name
+                    )
+                    if evaluator.get(field_name) != expected:
+                        raise TraceIntegrityError(
+                            f"Validation {field_name} disagrees with action grant at {event.event_id}"
+                        )
+            require_immediate_prior_spoken_question("prior_spoken_question_event_id")
             if prior_id:
                 parent_event(prior_id, TraceEventType.SPOKEN_QUESTION_COMMITTED, same_scope=False)
         elif event.event_type == TraceEventType.EVIDENCE_STATE_UPDATED.value:
