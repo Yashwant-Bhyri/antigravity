@@ -14,6 +14,7 @@ canonical truth.
 from __future__ import annotations
 
 import copy
+import functools
 import hashlib
 import json
 import re
@@ -49,6 +50,12 @@ class TraceEventType(str, Enum):
     EVIDENCE_STATE_UPDATED = "evidence_state_updated"
     REPORT_CLAIM_EMITTED = "report_claim_emitted"
     FINAL_EVALUATION_COMPLETED = "final_evaluation_completed"
+
+
+class PlaybackAckStatus(str, Enum):
+    """The only browser acknowledgement that establishes positive playback truth."""
+
+    COMPLETED = "playback_completed"
 
 
 class TraceView(str, Enum):
@@ -115,19 +122,19 @@ class TraceReceipt:
 
     ``accepted`` describes whether the attempted domain operation was applied.
     A duplicate retry is accepted and marked ``idempotent``.  A stale or
-    rejected operation returns ``accepted=False`` together with the appended
-    rejection-validation event, preserving failure evidence without mutating
-    canonical turn truth.
+    domain-rejected operation returns ``accepted=False`` with one canonical
+    rejection/audit event.  Exceptions from validation, conflict, clock, or
+    append failure leave the trace byte-for-byte unchanged.
     """
 
     accepted: bool
-    event: "TraceEvent"
+    event: "TraceEvent | None"
     idempotent: bool = False
     reason: str = ""
 
     @property
     def event_id(self) -> str:
-        return self.event.event_id
+        return self.event.event_id if self.event is not None else ""
 
 
 @dataclass(frozen=True)
@@ -190,12 +197,23 @@ class TraceEvent:
     def from_record(cls, record: Mapping[str, Any]) -> "TraceEvent":
         """Build an event from a serialized record without trusting its hash."""
         try:
+            if not isinstance(record, Mapping):
+                raise TraceIntegrityError("Trace event record must be an object")
+            required = {
+                "schema_version", "event_id", "session_id", "turn_id", "answer_version",
+                "runtime_epoch", "sequence", "event_type", "causal_parent_ids", "occurred_at_ms",
+                "recorded_at_ms", "producer", "payload_schema_version", "payload", "decision_hash",
+                "provenance_hash", "redaction", "idempotency_key", "previous_event_hash", "event_hash",
+            }
+            missing = sorted(required - set(record.keys()))
+            if missing:
+                raise TraceIntegrityError(f"Trace event record is missing fields: {', '.join(missing)}")
             return cls(
                 schema_version=str(record["schema_version"]),
                 event_id=str(record["event_id"]),
                 session_id=str(record["session_id"]),
-                turn_id=str(record.get("turn_id") or ""),
-                answer_version=int(record.get("answer_version", 0)),
+                turn_id=str(record["turn_id"] or ""),
+                answer_version=int(record["answer_version"]),
                 runtime_epoch=int(record.get("runtime_epoch", 0)),
                 sequence=int(record["sequence"]),
                 event_type=str(record["event_type"]),
@@ -232,6 +250,7 @@ class _TurnLedger:
     visible_route_commit_allowed: bool = False
     delivery_started_by_attempt: dict[str, str] = field(default_factory=dict)
     delivery_failed_attempts: set[str] = field(default_factory=set)
+    delivery_failed_event_by_attempt: dict[str, str] = field(default_factory=dict)
     playback_ack_by_attempt: dict[str, str] = field(default_factory=dict)
     spoken_question_event_id: str = ""
     answer_event_by_version: dict[int, str] = field(default_factory=dict)
@@ -244,12 +263,20 @@ class _TurnLedger:
 _SENSITIVE_KEY_RE = re.compile(
     r"(?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|authorization|cookie|credential|"
     r"raw[_-]?(?:provider|payload|response|body)|provider[_-]?(?:payload|response|body)|"
-    r"request[_-]?headers?|response[_-]?headers?|system[_-]?prompt|user[_-]?prompt|hidden[_-]?prompt|"
-    r"prompt[_-]?(?:text|template|body|content))",
+    r"request[_-]?headers?|response[_-]?headers?|system[_-]?(?:prompt|message|content|instruction)|"
+    r"user[_-]?(?:prompt|message|content|instruction)|hidden[_-]?(?:prompt|message|content|instruction)|"
+    r"(?:developer|role|agent)[_-]?(?:prompt|message|content|instruction)|"
+    r"(?:prompt|instruction|instructions|system|developer)[_-]?(?:text|template|body|content|message|context)?|"
+    r"(?:prompt|instruction|instructions|system|developer))",
     re.IGNORECASE,
 )
 _SECRET_VALUE_RE = re.compile(
-    r"(?:^|\s)(?:bearer\s+|sk-[A-Za-z0-9]|api[_-]?key\s*[:=]|token\s*[:=])",
+    r"(?:bearer\s+[A-Za-z0-9._~+/=-]{8,}|"
+    r"(?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|credential)\s*[:=]\s*[^\s,;]+|"
+    r"(?:sk|sk-ant|rk|ghp|github_pat|xox[baprs]-|AIza|AKIA)[A-Za-z0-9_\-]{8,}|"
+    r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}|"
+    r"(?:postgres|postgresql|redis|rediss)://[^\s]+|"
+    r"-----BEGIN [A-Z ]+ PRIVATE KEY-----)",
     re.IGNORECASE,
 )
 _VIEW_NAMES = {view.value for view in TraceView}
@@ -477,6 +504,21 @@ def _project_view_payload(event: TraceEvent, view_name: str) -> dict[str, Any]:
     return {key: raw[key] for key in sorted(allowed) if key in raw}
 
 
+def _atomic_public(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Make a public mutation all-or-nothing, including late append failures."""
+
+    @functools.wraps(method)
+    def wrapped(self: "InterviewTraceV1", *args: Any, **kwargs: Any) -> Any:
+        snapshot = self._snapshot_mutable_state()
+        try:
+            return method(self, *args, **kwargs)
+        except Exception:
+            self._restore_mutable_state(snapshot)
+            raise
+
+    return wrapped
+
+
 class InterviewTraceV1:
     """Append-only causal interview trace with invariant-enforcing helpers."""
 
@@ -517,6 +559,39 @@ class InterviewTraceV1:
     def last_spoken_question_event_id(self) -> str:
         return self._last_spoken_question_event_id
 
+    def _snapshot_mutable_state(self) -> tuple[Any, ...]:
+        """Capture every canonical/index field that a public operation can touch."""
+        return (
+            list(self._events),
+            dict(self._events_by_id),
+            dict(self._events_by_idempotency),
+            copy.deepcopy(self._turns),
+            self._runtime_epoch,
+            self._session_started_event_id,
+            self._last_spoken_question_event_id,
+            self._final_evaluation_event_id,
+        )
+
+    def _restore_mutable_state(self, snapshot: tuple[Any, ...]) -> None:
+        (
+            events,
+            events_by_id,
+            events_by_idempotency,
+            turns,
+            runtime_epoch,
+            session_started_event_id,
+            last_spoken_question_event_id,
+            final_evaluation_event_id,
+        ) = snapshot
+        self._events = list(events)
+        self._events_by_id = dict(events_by_id)
+        self._events_by_idempotency = dict(events_by_idempotency)
+        self._turns = copy.deepcopy(turns)
+        self._runtime_epoch = runtime_epoch
+        self._session_started_event_id = session_started_event_id
+        self._last_spoken_question_event_id = last_spoken_question_event_id
+        self._final_evaluation_event_id = final_evaluation_event_id
+
     @classmethod
     def from_records(
         cls,
@@ -534,14 +609,23 @@ class InterviewTraceV1:
         if not records:
             raise TraceIntegrityError("Cannot load an empty trace")
         parsed = [TraceEvent.from_record(record) for record in records]
+        event_ids: set[str] = set()
+        idempotency_keys: set[str] = set()
+        for event in parsed:
+            if event.event_id in event_ids:
+                raise TraceIntegrityError(f"Duplicate event id: {event.event_id}")
+            if event.idempotency_key in idempotency_keys:
+                raise TraceIntegrityError(f"Duplicate idempotency key: {event.idempotency_key}")
+            event_ids.add(event.event_id)
+            idempotency_keys.add(event.idempotency_key)
         trace = cls(parsed[0].session_id, auto_start=False, clock=clock)
         trace._events = parsed
         trace._events_by_id = {event.event_id: event for event in parsed}
         trace._events_by_idempotency = {event.idempotency_key: event for event in parsed}
-        trace._rebuild_indexes()
         trace._runtime_epoch = parsed[-1].runtime_epoch
         if verify:
             trace.verify_integrity()
+        trace._rebuild_indexes()
         return trace
 
     def export_records(self) -> list[dict[str, Any]]:
@@ -554,19 +638,66 @@ class InterviewTraceV1:
         return value
 
     def _event_fingerprint(self, event: TraceEvent) -> str:
+        return self._operation_fingerprint(
+            session_id=event.session_id,
+            turn_id=event.turn_id,
+            answer_version=event.answer_version,
+            runtime_epoch=event.runtime_epoch,
+            event_type=event.event_type,
+            causal_parent_ids=event.causal_parent_ids,
+            producer=event.producer,
+            payload=event.payload,
+            decision_hash=event.decision_hash,
+            provenance_hash=event.provenance_hash,
+            idempotency_key=event.idempotency_key,
+        )
+
+    @staticmethod
+    def _operation_fingerprint(
+        *,
+        session_id: str,
+        turn_id: str,
+        answer_version: int,
+        runtime_epoch: int,
+        event_type: str,
+        causal_parent_ids: Iterable[str],
+        producer: str,
+        payload: Mapping[str, Any],
+        decision_hash: str,
+        provenance_hash: str,
+        idempotency_key: str,
+    ) -> str:
         return _canonical(
             {
-                "session_id": event.session_id,
-                "turn_id": event.turn_id,
-                "answer_version": event.answer_version,
-                "runtime_epoch": event.runtime_epoch,
-                "event_type": event.event_type,
-                "causal_parent_ids": event.causal_parent_ids,
-                "producer": event.producer,
-                "payload": event.payload,
-                "decision_hash": event.decision_hash,
-                "provenance_hash": event.provenance_hash,
-                "idempotency_key": event.idempotency_key,
+                "session_id": session_id,
+                "turn_id": turn_id,
+                "answer_version": answer_version,
+                "runtime_epoch": runtime_epoch,
+                "event_type": event_type,
+                "causal_parent_ids": tuple(causal_parent_ids),
+                "producer": producer,
+                "payload": payload,
+                "decision_hash": decision_hash,
+                "provenance_hash": provenance_hash,
+                "idempotency_key": idempotency_key,
+            }
+        )
+
+    @staticmethod
+    def _decision_hash(event_name: str, payload: Mapping[str, Any]) -> str:
+        return _sha256(
+            {
+                "event_type": event_name,
+                "decision": _view_payload_for_hash(payload, TraceView.EVALUATOR),
+            }
+        )
+
+    @staticmethod
+    def _provenance_hash(parents: Sequence[str], payload: Mapping[str, Any]) -> str:
+        return _sha256(
+            {
+                "causal_parent_ids": tuple(parents),
+                "provenance": _source_refs(payload),
             }
         )
 
@@ -585,6 +716,7 @@ class InterviewTraceV1:
         occurred_at_ms: int | None = None,
         decision_material: Any = None,
         provenance_material: Any = None,
+        logical_existing_event_id: str = "",
     ) -> TraceReceipt:
         event_name = event_type.value if isinstance(event_type, TraceEventType) else str(event_type)
         if event_name not in {item.value for item in TraceEventType}:
@@ -601,18 +733,37 @@ class InterviewTraceV1:
             if parent_id not in self._events_by_id:
                 raise TraceReferenceError(f"Unknown causal parent event: {parent_id}")
         payload, redaction = _safe_views(views)
-        decision_hash = _sha256(
-            {
-                "event_type": event_name,
-                "decision": decision_material if decision_material is not None else _view_payload_for_hash(payload, TraceView.EVALUATOR),
-            }
-        )
-        provenance_hash = _sha256(
-            {
-                "causal_parent_ids": parents,
-                "provenance": provenance_material if provenance_material is not None else _source_refs(payload),
-            }
-        )
+        # Hashes are deliberately recomputable from the durable event record.
+        # The legacy material arguments remain accepted for call-site clarity,
+        # but are not an unverifiable second source of truth.
+        del decision_material, provenance_material
+        decision_hash = self._decision_hash(event_name, payload)
+        provenance_hash = self._provenance_hash(parents, payload)
+
+        logical_existing = self._events_by_id.get(str(logical_existing_event_id or ""))
+        if logical_existing is not None:
+            candidate_fingerprint = self._operation_fingerprint(
+                session_id=self.session_id,
+                turn_id=str(turn_id or ""),
+                answer_version=int(answer_version),
+                runtime_epoch=record_epoch,
+                event_type=event_name,
+                causal_parent_ids=parents,
+                producer=str(producer),
+                payload=payload,
+                decision_hash=decision_hash,
+                provenance_hash=provenance_hash,
+                idempotency_key=idempotency,
+            )
+            if (
+                logical_existing.event_type != event_name
+                or logical_existing.idempotency_key != idempotency
+                or candidate_fingerprint != self._event_fingerprint(logical_existing)
+            ):
+                raise TraceConflictError(
+                    f"Logical {event_name} already exists with a different operation fingerprint"
+                )
+            return TraceReceipt(accepted=True, event=logical_existing, idempotent=True)
 
         existing_by_key = self._events_by_idempotency.get(idempotency)
         if existing_by_key is not None:
@@ -803,12 +954,22 @@ class InterviewTraceV1:
         rejection_key = f"rejection:{idempotency_key or attempted_event_type}:{turn_id}:{answer_version}:{runtime_epoch}"
         existing = self._events_by_idempotency.get(rejection_key)
         if existing is not None:
-            return TraceReceipt(
-                accepted=False,
-                event=existing,
-                idempotent=True,
-                reason=reason,
-            )
+            existing_view = _view(existing, TraceView.EVALUATOR)
+            expected_view = {
+                "validation_status": "rejected",
+                "candidate_event_type": attempted_event_type,
+                "reason": reason,
+                "attempted_answer_version": answer_version,
+                "attempted_runtime_epoch": runtime_epoch,
+                "current_answer_version": current_version,
+                "current_runtime_epoch": self._runtime_epoch,
+            }
+            if (
+                existing.event_type != TraceEventType.STATE_TRANSITION_VALIDATED.value
+                or existing_view != expected_view
+            ):
+                raise TraceConflictError("Rejection idempotency key reused with different content")
+            return TraceReceipt(accepted=False, event=existing, idempotent=True, reason=reason)
         appended = self._append_raw(
             TraceEventType.STATE_TRANSITION_VALIDATED,
             turn_id=turn_id,
@@ -844,12 +1005,7 @@ class InterviewTraceV1:
             decision_material={"validation_status": "rejected", "reason": reason},
             provenance_material={"attempted_event_type": attempted_event_type, "causal_parent_ids": parents},
         )
-        return TraceReceipt(
-            accepted=False,
-            event=appended.event,
-            idempotent=appended.idempotent,
-            reason=reason,
-        )
+        return TraceReceipt(accepted=False, event=appended.event, reason=reason)
 
     def _require_event_type(self, event_id: str, expected: TraceEventType | str) -> TraceEvent:
         event = self._event(event_id)
@@ -866,6 +1022,37 @@ class InterviewTraceV1:
             self._event(event_id)
         return refs
 
+    def _require_sources_of_type(
+        self,
+        event_ids: Sequence[str],
+        *,
+        expected: TraceEventType,
+        label: str,
+    ) -> tuple[str, ...]:
+        refs = self._require_sources(event_ids, label=label)
+        for event_id in refs:
+            self._require_event_type(event_id, expected)
+        return refs
+
+    def _find_logical_event(self, event_type: TraceEventType, field_name: str, value: str) -> str:
+        needle = str(value or "")
+        if not needle:
+            return ""
+        for event in self._events:
+            if event.event_type != event_type.value:
+                continue
+            evaluator = _view(event, TraceView.EVALUATOR)
+            if str(evaluator.get(field_name) or "") == needle:
+                return event.event_id
+        return ""
+
+    def _require_current_epoch(self, epoch: int) -> None:
+        if int(epoch) != self._runtime_epoch:
+            raise TraceStaleError(
+                f"Operation runtime_epoch={epoch} does not match current runtime_epoch={self._runtime_epoch}"
+            )
+
+    @_atomic_public
     def start_session(self, *, producer: str = "backend.session", idempotency_key: str = "session-start") -> TraceReceipt:
         if self._session_started_event_id:
             event = self._event(self._session_started_event_id)
@@ -888,6 +1075,7 @@ class InterviewTraceV1:
         self._session_started_event_id = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def advance_runtime_epoch(self, new_runtime_epoch: int, *, producer: str = "backend.runtime") -> TraceReceipt:
         next_epoch = int(new_runtime_epoch)
         if next_epoch <= self._runtime_epoch:
@@ -912,6 +1100,7 @@ class InterviewTraceV1:
         self._runtime_epoch = next_epoch
         return receipt
 
+    @_atomic_public
     def record_opportunity_inventory_compiled(
         self,
         *,
@@ -975,6 +1164,7 @@ class InterviewTraceV1:
             },
             decision_material={"admitted": admitted, "excluded": excluded},
             provenance_material={"semantic_event_id": semantic_event_id},
+            logical_existing_event_id=ledger.inventory_event_by_version.get(answer_version, ""),
         )
         ledger.inventory_event_by_version[answer_version] = receipt.event.event_id
         return receipt
@@ -1012,6 +1202,7 @@ class InterviewTraceV1:
             result.append(item)
         return result
 
+    @_atomic_public
     def record_action_grant_selected(
         self,
         *,
@@ -1100,6 +1291,7 @@ class InterviewTraceV1:
                 "source_evidence_event_ids": refs,
                 "prior_spoken_question_event_id": prior.event_id,
             },
+            logical_existing_event_id=ledger.action_grant_event_id,
         )
         ledger.question_id = str(ledger.question_id or f"question:{turn_id}")
         ledger.source_opportunity_id = opportunity_id
@@ -1108,6 +1300,7 @@ class InterviewTraceV1:
         ledger.action_grant_event_id = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_state_transition_validated(
         self,
         *,
@@ -1131,19 +1324,33 @@ class InterviewTraceV1:
         refs = self._require_sources(source_evidence_event_ids, label="validation source_evidence_event_ids")
         if prior_spoken_question_event_id:
             self._require_event_type(prior_spoken_question_event_id, TraceEventType.SPOKEN_QUESTION_COMMITTED)
+        if action_grant_event_id:
+            self._require_event_type(action_grant_event_id, TraceEventType.ACTION_GRANT_SELECTED)
+        validation_key = idempotency_key or f"validation:{turn_id}:{answer_version}:{source_opportunity_id}:{normalized_decision}"
+        if normalized_decision == "rejected":
+            # A domain rejection is canonical audit evidence, but it is not a
+            # turn mutation and must never create/advance a derived ledger.
+            return self._reject_stale(
+                attempted_event_type=TraceEventType.STATE_TRANSITION_VALIDATED.value,
+                turn_id=str(turn_id or ""),
+                answer_version=answer_version,
+                runtime_epoch=epoch,
+                idempotency_key=validation_key,
+                causal_parent_ids=[item for item in [action_grant_event_id, prior_spoken_question_event_id, *refs] if item],
+                reason="stale_runtime_epoch" if epoch != self._runtime_epoch else (reason or "domain_rejected"),
+            )
         ledger, rejected = self._turn_for_new_or_existing(
             turn_id=turn_id,
             answer_version=answer_version,
             runtime_epoch=epoch,
             attempted_event_type=TraceEventType.STATE_TRANSITION_VALIDATED.value,
-            idempotency_key=idempotency_key or f"validation:{turn_id}:{answer_version}:{source_opportunity_id}:{normalized_decision}",
+            idempotency_key=validation_key,
             causal_parent_ids=[item for item in [action_grant_event_id, prior_spoken_question_event_id, *refs] if item],
         )
         if rejected:
             return rejected
         assert ledger is not None
         if action_grant_event_id:
-            self._require_event_type(action_grant_event_id, TraceEventType.ACTION_GRANT_SELECTED)
             if ledger.action_grant_event_id != action_grant_event_id:
                 raise TraceReferenceError("Validation does not match this turn's action grant")
         elif not (turn_id and source_opportunity_id):
@@ -1197,6 +1404,7 @@ class InterviewTraceV1:
                 "prior_spoken_question_event_id": prior_spoken_question_event_id,
                 "action_grant_event_id": action_grant_event_id,
             },
+            logical_existing_event_id=ledger.validation_event_id,
         )
         ledger.validation_event_id = receipt.event.event_id
         ledger.validation_status = normalized_decision
@@ -1210,6 +1418,7 @@ class InterviewTraceV1:
             reason=reason if normalized_decision == "rejected" else "",
         )
 
+    @_atomic_public
     def record_question_materialized(
         self,
         *,
@@ -1293,11 +1502,13 @@ class InterviewTraceV1:
                 "prior_spoken_question_event_id": prior_spoken_question_event_id,
                 "action_grant_event_id": action_grant_event_id,
             },
+            logical_existing_event_id=ledger.materialized_event_id,
         )
         ledger.question_id = question_id
         ledger.materialized_event_id = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_question_prepared(
         self,
         *,
@@ -1361,10 +1572,12 @@ class InterviewTraceV1:
             },
             decision_material={"question_id": question_id},
             provenance_material={"materialized_event_id": materialized_event_id},
+            logical_existing_event_id=ledger.prepared_event_id,
         )
         ledger.prepared_event_id = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_question_delivery_started(
         self,
         *,
@@ -1415,10 +1628,12 @@ class InterviewTraceV1:
             },
             decision_material={"delivery_attempt_id": attempt},
             provenance_material={"question_prepared_event_id": prepared.event_id},
+            logical_existing_event_id=ledger.delivery_started_by_attempt.get(attempt, ""),
         )
         ledger.delivery_started_by_attempt[attempt] = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_playback_acknowledged(
         self,
         *,
@@ -1429,11 +1644,16 @@ class InterviewTraceV1:
         runtime_epoch: int | None = None,
         producer: str = "frontend.playback",
         idempotency_key: str = "",
-        client_ack: str = "playback_started",
+        client_ack: PlaybackAckStatus | str = PlaybackAckStatus.COMPLETED,
     ) -> TraceReceipt:
         epoch = self._runtime_epoch if runtime_epoch is None else int(runtime_epoch)
         started = self._require_event_type(delivery_started_event_id, TraceEventType.QUESTION_DELIVERY_STARTED)
         attempt = str(delivery_attempt_id or "").strip()
+        if not attempt:
+            raise TraceInvariantError("delivery_attempt_id is required")
+        ack_status = client_ack.value if isinstance(client_ack, PlaybackAckStatus) else str(client_ack or "").strip()
+        if ack_status != PlaybackAckStatus.COMPLETED.value:
+            raise TraceInvariantError("Only explicit playback_completed acknowledgement is positive playback truth")
         ledger, rejected = self._turn_for_new_or_existing(
             turn_id=turn_id,
             answer_version=answer_version,
@@ -1462,15 +1682,17 @@ class InterviewTraceV1:
                 TraceView.CANDIDATE: {"delivery_attempt_id": attempt, "acknowledged": True},
                 TraceView.ACTOR: {"delivery_attempt_id": attempt, "acknowledged": True},
                 TraceView.INTERVIEWER: {"delivery_attempt_id": attempt, "acknowledged": True},
-                TraceView.EVALUATOR: {"delivery_attempt_id": attempt, "acknowledged": True, "client_ack": client_ack},
-                TraceView.OPERATOR: {"delivery_attempt_id": attempt, "client_ack": client_ack},
+                TraceView.EVALUATOR: {"delivery_attempt_id": attempt, "acknowledged": True, "client_ack": ack_status},
+                TraceView.OPERATOR: {"delivery_attempt_id": attempt, "client_ack": ack_status},
             },
             decision_material={"delivery_attempt_id": attempt, "acknowledged": True},
             provenance_material={"delivery_started_event_id": started.event_id},
+            logical_existing_event_id=ledger.playback_ack_by_attempt.get(attempt, ""),
         )
         ledger.playback_ack_by_attempt[attempt] = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_delivery_failed(
         self,
         *,
@@ -1520,10 +1742,13 @@ class InterviewTraceV1:
             },
             decision_material={"delivery_attempt_id": attempt, "delivery_failed": True, "retryable": retryable},
             provenance_material={"delivery_started_event_id": started.event_id},
+            logical_existing_event_id=ledger.delivery_failed_event_by_attempt.get(attempt, ""),
         )
         ledger.delivery_failed_attempts.add(attempt)
+        ledger.delivery_failed_event_by_attempt[attempt] = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_spoken_question_committed(
         self,
         *,
@@ -1574,9 +1799,6 @@ class InterviewTraceV1:
             raise TraceInvariantError("Spoken question evidence must exactly match materialization")
         if str(materialized_view.get("source_opportunity_id") or "") != str(source_opportunity_id or ""):
             raise TraceInvariantError("Spoken question opportunity must exactly match materialization")
-        if ledger.spoken_question_event_id:
-            existing = self._event(ledger.spoken_question_event_id)
-            return TraceReceipt(accepted=True, event=existing, idempotent=True)
         receipt = self._append_raw(
             TraceEventType.SPOKEN_QUESTION_COMMITTED,
             turn_id=turn_id,
@@ -1613,11 +1835,13 @@ class InterviewTraceV1:
                 "source_opportunity_id": source_opportunity_id,
                 "source_evidence_event_ids": refs,
             },
+            logical_existing_event_id=ledger.spoken_question_event_id,
         )
         ledger.spoken_question_event_id = receipt.event.event_id
         self._last_spoken_question_event_id = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_answer_received(
         self,
         *,
@@ -1646,10 +1870,6 @@ class InterviewTraceV1:
         assert ledger is not None
         if ledger.spoken_question_event_id != spoken.event_id:
             raise TraceReferenceError("Answer must reference the spoken question for the same turn")
-        existing_answer_id = ledger.answer_event_by_version.get(answer_version)
-        if existing_answer_id:
-            existing = self._event(existing_answer_id)
-            return TraceReceipt(accepted=True, event=existing, idempotent=True)
         answer = str(answer_text or "").strip()
         if not answer:
             raise TraceInvariantError("answer_received requires non-empty answer text")
@@ -1676,10 +1896,12 @@ class InterviewTraceV1:
             },
             decision_material={"answer_text_hash": _sha256(answer), "answer_version": answer_version},
             provenance_material={"spoken_question_event_id": spoken.event_id},
+            logical_existing_event_id=ledger.answer_event_by_version.get(answer_version, ""),
         )
         ledger.answer_event_by_version[answer_version] = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_semantic_interpretation_finalized(
         self,
         *,
@@ -1707,15 +1929,6 @@ class InterviewTraceV1:
         assert ledger is not None
         if ledger.answer_event_by_version.get(answer_version) != answer.event_id:
             raise TraceReferenceError("Semantic interpretation must reference the current answer event")
-        existing_id = ledger.semantic_final_by_version.get(answer_version)
-        if existing_id:
-            existing = self._event(existing_id)
-            same_key = existing.idempotency_key == (idempotency_key or f"semantic-final:{turn_id}:{answer_version}:{answer_event_id}")
-            if same_key and _view(existing, TraceView.EVALUATOR).get("interpretation") == dict(interpretation):
-                return TraceReceipt(accepted=True, event=existing, idempotent=True)
-            raise TraceImmutableDecisionError(
-                "Decision-time semantic output is immutable; append a semantic_interpretation_shadow event"
-            )
         if not isinstance(interpretation, Mapping):
             raise TraceInvariantError("interpretation must be an object")
         result = dict(interpretation)
@@ -1740,10 +1953,12 @@ class InterviewTraceV1:
             },
             decision_material={"interpretation": result},
             provenance_material={"answer_event_id": answer_event_id},
+            logical_existing_event_id=ledger.semantic_final_by_version.get(answer_version, ""),
         )
         ledger.semantic_final_by_version[answer_version] = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_semantic_interpretation_shadow(
         self,
         *,
@@ -1808,6 +2023,7 @@ class InterviewTraceV1:
         ledger.shadow_event_ids_by_version.setdefault(answer_version, []).append(receipt.event.event_id)
         return receipt
 
+    @_atomic_public
     def record_evidence_state_updated(
         self,
         *,
@@ -1868,10 +2084,12 @@ class InterviewTraceV1:
             },
             decision_material={"evidence_state": state},
             provenance_material={"source_event_ids": refs},
+            logical_existing_event_id=ledger.evidence_event_by_version.get(answer_version, ""),
         )
         ledger.evidence_event_by_version[answer_version] = receipt.event.event_id
         return receipt
 
+    @_atomic_public
     def record_report_claim_emitted(
         self,
         *,
@@ -1883,12 +2101,21 @@ class InterviewTraceV1:
         producer: str = "backend.report",
         idempotency_key: str = "",
     ) -> TraceReceipt:
-        refs = self._require_sources(source_evidence_event_ids, label="report claim source_evidence_event_ids")
+        epoch = self._runtime_epoch if runtime_epoch is None else int(runtime_epoch)
+        self._require_current_epoch(epoch)
+        refs = self._require_sources_of_type(
+            source_evidence_event_ids,
+            expected=TraceEventType.EVIDENCE_STATE_UPDATED,
+            label="report claim source_evidence_event_ids",
+        )
         if not str(claim_text or "").strip():
             raise TraceInvariantError("report claim text is required")
+        claim_existing_event_id = self._find_logical_event(
+            TraceEventType.REPORT_CLAIM_EMITTED, "claim_id", claim_id
+        )
         receipt = self._append_raw(
             TraceEventType.REPORT_CLAIM_EMITTED,
-            runtime_epoch=self._runtime_epoch if runtime_epoch is None else int(runtime_epoch),
+            runtime_epoch=epoch,
             causal_parent_ids=refs,
             producer=producer,
             idempotency_key=idempotency_key or f"report-claim:{claim_id}",
@@ -1906,9 +2133,11 @@ class InterviewTraceV1:
             },
             decision_material={"claim_id": claim_id, "claim_text": claim_text, "audience": audience},
             provenance_material={"source_evidence_event_ids": refs},
+            logical_existing_event_id=claim_existing_event_id,
         )
         return receipt
 
+    @_atomic_public
     def record_final_evaluation_completed(
         self,
         *,
@@ -1920,15 +2149,31 @@ class InterviewTraceV1:
         producer: str = "backend.final_evaluator",
         idempotency_key: str = "",
     ) -> TraceReceipt:
-        claim_refs = self._require_sources(report_claim_event_ids, label="final evaluation report_claim_event_ids")
+        epoch = self._runtime_epoch if runtime_epoch is None else int(runtime_epoch)
+        self._require_current_epoch(epoch)
+        claim_refs = self._require_sources_of_type(
+            report_claim_event_ids,
+            expected=TraceEventType.REPORT_CLAIM_EMITTED,
+            label="final evaluation report_claim_event_ids",
+        )
         for event_id in claim_refs:
             self._require_event_type(event_id, TraceEventType.REPORT_CLAIM_EMITTED)
-        evidence_refs = self._require_sources(evidence_event_ids, label="final evaluation evidence_event_ids")
+        evidence_refs = self._require_sources_of_type(
+            evidence_event_ids,
+            expected=TraceEventType.EVIDENCE_STATE_UPDATED,
+            label="final evaluation evidence_event_ids",
+        )
+        evidence_set = set(evidence_refs)
+        for claim_id in claim_refs:
+            claim_view = _view(self._event(claim_id), TraceView.EVALUATOR)
+            if not set(claim_view.get("source_evidence_event_ids") or []).issubset(evidence_set):
+                raise TraceReferenceError("Final evaluation evidence must cover every report claim citation")
         parents = _dedupe_ids([*claim_refs, *evidence_refs])
         summary = dict(evaluation_summary)
+        final_existing_event_id = self._final_evaluation_event_id
         receipt = self._append_raw(
             TraceEventType.FINAL_EVALUATION_COMPLETED,
-            runtime_epoch=self._runtime_epoch if runtime_epoch is None else int(runtime_epoch),
+            runtime_epoch=epoch,
             causal_parent_ids=parents,
             producer=producer,
             idempotency_key=idempotency_key or f"final-evaluation:{evaluation_id}",
@@ -1949,6 +2194,7 @@ class InterviewTraceV1:
             },
             decision_material={"evaluation_id": evaluation_id, "evaluation_summary": summary},
             provenance_material={"report_claim_event_ids": claim_refs, "evidence_event_ids": evidence_refs},
+            logical_existing_event_id=final_existing_event_id,
         )
         self._final_evaluation_event_id = receipt.event.event_id
         return receipt
@@ -1976,7 +2222,6 @@ class InterviewTraceV1:
                 "turn_id": event.turn_id,
                 "answer_version": event.answer_version,
                 "runtime_epoch": event.runtime_epoch,
-                "sequence": event.sequence,
                 "event_type": event.event_type,
                 "occurred_at_ms": event.occurred_at_ms,
                 "recorded_at_ms": event.recorded_at_ms,
@@ -1988,6 +2233,8 @@ class InterviewTraceV1:
                     "raw_secrets_excluded": True,
                 },
             }
+            if view_name not in {TraceView.CANDIDATE.value, TraceView.ACTOR.value}:
+                item["sequence"] = event.sequence
             result.append(item)
         return result
 
@@ -2109,6 +2356,7 @@ class InterviewTraceV1:
                     attempt = str(view.get("delivery_attempt_id") or "")
                     if attempt:
                         ledger.delivery_failed_attempts.add(attempt)
+                        ledger.delivery_failed_event_by_attempt[attempt] = event.event_id
                 elif event.event_type == TraceEventType.SPOKEN_QUESTION_COMMITTED.value:
                     ledger.spoken_question_event_id = event.event_id
                     self._last_spoken_question_event_id = event.event_id
