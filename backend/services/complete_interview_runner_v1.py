@@ -31,6 +31,7 @@ import json
 import os
 import re
 import time
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -62,6 +63,7 @@ DEFAULT_WORLD_ID = "world_01_product_analyst"
 DEFAULT_ROLE = "Product Analyst"
 DEFAULT_YEARS = "4-5"
 DEFAULT_MAX_TURNS = 15
+MAX_PROVIDER_ATTEMPTS = 80
 CANONICAL_TRACE_FILE = "complete_interview_runner_v1_canonical_trace.json"
 REDACTED_ARTIFACT_FILE = "complete_interview_runner_v1_shadow_artifact.json"
 RUN_MANIFEST_FILE = "complete_interview_runner_v1_shadow_manifest.json"
@@ -155,6 +157,28 @@ class IsolatedTelemetrySink:
         }
         self.events.append(record)
         return _clone(record)
+
+
+class IsolatedLLMUsageSink:
+    """Metadata-only in-memory sink for production LLM usage logging."""
+
+    def __init__(self) -> None:
+        self.events: list[dict[str, Any]] = []
+
+    def capture_text(self) -> bool:
+        return False
+
+    async def log(self, event: str, **fields: Any) -> dict[str, Any]:
+        safe = {
+            "event": str(event),
+            "tier": str(fields.get("tier") or ""),
+            "model": str(fields.get("model") or ""),
+            "attempt_number": fields.get("attempt_number"),
+            "attempt_count": fields.get("attempt_count"),
+            "elapsed_ms": fields.get("elapsed_ms"),
+        }
+        self.events.append(safe)
+        return _clone(safe)
 
 
 class IsolatedReportSink:
@@ -880,6 +904,80 @@ class DeterministicControlLLMRouter:
         return "What evidence supported that decision, and what limitation would you explain to the team?"
 
 
+class ProviderCallCapExceeded(RuntimeError):
+    """Raised before an 81st provider request can leave the runner."""
+
+
+class ProductionProviderAttemptLedger:
+    """Count real OpenRouter attempts without changing their semantic result."""
+
+    def __init__(self, cap: int = MAX_PROVIDER_ATTEMPTS) -> None:
+        self.cap = int(cap)
+        self.attempts: list[dict[str, Any]] = []
+        self.cap_blocked_attempts = 0
+        self._restorers: list[tuple[Any, Any]] = []
+
+    def instrument_router(self, router: Any) -> None:
+        completions = router.client.chat.completions
+        original_create = completions.create
+        ledger = self
+
+        async def guarded_create(**payload: Any) -> Any:
+            if len(ledger.attempts) >= ledger.cap:
+                ledger.cap_blocked_attempts += 1
+                raise ProviderCallCapExceeded(
+                    f"provider_attempt_cap_reached:{ledger.cap}:blocked_before_provider_request"
+                )
+            attempt_number = len(ledger.attempts) + 1
+            started = time.perf_counter()
+            record = {
+                "attempt_number": attempt_number,
+                "tier": str(getattr(router, "tier", "")),
+                "model": str(payload.get("model") or getattr(router, "model", "")),
+                "max_tokens": int(payload.get("max_tokens") or 0),
+                "response_format": str((payload.get("response_format") or {}).get("type") or "")
+                if isinstance(payload.get("response_format"), Mapping)
+                else "",
+                "status": "started",
+            }
+            ledger.attempts.append(record)
+            try:
+                response = await original_create(**payload)
+                record.update({
+                    "status": "success",
+                    "response_type": type(response).__name__,
+                    "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
+                })
+                return response
+            except Exception as exc:
+                record.update({
+                    "status": "error",
+                    "error_type": type(exc).__name__,
+                    "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
+                })
+                raise
+
+        completions.create = guarded_create
+        self._restorers.append((completions, original_create))
+
+    def restore(self) -> None:
+        for completions, original_create in reversed(self._restorers):
+            completions.create = original_create
+        self._restorers.clear()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "cap": self.cap,
+            "attempt_count": len(self.attempts),
+            "cap_blocked_attempts": self.cap_blocked_attempts,
+            "attempts": _clone(self.attempts),
+        }
+
+
+class ProductionSemanticPreflightError(RuntimeError):
+    """A redacted, layer-attributed production-semantic preflight failure."""
+
+
 @dataclass(frozen=True)
 class CompleteInterviewRunnerConfig:
     world_id: str = DEFAULT_WORLD_ID
@@ -891,6 +989,8 @@ class CompleteInterviewRunnerConfig:
     quiescence_timeout_seconds: float = 8.0
     artifact_dir: Path | None = None
     playback_failure_modes: Mapping[int, str] = field(default_factory=dict)
+    semantic_provider_mode: str = "deterministic"
+    provider_call_cap: int = MAX_PROVIDER_ATTEMPTS
 
 
 @dataclass
@@ -908,6 +1008,7 @@ class CompleteInterviewRunnerResult:
     report_summary: dict[str, Any] = field(default_factory=dict)
     adapter_audit: dict[str, Any] = field(default_factory=dict)
     quiescence: list[dict[str, Any]] = field(default_factory=list)
+    provider_runtime: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -925,6 +1026,7 @@ class CompleteInterviewRunnerResult:
             "report_summary": _clone(self.report_summary),
             "adapter_audit": _clone(self.adapter_audit),
             "quiescence": _clone(self.quiescence),
+            "provider_runtime": _clone(self.provider_runtime),
         }
 
 
@@ -944,6 +1046,11 @@ class CompleteInterviewRunnerV1:
         control_router: DeterministicControlLLMRouter | None = None,
     ) -> None:
         self.config = config or CompleteInterviewRunnerConfig()
+        self.semantic_provider_mode = str(self.config.semantic_provider_mode or "").strip().lower()
+        if self.semantic_provider_mode not in {"deterministic", "production"}:
+            raise ValueError("semantic_provider_mode must be deterministic or production")
+        if self.config.provider_call_cap < 1 or self.config.provider_call_cap > MAX_PROVIDER_ATTEMPTS:
+            raise ValueError(f"provider_call_cap must be between 1 and {MAX_PROVIDER_ATTEMPTS}")
         if self.config.max_turns < 1:
             raise ValueError("max_turns must be positive")
         if self.config.world_id != DEFAULT_WORLD_ID:
@@ -964,6 +1071,35 @@ class CompleteInterviewRunnerV1:
         self.trace: InterviewTraceV1 | None = None
         self.quiescence: list[dict[str, Any]] = []
         self.blocker: dict[str, Any] | None = None
+        self.provider_ledger = ProductionProviderAttemptLedger(self.config.provider_call_cap)
+        self.llm_usage_sink = IsolatedLLMUsageSink()
+        self.credential_diagnostics: dict[str, Any] = {}
+
+    def _load_production_credentials(self) -> None:
+        """Load only the existing dedicated experiment credential seam."""
+        from backend.services.local_experiment_credentials import load_local_experiment_credentials
+
+        native_env_present = bool(os.environ.get("OPENROUTER_API_KEY", "").strip())
+        try:
+            metadata = load_local_experiment_credentials()
+        except Exception as exc:
+            self.credential_diagnostics = {
+                "native_env_present": native_env_present,
+                "loaded": False,
+                "error_type": type(exc).__name__,
+            }
+            raise ProductionSemanticPreflightError("production_credential_loader_failed") from exc
+        configured = metadata.get("configured") if isinstance(metadata, Mapping) else {}
+        self.credential_diagnostics = {
+            "native_env_present": native_env_present,
+            "loaded": bool(metadata.get("loaded")) if isinstance(metadata, Mapping) else False,
+            "reason": str(metadata.get("reason") or "") if isinstance(metadata, Mapping) else "",
+            "openrouter_configured": bool(
+                configured.get("OPENROUTER_API_KEY")
+            ) if isinstance(configured, Mapping) else native_env_present,
+        }
+        if not bool(os.environ.get("OPENROUTER_API_KEY", "").strip()):
+            raise ProductionSemanticPreflightError("production_openrouter_credential_missing")
 
     @contextmanager
     def _isolated_production_bindings(self):
@@ -986,6 +1122,9 @@ class CompleteInterviewRunnerV1:
             "surface_llm": surface_plan_module.LLMRouter,
             "application_llm": application_module.LLMRouter,
         }
+        import backend.models.llm_router as _llm_router_for_usage
+        old["llm_usage_logger"] = _llm_router_for_usage.llm_usage_logger
+        old["llm_quality_logger"] = _llm_router_for_usage.llm_quality_logger
         agent_module_names = (
             "backend.agents.concept_agent",
             "backend.agents.weakness_agent",
@@ -1005,20 +1144,38 @@ class CompleteInterviewRunnerV1:
         orchestrator_module.persist_session = self.report_sink.persist_session
         orchestrator_module.notify_handoff_complete = self.report_sink.notify_handoff_complete
         orchestrator_module.notify_handoff_failed = self.report_sink.notify_handoff_failed
-        llm_router_module.LLMRouter = DeterministicControlLLMRouter
-        interview_map_module.LLMRouter = DeterministicControlLLMRouter
-        surface_plan_module.LLMRouter = DeterministicControlLLMRouter
-        application_module.LLMRouter = DeterministicControlLLMRouter
-        for name in agent_module_names:
-            setattr(importlib.import_module(name), "LLMRouter", DeterministicControlLLMRouter)
+        if self.semantic_provider_mode == "production":
+            _llm_router_for_usage.llm_usage_logger = self.llm_usage_sink
+            _llm_router_for_usage.llm_quality_logger = self.llm_usage_sink
+        if self.semantic_provider_mode == "deterministic":
+            llm_router_module.LLMRouter = DeterministicControlLLMRouter
+            interview_map_module.LLMRouter = DeterministicControlLLMRouter
+            surface_plan_module.LLMRouter = DeterministicControlLLMRouter
+            application_module.LLMRouter = DeterministicControlLLMRouter
+            for name in agent_module_names:
+                setattr(importlib.import_module(name), "LLMRouter", DeterministicControlLLMRouter)
+        else:
+            original_init = llm_router_module.LLMRouter.__init__
+
+            def instrumented_init(router: Any, *args: Any, **kwargs: Any) -> None:
+                original_init(router, *args, **kwargs)
+                self.provider_ledger.instrument_router(router)
+
+            old["llm_router_init"] = original_init
+            llm_router_module.LLMRouter.__init__ = instrumented_init
         try:
             yield
         finally:
+            if self.semantic_provider_mode == "production":
+                self.provider_ledger.restore()
+                old["llm_router"].__init__ = old["llm_router_init"]
             telemetry_module.interview_telemetry = old["trace"]
             orchestrator_module.interview_telemetry = old["orchestrator_trace"]
             orchestrator_module.persist_session = old["persist"]
             orchestrator_module.notify_handoff_complete = old["handoff_complete"]
             orchestrator_module.notify_handoff_failed = old["handoff_failed"]
+            _llm_router_for_usage.llm_usage_logger = old["llm_usage_logger"]
+            _llm_router_for_usage.llm_quality_logger = old["llm_quality_logger"]
             llm_router_module.LLMRouter = old["llm_router"]
             interview_map_module.LLMRouter = old["map_llm"]
             surface_plan_module.LLMRouter = old["surface_llm"]
@@ -1027,6 +1184,8 @@ class CompleteInterviewRunnerV1:
                 setattr(importlib.import_module(name), "LLMRouter", router_class)
 
     def _bind_existing_agent_routers(self, orchestrator: Orchestrator) -> None:
+        if self.semantic_provider_mode == "production":
+            return
         for agent in (
             orchestrator.concept_agent,
             orchestrator.weakness_agent,
@@ -1084,14 +1243,22 @@ class CompleteInterviewRunnerV1:
         # production output and the exact committed answer's shape; no frozen
         # world truth is copied into the Orchestrator or report.
         return {
-            "source": "orchestrator_control_shadow",
-            "control_only": True,
+            "source": (
+                "orchestrator_production_semantic_output"
+                if self.semantic_provider_mode == "production"
+                else "orchestrator_control_shadow"
+            ),
+            "control_only": self.semantic_provider_mode != "production",
             "served_route_kind": str(response.get("route_kind") or ""),
             "answer_chars": len(answer),
             "weakness_type": str((analysis.get("weakness") or {}).get("type") or "") if isinstance(analysis.get("weakness"), dict) else "",
             "weakness_severity": str((analysis.get("weakness") or {}).get("severity") or "") if isinstance(analysis.get("weakness"), dict) else "",
             "discrepancy_level": str((analysis.get("discrepancy") or {}).get("conflict_level") or "") if isinstance(analysis.get("discrepancy"), dict) else "",
-            "analysis_status": "shadow_control",
+            "analysis_status": (
+                "production_model"
+                if self.semantic_provider_mode == "production"
+                else "shadow_control"
+            ),
         }
 
     async def _record_answer_boundary(
@@ -1383,11 +1550,19 @@ class CompleteInterviewRunnerV1:
         return {
             "shadow_only": True,
             "candidate_quality_claim": "not_assessed",
+            "report_origin": (
+                "production_model_output"
+                if self.semantic_provider_mode == "production"
+                else "deterministic_control_output"
+            ),
+            "semantic_provider_mode": self.semantic_provider_mode,
             "schema_version": str(report.get("schema_version") or ""),
             "finalization_status": str(state.get("finalization_status") or ""),
             "report_ready": bool(state.get("report_ready")),
             "report_sha256": sha256_json(report) if report else "",
             "hire_recommendation_excluded": True,
+            "provider_attempt_count": len(self.provider_ledger.attempts),
+            "provider_attempt_cap": self.provider_ledger.cap,
         }
 
     def _build_artifact(self, result: CompleteInterviewRunnerResult, state: Mapping[str, Any]) -> dict[str, Any]:
@@ -1403,10 +1578,14 @@ class CompleteInterviewRunnerV1:
             "status": result.status,
             "turns_committed": result.turns_committed,
             "blocker": _clone(result.blocker),
+            "semantic_provider_mode": self.semantic_provider_mode,
+            "provider_runtime": self.provider_ledger.to_dict(),
+            "credential_diagnostics": _clone(self.credential_diagnostics),
             "trace": {
                 "records": self.trace.export_records(),
                 "evaluator_projection": evaluator_projection,
                 "canonical_spoken_history": self.trace.canonical_spoken_history(),
+                "candidate_visible_transcript": self.trace.canonical_spoken_history(),
                 "canonical_trace_file": CANONICAL_TRACE_FILE,
                 "source_trace_integrity_verified_before_redaction": source_trace_integrity_verified,
             },
@@ -1425,6 +1604,7 @@ class CompleteInterviewRunnerV1:
                 "redacted_projection_records_sha256": sha256_json(self.trace.export_records()),
                 "evaluator_projection_sha256": sha256_json(evaluator_projection),
                 "canonical_spoken_history_sha256": sha256_json(self.trace.canonical_spoken_history()),
+                "candidate_visible_transcript_sha256": sha256_json(self.trace.canonical_spoken_history()),
             },
         }
 
@@ -1461,6 +1641,10 @@ class CompleteInterviewRunnerV1:
             "canonical_trace_file": canonical_trace_path.name,
             "canonical_trace_sha256": canonical_trace_sha256,
             "canonical_spoken_history_sha256": artifact["hashes"]["canonical_spoken_history_sha256"],
+            "candidate_visible_transcript_sha256": artifact["hashes"]["candidate_visible_transcript_sha256"],
+            "provider_attempt_count": artifact["provider_runtime"]["attempt_count"],
+            "provider_attempt_cap": artifact["provider_runtime"]["cap"],
+            "provider_cap_blocked_attempts": artifact["provider_runtime"]["cap_blocked_attempts"],
             "evaluator_projection_sha256": artifact["hashes"]["evaluator_projection_sha256"],
             "source_trace_integrity_verified_before_redaction": artifact["trace"]["source_trace_integrity_verified_before_redaction"],
             "redaction_policy": artifact["redaction"],
@@ -1477,11 +1661,13 @@ class CompleteInterviewRunnerV1:
 
     async def run(self) -> CompleteInterviewRunnerResult:
         with self._isolated_production_bindings():
-            orchestrator = Orchestrator(tts_service=self.tts_adapter)
-            self.orchestrator = orchestrator
-            orchestrator.session_manager = self.session_store
-            self._bind_existing_agent_routers(orchestrator)
             try:
+                if self.semantic_provider_mode == "production":
+                    self._load_production_credentials()
+                orchestrator = Orchestrator(tts_service=self.tts_adapter)
+                self.orchestrator = orchestrator
+                orchestrator.session_manager = self.session_store
+                self._bind_existing_agent_routers(orchestrator)
                 resume_projection = load_actor_turn_projection(self.config.world_id)
                 resume_text = str((resume_projection.get("resume") or {}).get("text") or "").strip()
                 session_id = await orchestrator.prepare_session_map(
@@ -1506,6 +1692,7 @@ class CompleteInterviewRunnerV1:
                         canonical_spoken_history=self.trace.canonical_spoken_history(),
                         blocker=self.blocker,
                         adapter_audit=self._adapter_audit(),
+                        provider_runtime=self.provider_ledger.to_dict(),
                     )
                     self._write_artifact(result, state)
                     return result
@@ -1628,17 +1815,45 @@ class CompleteInterviewRunnerV1:
                     report_summary=self._report_summary(state),
                     adapter_audit=self._adapter_audit(),
                     quiescence=self.quiescence,
+                    provider_runtime=self.provider_ledger.to_dict(),
                 )
                 self._write_artifact(result, state)
                 return result
             except Exception as exc:
                 if self.trace is None:
-                    raise
-                self.blocker = {
-                    "layer": "runner_execution",
-                    "error_type": type(exc).__name__,
-                    "reason": str(exc)[:500],
-                }
+                    self.trace = InterviewTraceV1(
+                        f"runner-preflight-{uuid.uuid4().hex}",
+                        runtime_epoch=self.config.runtime_epoch,
+                    )
+                if isinstance(exc, ProviderCallCapExceeded):
+                    self.blocker = {
+                        "layer": "provider_call_cap",
+                        "error_type": type(exc).__name__,
+                        "reason": str(exc),
+                        "provider_attempt_count": len(self.provider_ledger.attempts),
+                        "provider_attempt_cap": self.provider_ledger.cap,
+                        "cap_blocked_attempts": self.provider_ledger.cap_blocked_attempts,
+                    }
+                elif isinstance(exc, ProductionSemanticPreflightError):
+                    self.blocker = {
+                        "layer": "production_semantic_preflight",
+                        "error_type": type(exc).__name__,
+                        "reason": str(exc),
+                        "provider_attempt_count": len(self.provider_ledger.attempts),
+                        "provider_attempt_cap": self.provider_ledger.cap,
+                    }
+                else:
+                    self.blocker = {
+                        "layer": (
+                            "production_semantic_provider"
+                            if self.semantic_provider_mode == "production"
+                            else "runner_execution"
+                        ),
+                        "error_type": type(exc).__name__,
+                        "reason": str(exc)[:500],
+                        "provider_attempt_count": len(self.provider_ledger.attempts),
+                        "provider_attempt_cap": self.provider_ledger.cap,
+                    }
                 state = await self.session_store.get_state(session_id) if 'session_id' in locals() else {}
                 result = CompleteInterviewRunnerResult(
                     status="blocked",
@@ -1650,11 +1865,20 @@ class CompleteInterviewRunnerV1:
                     report_summary=self._report_summary(state),
                     adapter_audit=self._adapter_audit(),
                     quiescence=self.quiescence,
+                    provider_runtime=self.provider_ledger.to_dict(),
                 )
                 self._write_artifact(result, state)
                 return result
 
     def _adapter_audit(self) -> dict[str, Any]:
+        semantic_adapter = (
+            "ProductionProviderAttemptLedger: counts/caps actual provider attempts and records tier/model/latency only"
+            if self.semantic_provider_mode == "production"
+            else "DeterministicControlLLMRouter: no-paid provider response seam only; not route/map/report authority"
+        )
+        forbidden = ["developer Redis", "Postgres", "production telemetry files", "Cartesia", "ElevenLabs", "live routes/UI/audio"]
+        if self.semantic_provider_mode == "deterministic":
+            forbidden.append("paid LLM providers")
         return {
             "production_code_called": [
                 "Orchestrator.prepare_session_map",
@@ -1675,9 +1899,13 @@ class CompleteInterviewRunnerV1:
                 "DeterministicTTSAdapter: replaces external TTS pre-generation only",
                 "BrowserPlaybackAdapter: replaces browser playback completion ACK",
                 "DeterministicActualGrantCandidate: replaces CandidateActor provider boundary",
-                "DeterministicControlLLMRouter: no-paid provider response seam only; not route/map/report authority",
+                semantic_adapter,
             ],
-            "forbidden_external_state_touched": ["developer Redis", "Postgres", "production telemetry files", "Cartesia", "ElevenLabs", "paid LLM providers", "live routes/UI/audio"],
+            "forbidden_external_state_touched": forbidden,
+            "semantic_provider_mode": self.semantic_provider_mode,
+            "production_model_policy_active": self.semantic_provider_mode == "production",
+            "provider_attempt_count": len(self.provider_ledger.attempts),
+            "provider_attempt_cap": self.provider_ledger.cap,
             "candidate_actor_quality": "not_assessed; deterministic actual-grant fixture/control only",
         }
 
@@ -1692,10 +1920,15 @@ __all__ = [
     "DeterministicActualGrantCandidate",
     "DeterministicControlLLMRouter",
     "DeterministicTTSAdapter",
+    "IsolatedLLMUsageSink",
     "IsolatedReportSink",
     "IsolatedSessionStore",
     "IsolatedTelemetrySink",
+    "MAX_PROVIDER_ATTEMPTS",
     "PlaybackDeliveryResult",
+    "ProductionProviderAttemptLedger",
+    "ProductionSemanticPreflightError",
+    "ProviderCallCapExceeded",
     "RUNNER_SCHEMA_VERSION",
     "sha256_json",
 ]

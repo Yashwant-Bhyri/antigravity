@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     from backend.services.complete_interview_runner_v1 import (
@@ -16,6 +18,8 @@ try:
         DeterministicTTSAdapter,
         IsolatedSessionStore,
         IsolatedTelemetrySink,
+        ProductionProviderAttemptLedger,
+        ProviderCallCapExceeded,
         TraceEventType,
     )
     from backend.services.interview_trace_v1 import (
@@ -32,6 +36,8 @@ except ModuleNotFoundError:  # direct execution from the backend directory
         DeterministicTTSAdapter,
         IsolatedSessionStore,
         IsolatedTelemetrySink,
+        ProductionProviderAttemptLedger,
+        ProviderCallCapExceeded,
     )
     from services.interview_trace_v1 import (
         InterviewTraceV1,
@@ -43,6 +49,56 @@ except ModuleNotFoundError:  # direct execution from the backend directory
 
 
 class CompleteInterviewRunnerV1ContractTests(unittest.IsolatedAsyncioTestCase):
+    async def test_provider_attempt_ledger_caps_before_second_provider_request(self) -> None:
+        class FakeCompletions:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            async def create(self, **_: object) -> dict[str, str]:
+                self.calls += 1
+                return {"ok": "provider-response"}
+
+        class FakeRouter:
+            tier = "small"
+            model = "test/model"
+
+            def __init__(self) -> None:
+                completions = FakeCompletions()
+                self.client = type("Client", (), {})()
+                self.client.chat = type("Chat", (), {})()
+                self.client.chat.completions = completions
+
+        router = FakeRouter()
+        ledger = ProductionProviderAttemptLedger(cap=1)
+        ledger.instrument_router(router)
+        result = await router.client.chat.completions.create(model="test/model", max_tokens=1)
+        self.assertEqual(result, {"ok": "provider-response"})
+        with self.assertRaises(ProviderCallCapExceeded):
+            await router.client.chat.completions.create(model="test/model", max_tokens=1)
+        self.assertEqual(router.client.chat.completions.calls, 1)
+        self.assertEqual(ledger.to_dict()["attempt_count"], 1)
+        self.assertEqual(ledger.to_dict()["cap_blocked_attempts"], 1)
+        ledger.restore()
+
+    async def test_production_mode_credential_preflight_is_zero_provider_and_persisted(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="runner-production-preflight-") as directory:
+            with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}, clear=False), patch(
+                "backend.services.local_experiment_credentials.load_local_experiment_credentials",
+                return_value={"loaded": False, "reason": "local_experiment_env_missing"},
+            ):
+                result = await CompleteInterviewRunnerV1(
+                    CompleteInterviewRunnerConfig(
+                        semantic_provider_mode="production",
+                        artifact_dir=Path(directory),
+                    )
+                ).run()
+            self.assertEqual(result.status, "blocked")
+            self.assertEqual(result.blocker["layer"], "production_semantic_preflight")
+            self.assertEqual(result.provider_runtime["attempt_count"], 0)
+            canonical_path = Path(directory) / "complete_interview_runner_v1_canonical_trace.json"
+            records = json.loads(canonical_path.read_text(encoding="utf-8"))
+            self.assertTrue(InterviewTraceV1.from_records(records).verify_integrity())
+
     def _opening(self, session_id: str = "runner-contract") -> tuple[InterviewTraceV1, dict[str, object]]:
         trace = InterviewTraceV1(session_id)
         session = trace.events[0]
