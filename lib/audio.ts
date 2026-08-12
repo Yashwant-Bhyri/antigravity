@@ -572,7 +572,7 @@ export async function processTurn(
   sessionId: string,
   transcript: string,
   entities: string[] = [],
-  turnId = "",
+  turnId: string,
   options: {
     revisionOfTurnId?: string;
     revisionQuestion?: string;

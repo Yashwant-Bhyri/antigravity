@@ -66,7 +66,7 @@ export interface VoiceRuntime {
   }>): Promise<Record<string, unknown>>;
   commitTurn(payload: {
     transcript: string;
-    turnId?: string;
+    turnId: string;
     itemId?: string;
     entities?: string[];
     spokenQuestionTurnId?: string;
@@ -156,7 +156,7 @@ export class OpenAIRealtimeInterviewSession implements VoiceRuntime {
 
   async commitTurn(payload: {
     transcript: string;
-    turnId?: string;
+    turnId: string;
     itemId?: string;
     entities?: string[];
     spokenQuestionTurnId?: string;
@@ -166,7 +166,7 @@ export class OpenAIRealtimeInterviewSession implements VoiceRuntime {
       const result = await postJson<Record<string, unknown>>("/voice/commit_turn", {
         session_id: this.sessionId,
         transcript: payload.transcript,
-        turn_id: payload.turnId || "",
+        turn_id: payload.turnId,
         item_id: payload.itemId || "",
         entities: payload.entities || [],
         spoken_question_turn_id: payload.spokenQuestionTurnId || "",

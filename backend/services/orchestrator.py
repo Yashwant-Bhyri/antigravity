@@ -1,4 +1,5 @@
 import asyncio
+import difflib
 import os
 import re
 import time
@@ -139,6 +140,252 @@ def _detect_communication_mode(turn0_text: str, turn1_text: str) -> str:
 
 def _normalize_transcript(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s]", " ", text.lower())).strip()
+
+
+_GAP_LANGUAGE = re.compile(
+    r"^(?:no idea|hard to say|(?:i\s+)?(?:still\s+)?(?:dont|don t|do not)\s+(?:know|remember)|"
+    r"(?:i\s+)?(?:can t|cannot|can not)\s+(?:answer|explain|recall)|"
+    r"(?:i\s+)?(?:d|would)\s+have\s+to\s+look\s+(?:that|it)\s+up|"
+    r"(?:i\s+)?(?:am|m)\s+(?:not\s+sure|unsure|not\s+familiar|not\s+experienced)|"
+    r"(?:not sure|not my (?:area|expertise|experience)|no experience)|"
+    r"(?:i\s+)?(?:have not|haven t|never)\s+(?:worked|used|handled|done|owned|seen))"
+    r"(?:\s+.*)?$"
+)
+_GAP_VALUE_WITH_UNIT = re.compile(
+    r"\b(?:roughly|around|about|under|over|approximately)\s+\d+(?:\.\d+)?\s*(?:ms|milliseconds?|percent|%)\b|"
+    r"\b\d+(?:\.\d+)?\s*(?:ms|milliseconds?|percent|%)\b",
+    re.IGNORECASE,
+)
+_GAP_SCOPED_FACT = re.compile(
+    r"\b(?:team|we|i)\s+(?:handled|reviewed|designed|built|succeeded|completed|shipped)\b|"
+    r"\b(?:team|we|i)\s+used\s+(?!nothing\b|none\b|no\b)\w+|"
+    r"\b(?:migration|release|job|deployment)\s+(?:finished|succeeded|completed|worked)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_explicit_knowledge_gap(text: str) -> bool:
+    normalized = _normalize_transcript(text)
+    if not normalized or len(normalized.split()) > 18 or _GAP_VALUE_WITH_UNIT.search(normalized) or _GAP_SCOPED_FACT.search(normalized):
+        return False
+    return bool(_GAP_LANGUAGE.fullmatch(normalized))
+
+
+def _knowledge_gap_signal(
+    text: str,
+    *,
+    weakness: dict | None = None,
+    reasoning: dict | None = None,
+) -> tuple[bool, list[str]]:
+    explicit = _looks_like_explicit_knowledge_gap(text)
+    sources = ["explicit_text"] if explicit else []
+    semantic = False
+    if isinstance(reasoning, dict) and reasoning.get("adaptability") == "admitted_gap" and int(_safe_float(reasoning.get("structure_score"), 5)) <= 1:
+        semantic = True
+        sources.append("reasoning_admitted_gap")
+    if (isinstance(weakness, dict) and weakness.get("type") == "deflection"
+            and weakness.get("continue_probing") is False
+            and (semantic or _short_answer_rescue_eligible(text))):
+        semantic = True
+        sources.append("weakness_deflection_floor")
+    factual = _GAP_VALUE_WITH_UNIT.search(_normalize_transcript(text)) or _GAP_SCOPED_FACT.search(_normalize_transcript(text))
+    return bool(explicit or (semantic and _looks_like_admission(text) and not factual)), list(dict.fromkeys(sources))
+
+
+def _ensure_knowledge_gap_floor(state: dict) -> dict:
+    floor = state.get("knowledge_gap_floor")
+    if not isinstance(floor, dict):
+        floor = {}
+    if not isinstance(floor.get("semantic_events"), dict):
+        floor["semantic_events"] = {}
+    state["knowledge_gap_floor"] = floor
+    return floor
+
+
+def _gap_floor_result(floor: dict, *, focus_key: str = "", sources: list[str] | None = None, **flags) -> dict:
+    return {"is_gap": bool(floor.get("last_signal_was_gap")), "action": str(floor.get("pending_action") or "normal"),
+            "focus_key": str(floor.get("last_gap_focus_key") or focus_key or ""),
+            "reason": str(floor.get("last_reason") or ""),
+            "sources": list(sources if sources is not None else floor.get("last_signal_sources") or []), **flags}
+
+
+def _recompute_knowledge_gap_floor(state: dict, focus_key: str, sources: list[str]) -> dict:
+    floor = _ensure_knowledge_gap_floor(state)
+    events = floor.get("semantic_events") or {}
+    ordered = sorted((e for e in events.values() if isinstance(e, dict)),
+                     key=lambda e: (int(e.get("turn_number") or 0), int(e.get("sequence") or 0)))
+    active, gap_counts, consecutive, same_focus, last_focus = [], {}, 0, 0, ""
+    action, reason = "normal", "gap_pressure_reset_after_non_gap_answer"
+    for event in ordered:
+        focus = str(event.get("focus_key") or "general").strip() or "general"
+        if not event.get("is_gap"):
+            active, consecutive, same_focus, last_focus = [], 0, 0, ""
+            action, reason = "normal", "gap_pressure_reset_after_non_gap_answer"
+            continue
+        if focus not in active: active.append(focus)
+        prior_count = gap_counts.get(focus, 0)
+        gap_counts[focus] = prior_count + 1; consecutive += 1
+        same_focus = same_focus + 1 if last_focus == focus else 1; last_focus = focus
+        if len(active) >= 2 or consecutive >= 3:
+            action, reason = "close", "knowledge_gap_floor_close_distinct_focus_pressure" if len(active) >= 2 else "knowledge_gap_floor_close_consecutive_pressure"
+        elif same_focus >= 2 or prior_count:
+            action, reason = "rotate", "knowledge_gap_floor_rotate_after_focus_recovery_budget"
+        else:
+            action, reason = "recover", "knowledge_gap_floor_allow_one_narrow_recovery"
+    blocked = {focus for focus, count in gap_counts.items() if count >= 2}
+    prior_blocked = set(floor.get("gap_blocked_focus_keys") or floor.get("blocked_focus_keys") or [])
+    agenda = ensure_interview_agenda(state)
+    exhausted = [f for f in agenda.get("exhausted_focus_keys") or [] if f not in prior_blocked or f in blocked]
+    agenda["exhausted_focus_keys"] = list(dict.fromkeys(exhausted + sorted(blocked)))
+    if action != "normal":
+        agenda["last_route_reason"] = reason
+    last_event = ordered[-1] if ordered else {}
+    floor.update(consecutive_gap_turns=consecutive, same_focus_gap_streak=same_focus, last_gap_focus_key=last_focus,
+                 active_gap_focus_keys=active, rescue_counts=dict.fromkeys(gap_counts, 1),
+                 blocked_focus_keys=sorted(blocked), gap_blocked_focus_keys=sorted(blocked), pending_action=action,
+                 close_requested=action == "close", last_reason=reason,
+                 last_signal_id=(f"{last_event.get('turn_id')}:{last_event.get('version')}" if last_event else ""),
+                 last_signal_was_gap=bool(last_event.get("is_gap")), last_signal_sources=list(last_event.get("sources") or sources))
+    return _gap_floor_result(floor, focus_key=focus_key, sources=sources, duplicate_signal=False)
+
+
+def _record_knowledge_gap_floor(
+    state: dict,
+    *,
+    focus_key: str,
+    text: str,
+    turn_id: str = "",
+    answer_version: int = 1,
+    turn_number: int = 0,
+    weakness: dict | None = None,
+    reasoning: dict | None = None,
+    source: str = "fast",
+) -> dict:
+    turn_id = str(turn_id or "").strip()
+    if not turn_id:
+        return {"is_gap": False, "action": "normal", "focus_key": focus_key, "reason": "missing_turn_identity_bypass", "sources": [], "identity_missing": True}
+    floor = _ensure_knowledge_gap_floor(state)
+    events = floor["semantic_events"]
+    event_key = f"turn:{turn_id}"
+    version = _coerce_positive_int(answer_version, default=1)
+    existing = events.get(event_key) if isinstance(events.get(event_key), dict) else None
+    if existing and version < _coerce_positive_int(existing.get("version"), default=1):
+        return _gap_floor_result(floor, focus_key=focus_key, stale_revision=True, duplicate_signal=True)
+    if existing and version == _coerce_positive_int(existing.get("version"), default=1) and (source != "background" or existing.get("source") == "background"):
+        return _gap_floor_result(floor, focus_key=focus_key, duplicate_signal=True)
+    is_gap, sources = _knowledge_gap_signal(text, weakness=weakness, reasoning=reasoning)
+    sequence = int(existing.get("sequence") or 0) if existing else max(
+        (int(event.get("sequence") or 0) for event in events.values() if isinstance(event, dict)), default=0
+    ) + 1
+    floor["next_sequence"] = max(int(floor.get("next_sequence") or 0), sequence)
+    events[event_key] = {"turn_id": turn_id, "version": version,
+                         "turn_number": int(turn_number or (existing or {}).get("turn_number") or sequence),
+                         "sequence": sequence, "focus_key": str(focus_key or "").strip() or "general",
+                         "answer": str(text or ""), "is_gap": is_gap, "sources": sources, "source": source}
+    return _recompute_knowledge_gap_floor(state, str(focus_key or "").strip() or "general", sources)
+
+
+def _question_target(candidate: dict | str, focus_key: str = "") -> tuple[str, str, str, str]:
+    if isinstance(candidate, dict):
+        question = str(candidate.get("question") or candidate.get("question_text") or "")
+        focus = str(candidate.get("focus_key") or focus_key or "").strip()
+        surface = str(candidate.get("surface_key") or "").strip() or _route_surface_key(
+            focus,
+            str(candidate.get("sub_focus_key") or candidate.get("surface_kind") or "").strip(),
+            str(candidate.get("coverage_dimension_id") or "").strip(),
+        )
+        intent = str(candidate.get("signal_goal") or candidate.get("question_posture") or candidate.get("route_kind") or "").strip()
+    else:
+        question, focus, surface, intent = str(candidate or ""), str(focus_key or "").strip(), "", ""
+    return question, focus, surface, intent
+
+
+def _question_is_near_duplicate(candidate: dict | str, history: list[dict], *, focus_key: str = "") -> bool:
+    question, focus, surface, intent = _question_target(candidate, focus_key)
+    normalized = _normalize_transcript(question)
+    if not normalized:
+        return False
+    tokens = set(normalized.split())
+    for turn in history:
+        asked, old_focus, old_surface, old_intent = _question_target(turn)
+        asked = _normalize_transcript(asked)
+        if not asked:
+            continue
+        if asked == normalized:
+            return True
+        if focus and old_focus and focus != old_focus:
+            continue
+        if surface and old_surface and surface != old_surface:
+            continue
+        if intent and old_intent and intent != old_intent:
+            continue
+        old_tokens = set(asked.split())
+        if len(tokens & old_tokens) / max(len(tokens | old_tokens), 1) >= 0.78:
+            return True
+        if difflib.SequenceMatcher(None, normalized, asked).ratio() >= 0.84:
+            return True
+    return False
+
+
+def _select_knowledge_gap_recovery(state: dict, history: list[dict], *, sprint: int, focus_key: str, answer: str, entities: list[str]) -> dict | None:
+    result = select_from_trajectory_map_detailed(
+        state.get("interview_trajectory_map", {}), sprint=sprint, focus_key=focus_key, answer=answer,
+        entities=entities, history=history, admission=True, branch_hint="if_honest_gap",
+    )
+    return result if result and not _question_is_near_duplicate(result, history, focus_key=focus_key) else None
+
+
+def _select_knowledge_gap_pivot(state: dict, history: list[dict], *, sprint: int, current_focus_key: str, answer: str, entities: list[str]) -> dict | None:
+    surface = next_secondary_surface(state, avoid_focus=current_focus_key)
+    next_focus = str(surface.get("focus_key") or "").strip()
+    if not next_focus or next_focus == str(current_focus_key or "").strip():
+        return None
+    agenda = ensure_interview_agenda(state)
+    if int((agenda.get("turns_by_focus") or {}).get(next_focus, 0) or 0) > 0:
+        return None
+    result = select_from_trajectory_map_detailed(
+        state.get("interview_trajectory_map", {}), sprint=sprint, focus_key=next_focus, answer="",
+        entities=entities, history=history, admission=False, branch_hint="bridge_to_next_focus",
+        preferred_sub_focus_key=str(surface.get("sub_focus_key") or "").strip(),
+        preferred_surface_kind=str(surface.get("surface_kind") or "").strip(),
+    )
+    return result if result and not _question_is_near_duplicate(result, history, focus_key=next_focus) else None
+
+
+def _materialize_knowledge_gap_route(
+    state: dict,
+    history: list[dict],
+    *,
+    action: str,
+    sprint: int,
+    current_focus_key: str,
+    answer: str,
+    entities: list[str],
+    preferred: dict | None = None,
+) -> dict:
+    floor = _ensure_knowledge_gap_floor(state)
+    action = str(action or "normal")
+    result = None
+    if action == "recover":
+        result = preferred if preferred and not _question_is_near_duplicate(preferred, history) else _select_knowledge_gap_recovery(
+            state, history, sprint=sprint, focus_key=current_focus_key, answer=answer, entities=entities,
+        )
+        if result:
+            return {"action": "recover", "route_kind": str(result.get("route_kind") or "trajectory_map_short_answer_rescue"), "question": str(result.get("question") or ""), "result": result, "pivoting": False}
+        action = "rotate"
+        floor.update(pending_action="rotate", close_requested=False, last_reason="knowledge_gap_floor_rotate_without_unique_recovery")
+    if action == "rotate":
+        result = _select_knowledge_gap_pivot(
+            state, history, sprint=sprint, current_focus_key=current_focus_key, answer=answer, entities=entities,
+        )
+        if result:
+            return {"action": "rotate", "route_kind": str(result.get("route_kind") or "trajectory_map_bridge"), "question": str(result.get("question") or ""), "result": result, "pivoting": True}
+        floor.update(pending_action="close", close_requested=True, last_reason="knowledge_gap_floor_close_without_distinct_untested_focus")
+    return {
+        "action": "close", "route_kind": "graceful_exit",
+        "question": "Thanks, that gives me enough signal for now. We'll wrap here and generate the interview report.",
+        "result": None, "pivoting": True,
+    }
 
 
 def _looks_like_question_echo(answer: str, question: str) -> bool:
@@ -612,6 +859,16 @@ def _should_prioritize_bank_followup(
 def _short_answer_rescue_eligible(text: str) -> bool:
     words = [word for word in _normalize_transcript(text).split(" ") if word]
     return 1 <= len(words) <= 18
+
+
+def _short_answer_rescue_used_for_focus(state: dict, focus_key: str, history: list[dict]) -> bool:
+    focus_key = str(focus_key or "").strip()
+    floor = state.get("knowledge_gap_floor") if isinstance(state.get("knowledge_gap_floor"), dict) else {}
+    return bool(int((floor.get("rescue_counts") or {}).get(focus_key, 0) or 0) > 0 or any(
+        str(turn.get("focus_key") or "").strip() == focus_key
+        and str(turn.get("route_kind") or "").strip() in {"trajectory_map_short_answer_rescue", "short_answer_rescue"}
+        for turn in history
+    ))
 
 
 def _is_generic_fasttrack_route(route_kind: object) -> bool:
@@ -1796,6 +2053,44 @@ def _apply_hard_coverage_gate(evaluation: dict, coverage: dict, *, discrepancy_l
     return gated
 
 
+def _apply_graceful_low_evidence_report_contract(evaluation: dict, state: dict) -> dict:
+    floor = state.get("knowledge_gap_floor") if isinstance(state.get("knowledge_gap_floor"), dict) else {}
+    coverage = state.get("assessment_coverage") if isinstance(state.get("assessment_coverage"), dict) else {}
+    if not floor.get("close_requested"):
+        return evaluation
+
+    prefix = "The interview ended early with insufficient evidence for a substantive assessment."
+    gated = {
+        "schema_version": (evaluation or {}).get("schema_version", "final_report_v2"),
+        "summary": prefix, "candidate_safe_summary": prefix, "recruiter_summary": prefix,
+        "hire_recommendation": "INSUFFICIENT_DATA", "overall_score": None, "confidence_score": None,
+        "breakdown": {}, "strengths": [], "tested_strengths": [], "failure_surface": {}, "lens_findings": {},
+        "claim_findings": [], "verified_abilities": [], "substantiated_claims": [],
+        "ability_profile": {"strongest_verified_signal": "", "weakest_verified_signal": "", "alternate_fit_archetypes": [],
+                             "target_role_fit": "insufficient_data", "role_fit_explanation": "Insufficient evidence to verify abilities or role fit."},
+        "role_fit_profile": {"target_role_fit": "insufficient_data", "best_fit_archetype": "unclear", "strongest_signal": "",
+                              "largest_unresolved_risk": "Insufficient evidence for a role-fit conclusion.", "alternate_fit_notes": ""},
+        "resume_claim_calibration": {
+        "claims_tested": [],
+        "claims_substantiated": [],
+        "claims_partially_substantiated": [],
+        "claims_not_substantiated": [],
+        "claims_untested": [],
+        "impact_on_verdict": "insufficient_evidence",
+        },
+        "claim_credibility_risk": {"level": "not_tested", "detail": "No substantive claim verification is retained."},
+        "tested_risks": ["Insufficient evidence for a substantive assessment."],
+        "interview_quality": {"band": "insufficient_data", "fairness_warnings": ["knowledge_gap_floor_closed_low_evidence"]},
+        "confidence_band": {"band": "insufficient_data"}, "verdict_basis": "graceful_close_low_evidence",
+        "coverage_gate": {"passed": False, "reasons": ["knowledge_gap_floor_closed_low_evidence"], "assessment_coverage": coverage},
+        "completion_contract": {"kind": "graceful_low_evidence", "assessment_eligible": False,
+                                 "report_finalization": "complete_with_insufficient_data",
+                                 "reason": str(floor.get("last_reason") or "knowledge_gap_floor_close")},
+        "risk_flags": ["Interview ended early after sustained knowledge gaps; evidence is insufficient for a substantive assessment."],
+    }
+    return gated
+
+
 def _agenda_projected_history(state: dict, current_focus_key: str, current_focus_label: str) -> list[dict]:
     projected = list(state.get("history", []) or [])
     if current_focus_key:
@@ -1958,6 +2253,25 @@ def _select_agenda_decision(
     weakness_continue = True
     if isinstance(weakness, dict) and "continue_probing" in weakness:
         weakness_continue = bool(weakness.get("continue_probing"))
+
+    gap_floor = _ensure_knowledge_gap_floor(state)
+    gap_floor_action = str(gap_floor.get("pending_action") or "normal")
+    gap_focus_key = str(gap_floor.get("last_gap_focus_key") or current_focus_key or "").strip()
+    gap_focus_label = str(
+        agenda_focus_label(state.get("interview_trajectory_map") or {}, gap_focus_key)
+        or current_focus_label
+        or gap_focus_key
+    ).strip()
+    if gap_floor.get("close_requested") or gap_floor_action in {"close", "recover", "rotate"}:
+        action = "close" if gap_floor.get("close_requested") else gap_floor_action
+        return {
+            "phase": "synthesis_close" if action == "close" else "primary_depth",
+            "route": {"close": "graceful_exit", "recover": "knowledge_gap_recovery", "rotate": "knowledge_gap_pivot"}[action],
+            "focus_key": current_focus_key if action == "close" else gap_focus_key,
+            "focus_label": current_focus_label if action == "close" else gap_focus_label,
+            "reason": str(gap_floor.get("last_reason") or {"close": "knowledge_gap_floor_close", "recover": "knowledge_gap_floor_allow_one_narrow_recovery", "rotate": "knowledge_gap_floor_rotate_after_focus_recovery_budget"}[action]),
+            "allow_same_focus_probe": False,
+        }
 
     if answered_route_kind == "application_grounding":
         return {
@@ -2281,6 +2595,15 @@ def _is_superseded_staged_item(item: dict, latest_turn_versions: dict[str, int])
     return staged_version < latest_version
 
 
+def _background_turn_is_current(state: dict, turn_id: str, turn_number: int, answer_version: int) -> bool:
+    latest = dict(state.get("latest_turn_versions") or {})
+    if turn_id and answer_version < _coerce_positive_int(latest.get(turn_id), default=answer_version):
+        return False
+    current_id = str(state.get("current_answer_turn_id") or "")
+    current_number = int(state.get("current_answer_turn_number") or 0)
+    return not (turn_id and current_id and current_id != turn_id and current_number > int(turn_number or 0))
+
+
 def _upsert_turn_skeleton(
     state: dict,
     *,
@@ -2391,12 +2714,9 @@ class Orchestrator:
 
         # In-memory inflight guard for _run_background_pipeline.
         # Keyed by (session_id, turn_id, answer_version) so exact duplicate work is
-        # suppressed while same-turn revisions remain allowed to run.
+        # suppressed while revisions reconcile through the canonical event ledger.
         self._pipeline_inflight: set[tuple[str, str, int]] = set()
-        # Tracks which turn_ids currently have ANY pipeline in flight per session.
-        # Prevents STT revision explosions: if a pipeline is already running for a
-        # given (session_id, turn_id), subsequent revisions skip launching a new one.
-        self._turn_pipeline_running: dict[str, set[str]] = {}  # session_id → set[turn_id]
+        self._turn_pipeline_running: dict[str, set[str]] = {}  # legacy observability only
 
         self._per_answer_scores: dict[str, list[dict]] = {}
         self._partial_entities: dict[str, set] = {}
@@ -2407,6 +2727,22 @@ class Orchestrator:
 
     async def _trace(self, session_id: str, event: str, **fields) -> None:
         await interview_telemetry.log(session_id, event, source="backend.orchestrator", **fields)
+
+    def _knowledge_gap_floor_enabled(self) -> bool:
+        return not bool(getattr(getattr(getattr(self, "weakness_agent", None), "llm", None), "deterministic_replay", False))
+
+    def _record_knowledge_gap_turn(self, state: dict, *, focus_key: str, text: str, turn_id: str,
+                                   answer_version: int, turn_number: int, source: str,
+                                   weakness: dict | None = None, reasoning: dict | None = None) -> dict:
+        if not self._knowledge_gap_floor_enabled():
+            return {"is_gap": False, "action": "normal", "focus_key": focus_key,
+                    "reason": "deterministic_shadow_control_not_candidate_quality", "sources": [],
+                    "duplicate_signal": True}
+        return _record_knowledge_gap_floor(
+            state, focus_key=focus_key, text=text, turn_id=turn_id,
+            answer_version=answer_version, turn_number=turn_number,
+            weakness=weakness, reasoning=reasoning, source=source,
+        )
 
     # ─────────────────────────────────────────────
     # SESSION LIFECYCLE
@@ -2700,9 +3036,6 @@ class Orchestrator:
             analysis = item.get("analysis", {})
             if analysis.get("session_id") == session_id:
                 self._apply_staged_analysis(state, analysis, item.get("metadata", {}))
-                applied_turn_id = item.get("turn_id")
-                if applied_turn_id:
-                    latest_turn_versions.pop(applied_turn_id, None)
         state.pop("prepped_next_question", None)
         state.pop("prepped_next_question_turn_number", None)
         state.pop("prepped_next_context", None)
@@ -2842,6 +3175,13 @@ class Orchestrator:
             state["scores"] = state["final_evaluation"]["breakdown"]
             state["failure_surface"] = {}
 
+        state["final_evaluation"] = _apply_graceful_low_evidence_report_contract(
+            state.get("final_evaluation") or {},
+            state,
+        )
+        state["scores"] = state["final_evaluation"].get("breakdown", {})
+        state["failure_surface"] = state["final_evaluation"].get("failure_surface", {})
+
         state["finalization_status"] = "complete"
         state["finalization_error"] = ""
         state["report_ready"] = bool(state.get("final_evaluation"))
@@ -2891,6 +3231,7 @@ class Orchestrator:
                 "untested_dimensions": evaluation.get("untested_dimensions", []),
                 "claim_credibility_risk": evaluation.get("claim_credibility_risk", {"level": "not_tested", "detail": ""}),
                 "coverage_gate": evaluation.get("coverage_gate"),
+                "completion_contract": evaluation.get("completion_contract"),
                 "interview_quality": evaluation.get("interview_quality"),
                 "role_fit_profile": evaluation.get("role_fit_profile"),
                 "ability_profile": evaluation.get("ability_profile"),
@@ -3568,6 +3909,37 @@ class Orchestrator:
         if state.get("interview_complete"):
             return {"response": "The interview has concluded. Thank you.", "complete": True, "turn_id": turn_id}
 
+        # A known non-current turn is an historical revision.  The production
+        # path has no immutable per-turn materialization contract for safely
+        # replaying such a revision, so reject it before any route preparation,
+        # entity consumption, or question staging can mutate current state.
+        latest_turn_versions = dict(state.get("latest_turn_versions", {}))
+        known_version = _coerce_positive_int(latest_turn_versions.get(turn_id), default=0) if turn_id else 0
+        if turn_id and turn_id == state.get("current_answer_turn_id"):
+            known_version = max(known_version, _coerce_positive_int(state.get("current_answer_version"), default=0))
+        is_turn_revision = bool(turn_id and known_version > 0)
+        current_answer_version = known_version + 1 if is_turn_revision else 1
+        if turn_id:
+            latest_turn_versions[turn_id] = current_answer_version
+        if is_turn_revision and turn_id != state.get("current_answer_turn_id"):
+            await self._trace(
+                session_id,
+                "fasttrack_historical_revision_rejected",
+                turn_id=turn_id,
+                current_turn_id=state.get("current_answer_turn_id") or "",
+                known_version=known_version,
+                level="warn",
+            )
+            return {
+                "response": state.get("current_answer_response") or state.get("last_question", ""),
+                "sprint": state.get("current_sprint", 1),
+                "persona": state.get("current_persona", "curious_lead"),
+                "question_count": state.get("question_count", 0),
+                "complete": bool(state.get("interview_complete")),
+                "route_kind": "revision_rejected_historical",
+                "turn_id": turn_id,
+            }
+
         if (
             state.get("application_transfer_error")
             and not _application_transfer_served(state)
@@ -3615,16 +3987,6 @@ class Orchestrator:
                 current_focus_key=str(agenda.get("current_focus_key") or ""),
             )
             state = await self.session_manager.get_state(session_id)
-        is_turn_revision = bool(turn_id and turn_id == state.get("current_answer_turn_id"))
-        current_answer_version = (
-            state.get("current_answer_version", 0) + 1
-            if is_turn_revision
-            else 1
-        )
-        latest_turn_versions = dict(state.get("latest_turn_versions", {}))
-        if turn_id:
-            latest_turn_versions[turn_id] = current_answer_version
-
         # Merge entities from partial accumulation
         accumulated = self._partial_entities.pop(session_id, set())
         partial_snapshot_meta = self._partial_snapshot_meta.get(session_id)
@@ -3736,9 +4098,6 @@ class Orchestrator:
             analysis = item.get("analysis", {})
             if analysis.get("session_id") == session_id:
                 self._apply_staged_analysis(state, analysis, item.get("metadata", {}))
-                applied_turn_id = item.get("turn_id")
-                if applied_turn_id:
-                    latest_turn_versions.pop(applied_turn_id, None)
         if deferred_items:
             state["prepped_turn_queue"] = deferred_items
         else:
@@ -3819,7 +4178,7 @@ class Orchestrator:
             answer=text,
             history=state.get("history", []),
         )
-        if not is_turn_revision:
+        if turn_id:
             _upsert_turn_skeleton(
                 state,
                 turn_id=turn_id,
@@ -4061,6 +4420,41 @@ class Orchestrator:
                 branch_hint="if_honest_gap",
             )
 
+        gap_floor_result = self._record_knowledge_gap_turn(
+            state, focus_key=current_focus_key, text=text, turn_id=turn_id,
+            answer_version=current_answer_version,
+            turn_number=int(state.get("current_answer_turn_number") or state.get("question_count") or 1),
+            source="fast",
+        )
+        gap_floor_action = str(gap_floor_result.get("action") or "normal")
+        if gap_floor_result.get("is_gap") or gap_floor_result.get("reason") == "gap_pressure_reset_after_non_gap_answer":
+            await self._trace(
+                session_id,
+                "knowledge_gap_floor_applied",
+                turn_id=turn_id,
+                focus_key=gap_floor_result.get("focus_key", ""),
+                action=gap_floor_action,
+                reason=gap_floor_result.get("reason", ""),
+                signal_sources=list(gap_floor_result.get("sources") or []),
+                consecutive_gap_turns=int(_ensure_knowledge_gap_floor(state).get("consecutive_gap_turns") or 0),
+                active_gap_focus_count=len(_ensure_knowledge_gap_floor(state).get("active_gap_focus_keys") or []),
+            )
+
+        gap_route = {"action": gap_floor_action, "route_kind": "", "question": "", "result": None, "pivoting": False}
+        if self._knowledge_gap_floor_enabled() and gap_floor_action in {"recover", "rotate", "close"}:
+            gap_route = _materialize_knowledge_gap_route(
+                state,
+                state.get("history", []),
+                action=gap_floor_action,
+                sprint=sprint,
+                current_focus_key=current_focus_key,
+                answer=text,
+                entities=entities or [],
+                preferred=trajectory_admission,
+            )
+            gap_floor_action = gap_route["action"]
+            trajectory_admission = gap_route.get("result") if gap_floor_action == "recover" else None
+
         current_packet_followups = _packet_followups_remaining(active_packet)
         should_use_packet_followup = (
             not is_turn_revision
@@ -4072,6 +4466,7 @@ class Orchestrator:
             and not bool(locals().get("application_grounding_q"))
             and not bool(locals().get("application_q"))
             and not bool(locals().get("coverage_q"))
+            and gap_floor_action in {"normal", "recover"}
             and _should_prioritize_bank_followup(prepped_context, current_packet_followups, active_packet)
         )
 
@@ -4096,7 +4491,38 @@ class Orchestrator:
             print(f"[FastTrack] Active-packet follow-up served for {session_id}")
 
         else:
-            if locals().get("application_anchor_recovery_q"):
+            if gap_floor_action in {"close", "rotate"}:
+                gap_candidate = gap_route.get("result") or {
+                    "question": gap_route.get("question"), "route_kind": gap_route.get("route_kind"),
+                    "focus_key": current_focus_key, "focus_label": current_focus_label,
+                }
+                prepped_q = str(gap_candidate.get("question") or gap_route.get("question") or "").strip()
+                served_route_kind = str(gap_candidate.get("route_kind") or gap_route.get("route_kind") or "graceful_exit")
+                prepped_context = {"pivoting": True, "route_kind": served_route_kind, "weakness": None, "discrepancy": None}
+                prepped_packet = _build_question_packet(
+                    question_text=prepped_q,
+                    sprint=sprint,
+                    route_kind=served_route_kind,
+                    parsed_resume=parsed_resume,
+                    resume=resume,
+                    followups=[],
+                    pivoting=True,
+                    source_turn_number=state.get("question_count", 0),
+                    focus_key_override=str(gap_candidate.get("focus_key") or current_focus_key).strip(),
+                    focus_label_override=str(gap_candidate.get("focus_label") or current_focus_label).strip(),
+                    sub_focus_key_override=str(gap_candidate.get("sub_focus_key") or "").strip(),
+                    sub_focus_label_override=str(gap_candidate.get("sub_focus_label") or "").strip(),
+                    **_question_packet_ladder_kwargs(gap_candidate),
+                )
+                pivoting = True
+                trajectory_admission = None
+                if gap_floor_action == "close":
+                    state["_next_route_hint"] = "graceful_exit"
+                state.pop("prepped_next_question", None)
+                state.pop("prepped_next_question_turn_number", None)
+                state.pop("prepped_next_context", None)
+                state.pop("prepped_next_packet", None)
+            elif locals().get("application_anchor_recovery_q"):
                 prepped_q = application_anchor_recovery_q
                 prepped_context = {
                     "pivoting": False,
@@ -4246,7 +4672,11 @@ class Orchestrator:
                 prepped_context.get("route_kind")
             )
 
-            if trajectory_admission and (not prepped_q or generic_prepped_fasttrack):
+            if trajectory_admission and (
+                gap_floor_action == "recover"
+                or not prepped_q
+                or generic_prepped_fasttrack
+            ):
                 prepped_q = trajectory_admission["question"]
                 trajectory_route_kind = trajectory_admission["route_kind"]
                 prepped_context = {
@@ -4369,6 +4799,11 @@ class Orchestrator:
                 not is_turn_revision
                 and not bool(locals().get("closing_started"))
                 and _short_answer_rescue_eligible(text)
+                and gap_floor_action == "normal"
+                and (
+                    (not self._knowledge_gap_floor_enabled()
+                     or not _short_answer_rescue_used_for_focus(state, current_focus_key, state.get("history", [])))
+                )
                 and (not prepped_q or generic_prepped_fasttrack)
             )
             if should_try_short_answer_rescue:
@@ -4698,18 +5133,28 @@ class Orchestrator:
                 served_discrepancy = prepped_context.get("discrepancy")
                 if not served_route_kind:
                     served_route_kind = "prepped_next_question"
-                active_packet = prepped_packet or _build_question_packet(
-                    question_text=fast_response,
-                    sprint=sprint,
-                    route_kind=served_route_kind,
-                    parsed_resume=parsed_resume,
-                    resume=resume,
-                    followups=[],
-                    pivoting=prepped_context.get("pivoting", False),
-                    weakness=served_weakness,
-                    discrepancy=served_discrepancy,
-                    source_turn_number=state.get("question_count", 0),
-                )
+                if not prepped_packet and active_packet:
+                    active_packet = _clone_question_packet(active_packet)
+                    active_packet.update(
+                        question_text=fast_response,
+                        route_kind=served_route_kind,
+                        pivoting=prepped_context.get("pivoting", False),
+                        weakness=served_weakness,
+                        discrepancy=served_discrepancy,
+                    )
+                else:
+                    active_packet = prepped_packet or _build_question_packet(
+                        question_text=fast_response,
+                        sprint=sprint,
+                        route_kind=served_route_kind,
+                        parsed_resume=parsed_resume,
+                        resume=resume,
+                        followups=[],
+                        pivoting=prepped_context.get("pivoting", False),
+                        weakness=served_weakness,
+                        discrepancy=served_discrepancy,
+                        source_turn_number=state.get("question_count", 0),
+                    )
                 state.pop("prepped_next_question", None)
                 state.pop("prepped_next_question_turn_number", None)
                 state.pop("prepped_next_context", None)
@@ -5148,28 +5593,7 @@ class Orchestrator:
                 level="warn",
             )
             return
-        # Revision-explosion guard: if any version of this turn is already running,
-        # skip. The running pipeline will produce a stale-superseded result (discarded
-        # at consumption) which is cheaper than running 14 concurrent LLM pipelines
-        # for the same turn when STT fragments a single utterance.
-        running_for_session = self._turn_pipeline_running.setdefault(session_id, set())
-        if turn_id and turn_id in running_for_session:
-            print(
-                f"[BGPipeline] Revision skipped — turn_id {turn_id} already in flight "
-                f"(v{answer_version} suppressed)"
-            )
-            await self._trace(
-                session_id,
-                "bgpipeline_skipped_revision_inflight",
-                turn_id=turn_id,
-                turn_number=turn_number,
-                answer_version=answer_version,
-                level="warn",
-            )
-            return
         self._pipeline_inflight.add(pipeline_key)
-        if turn_id:
-            running_for_session.add(turn_id)
 
         started_at = time.perf_counter()
         try:
@@ -5408,6 +5832,25 @@ class Orchestrator:
                 )
             answered_focus_key = current_focus_key
             answered_focus_label = current_focus_label
+            floor_focus_key = _pkt_focus_key_bg or answered_focus_key
+            semantic_gap_floor = self._record_knowledge_gap_turn(
+                state, focus_key=floor_focus_key, text=text, turn_id=turn_id,
+                answer_version=answer_version, turn_number=turn_number, source="background",
+                weakness=weakness if isinstance(weakness, dict) else None,
+                reasoning=reasoning if isinstance(reasoning, dict) else None,
+            )
+            if semantic_gap_floor.get("is_gap") and not semantic_gap_floor.get("duplicate_signal"):
+                await self._trace(
+                    session_id,
+                    "knowledge_gap_floor_semantic_signal",
+                    turn_id=turn_id,
+                    focus_key=semantic_gap_floor.get("focus_key", ""),
+                    action=semantic_gap_floor.get("action", "normal"),
+                    reason=semantic_gap_floor.get("reason", ""),
+                    signal_sources=list(semantic_gap_floor.get("sources") or []),
+                    consecutive_gap_turns=int(_ensure_knowledge_gap_floor(state).get("consecutive_gap_turns") or 0),
+                    active_gap_focus_count=len(_ensure_knowledge_gap_floor(state).get("active_gap_focus_keys") or []),
+                )
             focus_prompt_pack = _build_focus_prompt_pack(
                 state.get("interview_trajectory_map", {}),
                 focus_key=current_focus_key,
@@ -5819,7 +6262,18 @@ class Orchestrator:
             # ── Route hint overrides (confession pivot / graceful exit) ─────────
             route_hint = state.pop("_next_route_hint", None)
             selected_map_result: dict | None = None
-            if agenda_route == "application_anchor_recovery" and _application_anchor_recovery_ready(state) and not route_hint:
+            gap_floor_focus_key = str(
+                _ensure_knowledge_gap_floor(state).get("last_gap_focus_key")
+                or answered_focus_key
+                or current_focus_key
+                or ""
+            ).strip()
+            if agenda_route in {"knowledge_gap_recovery", "knowledge_gap_pivot", "graceful_exit"} and not route_hint:
+                next_question = ""
+                route_kind = agenda_route
+                agenda_phase = "synthesis_close" if agenda_route == "graceful_exit" else "primary_depth"
+                pivoting = True
+            elif agenda_route == "application_anchor_recovery" and _application_anchor_recovery_ready(state) and not route_hint:
                 next_question = _application_anchor_recovery_question(current_focus_label)
                 route_kind = "application_anchor_recovery"
                 pivoting = False
@@ -6326,16 +6780,50 @@ class Orchestrator:
             if state.get("interview_complete"):
                 return  # Interview ended while we were processing — discard
 
+            pipeline_is_current = _background_turn_is_current(state, turn_id, turn_number, answer_version)
+            if not pipeline_is_current:
+                await self._trace(
+                    session_id,
+                    "bgpipeline_discarded_stale_turn",
+                    turn_id=turn_id,
+                    turn_number=turn_number,
+                    answer_version=answer_version,
+                    level="warn",
+                )
+                return
+
             if background_state_patch:
                 state.update(background_state_patch)
             if background_candidate_patch:
                 state.setdefault("candidate_state", {}).update(background_candidate_patch)
+            semantic_gap_floor = self._record_knowledge_gap_turn(
+                state, focus_key=floor_focus_key, text=text, turn_id=turn_id,
+                answer_version=answer_version, turn_number=turn_number, source="background",
+                weakness=weakness if isinstance(weakness, dict) else None,
+                reasoning=reasoning if isinstance(reasoning, dict) else None,
+            )
+
+            if semantic_gap_floor.get("action") in {"recover", "rotate", "close"}:
+                gap_material = _materialize_knowledge_gap_route(
+                    state,
+                    list(state.get("history", []) or []),
+                    action=str(semantic_gap_floor.get("action") or "normal"),
+                    sprint=sprint,
+                    current_focus_key=str(_ensure_knowledge_gap_floor(state).get("last_gap_focus_key") or floor_focus_key or current_focus_key),
+                    answer=text,
+                    entities=entities or [],
+                )
+                next_question = gap_material["question"]
+                selected_map_result = gap_material.get("result")
+                route_kind = gap_material["route_kind"]
+                agenda_phase = "synthesis_close" if gap_material["action"] == "close" else "primary_depth"
+                pivoting = bool(gap_material.get("pivoting"))
 
             # A slow background pipeline can decide to stage application transfer
             # after the fast path has already served it. Do not let stale work
             # re-stage the same application question; move directly into coverage
             # when an answer coverage map exists.
-            if route_kind == "application_transfer" and _application_transfer_served(state):
+            if route_kind == "application_transfer" and _application_transfer_served(state) and semantic_gap_floor.get("action") not in {"recover", "rotate", "close"}:
                 if isinstance(state.get("coverage_map"), dict):
                     from backend.models.coverage_map import AnswerCoverageMap as _ACMap
 
@@ -6387,27 +6875,6 @@ class Orchestrator:
                             return
                 else:
                     return
-
-            latest_turn_versions = dict(state.get("latest_turn_versions", {}))
-            latest_known_version = _coerce_positive_int(
-                latest_turn_versions.get(turn_id),
-                default=answer_version,
-            )
-            if turn_id and answer_version < latest_known_version:
-                print(
-                    f"[BGPipeline] Discarding stale revision for turn_id {turn_id}: "
-                    f"v{answer_version} < latest v{latest_known_version}"
-                )
-                await self._trace(
-                    session_id,
-                    "bgpipeline_discarded_stale_revision",
-                    turn_id=turn_id,
-                    turn_number=turn_number,
-                    answer_version=answer_version,
-                    latest_known_version=latest_known_version,
-                    level="warn",
-                )
-                return
 
             if route_kind == "second_anchor":
                 history_now = list(state.get("history", []) or history or [])
@@ -6784,8 +7251,6 @@ class Orchestrator:
         finally:
             # Always release the inflight slot so exact-version retries can rerun if needed.
             self._pipeline_inflight.discard(pipeline_key)
-            # Release turn-level guard so the next distinct turn can run.
-            self._turn_pipeline_running.get(session_id, set()).discard(turn_id)
 
     # ─────────────────────────────────────────────
     # SPECULATIVE + SEEDING
@@ -7295,6 +7760,21 @@ class Orchestrator:
         """Interview ends when sprint 3 is exhausted, 30 minutes elapsed, or terminal admission."""
         if state.get("question_count", 0) <= 0:
             return False
+        gap_floor = state.get("knowledge_gap_floor") if isinstance(state.get("knowledge_gap_floor"), dict) else {}
+        if bool(gap_floor.get("close_requested")):
+            state["assessment_coverage"] = _assessment_coverage(state)
+            agenda = ensure_interview_agenda(state)
+            agenda["phase"] = "complete"
+            agenda["completion_eligible"] = bool(
+                state["assessment_coverage"].get("full_completion_eligible")
+                or state["assessment_coverage"].get("minimum_viable_completion")
+            )
+            agenda["close_reason"] = str(
+                gap_floor.get("last_reason") or "knowledge_gap_floor_close"
+            )
+            agenda["last_route_reason"] = agenda["close_reason"]
+            state["interview_agenda"] = agenda
+            return True
         if state.get("question_count", 0) >= MIN_COMPLETION_TURNS:
             state["assessment_coverage"] = _assessment_coverage(state)
             agenda = ensure_interview_agenda(state)

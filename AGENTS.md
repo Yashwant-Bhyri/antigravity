@@ -207,6 +207,7 @@ frontend/
 
 | Task | Done By | Date | Notes |
 |---|---|---|---|
+| Honest-gap global viability guard | Codex + Luna + independent reviewer | 2026-08-12 | Added a revision-safe canonical gap-event ledger and shared route materializer; one recovery, distinct-focus rotation, and sustained-gap graceful close; stale-background and historical-revision fail-closed behavior; required turn IDs; and coherent `INSUFFICIENT_DATA` report/session truth. Independently accepted after adversarial race, identity, classifier, duplicate, and report-state probes. This is a safety/control checkpoint, not end-to-end quality acceptance. See `HONEST_GAP_VIABILITY_GUARD_CHECKPOINT.md`. |
 | CompleteInterviewRunnerV1 durable trace evidence repair | Codex | 2026-08-09 | Replaced the misleading redacted-record integrity flag with a separate exact canonical trace file (`0600`) and explicit `redacted_projection_only` artifact. Disk reconstruction now verifies InterviewTraceV1 integrity and all 15 spoken pairs; manifest records separate canonical/redacted hashes and canonical spoken-history hash. |
 | CompleteInterviewRunnerV1 deterministic shadow checkpoint | Codex | 2026-08-09 | Added the bounded one-world runner, accepted InterviewTraceV1 evidence wiring, isolated storage/report/playback/actor seams, failure-injection contracts, causal checkpoint, and static manifest. The real production Orchestrator path completed 15/15 turns with 167 trace events and 16 quiescence boundaries. Run artifact is `/tmp/antigravity_complete_interview_runner_v1_control_20260809/`; shadow-only, candidate quality not assessed, no paid providers or live routes touched. |
 | CandidateActorV1 deterministic actual-grant + behavioral provider gate | Codex | 2026-08-09 | Added 14 ledger-owned actual-grant fixture rows across five frozen worlds, the isolated exact 30-row matrix, and focused credential-loader tests. Repaired `.env.qwen.local` resolution through Git's primary worktree/common directory while preserving native environment precedence, restrictive permissions, redacted metadata, and no generic `.env` fallback. Deterministic checks passed (`21 pytest` rows; `8 unittest` rows). The OpenRouter run completed exactly 30/30 calls with 0 canonical responses: 15 schema/parse rejections and 15 deterministic safety rejections. Redacted packets are under `/tmp/candidate_actor_v1_provider_gate_20260809T083703Z`; durable hashes are in the gate manifest. No live orchestrator/UI/audio path changed, and this is not promotion evidence. |
@@ -390,6 +391,7 @@ frontend/
 
 | Decision | Rationale | Date |
 |---|---|---|
+| Honest knowledge gaps use one revision-safe canonical event ledger | Fast/background paths and STT revisions must not count one utterance multiple times or overwrite newer state. One bounded recovery is allowed, then distinct-focus rotation; sustained gaps close gracefully with `INSUFFICIENT_DATA`. Historical revisions fail closed and stable turn identity is required. | 2026-08-12 |
 | Canonical trace bytes and redacted projection bytes are separate evidence products | `InterviewTraceV1` provenance source-reference order must survive serialization, so the exact unsorted `export_records()` JSON is persisted owner-only and independently verified. Any sorted/redacted projection is explicitly non-authoritative and cannot claim reconstruction integrity. | 2026-08-09 |
 | CandidateActorV1 behavioral quality requires deterministic safety plus independent subjective review | The real-provider gate is capped at 30 calls and separates fact-ID scope, ownership, temporal, protected, correction, schema/transport, and lifecycle checks from naturalness, answer-class quality, and semantic human review. No model self-judge may be the sole oracle; missing dedicated credentials must produce blocked evidence rather than fixture claims. | 2026-08-09 |
 | Dedicated experiment credentials resolve through Git primary-worktree metadata only | Isolated worktrees may not contain the owner-only `.env.qwen.local`; the loader may resolve Git's shared common directory or an explicit override whose basename is exactly `.env.qwen.local`, while never reading generic `.env`, logging values, or weakening native environment precedence and mode checks. | 2026-08-09 |
@@ -435,6 +437,11 @@ frontend/
 ---
 
 ## HANDOFF NOTES
+
+- **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-08-12**
+  - The honest-gap production guard is independently accepted. Read `HONEST_GAP_VIABILITY_GUARD_CHECKPOINT.md` before touching interview routing.
+  - Do not reopen the accepted guard while building the next independent prerequisite. The next lane is a question-responsive CandidateActor over the five existing worlds; it must not modify `backend/services/orchestrator.py`.
+  - No new worlds are needed yet. The next integrated semantic run is blocked by candidate question/answer alignment, not world count.
 
 - **→ TO: Claude Code, Antigravity | FROM: Codex | Date: 2026-08-09**
   - Durable-evidence blocker fixed. Canonical trace: `/tmp/antigravity_complete_interview_runner_v1_control_20260809/complete_interview_runner_v1_canonical_trace.json` (SHA-256 `41a05c382f79e0492e91b5a78dd300a74b3efae29692d3e3714448c747cbb13e`, mode `0600`); it reloads and passes `InterviewTraceV1.verify_integrity()` with all 15 spoken pairs.

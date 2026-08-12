@@ -38,6 +38,13 @@ def _as_list(value) -> list:
     return value if isinstance(value, list) else []
 
 
+def _require_turn_id(value: str) -> str:
+    turn_id = str(value or "").strip()
+    if not turn_id:
+        raise HTTPException(status_code=422, detail="turn_id is required for a stable answer identity")
+    return turn_id
+
+
 def _trajectory_preview_opener(area: dict) -> str:
     ladder = area.get("question_ladder") if isinstance(area.get("question_ladder"), list) else []
     for posture in ("frame", "clarify"):
@@ -999,13 +1006,14 @@ async def partial_transcript(data: PartialRequest):
     become canonical interview history or evaluation input.
     """
     started = time.perf_counter()
+    turn_id = _require_turn_id(data.turn_id)
     if replay_interview_service.is_replay_session(data.session_id):
         try:
             result = await replay_interview_service.partial_transcript(
                 data.session_id,
                 data.transcript,
                 entities=data.entities,
-                turn_id=data.turn_id,
+                turn_id=turn_id,
                 is_final=data.is_final,
                 snapshot_seq=data.snapshot_seq,
             )
@@ -1015,7 +1023,7 @@ async def partial_transcript(data: PartialRequest):
             data.session_id,
             "api.partial_transcript",
             source="backend.api",
-            turn_id=data.turn_id,
+            turn_id=turn_id,
             is_final=data.is_final,
             snapshot_seq=data.snapshot_seq,
             transcript_chars=len(data.transcript),
@@ -1030,7 +1038,7 @@ async def partial_transcript(data: PartialRequest):
         data.session_id,
         data.transcript,
         entities=data.entities,
-        turn_id=data.turn_id,
+        turn_id=turn_id,
         is_final=data.is_final,
         snapshot_seq=data.snapshot_seq,
     )
@@ -1038,7 +1046,7 @@ async def partial_transcript(data: PartialRequest):
         data.session_id,
         "api.partial_transcript",
         source="backend.api",
-        turn_id=data.turn_id,
+        turn_id=turn_id,
         is_final=data.is_final,
         snapshot_seq=data.snapshot_seq,
         transcript_chars=len(data.transcript),
@@ -1056,13 +1064,14 @@ async def process_turn(data: TurnRequest):
     Entities extracted by Deepgram during transcription — no extra LLM call needed for concept extraction.
     """
     started = time.perf_counter()
+    turn_id = _require_turn_id(data.turn_id)
     if replay_interview_service.is_replay_session(data.session_id):
         try:
             result = await replay_interview_service.process_turn(
                 data.session_id,
                 data.transcript,
                 entities=data.entities,
-                turn_id=data.turn_id,
+                turn_id=turn_id,
                 revision_of_turn_id=data.revision_of_turn_id,
                 revision_question=data.revision_question,
             )
@@ -1072,7 +1081,7 @@ async def process_turn(data: TurnRequest):
             data.session_id,
             "api.process_turn",
             source="backend.api",
-            turn_id=data.turn_id,
+            turn_id=turn_id,
             transcript_chars=len(data.transcript),
             transcript_words=len(data.transcript.split()),
             entities_count=len(data.entities),
@@ -1084,12 +1093,12 @@ async def process_turn(data: TurnRequest):
         )
         return result
 
-    result = await orchestrator.handle_transcript(data.session_id, data.transcript, entities=data.entities, turn_id=data.turn_id)
+    result = await orchestrator.handle_transcript(data.session_id, data.transcript, entities=data.entities, turn_id=turn_id)
     await interview_telemetry.log(
         data.session_id,
         "api.process_turn",
         source="backend.api",
-        turn_id=data.turn_id,
+        turn_id=turn_id,
         transcript_chars=len(data.transcript),
         transcript_words=len(data.transcript.split()),
         entities_count=len(data.entities),
@@ -1159,6 +1168,7 @@ async def voice_commit_turn(data: VoiceCommitTurnRequest):
     Commit a final Realtime transcript. Assessment commits are blocked unless the
     matching spoken question has already been committed.
     """
+    data.turn_id = _require_turn_id(data.turn_id)
     try:
         result = await voice_gateway.commit_turn(data)
     except KeyError:
